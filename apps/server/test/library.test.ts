@@ -225,6 +225,33 @@ describe('library scan', () => {
     expect(second.scanner.status.warnings.join('\n')).toMatch(/Couldn't read Radarr, matching without it/);
   });
 
+  it('falls back to other ways of matching when a TMDB ID no longer exists', async () => {
+    // Sonarr remembers a TMDB id that TMDB has since deleted (like The Scooby-Doo Show's 205755)
+    const sonarr: ArrApi = {
+      ping: async () => ({ app: 'Sonarr', version: '4' }),
+      titles: async () => [{ title: 'Severance', year: 2022, path: '/data/media/tv/Severance (2022)', tmdbId: 205755, tvdbId: 371980, imdbId: null, monitored: true }],
+    };
+    file('movies/Up (2009) {tmdb-999999}/Up (2009) WEBDL-720p.mkv', 2 * GB);
+    file('tv/Old Cartoon {tmdb-888888}/Season 1/Old Cartoon S01E01.mkv', GB);
+    const ctx = libraryApp({ sonarr });
+    const admin = await setupAdmin(ctx.app);
+    await call(ctx.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', moviesRoot: `${root}/movies`, tvRoot: `${root}/tv`, sonarrUrl: 'http://sonarr:8989', sonarrApiKey: 's' }, admin);
+    await call(ctx.app, 'POST', '/api/library/scan', {}, admin);
+    await ctx.scanner.wait();
+    const warnings = ctx.scanner.status.warnings.join('\n');
+
+    // Severance: Sonarr's dead TMDB id → matched by its TVDB id instead
+    expect((await call(ctx.app, 'GET', '/api/shows?q=severance', undefined, admin)).body.items).toHaveLength(1);
+    expect(warnings).toMatch(/Severance \(2022\): TMDB no longer has Sonarr's TMDB ID 205755; matched another way instead/);
+    // Up: dead id in the folder name → matched by title search
+    expect((await call(ctx.app, 'GET', '/api/movies?q=up', undefined, admin)).body.items.map((m: { title: string }) => m.title)).toEqual(['Up']);
+    // Nothing else works → it goes to "Needs a match" with an explanation, not a warning
+    const un = await call(ctx.app, 'GET', '/api/library/unmatched', undefined, admin);
+    const cartoon = un.body.items.find((i: { folder: string }) => i.folder.startsWith('Old Cartoon'));
+    expect(cartoon.reason).toBe('TMDB no longer has the TMDB ID in the folder name 888888, and no other match was certain.');
+    expect(ctx.scanner.status.phase).toBe('done');
+  });
+
   it('warns clearly when a library folder is missing', async () => {
     const ctx = libraryApp();
     const admin = await setupAdmin(ctx.app);
