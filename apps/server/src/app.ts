@@ -15,6 +15,7 @@ import { sourcesRoutes } from './routes/sources.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
 import { profileRoutes } from './routes/profiles.js';
 import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
+import { compareRoutes } from './routes/compare.js';
 import { seedProfiles } from './releases/profiles.js';
 
 import { VERSION } from './version.js';
@@ -60,6 +61,7 @@ export function createApp(deps: Deps) {
   app.route('/api/settings/services', servicesRoutes);
   app.route('/api/settings/sources', sourcesRoutes);
   app.route('/api/settings/profiles', profileRoutes);
+  app.route('/api/compare', compareRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);

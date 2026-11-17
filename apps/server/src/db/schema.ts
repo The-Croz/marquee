@@ -234,6 +234,32 @@ export const profileRules = sqliteTable(
   (t) => [primaryKey({ columns: [t.profileId, t.trashId] })],
 );
 
+/**
+ * Comparison mode: each copy Radarr downloaded, and what Marquee would have
+ * picked for the same movie. Read-only towards Radarr.
+ */
+export const comparisons = sqliteTable('comparisons', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  radarrHistoryId: integer('radarr_history_id').notNull().unique(),
+  radarrMovieId: integer('radarr_movie_id').notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'set null' }),
+  tmdbId: integer('tmdb_id'),
+  title: text('title').notNull(),
+  grabbedAt: integer('grabbed_at').notNull(),
+  status: text('status', { enum: ['waiting', 'done', 'failed'] }).notNull().default('waiting'),
+  /** own_search: Marquee searched its own Sources; same_list: judged Radarr's own list of copies. */
+  mode: text('mode', { enum: ['own_search', 'same_list'] }),
+  profile: text('profile'),
+  verdict: text('verdict', { enum: ['same', 'same_quality', 'higher', 'lower', 'nothing'] }),
+  /** JSON ComparedCopy: Radarr's download, as Marquee judges it. */
+  radarr: text('radarr').notNull(),
+  /** JSON ComparedCopy | null: Marquee's pick. */
+  marquee: text('marquee'),
+  /** Why it failed, or a note. */
+  message: text('message'),
+  checkedAt: integer('checked_at'),
+});
+
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;

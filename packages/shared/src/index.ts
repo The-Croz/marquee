@@ -425,3 +425,44 @@ export interface CopiesResult {
   sources: SourceSearchOutcome[];
   ms: number;
 }
+
+// ---------------------------------------------------------------- comparison mode (against Radarr)
+
+export type CompareVerdict = 'same' | 'same_quality' | 'higher' | 'lower' | 'nothing';
+
+export interface ComparisonView {
+  id: number;
+  /** Marquee's movie, if it's in the library. */
+  movieId: number | null;
+  title: string;
+  grabbedAt: number;
+  status: 'waiting' | 'done' | 'failed';
+  /** own_search: Marquee searched its own Sources. same_list: Marquee judged the copies Radarr itself saw. */
+  mode: 'own_search' | 'same_list' | null;
+  profileName: string | null;
+  verdict: CompareVerdict | null;
+  /** One plain sentence on what happened. */
+  summary: string;
+  /** What Radarr downloaded. */
+  radarrTitle: string;
+  radarrQuality: string;
+  radarrScore: number;
+  /** Radarr's download as Marquee judges it (null until compared). */
+  radarrCopy: CopyView | null;
+  /** What Marquee would have picked. */
+  marqueeCopy: CopyView | null;
+  message: string | null;
+  checkedAt: number | null;
+}
+
+export interface CompareView {
+  enabled: boolean;
+  radarrConnected: boolean;
+  lastRun: number | null;
+  waiting: number;
+  total: number;
+  counts: Record<CompareVerdict, number>;
+  /** Share of compared downloads where both picked the same quality or copy, 0–100; null before any. */
+  agreement: number | null;
+  items: ComparisonView[];
+}

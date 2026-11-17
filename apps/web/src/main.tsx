@@ -16,6 +16,7 @@ import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
+import { ComparePage } from './pages/Compare';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -62,6 +63,7 @@ const router = createBrowserRouter([
           />
         ),
       },
+      { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,

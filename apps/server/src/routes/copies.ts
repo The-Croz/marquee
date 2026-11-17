@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import type { CopiesResult, CopyView } from '@marquee/shared';
+import type { CopiesResult } from '@marquee/shared';
 import { episodes, movies, series } from '../db/schema.js';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
-import { decide, type Decision, type Wanted } from '../releases/decide.js';
+import { decide, type Wanted } from '../releases/decide.js';
+import { copyView as view } from '../releases/view.js';
 import { ProfileService } from '../releases/profiles.js';
 import type { SearchQuery } from '../sources/torznab.js';
 
@@ -14,27 +15,6 @@ import type { SearchQuery } from '../sources/torznab.js';
  */
 export const movieCopyRoutes = new Hono<Env>();
 export const showCopyRoutes = new Hono<Env>();
-
-function view(d: Decision): CopyView {
-  const p = d.parsed;
-  return {
-    title: d.copy.title,
-    sizeBytes: d.copy.size,
-    seeders: d.seeders,
-    leechers: d.leechers,
-    publishedAt: d.copy.publishedAt,
-    infoUrl: d.copy.infoUrl,
-    sources: d.sources,
-    quality: d.quality,
-    qualityLabel: d.qualityLabel,
-    tier: d.tier,
-    score: d.score,
-    rules: d.rules,
-    rejections: d.rejections,
-    accepted: d.accepted,
-    details: { resolution: p.resolution, hdr: p.hdr, codec: p.codec, audio: p.audio, atmos: p.atmos, service: p.service, group: p.group, editions: p.editions, repack: p.repack > 0 || p.proper },
-  };
-}
 
 async function run(c: Ctx, wanted: Wanted, query: Exclude<SearchQuery, { kind: 'recent' }>, profileKey: string): Promise<CopiesResult> {
   const { sources, db, now } = c.get('deps');

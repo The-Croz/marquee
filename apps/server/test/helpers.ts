@@ -32,6 +32,9 @@ export function makeApp(opts: TestOptions = {}) {
     prowlarr: () => {
       throw new Error('no Prowlarr in this test');
     },
+    radarrHistory: () => {
+      throw new Error('no Radarr history in this test');
+    },
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;
