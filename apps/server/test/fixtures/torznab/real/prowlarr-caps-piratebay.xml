@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+  <server title="Prowlarr" />
+  <limits default="100" max="100" />
+  <searching>
+    <search available="yes" supportedParams="q" />
+    <tv-search available="yes" supportedParams="q,season,ep" />
+    <movie-search available="yes" supportedParams="q" />
+    <music-search available="yes" supportedParams="q" />
+    <audio-search available="yes" supportedParams="q" />
+    <book-search available="yes" supportedParams="q" />
+  </searching>
+  <categories>
+    <category id="1000" name="Console">
+      <subcat id="1030" name="Console/Wii" />
+      <subcat id="1040" name="Console/XBox" />
+      <subcat id="1090" name="Console/Other" />
+      <subcat id="1180" name="Console/PS4" />
+    </category>
+    <category id="2000" name="Movies">
+      <subcat id="2020" name="Movies/Other" />
+      <subcat id="2030" name="Movies/SD" />
+      <subcat id="2040" name="Movies/HD" />
+      <subcat id="2045" name="Movies/UHD" />
+      <subcat id="2060" name="Movies/3D" />
+    </category>
+    <category id="3000" name="Audio">
+      <subcat id="3020" name="Audio/Video" />
+      <subcat id="3030" name="Audio/Audiobook" />
+      <subcat id="3040" name="Audio/Lossless" />
+      <subcat id="3050" name="Audio/Other" />
+    </category>
+    <category id="4000" name="PC">
+      <subcat id="4030" name="PC/Mac" />
+      <subcat id="4040" name="PC/Mobile-Other" />
+      <subcat id="4050" name="PC/Games" />
+      <subcat id="4060" name="PC/Mobile-iOS" />
+      <subcat id="4070" name="PC/Mobile-Android" />
+    </category>
+    <category id="5000" name="TV">
+      <subcat id="5040" name="TV/HD" />
+      <subcat id="5045" name="TV/UHD" />
+      <subcat id="5050" name="TV/Other" />
+    </category>
+    <category id="6000" name="XXX">
+      <subcat id="6010" name="XXX/DVD" />
+      <subcat id="6040" name="XXX/x264" />
+      <subcat id="6045" name="XXX/UHD" />
+      <subcat id="6060" name="XXX/ImageSet" />
+      <subcat id="6070" name="XXX/Other" />
+    </category>
+    <category id="7000" name="Books">
+      <subcat id="7020" name="Books/EBook" />
+      <subcat id="7030" name="Books/Comics" />
+      <subcat id="7050" name="Books/Other" />
+    </category>
+    <category id="8000" name="Other" />
+    <category id="100209" name="3D" />
+    <category id="100306" name="Android" />
+    <category id="100408" name="Android" />
+    <category id="100300" name="Applications" />
+    <category id="100100" name="Audio" />
+    <category id="100102" name="Audio Books" />
+    <category id="100199" name="Audio Other" />
+    <category id="100210" name="CAM/TS" />
+    <category id="100602" name="Comics" />
+    <category id="100604" name="Covers" />
+    <category id="100601" name="E-books" />
+    <category id="100104" name="FLAC" />
+    <category id="100400" name="Games" />
+    <category id="100504" name="Games" />
+    <category id="100499" name="Games Other" />
+    <category id="100206" name="Handheld" />
+    <category id="100304" name="Handheld" />
+    <category id="100406" name="Handheld" />
+    <category id="100207" name="HD - Movies" />
+    <category id="100505" name="HD - Movies" />
+    <category id="100208" name="HD - TV shows" />
+    <category id="100305" name="IOS (iPad/iPhone)" />
+    <category id="100407" name="IOS (iPad/iPhone)" />
+    <category id="100302" name="Mac" />
+    <category id="100402" name="Mac" />
+    <category id="100204" name="Movie Clips" />
+    <category id="100506" name="Movie Clips" />
+    <category id="100201" name="Movies" />
+    <category id="100501" name="Movies" />
+    <category id="100202" name="Movies DVDR" />
+    <category id="100502" name="Movies DVDR" />
+    <category id="100101" name="Music" />
+    <category id="100203" name="Music Videos" />
+    <category id="100600" name="Other" />
+    <category id="100399" name="Other OS" />
+    <category id="100699" name="Other Other" />
+    <category id="100401" name="PC" />
+    <category id="100605" name="Physibles" />
+    <category id="100503" name="Pictures" />
+    <category id="100603" name="Pictures" />
+    <category id="100500" name="Porn" />
+    <category id="100599" name="Porn other" />
+    <category id="100403" name="PSx" />
+    <category id="100103" name="Sound Clips" />
+    <category id="100205" name="TV Shows" />
+    <category id="100211" name="UHD/4k - Movies" />
+    <category id="100507" name="UHD/4k - Movies" />
+    <category id="100212" name="UHD/4k - TV shows" />
+    <category id="100303" name="UNIX" />
+    <category id="100200" name="Video" />
+    <category id="100299" name="Video Other" />
+    <category id="100405" name="Wii" />
+    <category id="100301" name="Windows" />
+    <category id="100404" name="XBOX360" />
+  </categories>
+  <tags />
+</caps>

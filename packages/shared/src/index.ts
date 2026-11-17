@@ -99,7 +99,7 @@ export interface ServiceTestResult {
 // ---- Settings → Sources ----
 
 /** Health of a Source, in words the UI shows as-is via `stateLabel`. */
-export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'slowed_down' | 'blocked' | 'not_a_feed' | 'error';
+export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
 
 export interface SourceView {
   id: number;

@@ -222,6 +222,7 @@ const STATE_COLOR: Record<SourceState, string> = {
   unchecked: 'bg-dim',
   paused: 'bg-dim',
   slowed_down: 'bg-amber',
+  set_aside: 'bg-amber',
   unreachable: 'bg-warn',
   key_refused: 'bg-warn',
   blocked: 'bg-warn',

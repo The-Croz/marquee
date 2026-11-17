@@ -164,7 +164,7 @@ export const sources = sqliteTable('sources', {
   /** JSON TorznabCaps from the last successful check. */
   caps: text('caps'),
   prowlarrId: integer('prowlarr_id').unique(),
-  state: text('state', { enum: ['unchecked', 'working', 'unreachable', 'key_refused', 'slowed_down', 'blocked', 'not_a_feed', 'error'] })
+  state: text('state', { enum: ['unchecked', 'working', 'unreachable', 'key_refused', 'slowed_down', 'set_aside', 'blocked', 'not_a_feed', 'error'] })
     .notNull()
     .default('unchecked'),
   stateMessage: text('state_message'),

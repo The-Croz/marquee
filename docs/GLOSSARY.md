@@ -26,6 +26,7 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Can't reach it** | No answer: Prowlarr or the site is down, or the address is wrong. |
 | **Key turned down** | The API key wasn't accepted. |
 | **Asked us to slow down** | The site wants fewer calls. Marquee waits and tries again. |
+| **Set aside by Prowlarr** | Prowlarr stopped using the site for a while because it kept failing there. Test it in Prowlarr. |
 | **Blocked by a bot check** | Cloudflare or similar. Needs FlareSolverr in Prowlarr. |
 | **Not a Torznab feed** | The address answers, but not with a feed. |
 | **Paused** | You paused it. |

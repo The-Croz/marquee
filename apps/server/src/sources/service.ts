@@ -57,6 +57,10 @@ export const STATE_TEXT: Record<SourceState, { label: string; fix: string | null
     label: 'Asked us to slow down',
     fix: 'Marquee waits and tries again by itself. If it keeps happening, lower the daily limit or raise the gap between searches.',
   },
+  set_aside: {
+    label: 'Set aside by Prowlarr',
+    fix: 'Open this site in Prowlarr and press Test to see why it fails there. Sites behind Cloudflare usually need FlareSolverr.',
+  },
   blocked: { label: 'Blocked by a bot check', fix: 'Set up FlareSolverr for this site in Prowlarr, then press Try now.' },
   not_a_feed: { label: 'Not a Torznab feed', fix: 'That address isn’t a Torznab feed. Copy it again from Prowlarr or Jackett.' },
   error: { label: 'Something went wrong', fix: 'Press Try now. If it keeps failing, test the site in Prowlarr.' },

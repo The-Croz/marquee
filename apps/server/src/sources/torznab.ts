@@ -50,7 +50,7 @@ export type SearchQuery =
   | { kind: 'recent' };
 
 /** Why a call failed, in a form the UI can turn into a plain sentence and a fix. */
-export type TorznabProblem = 'unreachable' | 'key_refused' | 'slowed_down' | 'blocked' | 'not_a_feed' | 'error';
+export type TorznabProblem = 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
 
 export class TorznabError extends Error {
   constructor(
@@ -116,15 +116,13 @@ export class TorznabClient implements TorznabApi {
       if (/cloudflare|cf-ray|captcha|just a moment/i.test(body)) throw new TorznabError('blocked', 'The site has a bot check in front of it.');
       throw new TorznabError('key_refused', 'The API key was not accepted.');
     }
-    if (res.status === 429) {
-      const wait = num(res.headers.get('retry-after'));
-      throw new TorznabError('slowed_down', 'The site asked us to slow down.', wait);
-    }
+    const retryAfter = num(res.headers.get('retry-after'));
 
     let doc: Record<string, any>;
     try {
       doc = xml.parse(body) as Record<string, any>;
     } catch {
+      if (res.status === 429) throw new TorznabError('slowed_down', 'The site asked us to slow down.', retryAfter);
       throw new TorznabError('not_a_feed', "The answer isn't a Torznab feed.");
     }
 
@@ -133,9 +131,14 @@ export class TorznabClient implements TorznabApi {
       const code = Number(doc.error.code);
       const description = String(doc.error.description ?? '').trim();
       if (code === 100 || code === 101 || /api ?key/i.test(description)) throw new TorznabError('key_refused', 'The API key was not accepted.');
-      if (code === 429 || /limit|too many/i.test(description)) throw new TorznabError('slowed_down', description || 'The site asked us to slow down.');
+      // Prowlarr answers 429 "Indexer is disabled till … due to recent failures" when the site keeps failing on its side.
+      if (/disabled till|due to (recent )?failures/i.test(description)) {
+        throw new TorznabError('set_aside', 'Prowlarr has stopped using this site for a while because it kept failing there.', retryAfter);
+      }
+      if (code === 429 || res.status === 429 || /limit|too many/i.test(description)) throw new TorznabError('slowed_down', 'The site asked us to slow down.', retryAfter);
       throw new TorznabError('error', description ? `The feed said: ${description}` : `The feed reported error ${code}.`);
     }
+    if (res.status === 429) throw new TorznabError('slowed_down', 'The site asked us to slow down.', retryAfter);
     if (!res.ok) throw new TorznabError('error', `The feed answered ${res.status}.`);
     if (!doc.caps && !doc.rss) throw new TorznabError('not_a_feed', "The answer isn't a Torznab feed. Check the address.");
     return doc;
@@ -183,30 +186,40 @@ export class TorznabClient implements TorznabApi {
     const doc = await this.get({ ...searchParams(query, caps), extended: '1', limit: '100' });
     return asArray<Record<string, any>>(doc.rss?.channel?.item).flatMap((item) => {
       const r = toRelease(item);
-      return r ? [r] : [];
+      return r && rightKind(r, query) ? [r] : [];
     });
   }
 }
 
 /**
+ * Keeps results tagged as the kind we asked for (2xxx movies, 5xxx TV), so a
+ * site's ebooks or music never get through. Untagged results are kept and
+ * left to the name checks.
+ */
+function rightKind(r: Release, query: SearchQuery): boolean {
+  if (query.kind === 'recent' || r.categories.length === 0) return true;
+  const base = query.kind === 'movie' ? MOVIE_CATEGORY : TV_CATEGORY;
+  return r.categories.some((c) => Math.floor(c / 1000) * 1000 === base);
+}
+
+/**
  * Picks the best way to ask: by ID when the feed supports it (exact), else by
- * name. Only movie or TV categories, so ebook and music sites never answer.
+ * name. No `cat` filter is sent: through Prowlarr some sites (The Pirate Bay)
+ * return nothing when asked for a standard category, so results are filtered
+ * by category on our side instead (see `rightKind`).
  */
 export function searchParams(query: SearchQuery, caps: TorznabCaps | null): Record<string, string> {
   if (query.kind === 'recent') return { t: 'search' };
 
-  const offered = (base: number) => (caps?.categories ?? []).filter((c) => Math.floor(c / 1000) * 1000 === base);
   if (query.kind === 'movie') {
-    const cat = (offered(MOVIE_CATEGORY).length ? offered(MOVIE_CATEGORY) : [MOVIE_CATEGORY]).join(',');
     const m = caps?.movieSearch;
-    if (m?.available && m.tmdbId && query.tmdbId) return { t: 'movie', tmdbid: String(query.tmdbId), cat };
-    if (m?.available && m.imdbId && query.imdbId) return { t: 'movie', imdbid: query.imdbId, cat };
-    return { t: m?.available ? 'movie' : 'search', q: query.year ? `${query.title} ${query.year}` : query.title, cat };
+    if (m?.available && m.tmdbId && query.tmdbId) return { t: 'movie', tmdbid: String(query.tmdbId) };
+    if (m?.available && m.imdbId && query.imdbId) return { t: 'movie', imdbid: query.imdbId };
+    return { t: m?.available ? 'movie' : 'search', q: query.year ? `${query.title} ${query.year}` : query.title };
   }
 
-  const cat = (offered(TV_CATEGORY).length ? offered(TV_CATEGORY) : [TV_CATEGORY]).join(',');
   const tv = caps?.tvSearch;
-  const out: Record<string, string> = { t: tv?.available ? 'tvsearch' : 'search', cat };
+  const out: Record<string, string> = { t: tv?.available ? 'tvsearch' : 'search' };
   if (tv?.available && tv.tvdbId && query.tvdbId) out.tvdbid = String(query.tvdbId);
   else if (tv?.available && tv.tmdbId && query.tmdbId) out.tmdbid = String(query.tmdbId);
   else if (tv?.available && tv.imdbId && query.imdbId) out.imdbid = query.imdbId;
@@ -223,6 +236,11 @@ export function searchParams(query: SearchQuery, caps: TorznabCaps | null): Reco
   return out;
 }
 
+/** Some feeds escape names twice ("R&amp;amp;H"); the XML parser undoes one level, this the other. */
+function decodeEntities(s: string): string {
+  return s.replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, e: string) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" })[e] ?? _);
+}
+
 function toRelease(item: Record<string, any>): Release | null {
   const attrs = new Map<string, string>();
   const attrCategories: string[] = [];
@@ -232,7 +250,7 @@ function toRelease(item: Record<string, any>): Release | null {
     else attrs.set(a.name.toLowerCase(), a.value ?? '');
   }
 
-  const title = String(item.title ?? '').trim();
+  const title = decodeEntities(String(item.title ?? '')).trim();
   const enclosure = item.enclosure as Record<string, string> | undefined;
   const downloadUrl = String(enclosure?.url || item.link || attrs.get('magneturl') || '');
   if (!title || !downloadUrl) return null;

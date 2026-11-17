@@ -60,6 +60,24 @@ describe('Torznab search results', () => {
     expect(releases[1]).toMatchObject({ seeders: 0, leechers: 3, freeleech: true, infoUrl: null, downloadUrl: expect.stringMatching(/^magnet:/) });
   });
 
+  it('keeps only results of the kind asked for', async () => {
+    const mixed = `<?xml version="1.0"?><rss xmlns:torznab="http://torznab.com/schemas/2015/feed"><channel>
+      <item><title>Movie</title><link>http://x/1</link><torznab:attr name="category" value="2040"/></item>
+      <item><title>Show</title><link>http://x/2</link><torznab:attr name="category" value="5040"/><torznab:attr name="category" value="100208"/></item>
+      <item><title>Audiobook</title><link>http://x/3</link><torznab:attr name="category" value="3030"/></item>
+      <item><title>Untagged</title><link>http://x/4</link></item>
+    </channel></rss>`;
+    const titles = async (q: Parameters<TorznabClient['search']>[0]) => (await client(fakeFetch(mixed)).search(q, null)).map((r) => r.title);
+    expect(await titles({ kind: 'movie', title: 'X', year: null })).toEqual(['Movie', 'Untagged']);
+    expect(await titles({ kind: 'tv', title: 'X' })).toEqual(['Show', 'Untagged']);
+    expect(await titles({ kind: 'recent' })).toEqual(['Movie', 'Show', 'Audiobook', 'Untagged']);
+  });
+
+  it('decodes names the feed escaped twice', async () => {
+    const doc = `<?xml version="1.0"?><rss><channel><item><title>Dune Part Two 2024 2160p WEB AAC 2 0-R&amp;amp;H</title><link>http://x/1</link></item></channel></rss>`;
+    expect((await client(fakeFetch(doc)).search({ kind: 'recent' }, null))[0]!.title).toBe('Dune Part Two 2024 2160p WEB AAC 2 0-R&H');
+  });
+
   it('returns nothing for an empty feed', async () => {
     expect(await client(fakeFetch(fixture('empty.xml'))).search({ kind: 'recent' }, null)).toEqual([]);
   });
@@ -88,23 +106,23 @@ describe('choosing how to search', () => {
   const sev = { kind: 'tv' as const, title: 'Severance', tvdbId: 371980, season: 2, episode: 3 };
 
   it('searches movies by TMDB ID, then IMDb ID, then name', () => {
-    expect(searchParams(dune, full)).toEqual({ t: 'movie', tmdbid: '693134', cat: '2000,2040,2045' });
-    expect(searchParams(dune, imdbOnly)).toEqual({ t: 'movie', imdbid: 'tt15239678', cat: '2000,2040,2045' });
-    expect(searchParams(dune, nameOnly)).toEqual({ t: 'search', q: 'Dune: Part Two 2024', cat: '2000' });
+    expect(searchParams(dune, full)).toEqual({ t: 'movie', tmdbid: '693134' });
+    expect(searchParams(dune, imdbOnly)).toEqual({ t: 'movie', imdbid: 'tt15239678' });
+    expect(searchParams(dune, nameOnly)).toEqual({ t: 'search', q: 'Dune: Part Two 2024' });
   });
 
   it('searches TV by TVDB ID with season and episode', () => {
-    expect(searchParams(sev, full)).toEqual({ t: 'tvsearch', tvdbid: '371980', season: '2', ep: '3', cat: '5000,5040' });
+    expect(searchParams(sev, full)).toEqual({ t: 'tvsearch', tvdbid: '371980', season: '2', ep: '3' });
   });
 
   it('puts the episode in the words when the feed only searches by name', () => {
-    expect(searchParams(sev, nameOnly)).toEqual({ t: 'search', q: 'Severance S02E03', cat: '5000' });
-    expect(searchParams({ ...sev, episode: undefined }, nameOnly)).toEqual({ t: 'search', q: 'Severance S02', cat: '5000' });
+    expect(searchParams(sev, nameOnly)).toEqual({ t: 'search', q: 'Severance S02E03' });
+    expect(searchParams({ ...sev, episode: undefined }, nameOnly)).toEqual({ t: 'search', q: 'Severance S02' });
   });
 
-  it('never asks for non-video categories', () => {
-    expect(searchParams(dune, full).cat).not.toContain('7000');
-    expect(searchParams(dune, null).cat).toBe('2000');
+  it("doesn't send a category filter (some sites return nothing when given one)", () => {
+    expect(searchParams(dune, full).cat).toBeUndefined();
+    expect(searchParams(sev, full).cat).toBeUndefined();
   });
 });
 
@@ -136,6 +154,13 @@ describe('Torznab problems', () => {
     expect(err.retryAfter).toBe(120);
   });
 
+  it("recognises a site Prowlarr has set aside, as Prowlarr sends it (429 with an error document)", async () => {
+    const err = await problem(fakeFetch(fixture('error-prowlarr-disabled.xml'), 429, { 'Retry-After': '1115' }));
+    expect(err.problem).toBe('set_aside');
+    expect(err.retryAfter).toBe(1115);
+    expect(err.message).toBe('Prowlarr has stopped using this site for a while because it kept failing there.');
+  });
+
   it('recognises an address that is not a feed', async () => {
     expect((await problem(fakeFetch('<html><body>Prowlarr</body></html>'))).problem).toBe('not_a_feed');
   });
@@ -156,5 +181,35 @@ describe('redactUrl', () => {
   it('hides keys in links', () => {
     expect(redactUrl('http://prowlarr:9696/3/download?apikey=SECRETKEY&link=abc')).toBe('http://prowlarr:9696/3/download?apikey=…&link=abc');
     expect(redactUrl('https://site/rss?passkey=abc123')).toBe('https://site/rss?passkey=…');
+  });
+});
+
+describe('real Prowlarr answers', () => {
+  const real = (name: string) => fixture(`real/${name}`);
+
+  it('reads what each site can search by', async () => {
+    const caps = async (name: string) => client(fakeFetch(real(name))).caps();
+    expect((await caps('prowlarr-caps-yts.xml')).movieSearch).toEqual({ available: true, tmdbId: false, imdbId: true });
+    expect((await caps('prowlarr-caps-yts.xml')).tvSearch.available).toBe(false);
+    expect((await caps('prowlarr-caps-eztv.xml')).tvSearch).toMatchObject({ available: true, season: true, episode: true, imdbId: false });
+    expect((await caps('prowlarr-caps-iptorrents.xml')).movieSearch.imdbId).toBe(true);
+    expect((await caps('prowlarr-caps-piratebay.xml')).categories).toContain(5040);
+  });
+
+  it.each([
+    ['prowlarr-search-yts-movie.xml', 'movie', /Dune Part Two/],
+    ['prowlarr-search-piratebay-tv.xml', 'tv', /Severance[ .]S02E03/],
+    ['prowlarr-search-eztv-tv.xml', 'tv', /Severance[ .]S02E03/],
+  ] as const)('turns %s into usable copies', async (name, kind, title) => {
+    const q = kind === 'movie' ? { kind, title: 'Dune: Part Two', year: 2024 } : { kind, title: 'Severance', season: 2, episode: 3 };
+    const releases = await client(fakeFetch(real(name))).search(q, null);
+    expect(releases).toHaveLength(5);
+    for (const r of releases) {
+      expect(r.title).toMatch(title);
+      expect(r.size).toBeGreaterThan(100 * 1024 ** 2);
+      expect(r.seeders).not.toBeNull();
+      expect(r.downloadUrl).toMatch(/^(http|magnet:)/);
+      expect(r.publishedAt).not.toBeNull();
+    }
   });
 });

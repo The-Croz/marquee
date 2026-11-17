@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+  <server title="Prowlarr" />
+  <limits default="100" max="100" />
+  <searching>
+    <search available="yes" supportedParams="q" />
+    <tv-search available="yes" supportedParams="q,season,ep,imdbid" />
+    <movie-search available="yes" supportedParams="q,imdbid" />
+    <music-search available="yes" supportedParams="q" />
+    <audio-search available="yes" supportedParams="q" />
+    <book-search available="yes" supportedParams="q" />
+  </searching>
+  <categories>
+    <category id="1000" name="Console">
+      <subcat id="1010" name="Console/NDS" />
+      <subcat id="1030" name="Console/Wii" />
+      <subcat id="1050" name="Console/XBox 360" />
+      <subcat id="1080" name="Console/PS3" />
+      <subcat id="1090" name="Console/Other" />
+    </category>
+    <category id="2000" name="Movies">
+      <subcat id="2010" name="Movies/Foreign" />
+      <subcat id="2030" name="Movies/SD" />
+      <subcat id="2040" name="Movies/HD" />
+      <subcat id="2045" name="Movies/UHD" />
+      <subcat id="2050" name="Movies/BluRay" />
+      <subcat id="2060" name="Movies/3D" />
+      <subcat id="2070" name="Movies/DVD" />
+      <subcat id="2080" name="Movies/WEB-DL" />
+    </category>
+    <category id="3000" name="Audio">
+      <subcat id="3010" name="Audio/MP3" />
+      <subcat id="3020" name="Audio/Video" />
+      <subcat id="3030" name="Audio/Audiobook" />
+      <subcat id="3040" name="Audio/Lossless" />
+    </category>
+    <category id="4000" name="PC">
+      <subcat id="4010" name="PC/0day" />
+      <subcat id="4020" name="PC/ISO" />
+      <subcat id="4030" name="PC/Mac" />
+      <subcat id="4040" name="PC/Mobile-Other" />
+      <subcat id="4050" name="PC/Games" />
+    </category>
+    <category id="5000" name="TV">
+      <subcat id="5010" name="TV/WEB-DL" />
+      <subcat id="5020" name="TV/Foreign" />
+      <subcat id="5030" name="TV/SD" />
+      <subcat id="5040" name="TV/HD" />
+      <subcat id="5060" name="TV/Sport" />
+      <subcat id="5070" name="TV/Anime" />
+      <subcat id="5080" name="TV/Documentary" />
+    </category>
+    <category id="6000" name="XXX">
+      <subcat id="6050" name="XXX/Pack" />
+      <subcat id="6060" name="XXX/ImageSet" />
+      <subcat id="6070" name="XXX/Other" />
+    </category>
+    <category id="7000" name="Books">
+      <subcat id="7010" name="Books/Mags" />
+      <subcat id="7030" name="Books/Comics" />
+      <subcat id="7050" name="Books/Other" />
+    </category>
+    <category id="8000" name="Other" />
+    <category id="100060" name="Anime" />
+    <category id="100001" name="Appz" />
+    <category id="100069" name="Appz/Mac" />
+    <category id="100058" name="Appz/Mobile" />
+    <category id="100086" name="Appz/Non-English" />
+    <category id="100064" name="AudioBook" />
+    <category id="100035" name="Books" />
+    <category id="100094" name="Books/Comics" />
+    <category id="100095" name="Books/Educational" />
+    <category id="100092" name="Books/Magazines &amp; Newspapers" />
+    <category id="100102" name="Books/Non-English" />
+    <category id="100074" name="Games" />
+    <category id="100002" name="Games/Mixed" />
+    <category id="100047" name="Games/Nintendo DS" />
+    <category id="100043" name="Games/PC-ISO" />
+    <category id="100045" name="Games/PC-Rip" />
+    <category id="100071" name="Games/PS3" />
+    <category id="100050" name="Games/Wii" />
+    <category id="100044" name="Games/Xbox-360" />
+    <category id="100087" name="Movie/3D" />
+    <category id="100077" name="Movie/480p" />
+    <category id="100101" name="Movie/4K" />
+    <category id="100089" name="Movie/BD-R" />
+    <category id="100090" name="Movie/BD-Rip" />
+    <category id="100096" name="Movie/Cam" />
+    <category id="100006" name="Movie/DVD-R" />
+    <category id="100048" name="Movie/HD/Bluray" />
+    <category id="100054" name="Movie/Kids" />
+    <category id="100062" name="Movie/MP4" />
+    <category id="100038" name="Movie/Non-English" />
+    <category id="100068" name="Movie/Packs" />
+    <category id="100020" name="Movie/Web-DL" />
+    <category id="100100" name="Movie/x265" />
+    <category id="100007" name="Movie/Xvid" />
+    <category id="100072" name="Movies" />
+    <category id="100075" name="Music" />
+    <category id="100003" name="Music/Audio" />
+    <category id="100080" name="Music/Flac" />
+    <category id="100093" name="Music/Packs" />
+    <category id="100037" name="Music/Video" />
+    <category id="100098" name="Other/Fonts" />
+    <category id="100076" name="Other/Miscellaneous" />
+    <category id="100036" name="Other/Pics/Wallpapers" />
+    <category id="100021" name="Podcast" />
+    <category id="100055" name="Sports" />
+    <category id="100073" name="TV" />
+    <category id="100078" name="TV/480p" />
+    <category id="100023" name="TV/BD" />
+    <category id="100026" name="TV/Documentaries" />
+    <category id="100024" name="TV/DVD-R" />
+    <category id="100025" name="TV/DVD-Rip" />
+    <category id="100066" name="TV/Mobile" />
+    <category id="100082" name="TV/Non-English" />
+    <category id="100065" name="TV/Packs" />
+    <category id="100083" name="TV/Packs/Non-English" />
+    <category id="100079" name="TV/SD/x264" />
+    <category id="100022" name="TV/Web-DL" />
+    <category id="100005" name="TV/x264" />
+    <category id="100099" name="TV/x265" />
+    <category id="100004" name="TV/Xvid" />
+    <category id="100088" name="XXX" />
+    <category id="100085" name="XXX/Magazines" />
+    <category id="100008" name="XXX/Movie" />
+    <category id="100081" name="XXX/Movie/0Day" />
+    <category id="100091" name="XXX/Packs" />
+    <category id="100084" name="XXX/Pics/Wallpapers" />
+  </categories>
+  <tags />
+</caps>
