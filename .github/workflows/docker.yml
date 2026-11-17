@@ -57,7 +57,9 @@ jobs:
           owner=$(stat -c '%u:%g' /tmp/cfg/marquee.sqlite)
           echo "database owner: $owner"
           test "$owner" = "99:100"
-          test "$(docker top mq -eo uid,cmd | awk '/dist\/index.js/ {print $1}')" = "99"
+          # PID 1 is the app itself (the entrypoint execs into it): check its real and effective uid
+          docker exec mq grep '^Uid:' /proc/1/status
+          docker exec mq grep -qE '^Uid:[[:space:]]+99[[:space:]]+99[[:space:]]' /proc/1/status
           docker logs mq
       - name: Publish
         if: github.event_name != 'pull_request'
