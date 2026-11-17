@@ -26,7 +26,7 @@ After installing, open the WebUI and create the admin account. Pocket ID (OIDC) 
 
   <Config Name="WebUI port" Target="9797" Default="9797" Mode="tcp" Description="Port for the Marquee web app." Type="Port" Display="always" Required="true" Mask="false">9797</Config>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/marquee" Mode="rw" Description="Marquee's database and settings." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/marquee</Config>
-  <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="Your TRaSH-style data share containing torrents/, movies/ and tv/. Must be one share so hardlinks work." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="Your TRaSH-style data share, containing torrents/ and media/movies, media/tv. Must be one share so hardlinks work. Library folders can be changed in Settings → Services." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
 
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID Marquee runs as. 99 is Unraid's 'nobody'." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID Marquee runs as. 100 is Unraid's 'users'." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>

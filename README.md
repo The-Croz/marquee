@@ -63,7 +63,7 @@ services:
 ## First scan
 
 1. **Settings → Services:** check your TMDB key (from the template) with **Test connection**. Optionally connect Radarr and Sonarr (read-only) so matching uses their IDs.
-2. **Movies → Scan library.** Marquee reads `/data/movies` and `/data/tv` and matches every folder. It never renames, moves or deletes anything.
+2. **Movies → Scan library.** Marquee reads `/data/media/movies` and `/data/media/tv` (change them in Settings → Services if yours differ) and matches every folder. It never renames, moves or deletes anything.
 3. Anything it isn't sure about shows up under **Needs a match**.
 
 ## Settings

@@ -48,7 +48,7 @@ Goal: given a wanted title, Marquee finds and ranks releases the way you'd want,
 
 - ⬜ qBittorrent client (add, pause, resume, delete, categories, progress, ratio); VPN-aware health check
 - ⬜ Queue page from the mockup; stall detection → "try another copy" automatically after N minutes
-- ⬜ Import: hardlink from `/data/torrents/...` to `/data/movies/...`, rename to a clean scheme, verify, record `media_files`
+- ⬜ Import: hardlink from `/data/torrents/...` to `/data/media/movies/...` and `/data/media/tv/...`, rename to a clean scheme, verify, record `media_files`
 - ⬜ Seeding rules (ratio goal / max days) and cleanup of finished torrents
 - ⬜ Tell Plex and Jellyfin to scan the folder
 - ⬜ Cutover checklist for movies: turn off Radarr's monitoring, Marquee takes over
