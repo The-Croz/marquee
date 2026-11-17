@@ -33,7 +33,7 @@ Goal: Marquee knows every movie and show you already have, without touching a fi
 
 Later polish (not blocking M2): refresh metadata on demand, change a title's quality profile, per-kid rating limits (M5), Plex/Jellyfin artwork fallback.
 
-## Milestone 2: Finding copies 🔨
+## Milestone 2: Finding copies ✅
 
 Goal: given a wanted title, Marquee finds and ranks releases the way you'd want, and shows why. Still read-only: nothing is downloaded until Milestone 3.
 
@@ -79,11 +79,14 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - **Copies we found** on movie and show pages (admins): profile picker (changes the title's profile), season and episode pickers for shows, best pick first with badges, "Why?" with each rule's points and meaning, near misses before copies of other titles, Sources that failed with what happens next.
    - **Quality** page (`/quality`): Movies and TV profile lists with title counts and defaults; every setting editable (qualities on/off and order, good enough, keep looking for better, each rule on/off and points with TRaSH's value shown when changed, minimum points, sizes under "For experts"); new profile as a copy of any profile or straight from a TRaSH profile; put a built-in profile back to TRaSH's values; delete; defaults for new movies, new shows and kids' requests.
    - Demo mode has a richer set of copies (Dune: Part Two, Severance) so both screens can be tried without the LAN. Checked in the browser against demo mode.
-6. ⬜ **Comparison mode against Radarr** (gate for movie cutover)
-   - Migration: `comparisons` (movie, when, Radarr's release, Marquee's pick, both scores, verdict, reasons).
-   - Background job reads Radarr's grab history (`/api/v3/history?eventType=grabbed`, read-only). For each new grab, Marquee runs its own search and records what it would have picked.
-   - "Explain this one" uses Radarr's own release list for that movie (`/api/v3/release?movieId=`) so both engines judge the exact same releases.
-   - Verdicts: *same release*, *same quality, different copy*, *Marquee prefers better*, *Marquee prefers worse*, *Marquee found nothing*. Comparison page with the agreement rate and the disagreements to review. Note: Josh's Radarr profiles come from Profilarr, not TRaSH, so some disagreement is expected and is the point of the review.
+6. ✅ **Comparison mode against Radarr** (gate for movie cutover; `apps/server/src/compare/service.ts`, page at `/compare`)
+   - Migration 5: `comparisons` (Radarr's history id, movie, when, Radarr's download, Marquee's judgement of it and its own pick, profile, verdict, how it was judged).
+   - Reads Radarr's grab history (`/api/v3/history/since?eventType=1&includeMovie=true`, read-only; the first run looks back 30 days). Each run compares up to 5 waiting downloads, newest first, each with a search of Marquee's own Sources (counts toward Source limits). "Check every hour" runs it in the background; **Check now** runs it at once.
+   - **Judge Radarr's own list** (`/api/v3/release?movieId=`) judges exactly the copies Radarr saw. **Search my Sources again** redoes one.
+   - Verdicts: *same copy*, *same quality, different copy*, *Marquee picks higher quality*, *Marquee picks lower quality*, *Marquee found nothing*, each with a plain sentence, plus why Marquee would turn Radarr's copy down. Higher/lower uses a neutral ladder (resolution, then remux > Blu-ray > web download > web capture > TV), not Marquee's own points. Agreement = same copy + same quality.
+   - Compare page: agreement rate, counts per verdict (click to filter), "To review" by default, each item with both copies side by side and their rules.
+   - Tests: `test/compare.test.ts` with a fake Radarr (`test/fakes/radarr.ts`), also used by demo mode.
+   - **Needs Josh on the LAN:** connect Radarr in Settings → Services, turn on "Check every hour" and let it run for a while. Josh's Radarr profiles come from Profilarr, not TRaSH, so some disagreement is expected; that's what the review is for.
 
 ### Ideas from HolyArrs to reuse later (ideas only; it's AGPL)
 

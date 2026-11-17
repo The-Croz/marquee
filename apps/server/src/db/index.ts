@@ -199,6 +199,26 @@ const migrations: string[] = [
     PRIMARY KEY (profile_id, trash_id)
   );
   `,
+  /* 5: comparison mode: what Radarr downloaded vs what Marquee would have picked */ `
+  CREATE TABLE comparisons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    radarr_history_id INTEGER NOT NULL UNIQUE,
+    radarr_movie_id INTEGER NOT NULL,
+    movie_id INTEGER REFERENCES movies (id) ON DELETE SET NULL,
+    tmdb_id INTEGER,
+    title TEXT NOT NULL,
+    grabbed_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'done', 'failed')),
+    mode TEXT CHECK (mode IN ('own_search', 'same_list')),
+    profile TEXT,
+    verdict TEXT CHECK (verdict IN ('same', 'same_quality', 'higher', 'lower', 'nothing')),
+    radarr TEXT NOT NULL,
+    marquee TEXT,
+    message TEXT,
+    checked_at INTEGER
+  );
+  CREATE INDEX comparisons_grabbed ON comparisons (grabbed_at);
+  `,
 ];
 
 export function openDb(file: string): Db {

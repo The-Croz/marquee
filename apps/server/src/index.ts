@@ -8,11 +8,12 @@ import { PlexClient, plexClientId } from './auth/plex.js';
 import { RateLimiter } from './auth/rateLimit.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
 import { TmdbClient } from './library/tmdb.js';
-import { ArrClient } from './library/arr.js';
+import { ArrClient, RadarrHistoryClient } from './library/arr.js';
 import { LibraryScanner } from './library/scanner.js';
 import { TorznabClient } from './sources/torznab.js';
 import { ProwlarrClient } from './sources/prowlarr.js';
 import { SourceService } from './sources/service.js';
+import { ComparisonService } from './compare/service.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
@@ -21,6 +22,7 @@ const clientId = plexClientId(db);
 const clients = {
   tmdb: (key: string) => new TmdbClient(key, db),
   arr: (kind: 'radarr' | 'sonarr', url: string, key: string) => new ArrClient(kind, url, key),
+  radarrHistory: (url: string, key: string) => new RadarrHistoryClient(url, key),
   torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
 };
@@ -53,6 +55,16 @@ const housekeeping = () => {
 };
 housekeeping();
 setInterval(housekeeping, 6 * 60 * 60 * 1000).unref();
+
+// Comparison mode: every hour, bring in Radarr's new downloads and compare a few.
+const comparisons = new ComparisonService(db, config, clients, sources, Date.now);
+setInterval(() => {
+  if (!comparisons.enabled()) return;
+  comparisons.run().then(
+    (r) => r.compared && console.log(`[compare] compared ${r.compared}, ${r.waiting} waiting`),
+    (err) => console.error('[compare] run failed:', (err as Error).message),
+  );
+}, 60 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);

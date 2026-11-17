@@ -19,6 +19,7 @@ import { FakeTmdb } from '../test/fakes/tmdb.js';
 import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
+import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -78,7 +79,19 @@ sites.feed('http://prowlarr:9696/1/api', { releases: dune });
 sites.feed('http://prowlarr:9696/2/api', { releases: [] });
 sites.feed('http://prowlarr:9696/3/api', { releases: dune });
 sites.feed('http://prowlarr:9696/5/api', { fail: new TorznabError('blocked', 'The site has a bot check in front of it.') });
-const clients = { tmdb: () => tmdb, arr: () => Promise.reject(new Error('not in demo')) as never, torznab: sites.torznab, prowlarr: sites.prowlarr };
+// A fake Radarr at http://radarr:7878 with a few downloads to compare against.
+const radarr = new FakeRadarr();
+const day = 86400_000;
+radarr.history = [
+  grab(101, 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { date: Date.now() - 2 * day }),
+  grab(102, 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { id: 102, date: Date.now() - 3 * day, quality: 'Remux-2160p' }),
+  grab(103, 'Dune.Part.Two.2024.1080p.WEBRip.x265.10bit-LAMA', { date: Date.now() - 4 * day, quality: 'WEBRip-1080p', score: -100 }),
+  grab(104, 'Some.Movie.Not.In.Library.2023.1080p.WEB-DL-GRP', { radarrMovieId: 9, tmdbId: 1, movieTitle: 'Some Movie', date: Date.now() - 5 * day }),
+];
+radarr.lists.set(1, dune.map((r) => radarrRelease(r.title, { size: r.size, seeders: r.seeders, infoHash: r.infoHash })));
+setSetting(db, 'services.radarr_url', 'http://radarr:7878');
+setSetting(db, 'services.radarr_api_key', 'radarr-key');
+const clients = { tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,
   config,

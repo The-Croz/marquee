@@ -8,7 +8,7 @@ import type { PlexClient } from './auth/plex.js';
 import type { RateLimiter } from './auth/rateLimit.js';
 import { SESSION_COOKIE, SESSION_TTL, createSession } from './auth/sessions.js';
 import type { TmdbApi } from './library/tmdb.js';
-import type { ArrApi } from './library/arr.js';
+import type { ArrApi, RadarrHistoryApi } from './library/arr.js';
 import type { LibraryScanner } from './library/scanner.js';
 import type { SourceClients, SourceService } from './sources/service.js';
 
@@ -16,6 +16,8 @@ import type { SourceClients, SourceService } from './sources/service.js';
 export interface Clients extends SourceClients {
   tmdb(apiKey: string): TmdbApi;
   arr(kind: 'radarr' | 'sonarr', url: string, apiKey: string): ArrApi;
+  /** Radarr's downloads and release lists, for comparison mode. Read-only. */
+  radarrHistory(url: string, apiKey: string): RadarrHistoryApi;
 }
 
 export interface Deps {
