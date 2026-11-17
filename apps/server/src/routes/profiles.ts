@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { ProfileDefaultSlot, ProfileDetail, ProfileSummary, ProfilesView, SizeLimitView } from '@marquee/shared';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
 import { TRASH } from '../releases/formats.js';
-import { ProfileService, appFor, knownQualities, qualityLabel, ruleInfo, sizeLimit, type FullProfile } from '../releases/profiles.js';
+import { ProfileService, appFor, trashProfiles, knownQualities, qualityLabel, ruleInfo, sizeLimit, type FullProfile } from '../releases/profiles.js';
 
 /** Settings → Quality: profiles. Admin only. */
 export const profileRoutes = new Hono<Env>();
@@ -70,12 +70,12 @@ function detail(svc: ProfileService, p: FullProfile): ProfileDetail {
 profileRoutes.get('/', (c) => {
   requireAdmin(c);
   const svc = service(c);
-  return c.json<ProfilesView>({ profiles: svc.list().map((p) => summary(svc, p)), defaults: svc.defaults() });
+  return c.json<ProfilesView>({ profiles: svc.list().map((p) => summary(svc, p)), defaults: svc.defaults(), trashProfiles: trashProfiles() });
 });
 
 profileRoutes.post('/', async (c) => {
   requireAdmin(c);
-  const input = z.object({ kind, name, copyFrom: z.number().int().positive().optional() }).parse(await c.req.json());
+  const input = z.object({ kind, name, copyFrom: z.number().int().positive().optional(), fromTrash: z.string().optional() }).parse(await c.req.json());
   const svc = service(c);
   return c.json<ProfileDetail>(detail(svc, svc.create(input)), 201);
 });
