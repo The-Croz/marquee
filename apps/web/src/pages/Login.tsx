@@ -8,6 +8,7 @@ import { Button, Field, Notice } from '../components/ui';
 const ERRORS: Record<string, string> = {
   oidc_expired: 'That sign-in took too long. Please try again.',
   oidc_failed: "Single sign-on didn't complete. Please try again.",
+  oidc_unreachable: "Marquee couldn't reach your sign-on provider. Check that it's running and that Marquee can reach its address.",
   oidc_no_account: "That account isn't set up in Marquee yet. Ask an admin to add you.",
   oidc_account_exists: 'You already have a Marquee account. Sign in with your password, then link single sign-on under Settings → Account.',
 };

@@ -97,3 +97,21 @@ describe('OIDC sign-in', () => {
     expect(res.location).toBe('/login?error=oidc_expired');
   });
 });
+
+describe('OIDC provider unreachable', () => {
+  it('sends you back to sign-in with a clear error instead of a server error', async () => {
+    const { app } = makeApp({
+      config: { oidc: { issuer: 'http://127.0.0.1:9', clientId: 'x', clientSecret: 'y', name: 'Pocket ID', autoCreate: true } },
+    });
+    await setupAdmin(app);
+    const res = await call(app, 'GET', '/api/auth/oidc/start');
+    expect(res.status).toBe(302);
+    expect(res.location).toBe('/login?error=oidc_unreachable');
+  });
+
+  it('explains network errors with their underlying cause', async () => {
+    const { describeError } = await import('../src/auth/oidc.js');
+    const err = new TypeError('fetch failed', { cause: Object.assign(new Error('getaddrinfo ENOTFOUND id.example.com'), { code: 'ENOTFOUND' }) });
+    expect(describeError(err)).toBe('fetch failed ← ENOTFOUND: getaddrinfo ENOTFOUND id.example.com');
+  });
+});
