@@ -4,7 +4,7 @@ Movies and TV for your home server, in one app: requests, finding the right copy
 
 Marquee is being built to replace Sonarr, Radarr, Prowlarr, Seerr and Tautulli with one app that explains itself in plain English. See [`docs/PLAN.md`](docs/PLAN.md) for where things stand.
 
-> **Status:** Milestone 0. Sign-in, user management and the app shell work; the Home screen shows sample data.
+> **Status:** Milestone 1. Sign-in, users, and a read-only library scan matched to TMDB (Movies, Shows, "Needs a match"). Downloads, requests and stats are still sample data.
 
 ## Run it on Unraid
 
@@ -59,6 +59,12 @@ services:
       PLEX_LOGIN: "true"
     restart: unless-stopped
 ```
+
+## First scan
+
+1. **Settings → Services:** check your TMDB key (from the template) with **Test connection**. Optionally connect Radarr and Sonarr (read-only) so matching uses their IDs.
+2. **Movies → Scan library.** Marquee reads `/data/movies` and `/data/tv` and matches every folder. It never renames, moves or deletes anything.
+3. Anything it isn't sure about shows up under **Needs a match**.
 
 ## Settings
 

@@ -16,18 +16,22 @@ Mockups (web + iPhone): https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT
 - ✅ Dockerfile with PUID/PGID entrypoint, CI (typecheck/test/build + container smoke test), image published to `ghcr.io/the-croz/marquee`
 - ✅ Unraid template (`docker/unraid/marquee.xml`)
 
-## Milestone 1: Library ⬜
+## Milestone 1: Library ✅
 
 Goal: Marquee knows every movie and show you already have, without touching a file.
 
-- ⬜ TMDB client (search, movie, TV show, seasons/episodes, images); key from `TMDB_API_KEY` (already read into `config.tmdbApiKey`) or the Services settings screen; cache responses in SQLite
-- ⬜ Data model: `movies`, `series`, `seasons`, `episodes`, `media_files` (path, size, quality parsed from name/mediainfo), `root_folders`
-- ⬜ Settings screen for "Services" (TMDB key now; qBittorrent, Plex, Jellyfin, indexers later), stored in DB rather than env vars. Also move Plex/OIDC sign-in toggles here.
-- ⬜ Library scanner: walk `/data/movies` and `/data/tv`, parse folder/file names (`Title (Year)`, `S01E02`), match to TMDB, flag anything unmatched for manual fixing. **Read-only.**
-- ⬜ Optional: import monitored state and TMDB/TVDB ids from the existing Radarr/Sonarr APIs to speed up matching
-- ⬜ Movies and Shows pages: poster grid, filters, title detail (the "journey" screen from the mockup), manual match/fix
-- ⬜ Add a movie/show (monitor it) from search
-- ⬜ Real data for Home's "Recently added" and stats
+- ✅ TMDB client (search, movie, show, seasons/episodes, find by TVDB/IMDb id, US age ratings); v3 key or v4 token; responses cached in SQLite; retries on rate limits
+- ✅ Data model: `movies`, `series`, `episodes`, `media_files` (path, size, quality parsed from names), `scan_items` (needs a match), `tmdb_cache`
+- ✅ Settings → Services: TMDB key (falls back to `TMDB_API_KEY`), Radarr and Sonarr (read-only, optional), library folders; test-connection buttons; secrets never sent back
+- ✅ Library scanner (read-only, background, with progress): ID tags in folder names → Radarr/Sonarr records → TMDB search (exact title, year ±1). Skips extras folders and samples. Forgets files deleted from disk on rescan.
+- ✅ "Needs a match" screen with TMDB suggestions, search, and ignore
+- ✅ Movies and Shows pages (filters, sort, quality badges), movie and show detail (files, seasons, episodes, missing/not aired)
+- ✅ Search TMDB and add a missing title (admin)
+- ✅ Kid profiles only see G/PG movies and TV-Y…TV-PG shows
+- ✅ Home: real "Recently added", library counts, free disk space
+- ✅ `pnpm --filter @marquee/server demo`: runs with a fake TMDB and a generated sample library (no internet needed)
+
+Later polish (not blocking M2): refresh metadata on demand, change a title's quality profile, per-kid rating limits (M5), Plex/Jellyfin artwork fallback.
 
 ## Milestone 2: Finding copies ⬜
 

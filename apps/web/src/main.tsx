@@ -9,7 +9,11 @@ import { LoginPage } from './pages/Login';
 import { SetupPage } from './pages/Setup';
 import { HomePage } from './pages/Home';
 import { Placeholder } from './pages/Placeholder';
-import { AccountPage, SettingsLayout, UsersPage } from './pages/Settings';
+import { AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
+import { LibraryPage } from './pages/Library';
+import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
+import { UnmatchedPage } from './pages/Unmatched';
+import { SearchPage } from './pages/Search';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -35,8 +39,12 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'discover', element: <Placeholder title="Discover" milestone={5}>Browse trending and upcoming movies and shows and request them. Kid profiles only see kid-safe titles.</Placeholder> },
-      { path: 'movies', element: <Placeholder title="Movies" milestone={1}>Your movie library, matched to TMDB, with each title's journey from request to watched.</Placeholder> },
-      { path: 'shows', element: <Placeholder title="Shows" milestone={1}>Your TV library, seasons and episodes, and what's airing next.</Placeholder> },
+      { path: 'movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
+      { path: 'movies/:id', element: <MovieDetailPage /> },
+      { path: 'shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
+      { path: 'shows/:id', element: <ShowDetailPage /> },
+      { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
+      { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <Placeholder title="Requests" milestone={5}>Requests from the family, with approvals for kid profiles.</Placeholder> },
       { path: 'downloads', element: <Placeholder title="Downloads" milestone={3}>Your qBittorrent queue in plain English: what's downloading, what's stuck, and one-tap fixes.</Placeholder> },
       { path: 'activity', element: <Placeholder title="Activity" milestone={6}>Who's watching now and watch history across Plex and Jellyfin.</Placeholder> },
@@ -59,6 +67,7 @@ const router = createBrowserRouter([
           { index: true, element: <Navigate to="account" replace /> },
           { path: 'account', element: <AccountPage /> },
           { path: 'users', element: <UsersPage /> },
+          { path: 'services', element: <ServicesPage /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

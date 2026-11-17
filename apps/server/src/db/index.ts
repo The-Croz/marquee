@@ -48,6 +48,94 @@ const migrations: string[] = [
     value TEXT NOT NULL
   );
   `,
+  /* 2: library (movies, shows, episodes, files) */ `
+  CREATE TABLE movies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tmdb_id INTEGER NOT NULL UNIQUE,
+    imdb_id TEXT,
+    title TEXT NOT NULL,
+    sort_title TEXT NOT NULL,
+    year INTEGER,
+    overview TEXT,
+    poster_path TEXT,
+    backdrop_path TEXT,
+    runtime INTEGER,
+    certification TEXT,
+    genres TEXT NOT NULL DEFAULT '[]',
+    release_date TEXT,
+    path TEXT UNIQUE,
+    monitored INTEGER NOT NULL DEFAULT 1,
+    profile TEXT NOT NULL DEFAULT 'cinema',
+    added_at INTEGER NOT NULL,
+    refreshed_at INTEGER NOT NULL
+  );
+  CREATE TABLE series (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tmdb_id INTEGER NOT NULL UNIQUE,
+    tvdb_id INTEGER,
+    imdb_id TEXT,
+    title TEXT NOT NULL,
+    sort_title TEXT NOT NULL,
+    year INTEGER,
+    overview TEXT,
+    poster_path TEXT,
+    backdrop_path TEXT,
+    status TEXT,
+    network TEXT,
+    certification TEXT,
+    genres TEXT NOT NULL DEFAULT '[]',
+    path TEXT UNIQUE,
+    monitored INTEGER NOT NULL DEFAULT 1,
+    profile TEXT NOT NULL DEFAULT 'cinema',
+    added_at INTEGER NOT NULL,
+    refreshed_at INTEGER NOT NULL
+  );
+  CREATE TABLE episodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    series_id INTEGER NOT NULL REFERENCES series (id) ON DELETE CASCADE,
+    season INTEGER NOT NULL,
+    episode INTEGER NOT NULL,
+    title TEXT,
+    air_date TEXT,
+    overview TEXT,
+    UNIQUE (series_id, season, episode)
+  );
+  CREATE TABLE media_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    path TEXT NOT NULL UNIQUE,
+    movie_id INTEGER REFERENCES movies (id) ON DELETE CASCADE,
+    series_id INTEGER REFERENCES series (id) ON DELETE CASCADE,
+    season INTEGER,
+    episodes TEXT,
+    size INTEGER NOT NULL,
+    mtime INTEGER NOT NULL,
+    resolution TEXT,
+    source TEXT,
+    hdr TEXT,
+    codec TEXT,
+    release_group TEXT,
+    added_at INTEGER NOT NULL,
+    seen_at INTEGER NOT NULL
+  );
+  CREATE INDEX media_files_movie ON media_files (movie_id);
+  CREATE INDEX media_files_series ON media_files (series_id, season);
+  CREATE TABLE scan_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    path TEXT NOT NULL UNIQUE,
+    parsed_title TEXT,
+    parsed_year INTEGER,
+    status TEXT NOT NULL DEFAULT 'unmatched' CHECK (status IN ('unmatched', 'ignored')),
+    candidates TEXT NOT NULL DEFAULT '[]',
+    reason TEXT,
+    seen_at INTEGER NOT NULL
+  );
+  CREATE TABLE tmdb_cache (
+    key TEXT PRIMARY KEY,
+    body TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {

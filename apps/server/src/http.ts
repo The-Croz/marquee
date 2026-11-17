@@ -7,6 +7,15 @@ import type { OidcProvider } from './auth/oidc.js';
 import type { PlexClient } from './auth/plex.js';
 import type { RateLimiter } from './auth/rateLimit.js';
 import { SESSION_COOKIE, SESSION_TTL, createSession } from './auth/sessions.js';
+import type { TmdbApi } from './library/tmdb.js';
+import type { ArrApi } from './library/arr.js';
+import type { LibraryScanner } from './library/scanner.js';
+
+/** Builds clients for outside services. Tests swap these for fakes. */
+export interface Clients {
+  tmdb(apiKey: string): TmdbApi;
+  arr(kind: 'radarr' | 'sonarr', url: string, apiKey: string): ArrApi;
+}
 
 export interface Deps {
   db: Db;
@@ -14,6 +23,8 @@ export interface Deps {
   oidc: OidcProvider | null;
   plex: () => PlexClient;
   loginLimiter: RateLimiter;
+  clients: Clients;
+  scanner: LibraryScanner;
   now: () => number;
 }
 

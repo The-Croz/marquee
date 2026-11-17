@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, NavLink, Outlet, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { AuthStatus, Role, SessionUser, UserSummary } from '@marquee/shared';
+import type { AuthStatus, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
@@ -9,7 +9,15 @@ import { Button, Card, Field, Notice, cx } from '../components/ui';
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
 export function SettingsLayout({ status }: Ctx) {
-  const tabs = [{ to: '/settings/account', label: 'Account' }, ...(status.user.role === 'admin' ? [{ to: '/settings/users', label: 'Users' }] : [])];
+  const tabs = [
+    { to: '/settings/account', label: 'Account' },
+    ...(status.user.role === 'admin'
+      ? [
+          { to: '/settings/users', label: 'Users' },
+          { to: '/settings/services', label: 'Services' },
+        ]
+      : []),
+  ];
   return (
     <>
       <h1 className="m-0 font-display text-[56px] leading-none font-normal">Settings</h1>
@@ -312,5 +320,160 @@ function UsersAdmin({ status }: Ctx) {
         </form>
       </Card>
     </div>
+  );
+}
+
+// ---------------- Services (admin) ----------------
+
+function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'sonarr'; getValues: () => { url?: string; apiKey?: string } }) {
+  const [result, setResult] = useState<ServiceTestResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function test() {
+    setBusy(true);
+    setResult(null);
+    try {
+      const v = getValues();
+      setResult(await api<ServiceTestResult>('/settings/services/test', { body: { service, ...(v.url ? { url: v.url } : {}), ...(v.apiKey ? { apiKey: v.apiKey } : {}) } }));
+    } catch (e) {
+      setResult({ ok: false, message: errMsg(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button type="button" variant="ghost" onClick={test} disabled={busy}>
+        {busy ? 'Testing…' : 'Test connection'}
+      </Button>
+      {result && (
+        <span role="status" className={cx('text-sm', result.ok ? 'text-teal-hi' : 'text-warn')}>
+          {result.message}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function ServicesPage() {
+  const { status } = useOutletContext<Ctx>();
+  if (status.user.role !== 'admin') return <Navigate to="/settings/account" replace />;
+  return <ServicesAdmin />;
+}
+
+function ServicesAdmin() {
+  const { data } = useQuery({ queryKey: ['services'], queryFn: () => api<ServicesView>('/settings/services') });
+  const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  if (!data) return <p className="text-muted">Loading…</p>;
+
+  const val = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? '';
+
+  async function save(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    const body: ServicesUpdate = {
+      radarrUrl: String(d.get('radarrUrl') ?? ''),
+      sonarrUrl: String(d.get('sonarrUrl') ?? ''),
+      moviesRoot: String(d.get('moviesRoot') ?? ''),
+      tvRoot: String(d.get('tvRoot') ?? ''),
+    };
+    // Blank secret fields mean "keep what's saved".
+    for (const k of ['tmdbApiKey', 'radarrApiKey', 'sonarrApiKey'] as const) {
+      const v = String(d.get(k) ?? '').trim();
+      if (v) body[k] = v;
+    }
+    setMessage(null);
+    try {
+      await api('/settings/services', { method: 'PUT', body });
+      await queryClient.invalidateQueries({ queryKey: ['services'] });
+      (e.target as HTMLFormElement).querySelectorAll<HTMLInputElement>('input[type=password]').forEach((i) => (i.value = ''));
+      setMessage({ tone: 'success', text: 'Saved.' });
+    } catch (err) {
+      setMessage({ tone: 'error', text: errMsg(err) });
+    }
+  }
+
+  async function clear(field: 'radarr' | 'sonarr') {
+    await api('/settings/services', { method: 'PUT', body: { [`${field}Url`]: null, [`${field}ApiKey`]: null } });
+    await queryClient.invalidateQueries({ queryKey: ['services'] });
+    setMessage({ tone: 'success', text: `${field === 'radarr' ? 'Radarr' : 'Sonarr'} disconnected.` });
+  }
+
+  const savedHint = (configured: boolean) => (configured ? 'Saved. Leave blank to keep it.' : undefined);
+
+  return (
+    <form onSubmit={save} className="flex max-w-[760px] flex-col gap-6">
+      {message && <Notice tone={message.tone}>{message.text}</Notice>}
+
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">TMDB</h2>
+          <p className="m-0 mt-1 text-sm text-muted">
+            Posters, descriptions and matching come from The Movie Database. Get a free key at themoviedb.org → Settings → API. The API key or the read access token both work.
+          </p>
+        </div>
+        <Field
+          label="API key"
+          name="tmdbApiKey"
+          id="tmdbApiKey"
+          type="password"
+          autoComplete="off"
+          placeholder={data.tmdb.configured ? '••••••••••••' : ''}
+          hint={data.tmdb.fromEnvironment ? 'Using the key from the container settings. Enter one here to override it.' : savedHint(data.tmdb.configured)}
+        />
+        <ServiceTest service="tmdb" getValues={() => ({ apiKey: val('tmdbApiKey') })} />
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">Library folders</h2>
+          <p className="m-0 mt-1 text-sm text-muted">Paths inside the Marquee container. With the Unraid template, /data is your data share.</p>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <Field label="Movies" name="moviesRoot" defaultValue={data.moviesRoot} required />
+          <Field label="TV" name="tvRoot" defaultValue={data.tvRoot} required />
+        </div>
+      </Card>
+
+      {(['radarr', 'sonarr'] as const).map((kind) => {
+        const s = data[kind];
+        const name = kind === 'radarr' ? 'Radarr' : 'Sonarr';
+        return (
+          <Card key={kind} className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="m-0 text-lg font-semibold">
+                  {name} <span className="text-sm font-normal text-dim">optional · read-only</span>
+                </h2>
+                <p className="m-0 mt-1 text-sm text-muted">
+                  While Marquee runs beside {name}, it uses {name}'s records to match your {kind === 'radarr' ? 'movies' : 'shows'} exactly. Marquee never changes anything in {name}.
+                </p>
+              </div>
+              {s.configured && (
+                <Button type="button" variant="ghost" className="h-10 px-3.5 text-sm" onClick={() => clear(kind)}>
+                  Disconnect
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+              <Field label="Address" name={`${kind}Url`} id={`${kind}Url`} defaultValue={s.url ?? ''} placeholder={kind === 'radarr' ? 'http://192.168.1.100:7878' : 'http://192.168.1.100:8989'} />
+              <Field
+                label="API key"
+                name={`${kind}ApiKey`}
+                id={`${kind}ApiKey`}
+                type="password"
+                autoComplete="off"
+                placeholder={s.configured ? '••••••••••••' : ''}
+                hint={savedHint(s.configured) ?? `${name} → Settings → General → API Key`}
+              />
+            </div>
+            <ServiceTest service={kind} getValues={() => ({ url: val(`${kind}Url`), apiKey: val(`${kind}ApiKey`) })} />
+          </Card>
+        );
+      })}
+
+      <div>
+        <Button type="submit">Save</Button>
+      </div>
+    </form>
   );
 }
