@@ -3,7 +3,7 @@ import path from 'node:path';
 import { and, eq, inArray, like, lt } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
-import type { TmdbApi, TmdbSearchResult } from './tmdb.js';
+import { TmdbError, type TmdbApi, type TmdbSearchResult } from './tmdb.js';
 import type { ArrApi, ArrTitle } from './arr.js';
 import { EXTRAS_FOLDERS, VIDEO_EXTENSIONS, normalizeTitle, parseEpisode, parseQuality, parseTitleName, sortTitle } from './parse.js';
 
@@ -93,6 +93,42 @@ export function pickMatch(results: TmdbSearchResult[], title: string, year: numb
 }
 
 const folderKey = (p: string) => path.basename(p.replace(/\/+$/, '')).toLowerCase();
+
+interface Attempt {
+  /** Where the id came from, in plain English, e.g. "Sonarr's TMDB ID" */
+  source: string;
+  id: () => Promise<number | null>;
+}
+
+/**
+ * Tries each way of identifying a title, in order. A TMDB id that no longer
+ * exists (TMDB merges and deletes duplicates) falls through to the next way
+ * instead of failing the whole folder.
+ */
+async function firstWorking<T>(attempts: Attempt[], load: (id: number) => Promise<T>): Promise<{ row: T | null; dead: string[] }> {
+  const dead: string[] = [];
+  const tried = new Set<number>();
+  for (const a of attempts) {
+    const id = await a.id();
+    if (!id || tried.has(id)) continue;
+    tried.add(id);
+    try {
+      return { row: await load(id), dead };
+    } catch (err) {
+      if (err instanceof TmdbError && err.status === 404) {
+        dead.push(`${a.source} ${id}`);
+        continue;
+      }
+      throw err;
+    }
+  }
+  return { row: null, dead };
+}
+
+function unmatchedReason(dead: string[], candidates: TmdbSearchResult[]): string {
+  if (dead.length) return `TMDB no longer has ${dead.join(' or ')}, and no other match was certain.`;
+  return candidates.length ? 'No result had exactly this title and year.' : 'TMDB found nothing for this name.';
+}
 
 export class LibraryScanner {
   status: ScanStatus = { running: false, phase: 'idle', startedAt: null, finishedAt: null, processed: 0, total: 0, matched: 0, unmatched: 0, warnings: [], error: null };
@@ -200,20 +236,31 @@ export class LibraryScanner {
     const parsed = parseTitleName(path.basename(entry.path));
     const existing = this.db.select().from(movies).where(eq(movies.path, entry.path)).get();
 
-    let tmdbId: number | null = existing?.tmdbId ?? parsed.tmdbId ?? hint?.tmdbId ?? null;
     let candidates: TmdbSearchResult[] = [];
-    if (!tmdbId && (parsed.imdbId || hint?.imdbId)) tmdbId = await tmdb.findMovie({ imdbId: (parsed.imdbId ?? hint?.imdbId)! });
-    if (!tmdbId) {
-      candidates = await tmdb.searchMovie(parsed.title, parsed.year);
-      if (candidates.length === 0 && parsed.year) candidates = await tmdb.searchMovie(parsed.title);
-      tmdbId = pickMatch(candidates, parsed.title, parsed.year)?.tmdbId ?? null;
-    }
+    const imdbId = parsed.imdbId ?? hint?.imdbId ?? null;
+    const { row: movie, dead } = await firstWorking(
+      [
+        { source: 'the previous match', id: async () => existing?.tmdbId ?? null },
+        { source: 'the TMDB ID in the folder name', id: async () => parsed.tmdbId },
+        { source: "Radarr's TMDB ID", id: async () => hint?.tmdbId ?? null },
+        { source: 'the IMDb match', id: async () => (imdbId ? tmdb.findMovie({ imdbId }) : null) },
+        {
+          source: 'the title search',
+          id: async () => {
+            candidates = await tmdb.searchMovie(parsed.title, parsed.year);
+            if (candidates.length === 0 && parsed.year) candidates = await tmdb.searchMovie(parsed.title);
+            return pickMatch(candidates, parsed.title, parsed.year)?.tmdbId ?? null;
+          },
+        },
+      ],
+      (id) => (existing && id === existing.tmdbId ? Promise.resolve(existing) : this.upsertMovie(tmdb, id, entry.path, Math.min(...files.map((f) => f.mtime)))),
+    );
 
-    if (!tmdbId) {
-      this.recordUnmatched('movie', entry.path, parsed.title, parsed.year, candidates, candidates.length ? 'No result had exactly this title and year.' : 'TMDB found nothing for this name.');
+    if (!movie) {
+      this.recordUnmatched('movie', entry.path, parsed.title, parsed.year, candidates, unmatchedReason(dead, candidates));
       return;
     }
-    const movie = existing ?? (await this.upsertMovie(tmdb, tmdbId, entry.path, Math.min(...files.map((f) => f.mtime))));
+    if (dead.length) this.warn(`${entry.path}: TMDB no longer has ${dead.join(' or ')}; matched another way instead.`);
     for (const f of files) this.upsertFile(f, { movieId: movie.id }, path.basename(entry.path));
     this.db.delete(scanItems).where(eq(scanItems.path, entry.path)).run();
     this.status.matched++;
@@ -249,28 +296,37 @@ export class LibraryScanner {
     const parsed = parseTitleName(path.basename(folder));
     const existing = this.db.select().from(series).where(eq(series.path, folder)).get();
 
-    let tmdbId: number | null = existing?.tmdbId ?? parsed.tmdbId ?? hint?.tmdbId ?? null;
-    let candidates: TmdbSearchResult[] = [];
-    if (!tmdbId && (parsed.tvdbId || parsed.imdbId || hint?.tvdbId || hint?.imdbId)) {
-      tmdbId = await tmdb.findShow({ tvdbId: parsed.tvdbId ?? hint?.tvdbId, imdbId: parsed.imdbId ?? hint?.imdbId });
-    }
-    if (!tmdbId) {
-      candidates = await tmdb.searchShow(parsed.title, parsed.year);
-      if (candidates.length === 0 && parsed.year) candidates = await tmdb.searchShow(parsed.title);
-      tmdbId = pickMatch(candidates, parsed.title, parsed.year)?.tmdbId ?? null;
-    }
-
     const files = await videoFiles(folder, 3);
-    if (!tmdbId) {
+    let candidates: TmdbSearchResult[] = [];
+    const tvdbId = parsed.tvdbId ?? hint?.tvdbId ?? null;
+    const imdbId = parsed.imdbId ?? hint?.imdbId ?? null;
+    const { row: show, dead } = await firstWorking(
+      [
+        { source: 'the previous match', id: async () => existing?.tmdbId ?? null },
+        { source: 'the TMDB ID in the folder name', id: async () => parsed.tmdbId },
+        { source: "Sonarr's TMDB ID", id: async () => hint?.tmdbId ?? null },
+        { source: 'the TVDB/IMDb match', id: async () => (tvdbId || imdbId ? tmdb.findShow({ tvdbId, imdbId }) : null) },
+        {
+          source: 'the title search',
+          id: async () => {
+            candidates = await tmdb.searchShow(parsed.title, parsed.year);
+            if (candidates.length === 0 && parsed.year) candidates = await tmdb.searchShow(parsed.title);
+            return pickMatch(candidates, parsed.title, parsed.year)?.tmdbId ?? null;
+          },
+        },
+      ],
+      (id) =>
+        existing && id === existing.tmdbId && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
+          ? Promise.resolve(existing)
+          : this.upsertSeries(tmdb, id, folder, files.length ? Math.min(...files.map((f) => f.mtime)) : this.now()),
+    );
+
+    if (!show) {
       if (files.length === 0) return;
-      this.recordUnmatched('series', folder, parsed.title, parsed.year, candidates, candidates.length ? 'No result had exactly this title and year.' : 'TMDB found nothing for this name.');
+      this.recordUnmatched('series', folder, parsed.title, parsed.year, candidates, unmatchedReason(dead, candidates));
       return;
     }
-
-    const show =
-      existing && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
-        ? existing
-        : await this.upsertSeries(tmdb, tmdbId, folder, files.length ? Math.min(...files.map((f) => f.mtime)) : this.now());
+    if (dead.length) this.warn(`${folder}: TMDB no longer has ${dead.join(' or ')}; matched another way instead.`);
 
     let skipped = 0;
     for (const f of files) {
