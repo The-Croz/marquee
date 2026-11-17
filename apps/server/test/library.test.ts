@@ -87,8 +87,8 @@ describe('Settings → Services', () => {
       tmdb: { configured: true, fromEnvironment: false },
       radarr: { url: 'http://192.168.1.100:7878', configured: true },
       sonarr: { url: null, configured: false },
-      moviesRoot: '/data/movies',
-      tvRoot: '/data/tv',
+      moviesRoot: '/data/media/movies',
+      tvRoot: '/data/media/tv',
     });
     expect(JSON.stringify(view.body)).not.toContain('secret');
     expect(JSON.stringify(view.body)).not.toContain('good-key');

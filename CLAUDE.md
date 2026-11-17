@@ -19,7 +19,7 @@ Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Taut
 
 ## Josh's setup
 
-- Unraid, TRaSH folder layout so hardlinks work: `/mnt/user/data/{torrents,movies,tv}`. Inside containers it's mounted as `/data`.
+- Unraid, TRaSH folder layout so hardlinks work: `/mnt/user/data/torrents` (downloads) and `/mnt/user/data/media/{movies,tv}` (library). Inside containers `/mnt/user/data` is mounted as `/data`, so the defaults are `/data/torrents`, `/data/media/movies`, `/data/media/tv`.
 - Existing stack (keep working until cutover): Sonarr, Radarr, Prowlarr, Profilarr, qBittorrent (hotio, behind gluetun), Seerr, Tautulli, Plex, Jellyfin, Pocket ID, Pangolin.
 
 ## Layout

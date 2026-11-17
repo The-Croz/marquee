@@ -36,8 +36,8 @@ export function readServices(db: Db, config: Config): ServiceSettings {
     radarrApiKey: get('radarrApiKey'),
     sonarrUrl: get('sonarrUrl'),
     sonarrApiKey: get('sonarrApiKey'),
-    moviesRoot: get('moviesRoot') ?? '/data/movies',
-    tvRoot: get('tvRoot') ?? '/data/tv',
+    moviesRoot: get('moviesRoot') ?? '/data/media/movies',
+    tvRoot: get('tvRoot') ?? '/data/media/tv',
   };
 }
 

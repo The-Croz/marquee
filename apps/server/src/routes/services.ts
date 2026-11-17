@@ -17,7 +17,7 @@ const secret = z.string().trim().max(500);
 const folder = z
   .string()
   .trim()
-  .refine((v) => v.startsWith('/'), 'Folders are full paths inside the container, e.g. /data/movies')
+  .refine((v) => v.startsWith('/'), 'Folders are full paths inside the container, e.g. /data/media/movies')
   .transform((v) => v.replace(/\/+$/, '') || '/');
 
 servicesRoutes.get('/', (c) => {
