@@ -147,7 +147,9 @@ export class LibraryScanner {
   /** Starts a scan, or returns the one already running. */
   start(sources: ScanSources): Promise<void> {
     if (this.current) return this.current;
-    this.status = { running: true, phase: 'preparing', startedAt: this.now(), finishedAt: null, processed: 0, total: 0, matched: 0, unmatched: 0, warnings: [], error: null };
+    // Strictly after the last scan finished, so files it saw count as "seen before this scan" even within the same millisecond.
+    const startedAt = Math.max(this.now(), (this.status.finishedAt ?? 0) + 1);
+    this.status = { running: true, phase: 'preparing', startedAt, finishedAt: null, processed: 0, total: 0, matched: 0, unmatched: 0, warnings: [], error: null };
     this.current = this.run(sources)
       .then(() => {
         this.status.phase = 'done';

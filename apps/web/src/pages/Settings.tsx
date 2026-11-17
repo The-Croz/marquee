@@ -15,6 +15,7 @@ export function SettingsLayout({ status }: Ctx) {
       ? [
           { to: '/settings/users', label: 'Users' },
           { to: '/settings/services', label: 'Services' },
+          { to: '/settings/sources', label: 'Sources' },
         ]
       : []),
   ];

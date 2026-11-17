@@ -141,8 +141,56 @@ export const tmdbCache = sqliteTable('tmdb_cache', {
   fetchedAt: integer('fetched_at').notNull(),
 });
 
+/**
+ * Places Marquee searches for copies (older apps call these indexers). Each is
+ * a Torznab feed; ones linked from Prowlarr carry its site ID.
+ */
+export const sources = sqliteTable('sources', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  apiKey: text('api_key').notNull().default(''),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** 1–50, lower is asked first and wins ties. */
+  priority: integer('priority').notNull().default(25),
+  private: integer('private', { mode: 'boolean' }).notNull().default(false),
+  forMovies: integer('for_movies', { mode: 'boolean' }).notNull().default(true),
+  forTv: integer('for_tv', { mode: 'boolean' }).notNull().default(true),
+  minSeeders: integer('min_seeders').notNull().default(1),
+  /** Most searches in 24 hours; 0 means no limit. */
+  dailyLimit: integer('daily_limit').notNull().default(0),
+  minGapMs: integer('min_gap_ms').notNull().default(2000),
+  timeoutSeconds: integer('timeout_seconds').notNull().default(30),
+  /** JSON TorznabCaps from the last successful check. */
+  caps: text('caps'),
+  prowlarrId: integer('prowlarr_id').unique(),
+  state: text('state', { enum: ['unchecked', 'working', 'unreachable', 'key_refused', 'slowed_down', 'set_aside', 'blocked', 'not_a_feed', 'error'] })
+    .notNull()
+    .default('unchecked'),
+  stateMessage: text('state_message'),
+  failures: integer('failures').notNull().default(0),
+  /** While failing: skipped until this time, then tried again. */
+  retryAt: integer('retry_at'),
+  checkedAt: integer('checked_at'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const sourceCalls = sqliteTable('source_calls', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sourceId: integer('source_id')
+    .notNull()
+    .references(() => sources.id, { onDelete: 'cascade' }),
+  at: integer('at').notNull(),
+  kind: text('kind', { enum: ['test', 'search'] }).notNull(),
+  ok: integer('ok', { mode: 'boolean' }).notNull(),
+  ms: integer('ms').notNull(),
+  results: integer('results').notNull().default(0),
+  message: text('message'),
+});
+
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;
 export type MediaFile = typeof mediaFiles.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Source = typeof sources.$inferSelect;

@@ -10,9 +10,10 @@ import { SESSION_COOKIE, SESSION_TTL, createSession } from './auth/sessions.js';
 import type { TmdbApi } from './library/tmdb.js';
 import type { ArrApi } from './library/arr.js';
 import type { LibraryScanner } from './library/scanner.js';
+import type { SourceClients, SourceService } from './sources/service.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
-export interface Clients {
+export interface Clients extends SourceClients {
   tmdb(apiKey: string): TmdbApi;
   arr(kind: 'radarr' | 'sonarr', url: string, apiKey: string): ArrApi;
 }
@@ -25,6 +26,7 @@ export interface Deps {
   loginLimiter: RateLimiter;
   clients: Clients;
   scanner: LibraryScanner;
+  sources: SourceService;
   now: () => number;
 }
 

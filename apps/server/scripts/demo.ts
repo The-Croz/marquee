@@ -3,6 +3,7 @@
  * the UI can be tried without internet access or real media.
  *   pnpm --filter @marquee/server demo        (serves the built web app on :9797)
  * Data lives in a temp folder and is thrown away. Sign up as any admin.
+ * Settings → Sources: link Prowlarr at http://prowlarr:9696 with the key prowlarr-key.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -15,6 +16,9 @@ import { RateLimiter } from '../src/auth/rateLimit.js';
 import { PlexClient, plexClientId } from '../src/auth/plex.js';
 import { LibraryScanner } from '../src/library/scanner.js';
 import { FakeTmdb } from '../test/fakes/tmdb.js';
+import { FakeSites, release, site } from '../test/fakes/sources.js';
+import { SourceService } from '../src/sources/service.js';
+import { TorznabError } from '../src/sources/torznab.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -44,14 +48,34 @@ setSetting(db, 'services.tmdb_api_key', 'good-key');
 setSetting(db, 'library.movies_root', path.join(root, 'movies'));
 setSetting(db, 'library.tv_root', path.join(root, 'tv'));
 const tmdb = new FakeTmdb();
+
+// A fake Prowlarr at http://prowlarr:9696 (key "prowlarr-key") with a few sites, one of them failing.
+const sites = new FakeSites();
+sites.prowlarrSites = [
+  site(1, 'YTS', { categories: [2000, 2040, 2045] }),
+  site(2, 'EZTV', { categories: [5000, 5040] }),
+  site(3, 'IPTorrents', { privacy: 'private', priority: 10 }),
+  site(4, 'MyAnonamouse', { privacy: 'private', categories: [7000, 3030] }),
+  site(5, 'The Pirate Bay'),
+];
+const dune = [
+  release('Dune.Part.Two.2024.2160p.UHD.BluRay.x265.10bit.HDR.DDP5.1.Atmos-GROUP', { seeders: 412, size: 18 * GB }),
+  release('Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX', { seeders: 260, size: 7 * GB }),
+];
+sites.feed('http://prowlarr:9696/1/api', { releases: dune });
+sites.feed('http://prowlarr:9696/2/api', { releases: [] });
+sites.feed('http://prowlarr:9696/3/api', { releases: dune });
+sites.feed('http://prowlarr:9696/5/api', { fail: new TorznabError('blocked', 'The site has a bot check in front of it.') });
+const clients = { tmdb: () => tmdb, arr: () => Promise.reject(new Error('not in demo')) as never, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,
   config,
   oidc: null,
   plex: () => new PlexClient(plexClientId(db)),
   loginLimiter: new RateLimiter(100, 60_000),
-  clients: { tmdb: () => tmdb, arr: () => Promise.reject(new Error('not in demo')) as never },
+  clients,
   scanner: new LibraryScanner(db),
+  sources: new SourceService(db, clients),
   now: Date.now,
 });
 serve({ fetch: app.fetch, port: config.port }, (i) => console.log(`Marquee demo on http://localhost:${i.port} (library at ${root})`));

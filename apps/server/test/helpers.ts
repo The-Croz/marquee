@@ -6,36 +6,48 @@ import { OidcProvider } from '../src/auth/oidc.js';
 import type { PlexClient } from '../src/auth/plex.js';
 import { LibraryScanner } from '../src/library/scanner.js';
 import type { Clients } from '../src/http.js';
+import { SourceService } from '../src/sources/service.js';
 
 export interface TestOptions {
   config?: Partial<Config>;
   plex?: Partial<PlexClient>;
   clients?: Partial<Clients>;
+  now?: () => number;
 }
 
 export function makeApp(opts: TestOptions = {}) {
   const db = openDb(':memory:');
   const config: Config = { ...loadConfig({}), webDir: null, ...opts.config };
   const scanner = new LibraryScanner(db);
+  const clients: Clients = {
+    tmdb: () => {
+      throw new Error('no TMDB in this test');
+    },
+    arr: () => {
+      throw new Error('no Radarr/Sonarr in this test');
+    },
+    torznab: () => {
+      throw new Error('no Torznab feeds in this test');
+    },
+    prowlarr: () => {
+      throw new Error('no Prowlarr in this test');
+    },
+    ...opts.clients,
+  };
+  const now = opts.now ?? Date.now;
+  const sources = new SourceService(db, clients, now, async () => {});
   const app = createApp({
     db,
     config,
     oidc: config.oidc ? new OidcProvider(config.oidc) : null,
     plex: () => opts.plex as PlexClient,
     loginLimiter: new RateLimiter(10, 15 * 60 * 1000),
-    clients: {
-      tmdb: () => {
-        throw new Error('no TMDB in this test');
-      },
-      arr: () => {
-        throw new Error('no Radarr/Sonarr in this test');
-      },
-      ...opts.clients,
-    },
+    clients,
     scanner,
-    now: Date.now,
+    sources,
+    now,
   });
-  return { app, db, config, scanner };
+  return { app, db, config, scanner, sources };
 }
 
 type App = ReturnType<typeof makeApp>['app'];
