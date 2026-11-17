@@ -13,13 +13,14 @@ Mockups (web + iPhone): https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT
 - ✅ Optional Plex sign-in (PIN flow), link-only or auto-create for people with access to your Plex server
 - ✅ Settings → Account (name, password, link/unlink Plex and OIDC) and Settings → Users (admin)
 - ✅ Web shell + Home screen from the mockup, with sample data
-- ✅ Dockerfile, CI (typecheck/test/build), image published to `ghcr.io/the-croz/marquee`
+- ✅ Dockerfile with PUID/PGID entrypoint, CI (typecheck/test/build + container smoke test), image published to `ghcr.io/the-croz/marquee`
+- ✅ Unraid template (`docker/unraid/marquee.xml`)
 
 ## Milestone 1: Library ⬜
 
 Goal: Marquee knows every movie and show you already have, without touching a file.
 
-- ⬜ TMDB client (search, movie, TV show, seasons/episodes, images) with an API key in settings; cache responses in SQLite
+- ⬜ TMDB client (search, movie, TV show, seasons/episodes, images); key from `TMDB_API_KEY` (already read into `config.tmdbApiKey`) or the Services settings screen; cache responses in SQLite
 - ⬜ Data model: `movies`, `series`, `seasons`, `episodes`, `media_files` (path, size, quality parsed from name/mediainfo), `root_folders`
 - ⬜ Settings screen for "Services" (TMDB key now; qBittorrent, Plex, Jellyfin, indexers later), stored in DB rather than env vars. Also move Plex/OIDC sign-in toggles here.
 - ⬜ Library scanner: walk `/data/movies` and `/data/tv`, parse folder/file names (`Title (Year)`, `S01E02`), match to TMDB, flag anything unmatched for manual fixing. **Read-only.**

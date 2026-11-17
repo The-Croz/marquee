@@ -36,10 +36,35 @@ jobs:
             type=sha,format=short
             type=semver,pattern={{version}}
             type=ref,event=pr
-      - uses: docker/build-push-action@v6
+      # Build once and prove the image actually starts before publishing it.
+      - name: Build for smoke test
+        uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          load: true
+          tags: marquee:ci
+          build-args: VERSION=ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test (Unraid-style PUID/PGID)
+        run: |
+          mkdir -p /tmp/cfg
+          sudo chown root:root /tmp/cfg
+          docker run -d --name mq -e PUID=99 -e PGID=100 -v /tmp/cfg:/config -p 9797:9797 marquee:ci
+          for i in $(seq 1 30); do curl -fsS http://localhost:9797/api/health && break; sleep 1; done
+          curl -fsS http://localhost:9797/api/health
+          curl -fsS http://localhost:9797/ | grep -q '<div id="root">'
+          owner=$(stat -c '%u:%g' /tmp/cfg/marquee.sqlite)
+          echo "database owner: $owner"
+          test "$owner" = "99:100"
+          test "$(docker top mq -eo uid,cmd | awk '/dist\/index.js/ {print $1}')" = "99"
+          docker logs mq
+      - name: Publish
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ steps.meta.outputs.version }}
