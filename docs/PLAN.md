@@ -50,11 +50,12 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - Download links carry the Prowlarr API key, so they stay server-side and are scrubbed from logs and API responses.
    - Verified live against Josh's Prowlarr 2 (7 sites linked, MyAnonamouse left out): Dune: Part Two → 275 copies in about 1 s, Severance S02E03 → 127. Cleaned real answers are fixtures in `test/fixtures/torznab/real/`. `scripts/search.ts` runs a search from a dev machine.
    - Learned live: Prowlarr answers 429 "Indexer is disabled till … due to recent failures" for a site failing on its side (shown as **Set aside by Prowlarr**, not "slow down"). The Pirate Bay through Prowlarr returns nothing when given a standard `cat`, so Marquee sends none and filters by category itself. Knaben repeats The Pirate Bay's results: **PR 4 must merge copies with the same info-hash**. Some names arrive escaped twice (`R&amp;amp;H`).
-2. 🔨 **Release name parser** (`apps/server/src/releases/parse.ts`)
+2. ✅ **Release name parser** (`apps/server/src/releases/parse.ts`)
    - Title, year, season/episode (incl. full-season packs and multi-episode), resolution, source (Remux / Blu-ray / WEB-DL / WEBRip / HDTV / DVD / CAM-TS), codec, HDR/DV/HDR10+, audio, edition, streaming service, group, repack/proper/version, 3D, extras/sample flags.
    - Maps each release onto Radarr's quality names (`Bluray-2160p`, `WEBDL-1080p`…) so TRaSH profiles apply directly.
    - Fixture suite: about 100 hand-checked names, plus checks over 2,102 real names from 11 Prowlarr searches (`test/fixtures/releases/corpus.json`): titles right for 1,010 of 1,011 movie names and 793 of 794 show names, every stated resolution, source and SxxEyy found. The library scanner's `parseQuality` now reads through this parser.
    - Names with a resolution but no source are HDTV, like Radarr, so comparison mode lines up.
+   - Checked against Radarr's own quality for Josh's 448 movie files (`scripts/check-radarr-quality.ts`): 443 the same (98.9%). The 5 others are files Radarr labelled from somewhere other than the name, or names with no source in them.
 3. ⬜ **TRaSH custom formats** (`apps/server/src/releases/trash/`)
    - Vendored JSON from TRaSH-Guides (MIT, license kept beside it): the Radarr CFs our profiles use plus the `uhd-bluray-web` and `hd-bluray-web` profiles. `pnpm --filter @marquee/server trash:update` refreshes them; a test fails if a vendored file changes shape.
    - Evaluator for the spec types TRaSH uses: release title (regex), release group, resolution, source, quality modifier, language, indexer flag, size; with `negate` and `required` semantics matching Radarr.

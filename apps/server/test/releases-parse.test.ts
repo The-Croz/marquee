@@ -82,6 +82,7 @@ const CASES: [string, Partial<ParsedRelease>][] = [
   ['Dune Part Two (2024) 2160p WEBRip 5.1 10Bit x265 -YTS', { quality: 'WEBRip-2160p', tenBit: true, group: 'YTS' }],
   ['Dune Part Two (2024) [1080p] [WEBRip] 88', { title: 'Dune Part Two', quality: 'WEBRip-1080p' }],
   ['Dune Part Two (2024) [REPACK] [1080p] [WEBRip] [5.1]', { repack: 1, channels: '5.1' }],
+  ['Minority Report (2002) [2160p] [4K] [WEB] [5.1] [YTS.MX]', { title: 'Minority Report', year: 2002, quality: 'WEBDL-2160p', channels: '5.1' }], // as Radarr reads it
   ['Blade Runner 2049 (2017) 1080p BRRip x264 -YTS', { title: 'Blade Runner 2049', year: 2017 }],
 
   // ---- TV
