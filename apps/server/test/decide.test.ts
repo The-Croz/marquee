@@ -124,7 +124,7 @@ describe('decide: picking the best copy', () => {
   it('turns down copies too small for their quality', () => {
     const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 2 * GB })], profile('movie', 'cinema'))[0]!;
     expect(codes(d)).toEqual(['too_small']);
-    expect(d.rejections[0]!.message).toMatch(/2\.0 GB is too small/);
+    expect(d.rejections[0]!.message).toMatch(/2\.1 GB is too small/);
   });
 
   it('skips size checks when the runtime is unknown', () => {
@@ -260,6 +260,15 @@ describe('decide: merging and ranking', () => {
     // Accepted copies always come before turned-down ones.
     const bad = copy('Dune.Part.Two.2024.2160p.WEB-DL.H.265-FLUX');
     expect(ranked([bad, a])[0]).toBe(a.guid);
+  });
+
+  it('lists near misses before copies of other titles', () => {
+    const out = decide(
+      dune,
+      [copy('Severance.S02E01.2160p.ATVP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { size: 6 * GB, seeders: 900 }), copy('Dune.Part.Two.2024.2160p.WEB-DL.H.265-GRP', { size: 2 * GB })],
+      profile('movie', 'cinema'),
+    );
+    expect(out.map((d) => d.rejections[0]!.code)).toEqual(['too_small', 'wrong_title']);
   });
 
   it('won’t judge a show with a movie profile', () => {

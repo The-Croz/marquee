@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { MediaFileView, MovieDetail, SeasonView, ShowDetail } from '@marquee/shared';
-import { api } from '../api';
+import { api, useAuthStatus } from '../api';
+import { CopiesPanel } from '../components/Copies';
 import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
 
@@ -82,6 +83,7 @@ function FileRow({ f }: { f: MediaFileView }) {
 export function MovieDetailPage() {
   const { id } = useParams();
   const { data: m, error } = useQuery({ queryKey: ['library', 'movie', id], queryFn: () => api<MovieDetail>(`/movies/${id}`) });
+  const isAdmin = useAuthStatus().data?.user?.role === 'admin';
   if (error) return <Notice tone="error">That movie isn't in your library.</Notice>;
   if (!m) return <p className="text-muted">Loading…</p>;
   const best = m.files[0];
@@ -109,6 +111,7 @@ export function MovieDetailPage() {
         )}
         {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
       </Card>
+      {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} />}
     </>
   );
 }
@@ -153,6 +156,7 @@ function SeasonBlock({ s, open, onToggle }: { s: SeasonView; open: boolean; onTo
 export function ShowDetailPage() {
   const { id } = useParams();
   const { data: s, error } = useQuery({ queryKey: ['library', 'show', id], queryFn: () => api<ShowDetail>(`/shows/${id}`) });
+  const isAdmin = useAuthStatus().data?.user?.role === 'admin';
   const [open, setOpen] = useState<Set<number>>(new Set());
   if (error) return <Notice tone="error">That show isn't in your library.</Notice>;
   if (!s) return <p className="text-muted">Loading…</p>;
@@ -180,6 +184,7 @@ export function ShowDetailPage() {
         ))}
       </div>
       {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
+      {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
     </>
   );
 }

@@ -58,9 +58,21 @@ sites.prowlarrSites = [
   site(4, 'MyAnonamouse', { privacy: 'private', categories: [7000, 3030] }),
   site(5, 'The Pirate Bay'),
 ];
+// Every feed answers every search with these; Marquee sorts out which fit the title.
 const dune = [
-  release('Dune.Part.Two.2024.2160p.UHD.BluRay.x265.10bit.HDR.DDP5.1.Atmos-GROUP', { seeders: 412, size: 18 * GB }),
-  release('Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX', { seeders: 260, size: 7 * GB }),
+  release('Dune.Part.Two.2024.2160p.UHD.BluRay.x265.10bit.HDR.DDP5.1.Atmos-GROUP', { seeders: 412, size: 18 * GB, infoHash: 'a1' }),
+  release('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { seeders: 290, size: 25 * GB, infoHash: 'a2' }),
+  release('Dune.Part.Two.2024.2160p.MA.WEB-DL.DDP5.1.HDR.H.265-HONE', { seeders: 41, size: 20 * GB, infoHash: 'a3' }),
+  release('Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX', { seeders: 260, size: 7 * GB, infoHash: 'a4' }),
+  release('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { seeders: 88, size: 72 * GB, infoHash: 'a5' }),
+  release('Dune.Part.Two.2024.1080p.WEBRip.x265.10bit-LAMA', { seeders: 900, size: 2 * GB, infoHash: 'a6' }),
+  release('Dune.Part.Two.2024.2160p.WEB-DL.H.265-TINY', { seeders: 12, size: 3 * GB, infoHash: 'a7' }),
+  release('Dune.Part.Two.2024.1080p.WEB-DL.H.264-NOBODY', { seeders: 0, size: 6 * GB, infoHash: 'a8' }),
+  release('Dune.2021.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { seeders: 150, size: 22 * GB, infoHash: 'a9' }),
+  release('Severance.S02E01.Hello.Ms.Cobel.2160p.ATVP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { seeders: 120, size: 6 * GB, infoHash: 'b1' }),
+  release('Severance.S02E01.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb', { seeders: 300, size: 3 * GB, infoHash: 'b2' }),
+  release('Severance.S02E02.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb', { seeders: 250, size: 3 * GB, infoHash: 'b3' }),
+  release('Severance.S02.2160p.ATVP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { seeders: 80, size: 60 * GB, infoHash: 'b4' }),
 ];
 sites.feed('http://prowlarr:9696/1/api', { releases: dune });
 sites.feed('http://prowlarr:9696/2/api', { releases: [] });

@@ -232,9 +232,10 @@ function runtimeMinutes(wanted: Wanted, p: ParsedRelease): number | null {
   return wanted.runtime * Math.max(1, p.episodes.length);
 }
 
+/** Decimal GB, as screens show sizes. */
 function gb(bytes: number): string {
-  const g = bytes / 1024 ** 3;
-  return g >= 10 ? `${Math.round(g)} GB` : g >= 1 ? `${g.toFixed(1)} GB` : `${Math.round(bytes / MB)} MB`;
+  const g = bytes / 1e9;
+  return g >= 10 ? `${Math.round(g)} GB` : g >= 1 ? `${g.toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
 }
 
 // ---------------------------------------------------------------- ranking
@@ -257,9 +258,14 @@ function sizeKey(d: Decision, wanted: Wanted, profile: FullProfile): number {
   return Math.round(size / ROUND);
 }
 
+/** Turned down because it's another title or episode: listed after the near misses. */
+const OFF_TARGET = new Set<RejectionCode>(['wrong_title', 'wrong_year', 'not_a_movie', 'wrong_episode', 'no_episode', 'season_pack']);
+const offTarget = (d: Decision) => Number(d.rejections.some((r) => OFF_TARGET.has(r.code)));
+
 function compare(a: Decision, b: Decision, wanted: Wanted, profile: FullProfile): number {
   return (
     Number(b.accepted) - Number(a.accepted) ||
+    offTarget(a) - offTarget(b) ||
     (a.tierRank ?? Infinity) - (b.tierRank ?? Infinity) ||
     revision(b.parsed) - revision(a.parsed) ||
     b.score - a.score ||
