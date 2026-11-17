@@ -1,0 +1,58 @@
+# Marquee
+
+Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Tautulli, with a companion iPhone app. One person (Josh, GitHub `The-Croz`) builds it with Claude, so keep things simple, explicit and well-tested.
+
+**Read `docs/PLAN.md` first.** It has the milestones, what's done, and the next tasks. Update it when you finish something.
+
+## Product decisions (settled, don't revisit without asking)
+
+- Movies and TV only. **No anime** support.
+- **Torrents only**, through **qBittorrent** (Web API v2). No Usenet.
+- Quality profiles built on the TRaSH Guides, explained in plain English. Defaults: **Cinema** (4K HDR, efficient sizes, 1080p fallback; skip remuxes), **Everyday HD** (1080p), **Kids & Cartoons** (720p).
+- No automatic deletion for now.
+- Roles: `admin`, `member` (requests go straight through), `kid` (kids-only Discover; requests need approval).
+- Sign-in: username and password always; optional OIDC (Pocket ID) and Plex.
+- Watches **both Plex and Jellyfin**.
+- Rollout plan: run beside the existing arrs first (read-only import, then "decide but don't download" comparison), then take over movies, then TV.
+- License: **GPL-3.0-or-later** (lets us learn from and reuse Sonarr/Radarr code if needed).
+- Design: the "cinematic dark" direction. Tokens live in `apps/web/src/styles.css` (`@theme`). Copy is plain English, never jargon ("Stuck · nobody is sharing it", not "stalledDL").
+
+## Josh's setup
+
+- Unraid, TRaSH folder layout so hardlinks work: `/mnt/user/data/{torrents,movies,tv}`. Inside containers it's mounted as `/data`.
+- Existing stack (keep working until cutover): Sonarr, Radarr, Prowlarr, Profilarr, qBittorrent (hotio, behind gluetun), Seerr, Tautulli, Plex, Jellyfin, Pocket ID, Pangolin.
+
+## Layout
+
+```
+apps/server     Hono API on Node 22, SQLite via better-sqlite3 + Drizzle, bundled with esbuild
+apps/web        React 19 + Vite + Tailwind v4 + TanStack Query + React Router
+packages/shared Types shared by server and web (no runtime code)
+```
+
+## Commands
+
+```
+pnpm install
+pnpm dev          # API on :9797, web on :5173 (proxies /api)
+pnpm test         # vitest (server)
+pnpm typecheck
+pnpm build        # web → apps/web/dist, server → apps/server/dist
+pnpm start        # serve the built app (set MARQUEE_WEB_DIR=apps/web/dist)
+```
+
+## Conventions
+
+- **Tests for server logic.** Every route and every piece of decision logic gets vitest coverage in `apps/server/test`. Use `makeApp()` / `call()` from `test/helpers.ts` (in-memory DB). External services (Plex, TMDB, indexers, qBittorrent) are injected and faked in tests. Never call real services from tests.
+- **Migrations are append-only.** Add a new entry to the `migrations` array in `apps/server/src/db/index.ts` and update `schema.ts` to match. Never edit one that has shipped.
+- **API writes are JSON.** POST/PUT/PATCH must send `Content-Type: application/json`. This is the CSRF guard; don't add form posts.
+- Errors: throw `HttpError(status, code, plainEnglishMessage)`; zod validation errors become 400s automatically.
+- Secrets (Plex tokens, API keys) never go in logs or API responses.
+- Shared request/response types go in `packages/shared/src/index.ts`.
+- Keep the web app accessible: real buttons/links/labels, 44px touch targets, visible focus.
+
+## Working in the Claude cloud sandbox
+
+- `nodejs.org` is blocked there, so building `better-sqlite3` needs local headers: prefix installs with `npm_config_nodedir=/opt/node22`.
+- Docker Hub is blocked there too, so the image can only be built in GitHub Actions.
+- Live services on Josh's LAN aren't reachable from the sandbox. Use Claude Code on a machine on the LAN for integration work.
