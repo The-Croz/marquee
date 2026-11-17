@@ -10,10 +10,21 @@ import { purgeExpiredSessions } from './auth/sessions.js';
 import { TmdbClient } from './library/tmdb.js';
 import { ArrClient } from './library/arr.js';
 import { LibraryScanner } from './library/scanner.js';
+import { TorznabClient } from './sources/torznab.js';
+import { ProwlarrClient } from './sources/prowlarr.js';
+import { SourceService } from './sources/service.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
 const clientId = plexClientId(db);
+
+const clients = {
+  tmdb: (key: string) => new TmdbClient(key, db),
+  arr: (kind: 'radarr' | 'sonarr', url: string, key: string) => new ArrClient(kind, url, key),
+  torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
+  prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
+};
+const sources = new SourceService(db, clients);
 
 const app = createApp({
   db,
@@ -21,16 +32,27 @@ const app = createApp({
   oidc: config.oidc ? new OidcProvider(config.oidc) : null,
   plex: () => new PlexClient(clientId),
   loginLimiter: new RateLimiter(10, 15 * 60 * 1000),
-  clients: {
-    tmdb: (key) => new TmdbClient(key, db),
-    arr: (kind, url, key) => new ArrClient(kind, url, key),
-  },
+  clients,
   scanner: new LibraryScanner(db),
+  sources,
   now: Date.now,
 });
 
 purgeExpiredSessions(db);
 setInterval(() => purgeExpiredSessions(db), 6 * 60 * 60 * 1000).unref();
+
+// Keep Prowlarr's sites in step every 6 hours, and forget old Source calls.
+const housekeeping = () => {
+  sources.prune();
+  if (sources.prowlarrSettings().url) {
+    sources.syncProwlarr().then(
+      (r) => console.log(`[sources] ${r.message}`),
+      (err) => console.error('[sources] Prowlarr sync failed:', (err as Error).message),
+    );
+  }
+};
+housekeeping();
+setInterval(housekeeping, 6 * 60 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);

@@ -8,13 +8,15 @@ Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Taut
 
 - Movies and TV only. **No anime** support.
 - **Torrents only**, through **qBittorrent** (Web API v2). No Usenet.
-- Quality profiles built on the TRaSH Guides, explained in plain English. Defaults: **Cinema** (4K HDR, efficient sizes, 1080p fallback; skip remuxes), **Everyday HD** (1080p), **Kids & Cartoons** (720p).
+- Quality profiles built on the TRaSH Guides, explained in plain English. Profiles are stored in the database, editable in the app, and assigned per title; never hard-code profile behavior. Seeded presets: **Cinema** (4K HDR, efficient sizes, 1080p fallback; skip remuxes), **Everyday HD** (1080p), **Kids & Cartoons** (720p).
 - No automatic deletion for now.
 - Roles: `admin`, `member` (requests go straight through), `kid` (kids-only Discover; requests need approval).
 - Sign-in: username and password always; optional OIDC (Pocket ID) and Plex.
 - Watches **both Plex and Jellyfin**.
 - Rollout plan: run beside the existing arrs first (read-only import, then "decide but don't download" comparison), then take over movies, then TV.
 - License: **GPL-3.0-or-later** (lets us learn from and reuse Sonarr/Radarr code if needed).
+- **Friendlier than the arrs.** Use Marquee's own words from `docs/GLOSSARY.md` (Source, copy, rule, profile…), with the older word at most once as a bridge. `test/words.test.ts` fails on arr jargon in the web app. Every failure state gets a plain label *and* what to do about it. Advanced settings go behind a "For experts" disclosure with sensible defaults. Things retry by themselves and say when.
+- **Reference: HolyArrs** (https://github.com/HolyArrs/HolyArrs, docs in its `docs/` folder) does this very well. Check how it handles a feature before building ours (wording, health states, import-from-old-apps with undo, troubleshooting tables). It is **AGPL-3.0**: borrow ideas and patterns only, never copy its code or doc text.
 - Design: the "cinematic dark" direction. Tokens live in `apps/web/src/styles.css` (`@theme`). Copy is plain English, never jargon ("Stuck · nobody is sharing it", not "stalledDL").
 
 ## Josh's setup

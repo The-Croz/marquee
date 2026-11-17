@@ -10,6 +10,7 @@ import { SetupPage } from './pages/Setup';
 import { HomePage } from './pages/Home';
 import { Placeholder } from './pages/Placeholder';
 import { AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
+import { SourcesPage } from './pages/Sources';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -68,6 +69,7 @@ const router = createBrowserRouter([
           { path: 'account', element: <AccountPage /> },
           { path: 'users', element: <UsersPage /> },
           { path: 'services', element: <ServicesPage /> },
+          { path: 'sources', element: <SourcesPage /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

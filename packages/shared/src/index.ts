@@ -96,6 +96,81 @@ export interface ServiceTestResult {
   message: string;
 }
 
+// ---- Settings → Sources ----
+
+/** Health of a Source, in words the UI shows as-is via `stateLabel`. */
+export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'slowed_down' | 'blocked' | 'not_a_feed' | 'error';
+
+export interface SourceView {
+  id: number;
+  name: string;
+  /** The Torznab address. Never includes the key. */
+  url: string;
+  hasKey: boolean;
+  enabled: boolean;
+  priority: number;
+  private: boolean;
+  forMovies: boolean;
+  forTv: boolean;
+  minSeeders: number;
+  dailyLimit: number;
+  minGapMs: number;
+  timeoutSeconds: number;
+  fromProwlarr: boolean;
+  state: SourceState;
+  stateLabel: string;
+  /** What happened last time, when it failed. */
+  stateMessage: string | null;
+  /** What to do about it. */
+  fix: string | null;
+  /** While failing: when Marquee tries again by itself. */
+  retryAt: number | null;
+  checkedAt: number | null;
+  /** e.g. "Searches by TMDB, IMDb ID, so matches are exact." Null until checked. */
+  searchesById: string | null;
+  week: { calls: number; failures: number; avgMs: number | null; searchesToday: number };
+}
+
+export interface SourcesView {
+  sources: SourceView[];
+  prowlarr: { url: string | null; linked: boolean; syncedAt: number | null; syncMessage: string | null };
+}
+
+export interface SourceInput {
+  name: string;
+  url: string;
+  apiKey?: string;
+}
+
+export interface SourceUpdate {
+  name?: string;
+  url?: string;
+  apiKey?: string;
+  enabled?: boolean;
+  priority?: number;
+  forMovies?: boolean;
+  forTv?: boolean;
+  minSeeders?: number;
+  dailyLimit?: number;
+  minGapMs?: number;
+  timeoutSeconds?: number;
+}
+
+export interface SourceCheckResult {
+  ok: boolean;
+  state: SourceState;
+  message: string;
+}
+
+export interface ProwlarrSyncResult {
+  ok: boolean;
+  message: string;
+  added: string[];
+  updated: string[];
+  removed: string[];
+  skipped: { name: string; reason: string }[];
+}
+
 // ---- Library ----
 
 export interface ScanStatusView {

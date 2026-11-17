@@ -11,6 +11,7 @@ import { accountRoutes } from './routes/account.js';
 import { userRoutes } from './routes/users.js';
 import { homeRoutes } from './routes/home.js';
 import { servicesRoutes } from './routes/services.js';
+import { sourcesRoutes } from './routes/sources.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
 
 import { VERSION } from './version.js';
@@ -53,6 +54,7 @@ export function createApp(deps: Deps) {
   app.route('/api/users', userRoutes);
   app.route('/api/home', homeRoutes);
   app.route('/api/settings/services', servicesRoutes);
+  app.route('/api/settings/sources', sourcesRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);

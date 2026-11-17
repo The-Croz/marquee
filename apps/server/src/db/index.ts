@@ -136,6 +136,42 @@ const migrations: string[] = [
     fetched_at INTEGER NOT NULL
   );
   `,
+  /* 3: Sources (Torznab feeds, usually from Prowlarr) and their call log */ `
+  CREATE TABLE sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    api_key TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    priority INTEGER NOT NULL DEFAULT 25,
+    private INTEGER NOT NULL DEFAULT 0,
+    for_movies INTEGER NOT NULL DEFAULT 1,
+    for_tv INTEGER NOT NULL DEFAULT 1,
+    min_seeders INTEGER NOT NULL DEFAULT 1,
+    daily_limit INTEGER NOT NULL DEFAULT 0,
+    min_gap_ms INTEGER NOT NULL DEFAULT 2000,
+    timeout_seconds INTEGER NOT NULL DEFAULT 30,
+    caps TEXT,
+    prowlarr_id INTEGER UNIQUE,
+    state TEXT NOT NULL DEFAULT 'unchecked',
+    state_message TEXT,
+    failures INTEGER NOT NULL DEFAULT 0,
+    retry_at INTEGER,
+    checked_at INTEGER,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE source_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES sources (id) ON DELETE CASCADE,
+    at INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('test', 'search')),
+    ok INTEGER NOT NULL,
+    ms INTEGER NOT NULL,
+    results INTEGER NOT NULL DEFAULT 0,
+    message TEXT
+  );
+  CREATE INDEX source_calls_source ON source_calls (source_id, at);
+  `,
 ];
 
 export function openDb(file: string): Db {
