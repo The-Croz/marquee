@@ -77,7 +77,7 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
 5. ⬜ **Search API and screens**
    - `POST /api/movies/:id/search` and `/api/series/:id/search` (admin): runs the search and returns every release with its parsed details, score breakdown and rejections. Nothing is stored or grabbed.
    - "Copies we found" panel on movie and show detail, from the mockup: best pick first, each row expands to "why" (each matching rule, its points, its plain-English explanation and TRaSH name).
-   - Settings → Quality (replacing the placeholder in `main.tsx`): list and edit profiles on the PR 4 API, each rule in plain English with its TRaSH name; change a title's profile from its detail page. Needs Josh's OK on the layout first.
+   - Settings → Quality (replacing the placeholder in `main.tsx`): list and edit profiles on the PR 4 API, each rule in plain English with its TRaSH name; change a title's profile from its detail page. Needs Josh's OK on the layout first. **Everything a profile holds is editable on this screen** (qualities and their order, good enough, upgrades, every rule's on/off and points, sizes, minimum points); nothing about quality is hard-coded. The built-in profiles are only starting values. A new profile can start from a built-in one, straight from a TRaSH profile, or as a copy of your own.
 6. ⬜ **Comparison mode against Radarr** (gate for movie cutover)
    - Migration: `comparisons` (movie, when, Radarr's release, Marquee's pick, both scores, verdict, reasons).
    - Background job reads Radarr's grab history (`/api/v3/history?eventType=grabbed`, read-only). For each new grab, Marquee runs its own search and records what it would have picked.
