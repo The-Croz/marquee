@@ -13,7 +13,8 @@ const rule = (app: App, name: string): Rule => {
 };
 /** Points a copy gets from a TRaSH profile's default rules, and which rules gave them. */
 function score(app: App, profile: string, title: string, extra: Partial<RuleInput> = {}) {
-  const hits = defaultRules(app, profile).filter((r) => matches(r.rule, input(title, { app, ...extra })));
+  const copy = input(title, { app, ...extra }); // parse once, not once per rule
+  const hits = defaultRules(app, profile).filter((r) => matches(r.rule, copy));
   return { points: hits.reduce((a, r) => a + r.points, 0), rules: hits.map((r) => r.rule.name).sort() };
 }
 

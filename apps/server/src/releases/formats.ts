@@ -126,11 +126,12 @@ const cache = new Map<string, RegExp | null>();
 /**
  * Compiles a rule's pattern for JavaScript. They're written for .NET, where a
  * bare "(?i)" anywhere switches on ignore-case; we always ignore case (as
- * Radarr does), so those are dropped. "(?i:…)" groups work as they are.
+ * Radarr does), so those are dropped.
  */
 export function compile(pattern: string): RegExp | null {
   if (cache.has(pattern)) return cache.get(pattern)!;
-  const source = pattern.replace(/\(\?i\)/g, '');
+  // Node 22 (our runtime) has no inline modifier groups, so "(?i:x)" becomes a plain "(?:x)".
+  const source = pattern.replace(/\(\?i\)/g, '').replace(/\(\?i:/g, '(?:');
   let re: RegExp | null = null;
   for (const flags of ['i', 'iu']) {
     try {
@@ -257,7 +258,18 @@ export function unsupported(rule: Rule): string | null {
 }
 
 /** Every rule in a TRaSH profile's default set (always-on rules plus default-on groups), with TRaSH's points. */
+const defaults = new Map<string, { rule: Rule; points: number; group: string | null }[]>();
+
 export function defaultRules(app: App, profileName: string): { rule: Rule; points: number; group: string | null }[] {
+  const key = `${app}:${profileName}`;
+  const cached = defaults.get(key);
+  if (cached) return cached;
+  const list = buildDefaultRules(app, profileName);
+  defaults.set(key, list);
+  return list;
+}
+
+function buildDefaultRules(app: App, profileName: string): { rule: Rule; points: number; group: string | null }[] {
   const data = TRASH[app];
   const profile = data.profiles.find((p) => p.name === profileName);
   if (!profile) throw new Error(`No TRaSH profile called ${profileName}`);
