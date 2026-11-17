@@ -18,7 +18,7 @@ const CASES: [string, Partial<ParsedRelease>][] = [
   ['Blade.Runner.2049.2017.720p.CAM.x264-NoGRP', { quality: 'CAM', resolution: 720 }],
   ['Oppenheimer.2023.IMAX.2160p.BluRay.x265.10bit.DTS-HD.MA.5.1-WiKi', { title: 'Oppenheimer', year: 2023, editions: ['IMAX'], quality: 'Bluray-2160p', audio: 'DTS-HD MA', channels: '5.1', group: 'WiKi' }],
   ['Oppenheimer.2023.2160p.UHDRemux.Hybrid.HDR.DV-TheEqualizer', { quality: 'Remux-2160p', hybrid: true, hdr: ['DV', 'HDR'], group: 'TheEqualizer' }],
-  ['The.Matrix.1999.DVD-R.NORDIC.PAL', { title: 'The Matrix', year: 1999, quality: 'DVD', languages: ['Nordic'] }],
+  ['The.Matrix.1999.DVD-R.NORDIC.PAL', { title: 'The Matrix', year: 1999, quality: 'DVD-R', languages: ['Nordic'] }], // a whole DVD, as Radarr reads it
   ['Spider-Man.Across.the.Spider-Verse.2023.1080p.WEBRip.AAC5.1.10bits.x265-Rapta', { title: 'Spider-Man Across the Spider-Verse', year: 2023, quality: 'WEBRip-1080p', audio: 'AAC', channels: '5.1', tenBit: true, group: 'Rapta' }],
   ['Spider-Man.Across.the.Spider-Verse.2023.1080p.HD-TC-C1NEM4', { title: 'Spider-Man Across the Spider-Verse', quality: 'TELECINE' }],
   ['Spider-Man.Across.The.Spider-Verse.2023.720p.V2.HDCAM-C1NEM4', { quality: 'CAM', version: 2 }],
@@ -75,7 +75,11 @@ const CASES: [string, Partial<ParsedRelease>][] = [
   ['Up (2009) Ultra HD BluRay HDR10 10Bit 2160p Dts-HDMa7 1 H265-d3g', { audio: 'DTS-HD MA', channels: '7.1' }],
   ['Up 2009 1080p H264 DTS 5 1 Will1869', { quality: 'HDTV-1080p' }],
   ['Up 2009 720p BluRay RoDubbed DD 5 1 x264-SPHD', { languages: ['Russian'] }],
-  ['Up 3D (2009) HSBS BrRip x264 - 1.5GB -YIFY', { title: 'Up', year: 2009, is3d: true, quality: 'Bluray-1080p', group: 'YIFY' }],
+  ['Up 3D (2009) HSBS BrRip x264 - 1.5GB -YIFY', { title: 'Up', year: 2009, is3d: true, quality: 'Bluray-480p', group: 'YIFY' }], // no resolution: Radarr says 480p
+  ['The.Matrix.1999.720p.HDDVDRip.XviD.AC3-ViSiON', { quality: 'Bluray-720p' }],
+  ['The.Matrix.1999.1080p.BluRay.H264.AAC-RARBG', { group: 'RARBG' }],
+  ['Dune Part Two (2024) [1080p] [BluRay]', { group: 'BluRay' }], // Radarr reads a last [word] as the group
+  ['Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX[T', { group: 'FLUX' }],
 
   // ---- YTS
   ['Dune Part Two (2024) 1080p BRRip 5.1 x264 -YTS', { title: 'Dune Part Two', year: 2024, quality: 'Bluray-1080p', channels: '5.1', group: 'YTS' }],
