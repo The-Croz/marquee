@@ -27,6 +27,8 @@ export interface Config {
   webDir: string | null;
   oidc: OidcConfig | null;
   plex: PlexConfig;
+  /** TMDB API key (v3 key or v4 read token). Used from Milestone 1. */
+  tmdbApiKey: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -63,5 +65,6 @@ export function loadConfig(env: Env = process.env): Config {
       serverId: plexServerId,
       autoCreate: bool(env.PLEX_AUTO_CREATE, false) && plexServerId !== null,
     },
+    tmdbApiKey: env.TMDB_API_KEY?.trim() || null,
   };
 }

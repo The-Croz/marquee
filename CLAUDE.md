@@ -28,6 +28,7 @@ Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Taut
 apps/server     Hono API on Node 22, SQLite via better-sqlite3 + Drizzle, bundled with esbuild
 apps/web        React 19 + Vite + Tailwind v4 + TanStack Query + React Router
 packages/shared Types shared by server and web (no runtime code)
+docker/         Entrypoint (PUID/PGID) and the Unraid template
 ```
 
 ## Commands

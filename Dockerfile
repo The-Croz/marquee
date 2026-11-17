@@ -21,6 +21,8 @@ FROM node:22-bookworm-slim
 ARG VERSION=dev
 ENV NODE_ENV=production \
     MARQUEE_VERSION=$VERSION \
+    PUID=1000 \
+    PGID=1000 \
     MARQUEE_PORT=9797 \
     MARQUEE_DATA_DIR=/config \
     MARQUEE_WEB_DIR=/app/web
@@ -31,13 +33,14 @@ COPY --from=build /out/package.json ./package.json
 COPY --from=build /src/apps/server/dist ./dist
 COPY --from=build /src/apps/web/dist ./web
 
-RUN mkdir -p /config && chown node:node /config
+COPY docker/entrypoint.sh /usr/local/bin/marquee-entrypoint
+RUN chmod 755 /usr/local/bin/marquee-entrypoint && mkdir -p /config && command -v setpriv
 VOLUME /config
 EXPOSE 9797
 
-# Runs as the unprivileged "node" user (1000:1000) by default.
-# On Unraid, pass --user 99:100 so files match the nobody:users convention.
-USER node
+# The entrypoint fixes /config ownership, then drops to PUID:PGID (never runs
+# the app as root). On Unraid set PUID=99 and PGID=100.
+ENTRYPOINT ["marquee-entrypoint"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.MARQUEE_PORT||9797)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
