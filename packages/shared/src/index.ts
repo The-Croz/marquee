@@ -296,3 +296,75 @@ export interface SearchResult {
   /** Marquee id if it's already in your library */
   libraryId: number | null;
 }
+
+// ---------------------------------------------------------------- Settings → Quality (profiles)
+
+export type ProfileKind = 'movie' | 'tv';
+export type ProfileDefaultSlot = 'movie' | 'tv' | 'kids';
+
+/** A group of qualities that rank the same, best group first. */
+export interface QualityTier {
+  name: string;
+  qualities: string[];
+  allowed: boolean;
+}
+
+export interface ProfileSummary {
+  id: number;
+  kind: ProfileKind;
+  /** What titles point at; never changes. */
+  key: string;
+  name: string;
+  description: string;
+  /** Set for the built-in profiles, which can be reset to TRaSH's values. */
+  preset: string | null;
+  /** Name of the "good enough" quality group. */
+  cutoff: string;
+  /** How many movies or shows use it. */
+  titles: number;
+  defaultFor: ProfileDefaultSlot[];
+}
+
+export interface ProfilesView {
+  profiles: ProfileSummary[];
+  defaults: Record<ProfileDefaultSlot, string>;
+}
+
+export interface ProfileRuleView {
+  trashId: string;
+  /** TRaSH's name, shown small beside the label. */
+  name: string;
+  label: string;
+  explain: string;
+  /** TRaSH's group, e.g. "[Unwanted] Unwanted Formats". */
+  group: string | null;
+  enabled: boolean;
+  score: number;
+  /** TRaSH's own points, to show when you've changed them. */
+  trashScore: number;
+}
+
+/** MB per minute of runtime. */
+export interface SizeLimitView {
+  quality: string;
+  label: string;
+  min: number;
+  preferred: number;
+  max: number;
+  /** The largest size is at the top of the scale: no limit. */
+  unlimited: boolean;
+  /** You changed it from TRaSH's value. */
+  changed: boolean;
+}
+
+export interface ProfileDetail extends ProfileSummary {
+  tiers: QualityTier[];
+  upgrades: boolean;
+  minScore: number;
+  cutoffScore: number;
+  minUpgradeScore: number;
+  sizes: SizeLimitView[];
+  rules: ProfileRuleView[];
+  /** Plain words for each quality name ("WEBDL-1080p" → "1080p web download"). */
+  qualityLabels: Record<string, string>;
+}

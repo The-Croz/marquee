@@ -13,11 +13,14 @@ import { homeRoutes } from './routes/home.js';
 import { servicesRoutes } from './routes/services.js';
 import { sourcesRoutes } from './routes/sources.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
+import { profileRoutes } from './routes/profiles.js';
+import { seedProfiles } from './releases/profiles.js';
 
 import { VERSION } from './version.js';
 
 export function createApp(deps: Deps) {
   const app = new Hono<Env>();
+  seedProfiles(deps.db, deps.now());
 
   app.use(
     '*',
@@ -55,6 +58,7 @@ export function createApp(deps: Deps) {
   app.route('/api/home', homeRoutes);
   app.route('/api/settings/services', servicesRoutes);
   app.route('/api/settings/sources', sourcesRoutes);
+  app.route('/api/settings/profiles', profileRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);

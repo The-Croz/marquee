@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // Timestamps are stored as Unix milliseconds.
 
@@ -188,9 +188,56 @@ export const sourceCalls = sqliteTable('source_calls', {
   message: text('message'),
 });
 
+/**
+ * Quality profiles: which copies a title accepts and how they're ranked. One
+ * set for movies and one for TV, since TRaSH's rules and qualities differ
+ * between the two. Titles point at a profile by `key` (movies.profile, series.profile).
+ */
+export const profiles = sqliteTable(
+  'profiles',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+    /** Stable name titles refer to ("cinema"); never changes, even on rename. */
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    /** The preset it can be reset to, or null for one you made. */
+    preset: text('preset'),
+    /** JSON Tier[]: groups of qualities, best first. */
+    tiers: text('tiers').notNull(),
+    /** Name of the tier that's "good enough": no upgrades past it. */
+    cutoff: text('cutoff').notNull(),
+    upgrades: integer('upgrades', { mode: 'boolean' }).notNull().default(true),
+    minScore: integer('min_score').notNull().default(0),
+    cutoffScore: integer('cutoff_score').notNull().default(10000),
+    minUpgradeScore: integer('min_upgrade_score').notNull().default(1),
+    /** JSON Record<quality, { min, preferred, max }> in MB per minute; overrides TRaSH's sizes. */
+    sizes: text('sizes').notNull().default('{}'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+  },
+  (t) => [uniqueIndex('profiles_kind_key').on(t.kind, t.key)],
+);
+
+/** The TRaSH rules a profile scores, and how many points each is worth. */
+export const profileRules = sqliteTable(
+  'profile_rules',
+  {
+    profileId: integer('profile_id')
+      .notNull()
+      .references(() => profiles.id, { onDelete: 'cascade' }),
+    trashId: text('trash_id').notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    score: integer('score').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.profileId, t.trashId] })],
+);
+
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;
 export type MediaFile = typeof mediaFiles.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Source = typeof sources.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;

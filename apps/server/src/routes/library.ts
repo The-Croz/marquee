@@ -16,6 +16,7 @@ import { episodes, mediaFiles, movies, scanItems, series, type MediaFile, type U
 import { readServices } from '../library/services.js';
 import type { ScanSources } from '../library/scanner.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
+import { ProfileService } from '../releases/profiles.js';
 
 // Ratings a kid profile can see. Unrated titles are hidden from kids.
 // (Milestone 5 makes this adjustable per profile.)
@@ -345,4 +346,19 @@ showRoutes.get('/:id{[0-9]+}', (c) => {
     seasons: [...seasons.values()].sort((a, b) => (a.season === 0 ? 1 : b.season === 0 ? -1 : a.season - b.season)),
   };
   return c.json(detail);
+});
+
+/** Changes which profile a movie or show uses. Admin only. */
+const profileBody = z.object({ profile: z.string().min(1) });
+movieRoutes.put('/:id{[0-9]+}/profile', async (c) => {
+  requireAdmin(c);
+  const { profile } = profileBody.parse(await c.req.json());
+  new ProfileService(c.get('deps').db, c.get('deps').now).assign('movie', Number(c.req.param('id')), profile);
+  return c.json({ ok: true, profile });
+});
+showRoutes.put('/:id{[0-9]+}/profile', async (c) => {
+  requireAdmin(c);
+  const { profile } = profileBody.parse(await c.req.json());
+  new ProfileService(c.get('deps').db, c.get('deps').now).assign('tv', Number(c.req.param('id')), profile);
+  return c.json({ ok: true, profile });
 });

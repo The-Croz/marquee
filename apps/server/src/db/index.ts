@@ -172,6 +172,33 @@ const migrations: string[] = [
   );
   CREATE INDEX source_calls_source ON source_calls (source_id, at);
   `,
+  /* 4: quality profiles (seeded with the Cinema, Everyday HD and Kids & Cartoons presets on first run) */ `
+  CREATE TABLE profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    preset TEXT,
+    tiers TEXT NOT NULL,
+    cutoff TEXT NOT NULL,
+    upgrades INTEGER NOT NULL DEFAULT 1,
+    min_score INTEGER NOT NULL DEFAULT 0,
+    cutoff_score INTEGER NOT NULL DEFAULT 10000,
+    min_upgrade_score INTEGER NOT NULL DEFAULT 1,
+    sizes TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (kind, key)
+  );
+  CREATE TABLE profile_rules (
+    profile_id INTEGER NOT NULL REFERENCES profiles (id) ON DELETE CASCADE,
+    trash_id TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    score INTEGER NOT NULL,
+    PRIMARY KEY (profile_id, trash_id)
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {
