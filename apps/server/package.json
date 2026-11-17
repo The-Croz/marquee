@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "demo": "tsx scripts/demo.ts"
+    "demo": "tsx scripts/demo.ts",
+    "trash:update": "tsx scripts/update-trash.ts"
   },
   "devDependencies": {
     "@marquee/shared": "workspace:*",

@@ -10,7 +10,7 @@
 export type Resolution = 2160 | 1440 | 1080 | 720 | 576 | 480;
 
 /** Where the copy came from, best first. Matches the sources Radarr and TRaSH use. */
-export type Source = 'remux' | 'bluray' | 'webdl' | 'webrip' | 'hdtv' | 'dvd' | 'brdisk' | 'rawhd' | 'telecine' | 'telesync' | 'cam' | 'workprint' | 'screener' | 'regional';
+export type Source = 'remux' | 'bluray' | 'webdl' | 'webrip' | 'hdtv' | 'dvd' | 'dvdr' | 'brdisk' | 'rawhd' | 'telecine' | 'telesync' | 'cam' | 'workprint' | 'screener' | 'regional';
 
 export type Codec = 'h265' | 'h264' | 'av1' | 'vp9' | 'vc1' | 'mpeg2' | 'xvid';
 export type HdrFlag = 'DV' | 'HDR10+' | 'HDR10' | 'HDR' | 'HLG' | 'SDR';
@@ -114,7 +114,7 @@ function source(s: string): Source | null {
   if (has(s, word('(?:dvd|bd|web)?[ -]?scr(?:eener)?|screener'))) return 'screener';
   if (has(s, word('r5|r6'))) return 'regional';
 
-  const bluray = has(s, word('blu-?ray|blu ray|bluray|bd(?:rip)?|br-?rip|bdrip|bluray-?rip|uhd ?bd|bdmv|hd-?dvd|uhd-?blu-?ray'));
+  const bluray = has(s, word('blu-?ray|blu ray|bluray|bd(?:rip)?|br-?rip|bdrip|bluray-?rip|uhd ?bd|bdmv|hd-?dvd(?:rip)?|uhd-?blu-?ray'));
   const remux = has(s, word('(?:bd|uhd)?-?remux|bdremux|uhdremux'));
 
   if (remux) return 'remux';
@@ -126,8 +126,9 @@ function source(s: string): Source | null {
   if (has(s, word('web-?dl|web dl|webdl|web-?hd|web'))) return 'webdl';
   if (bluray) return 'bluray';
   if (has(s, word('hdtv|pdtv|dsr(?:ip)?|tvrip|sdtv|hdtvrip|dvb(?:rip)?|satrip'))) return 'hdtv';
-  if (has(s, word('dvd(?:rip|r|5|9|-?r)?|ntsc|pal|vhsrip|dvd ?rip'))) return 'dvd';
-  if (has(s, word('hdrip'))) return 'webrip'; // re-encoded from a WEB or Blu-ray copy; Radarr treats it as WEBRip
+  // A whole DVD (DVD-R, DVD5, DVD9): Radarr's "DVD-R" quality.
+  if (has(s, word('dvd-?r|dvd ?[59]|full[ -]?dvd'))) return 'dvdr';
+  if (has(s, word('dvd(?:rip)?|ntsc|pal|vhsrip|dvd ?rip'))) return 'dvd';
   // Streaming service tags with no source almost always mean WEB-DL.
   if (service(s)) return 'webdl';
   return null;
@@ -139,8 +140,11 @@ function isDisc(s: string, bluray: boolean): boolean {
   // "BluRay AVC" / "BluRay HEVC" with no encoder and not a rip means the untouched disc.
   if (!bluray) return false;
   const discVideo = has(s, word('avc|hevc|vc-?1|mpeg-?2|mvc'));
-  const encoded = has(s, word('[xh]-? ?26[45]|re-?encoded?|bdrip|br-?rip|bluray-?rip|mkv|xvid|web(?:-?dl|rip)?|av1|10-?bits?|hdr10|hdr|dv|dovi'));
-  return discVideo && !encoded && !has(s, word('720p|576p|480p'));
+  // Like TRaSH's BR-DISK rule: HDR or Dolby Vision in the name doesn't make it an encode, an encoder does.
+  const encoded = has(s, word('[xh]-? ?26[45]|re-?encoded?|bdrip|br-?rip|bluray-?rip|mkv|xvid|web(?:-?dl|rip)?|av1'));
+  // TRaSH's exceptions: no disc is 1080p HEVC, and d3g only makes encodes.
+  const tellTale = (has(s, word('1080p')) && has(s, word('hevc'))) || has(s, word('d3g'));
+  return discVideo && !encoded && !tellTale && !has(s, word('720p|576p|480p'));
 }
 
 const SERVICES: [string, RegExp][] = [
@@ -181,7 +185,7 @@ export function qualityName(src: Source | null, res: Resolution | null): string 
     case 'remux':
       return r === 2160 ? 'Remux-2160p' : 'Remux-1080p';
     case 'bluray':
-      return `Bluray-${r ?? 1080}p`;
+      return `Bluray-${r ?? 480}p`; // no resolution stated: Radarr calls it a 480p encode
     case 'webdl':
       return `WEBDL-${r ?? 480}p`;
     case 'webrip':
@@ -190,6 +194,8 @@ export function qualityName(src: Source | null, res: Resolution | null): string 
       return r && r >= 720 ? `HDTV-${r}p` : 'SDTV';
     case 'dvd':
       return 'DVD';
+    case 'dvdr':
+      return 'DVD-R';
     case 'brdisk':
       return 'BR-DISK';
     case 'rawhd':
@@ -238,7 +244,7 @@ function hdr(s: string): HdrFlag[] {
 }
 
 function audio(s: string, raw: string): { audio: AudioCodec | null; atmos: boolean; channels: string | null } {
-  const atmos = has(s, word('atmos|ddpa|ddp ?a|eac3 ?atmos'));
+  const atmos = has(s, word('atmos|ddpa\\d?|ddp ?a|eac3 ?atmos'));
   let a: AudioCodec | null = null;
   if (has(s, word('true-? ?hd'))) a = 'TrueHD';
   else if (has(s, word('dts[ -]?x|dts:x'))) a = 'DTS-X';
@@ -395,19 +401,25 @@ function titleAndYear(s: string, ep: Episodes | null): { title: string; year: nu
 // ---------------------------------------------------------------- group
 
 /** Tags sites add to the end that aren't the group: "[TGx]", "[eztv]", "-YTS"? (YTS *is* a group). */
-const SITE_TAGS = /(?:\s*(?:\[?(?:tgx|eztvx?(?:\s?to)?|rartv|rarbg|ettv|eztv\.re|1337x|ion10|mircrew|prof|xxx)\]?)\s*)+$/i;
+// Bracketed site tags, or a bare one after a space. "-RARBG" is a group, "[rarbg]" a site tag.
+const SITE_TAGS = /(?:\s*\[(?:tgx|eztvx?(?:\s?to)?|rartv|rarbg|ettv|eztv\.re|1337x|ion10|mircrew|prof|xxx)\]|\s+(?:tgx|eztvx?|ettv))+\s*$/i;
 
 function group(name: string): string | null {
   let n = name
     .replace(/\.(mkv|mp4|avi|m4v)$/i, '')
     .replace(/\s*\.{3}$/, '') // truncated names end in "..."
+    .replace(/\[[^\]]{0,6}$/, '') // a site tag cut off by the site: "-FLUX[T"
     .replace(/\s*\[[^\]]*\]\s*$/, (m) => (/-/.test(m) ? m : '')) // trailing [site] tag
     .replace(SITE_TAGS, '')
     .trim();
   n = n.replace(/\s+(mkv|mp4)$/i, '');
   // "...x264-GROUP", "...H 264-NTb", "...x264 -YTS", "... - ShortRips"
   const m = n.match(/(?:-\s?|\s-\s)([A-Za-z0-9][A-Za-z0-9@&_]*(?:\s?[A-Za-z0-9@&_]+)?)$/);
-  if (!m?.[1]) return null;
+  if (!m?.[1]) {
+    // Like Radarr: with no "-GROUP", a last "[word]" is taken as the group ("… [1080p] [BluRay]" → BluRay).
+    const bracket = name.trim().match(/[\s._-]\[([A-Za-z0-9]+)\]$/);
+    return bracket?.[1] ?? null;
+  }
   const g = m[1].trim();
   // Things after a dash that aren't groups.
   if (/^(dl|rip|hd|ray|x26[45]|h ?26[45]|hevc|avc|ma|dts|ddp?\d?|aac\d?|\d+|[1-7] [0-2]|sbs|ou|tc|ts|cam|web|bluray|remux|ac3|eac3|2160p|1080p|720p|480p|hdr|dv|sdr|internal|proper|repack)$/i.test(g)) return null;
@@ -453,8 +465,8 @@ export function parseRelease(name: string): ParsedRelease {
     repack: repackM ? Number(repackM[1] ?? repackM[2] ?? 1) : 0,
     proper: has(s, word('proper')),
     version: versionM ? Number(versionM[1]) : 1,
-    is3d: has(s, word('3d|h-?sbs|half[ -]sbs|full[ -]?sbs|sbs|h-?ou|half[ -]ou|mvc')),
-    upscaled: has(s, word('upscaled?|ai[ -]upscaled?|regrade|regraded')),
+    is3d: has(s, word('3d|bd3d|h-?sbs|half[ -]sbs|full[ -]?sbs|sbs|h-?ou|half[ -]ou|mvc')),
+    upscaled: has(s, word('upscaled?|ai[ -]upscaled?|ai[ -]enhanced|regrade|regraded')),
     hybrid: has(s, word('hybrid')),
     internal: has(s, word('internal')),
     languages: [...new Set(LANGUAGES.filter(([, re]) => re.test(s)).map(([n]) => n))],

@@ -1,0 +1,8340 @@
+{
+ "source": "https://github.com/TRaSH-Guides/Guides/tree/f91330331d83897d588c4248158c6317e007988d/docs/json/radarr",
+ "commit": "f91330331d83897d588c4248158c6317e007988d",
+ "fetchedAt": "2026-11-17",
+ "profiles": [
+  {
+   "trash_id": "64fb5f9858489bdac2af690e27c8f42f",
+   "name": "UHD Bluray + WEB",
+   "trash_description": "Quality Profile that covers:<br>- WEBDL: 2160p<br>- Bluray: 2160p",
+   "cutoff": "Bluray-2160p",
+   "upgradeAllowed": true,
+   "minFormatScore": 0,
+   "cutoffFormatScore": 10000,
+   "minUpgradeFormatScore": 1,
+   "items": [
+    {
+     "name": "Bluray-2160p",
+     "allowed": true
+    },
+    {
+     "name": "WEB 2160p",
+     "allowed": true,
+     "items": [
+      "WEBRip-2160p",
+      "WEBDL-2160p"
+     ]
+    },
+    {
+     "name": "Raw-HD",
+     "allowed": false
+    },
+    {
+     "name": "BR-DISK",
+     "allowed": false
+    },
+    {
+     "name": "Remux-2160p",
+     "allowed": false
+    },
+    {
+     "name": "HDTV-2160p",
+     "allowed": false
+    },
+    {
+     "name": "Remux-1080p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-1080p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 1080p",
+     "allowed": false,
+     "items": [
+      "WEBRip-1080p",
+      "WEBDL-1080p"
+     ]
+    },
+    {
+     "name": "HDTV-1080p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-720p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 720p",
+     "allowed": false,
+     "items": [
+      "WEBRip-720p",
+      "WEBDL-720p"
+     ]
+    },
+    {
+     "name": "HDTV-720p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-576p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-480p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 480p",
+     "allowed": false,
+     "items": [
+      "WEBRip-480p",
+      "WEBDL-480p"
+     ]
+    },
+    {
+     "name": "DVD-R",
+     "allowed": false
+    },
+    {
+     "name": "DVD",
+     "allowed": false
+    },
+    {
+     "name": "SDTV",
+     "allowed": false
+    },
+    {
+     "name": "DVDSCR",
+     "allowed": false
+    },
+    {
+     "name": "REGIONAL",
+     "allowed": false
+    },
+    {
+     "name": "TELECINE",
+     "allowed": false
+    },
+    {
+     "name": "TELESYNC",
+     "allowed": false
+    },
+    {
+     "name": "CAM",
+     "allowed": false
+    },
+    {
+     "name": "WORKPRINT",
+     "allowed": false
+    },
+    {
+     "name": "Unknown",
+     "allowed": false
+    }
+   ],
+   "formatItems": {
+    "UHD Bluray Tier 01": "4d74ac4c4db0b64bff6ce0cffef99bf0",
+    "UHD Bluray Tier 02": "a58f517a70193f8e578056642178419d",
+    "UHD Bluray Tier 03": "e71939fae578037e7aed3ee219bbe7c1",
+    "WEB Tier 01": "c20f169ef63c5f40c2def54abaf4438e",
+    "WEB Tier 02": "403816d65392c79236dcb6dd591aeda4",
+    "WEB Tier 03": "af94e0fe497124d1f9ce732069ec8c3b",
+    "Repack/Proper": "e7718d7a3ce595f289bfee26adc178f5",
+    "Repack2": "ae43b294509409a6a13919dedd4764c4",
+    "Repack3": "5caaaa1c08c1742aa4342d8c4cc463f2"
+   }
+  },
+  {
+   "trash_id": "d1d67249d3890e49bc12e275d989a7e9",
+   "name": "HD Bluray + WEB",
+   "trash_description": "Quality Profile that covers:<br>- WEBDL: 1080p<br>- Bluray: 720p, 1080p",
+   "cutoff": "Bluray-1080p",
+   "upgradeAllowed": true,
+   "minFormatScore": 0,
+   "cutoffFormatScore": 10000,
+   "minUpgradeFormatScore": 1,
+   "items": [
+    {
+     "name": "Bluray-1080p",
+     "allowed": true
+    },
+    {
+     "name": "WEB 1080p",
+     "allowed": true,
+     "items": [
+      "WEBRip-1080p",
+      "WEBDL-1080p"
+     ]
+    },
+    {
+     "name": "Bluray-720p",
+     "allowed": true
+    },
+    {
+     "name": "Raw-HD",
+     "allowed": false
+    },
+    {
+     "name": "BR-DISK",
+     "allowed": false
+    },
+    {
+     "name": "Remux-2160p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-2160p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 2160p",
+     "allowed": false,
+     "items": [
+      "WEBRip-2160p",
+      "WEBDL-2160p"
+     ]
+    },
+    {
+     "name": "HDTV-2160p",
+     "allowed": false
+    },
+    {
+     "name": "Remux-1080p",
+     "allowed": false
+    },
+    {
+     "name": "HDTV-1080p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 720p",
+     "allowed": false,
+     "items": [
+      "WEBRip-720p",
+      "WEBDL-720p"
+     ]
+    },
+    {
+     "name": "HDTV-720p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-576p",
+     "allowed": false
+    },
+    {
+     "name": "Bluray-480p",
+     "allowed": false
+    },
+    {
+     "name": "WEB 480p",
+     "allowed": false,
+     "items": [
+      "WEBRip-480p",
+      "WEBDL-480p"
+     ]
+    },
+    {
+     "name": "DVD-R",
+     "allowed": false
+    },
+    {
+     "name": "DVD",
+     "allowed": false
+    },
+    {
+     "name": "SDTV",
+     "allowed": false
+    },
+    {
+     "name": "DVDSCR",
+     "allowed": false
+    },
+    {
+     "name": "REGIONAL",
+     "allowed": false
+    },
+    {
+     "name": "TELECINE",
+     "allowed": false
+    },
+    {
+     "name": "TELESYNC",
+     "allowed": false
+    },
+    {
+     "name": "CAM",
+     "allowed": false
+    },
+    {
+     "name": "WORKPRINT",
+     "allowed": false
+    },
+    {
+     "name": "Unknown",
+     "allowed": false
+    }
+   ],
+   "formatItems": {
+    "HD Bluray Tier 01": "ed27ebfef2f323e964fb1f61391bcb35",
+    "HD Bluray Tier 02": "c20c8647f2746a1f4c4262b0fbbeeeae",
+    "HD Bluray Tier 03": "5608c71bcebba0a5e666223bae8c9227",
+    "WEB Tier 01": "c20f169ef63c5f40c2def54abaf4438e",
+    "WEB Tier 02": "403816d65392c79236dcb6dd591aeda4",
+    "WEB Tier 03": "af94e0fe497124d1f9ce732069ec8c3b",
+    "Repack/Proper": "e7718d7a3ce595f289bfee26adc178f5",
+    "Repack2": "ae43b294509409a6a13919dedd4764c4",
+    "Repack3": "5caaaa1c08c1742aa4342d8c4cc463f2"
+   }
+  }
+ ],
+ "groups": [
+  {
+   "trash_id": "9d5acd8f1da78dfbae788182f7605200",
+   "name": "[Audio] Audio Formats",
+   "trash_description": "Audio Formats, something you see mainly with Remuxes and UHD HQ Encodes. Add this only if you choose a Quality Profile that covers Remuxes and HQ UHD Encodes.",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "TrueHD ATMOS",
+     "trash_id": "496f355514737f7d83bf7aa4d24f8169",
+     "required": true
+    },
+    {
+     "name": "DTS X",
+     "trash_id": "2f22d89048b01681dde8afe203bf2e95",
+     "required": true
+    },
+    {
+     "name": "ATMOS (undefined)",
+     "trash_id": "417804f7f2c4308c1f4c5d380d4c4475",
+     "required": true
+    },
+    {
+     "name": "DD+ ATMOS",
+     "trash_id": "1af239278386be2919e1bcee0bde047e",
+     "required": true
+    },
+    {
+     "name": "TrueHD",
+     "trash_id": "3cafb66171b47f226146a0770576870f",
+     "required": true
+    },
+    {
+     "name": "DTS-HD MA",
+     "trash_id": "dcf3ec6938fa32445f590a4da84256cd",
+     "required": true
+    },
+    {
+     "name": "FLAC",
+     "trash_id": "a570d4a0e56a2874b64e5bfa55202a1b",
+     "required": true
+    },
+    {
+     "name": "PCM",
+     "trash_id": "e7c2fcae07cbada050a0af3357491d7b",
+     "required": true
+    },
+    {
+     "name": "DTS-HD HRA",
+     "trash_id": "8e109e50e0a0b83a5098b056e13bf6db",
+     "required": true
+    },
+    {
+     "name": "DD+",
+     "trash_id": "185f1dd7264c4562b9022d963ac37424",
+     "required": true
+    },
+    {
+     "name": "DTS-ES",
+     "trash_id": "f9f847ac70a0af62ea4a08280b859636",
+     "required": true
+    },
+    {
+     "name": "DTS",
+     "trash_id": "1c1a4c5e823891c75bc50380a6866f73",
+     "required": true
+    },
+    {
+     "name": "AAC",
+     "trash_id": "240770601cc226190c367ef59aba7463",
+     "required": true
+    },
+    {
+     "name": "DD",
+     "trash_id": "c2998bd0d90ed5621d8df281e839436e",
+     "required": true
+    },
+    {
+     "name": "MP3",
+     "trash_id": "6ba9033150e7896bdc9ec4b44f2b230f",
+     "required": false
+    },
+    {
+     "name": "Opus",
+     "trash_id": "a061e2e700f81932daf888599f8a8273",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "1616617ab3a14397a2b2321bcbda44d1",
+   "name": "[HDR Formats] DV Boost",
+   "trash_description": "If you prefer Dolby Vision and have compatible equipment, add the DV Boost custom format. This custom format prioritizes releases containing Dolby Vision over standard HDR releases.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "DV Boost",
+     "trash_id": "b337d6812e06c200ec9a2d3cfa9d20a7",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "7fc2751eef7e6bdc70b74136e5e35c76",
+   "name": "[HDR Formats] DV (w/o HDR fallback)",
+   "trash_description": "If NOT every device accessing your media server supports Dolby Vision, add the DV (w/o HDR fallback) custom format to ensure maximum compatibility with your setup. This prevents playback issues on devices that don't fully support Dolby Vision.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "DV (w/o HDR fallback)",
+     "trash_id": "923b6abef9b17f937fab56cfcf89e1f1",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "ef20e67b95a381fb3bc6d1f06ea24f46",
+   "name": "[HDR Formats] HDR",
+   "trash_description": "All users with HDR-capable equipment should add the HDR custom format.",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "HDR",
+     "trash_id": "493b6d1dbec3c3364c59d7607f7e3405",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "b29413a7487478fe98228ce79e5689e4",
+   "name": "[HDR Formats] HDR10+ Boost",
+   "trash_description": "If you prefer HDR10+ releases and have compatible equipment, add the HDR10+ Boost custom format. This custom format prioritizes releases containing HDR10+ over standard HDR releases.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "HDR10+ Boost",
+     "trash_id": "caa37d0df9c348912df1fb1d88f9273a",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "47f0d69750de9e16855915fa73bb7b08",
+   "name": "[HDR Formats] SDR",
+   "trash_description": "A group of custom formats that affect which SDR releases, if any, are grabbed in UHD-enabled profiles. Please read the descriptions on the Collection of Custom Formats page for more details.<br><br>- SDR: This will prevent grabbing UHD/4k releases without HDR Formats.<br>- SDR (no WEBDL): This will prevent grabbing UHD/4k Remux and Bluray encode releases without HDR Formats. - i.e., SDR WEB releases will still be allowed since 4K SDR WEB releases can often look better than the 1080p version due to the improved bitrate.<br><br><b>Please ensure you only score or enable one of them in your Quality Profile!!!</b>",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "SDR",
+     "trash_id": "9c38ebb7384dada637be8899efa68e6f",
+     "required": false
+    },
+    {
+     "name": "SDR (no WEBDL)",
+     "trash_id": "25c12f78430a3a23413652cbd1d48d77",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "bc3c13e52f2971319bc1748ffa3d1078",
+   "name": "[Optional] Accessibility",
+   "trash_description": "Optional Custom Formats: be sure to read the individual descriptions in the guide before adding all of them.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "WiTH AD",
+     "trash_id": "127bdbadcf3e4463a8c707759fbaad75",
+     "required": false
+    },
+    {
+     "name": "WiTH ASL",
+     "trash_id": "09c60ba54fadb511c6986a7edec4da4b",
+     "required": false
+    },
+    {
+     "name": "WiTH BASL",
+     "trash_id": "41e4baea7b10ddefc6609d52f742dacd",
+     "required": false
+    },
+    {
+     "name": "WiTH BSL",
+     "trash_id": "e205c5ba6be76b472903f4aec97fdb4b",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "f8bf8eab4617f12dfdbd16303d8da245",
+   "name": "[Optional] Golden Rule HD",
+   "trash_description": "- x265 (HD): This blocks 720/1080p (HD) releases that are encoded in x265<br>- x265 (no HDR/DV): This blocks 720/1080p (HD) releases that are encoded in x265, But it will allow 720/1080p x265 releases if they have HDR and/or DV.<br><br><b>Please ensure you only score or enable one of them in your Quality Profile!!!</b>",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "x265 (HD)",
+     "trash_id": "dc98083864ea246d05a42df0d05f81cc",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "x265 (no HDR/DV)",
+     "trash_id": "839bea857ed2c0a8e084f3cbdbd65ecb",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "ff204bbcecdd487d1cefcefdbf0c278d",
+   "name": "[Optional] Golden Rule UHD",
+   "trash_description": "- x265 (HD): This blocks 720/1080p (HD) releases that are encoded in x265<br>- x265 (no HDR/DV): This blocks 720/1080p (HD) releases that are encoded in x265, But it will allow 720/1080p x265 releases if they have HDR and/or DV.<br><br><b>Please ensure you only score or enable one of them in your Quality Profile!!!</b>",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "x265 (HD)",
+     "trash_id": "dc98083864ea246d05a42df0d05f81cc",
+     "required": false
+    },
+    {
+     "name": "x265 (no HDR/DV)",
+     "trash_id": "839bea857ed2c0a8e084f3cbdbd65ecb",
+     "required": false,
+     "default": true
+    }
+   ],
+   "profiles": [
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "13856622cf7a6c9925d3a83f8812d679",
+   "name": "[Optional] Language Profiles",
+   "trash_description": "Language Profiles included in one of the guides.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "German",
+     "trash_id": "86bc3115eb4e9873ac96904a4a68e19e",
+     "required": false
+    },
+    {
+     "name": "German DL",
+     "trash_id": "f845be10da4f442654c13e1f2c3d6cd5",
+     "required": false
+    },
+    {
+     "name": "German DL (undefined)",
+     "trash_id": "6aad77771dabe9d3e9d7be86f310b867",
+     "required": false
+    },
+    {
+     "name": "Language: Not English",
+     "trash_id": "0dc8aec3bd1c47cd6c40c46ecd27e846",
+     "required": false
+    },
+    {
+     "name": "Language: Not French",
+     "trash_id": "533f782474f0819643c2ec0c1eeeb0ac",
+     "required": false
+    },
+    {
+     "name": "Language: Not Original",
+     "trash_id": "d6e9318c875905d6cfb5bee961afcea9",
+     "required": false
+    },
+    {
+     "name": "Language: Original + French",
+     "trash_id": "0542a48746585dc4444bbbb8a6bdf6ea",
+     "required": false
+    },
+    {
+     "name": "Not German or English",
+     "trash_id": "4eadb75fb23d09dfc0a8e3f687e72287",
+     "required": false
+    },
+    {
+     "name": "Not German, Japanese or English",
+     "trash_id": "532c4a41c94ae0f77c745ae478883c44",
+     "required": false
+    },
+    {
+     "name": "Not German, Japanese, Korean, Chinese or English",
+     "trash_id": "9a8f58fae5df94783c214c0ed63f589c",
+     "required": false
+    },
+    {
+     "name": "Wrong Language",
+     "trash_id": "2051402ee9ca81162017d98cbe1dff2c",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "9337080378236ce4c0b183e35790d2a7",
+   "name": "[Optional] Miscellaneous",
+   "trash_description": "Optional Custom Formats: be sure to read the individual descriptions in the guide before adding all of them.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "DV (Disk)",
+     "trash_id": "f700d29429c023a5734505e77daeaea7",
+     "required": false
+    },
+    {
+     "name": "FreeLeech",
+     "trash_id": "0d91270a7255a1e388fa85e959f359d8",
+     "required": false
+    },
+    {
+     "name": "HFR",
+     "trash_id": "73613461ac2cea99d52c4cd6e177ab82",
+     "required": false
+    },
+    {
+     "name": "INTERNAL",
+     "trash_id": "182fa1c42a2468f8488e6dcf75a81b81",
+     "required": false
+    },
+    {
+     "name": "MPEG2",
+     "trash_id": "ff86c4326018682f817830ced463332b",
+     "required": false
+    },
+    {
+     "name": "MULTi",
+     "trash_id": "4b900e171accbfb172729b63323ea8ca",
+     "required": false
+    },
+    {
+     "name": "P2P Internal",
+     "trash_id": "80f51de4636a294e31552e90d2e1decb",
+     "required": false
+    },
+    {
+     "name": "VC-1",
+     "trash_id": "11cd1db7165d6a7ad9a83bc97b8b1060",
+     "required": false
+    },
+    {
+     "name": "VP9",
+     "trash_id": "ae4cfaa9283a4f2150ac3da08e388723",
+     "required": false
+    },
+    {
+     "name": "x264",
+     "trash_id": "2899d84dc9372de3408e6d8cc18e9666",
+     "required": false
+    },
+    {
+     "name": "x265",
+     "trash_id": "9170d55c319f4fe40da8711ba9d8050d",
+     "required": false
+    },
+    {
+     "name": "x266",
+     "trash_id": "390455c22a9cac81a738f6cbad705c3c",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "f4f1474b963b24cf983455743aa9906c",
+   "name": "[Optional] Movie Versions",
+   "trash_description": "Optional Movie Versions, make sure to read the individual descriptions that you can find in the guide.",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "4K Remaster",
+     "trash_id": "eca37840c13c6ef2dd0262b141a5482f",
+     "required": false
+    },
+    {
+     "name": "Criterion Collection",
+     "trash_id": "e0c07d59beb37348e975a930d5e50319",
+     "required": false
+    },
+    {
+     "name": "Hybrid",
+     "trash_id": "0f12c086e289cf966fa5948eac571f44",
+     "required": false
+    },
+    {
+     "name": "IMAX",
+     "trash_id": "eecf3a857724171f968a66cb5719e152",
+     "required": false
+    },
+    {
+     "name": "IMAX Enhanced",
+     "trash_id": "9f6cbff8cfe4ebbc1bde14c7b7bec0de",
+     "required": false
+    },
+    {
+     "name": "Masters of Cinema",
+     "trash_id": "9d27d9d2181838f76dee150882bdc58c",
+     "required": false
+    },
+    {
+     "name": "Open Matte",
+     "trash_id": "09d9dd29a0fc958f9796e65c2a8864b4",
+     "required": false
+    },
+    {
+     "name": "Remaster",
+     "trash_id": "570bc9ebecd92723d2d21500f4be314c",
+     "required": false
+    },
+    {
+     "name": "Special Edition",
+     "trash_id": "957d0f44b592285f26449575e8b1167e",
+     "required": false
+    },
+    {
+     "name": "Theatrical Cut",
+     "trash_id": "e9001909a4c88013a359d0b9920d7bea",
+     "required": false
+    },
+    {
+     "name": "Vinegar Syndrome",
+     "trash_id": "db9b4c4b53d312a3ca5f1378f6440fc9",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "d9cc9a504e5ede6294c8b973aad4f028",
+   "name": "[Streaming Services] General",
+   "trash_description": "Collection of General Streaming Services for Radarr",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "AMZN",
+     "trash_id": "b3b3a6ac74ecbd56bcdbefa4799fb9df",
+     "required": true
+    },
+    {
+     "name": "ATV",
+     "trash_id": "df13ed57843877b21ad969184ab6888f",
+     "required": true
+    },
+    {
+     "name": "ATVP",
+     "trash_id": "40e9380490e748672c2522eaaeb692f7",
+     "required": true
+    },
+    {
+     "name": "BCORE",
+     "trash_id": "cc5e51a9e85a6296ceefe097a77f12f4",
+     "required": true
+    },
+    {
+     "name": "CRiT",
+     "trash_id": "16622a6911d1ab5d5b8b713d5b0036d4",
+     "required": true
+    },
+    {
+     "name": "DSNP",
+     "trash_id": "84272245b2988854bfb76a16e60baea5",
+     "required": true
+    },
+    {
+     "name": "HBO",
+     "trash_id": "509e5f41146e278f9eab1ddaceb34515",
+     "required": true
+    },
+    {
+     "name": "HMAX",
+     "trash_id": "5763d1b0ce84aff3b21038eea8e9b8ad",
+     "required": true
+    },
+    {
+     "name": "Hulu",
+     "trash_id": "526d445d4c16214309f0fd2b3be18a89",
+     "required": true
+    },
+    {
+     "name": "IMF",
+     "trash_id": "7737598007e71665c5edc7f1626bfbf1",
+     "required": true
+    },
+    {
+     "name": "iT",
+     "trash_id": "e0ec9672be6cac914ffad34a6b077209",
+     "required": true
+    },
+    {
+     "name": "MA",
+     "trash_id": "2a6039655313bf5dab1e43523b62c374",
+     "required": true
+    },
+    {
+     "name": "MAX",
+     "trash_id": "6a061313d22e51e0f25b7cd4dc065233",
+     "required": true
+    },
+    {
+     "name": "NF",
+     "trash_id": "170b1d363bd8516fbf3a3eb05d4faff6",
+     "required": true
+    },
+    {
+     "name": "PCOK",
+     "trash_id": "c9fd353f8f5f1baf56dc601c4cb29920",
+     "required": true
+    },
+    {
+     "name": "PMTP",
+     "trash_id": "e36a0ba1bc902b26ee40818a1d59b8bd",
+     "required": true
+    },
+    {
+     "name": "PLAY",
+     "trash_id": "350e9170619683a55cb9191d0b1ababa",
+     "required": true
+    },
+    {
+     "name": "ROKU",
+     "trash_id": "44c2b54d7c81c1a442a8b2cabeaef54f",
+     "required": true
+    },
+    {
+     "name": "STAN",
+     "trash_id": "c2863d2a50c9acad1fb50e53ece60817",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "9fc645b3cef52b149ec13ba3972245d1",
+   "name": "[Streaming Services] Miscellaneous",
+   "trash_description": "Collection of Miscellaneous Streaming Services for Radarr",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "AUBC",
+     "trash_id": "3bf143ecd06f66ed88da4c704350af1d",
+     "required": false
+    },
+    {
+     "name": "CBC",
+     "trash_id": "d9058beaae2e147183870304dd526761",
+     "required": false
+    },
+    {
+     "name": "CNLP",
+     "trash_id": "1f9dfb4b8d9cae1f6dc0099547d53513",
+     "required": false
+    },
+    {
+     "name": "CRAV",
+     "trash_id": "f6ff65b3f4b464a79dcc75950fe20382",
+     "required": false
+    },
+    {
+     "name": "FAH",
+     "trash_id": "6c6af63910e3e4e8ff32a85102a94c11",
+     "required": false
+    },
+    {
+     "name": "OViD",
+     "trash_id": "fbca986396c5e695ef7b2def3c755d01",
+     "required": false
+    },
+    {
+     "name": "STRP",
+     "trash_id": "ab56ccdc473a1f2897c76187ea365be2",
+     "required": false
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "f737e18b5824d6ebb2d57b957ae2fd6c",
+   "name": "[Streaming Services] UK",
+   "trash_description": "Collection of UK Streaming Services for Radarr",
+   "default": false,
+   "custom_formats": [
+    {
+     "name": "IP",
+     "trash_id": "6185878161f1e2eef9cd0641a0d09eae",
+     "required": true
+    },
+    {
+     "name": "ITVX",
+     "trash_id": "c3492a26af412e385404eade438ec51c",
+     "required": true
+    },
+    {
+     "name": "MY5",
+     "trash_id": "eacd2cb6c6d4a93e459df2cec6d7b97a",
+     "required": true
+    },
+    {
+     "name": "NOW",
+     "trash_id": "3dce1fce9ac06d1349dfbd9186289385",
+     "required": true
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  },
+  {
+   "trash_id": "a3ac6af01d78e4f21fcb75f601ac96df",
+   "name": "[Unwanted] Unwanted Formats",
+   "trash_description": "A list of unwanted release groups, versions, or sources: make sure to read the individual descriptions in the guide before adding any of them.",
+   "default": true,
+   "custom_formats": [
+    {
+     "name": "3D",
+     "trash_id": "b8cd450cbfa689c0259a01d9e29ba3d6",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "AV1",
+     "trash_id": "cae4ca30163749b891686f95532519bd",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Bad Dual Groups",
+     "trash_id": "b6832f586342ef70d9c128d40c07b872",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Black and White Editions",
+     "trash_id": "cc444569854e9de0b084ab2b8b1532b2",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "BR-DISK",
+     "trash_id": "ed38b889b31be83fda192888e2286d83",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Extras",
+     "trash_id": "0a3f082873eb454bde444150b70253cc",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Generated Dynamic HDR",
+     "trash_id": "e6886871085226c3da1830830146846c",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Line/Mic Dubbed",
+     "trash_id": "c465ccc73923871b3eb1802042331306",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "LQ",
+     "trash_id": "90a6f9a284dff5103f6346090e6280c8",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "LQ (Release Title)",
+     "trash_id": "e204b80c87be9497a8a6eaff48f72905",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "No-RlsGroup",
+     "trash_id": "ae9b7c9ebde1f3bd336a8cbd1ec4c5e5",
+     "required": false
+    },
+    {
+     "name": "Obfuscated",
+     "trash_id": "7357cf5161efbf8c4d5d0c30b4815ee2",
+     "required": false
+    },
+    {
+     "name": "Retags",
+     "trash_id": "5c44f52a8714fdd79bb4d98e2673be1f",
+     "required": false
+    },
+    {
+     "name": "Scene",
+     "trash_id": "f537cf427b64c38c8e36298f657e4828",
+     "required": false
+    },
+    {
+     "name": "Sing-Along Versions",
+     "trash_id": "712d74cd88bceb883ee32f773656b1f5",
+     "required": false,
+     "default": true
+    },
+    {
+     "name": "Upscaled",
+     "trash_id": "bfd8eb01832d646a0a89c4deb46f8564",
+     "required": false,
+     "default": true
+    }
+   ],
+   "profiles": [
+    "HD Bluray + WEB",
+    "UHD Bluray + WEB"
+   ]
+  }
+ ],
+ "formats": [
+  {
+   "trash_id": "b8cd450cbfa689c0259a01d9e29ba3d6",
+   "name": "3D",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "3D",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*(\\b|_)(3d|[fh]?sbs|half[ ._-]ou)(\\b|_)"
+     }
+    },
+    {
+     "name": "BluRay3D",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(BluRay3D)\\b"
+     }
+    },
+    {
+     "name": "BD3D",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(BD3D)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "eca37840c13c6ef2dd0262b141a5482f",
+   "name": "4K Remaster",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Remaster",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "Remaster"
+     }
+    },
+    {
+     "name": "4K",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "4k"
+     }
+    },
+    {
+     "name": "Not 4K Resolution",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "240770601cc226190c367ef59aba7463",
+   "name": "AAC",
+   "trash_scores": {
+    "default": 1000,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 80
+   },
+   "specifications": [
+    {
+     "name": "AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "b3b3a6ac74ecbd56bcdbefa4799fb9df",
+   "name": "AMZN",
+   "specifications": [
+    {
+     "name": "Amazon",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(amzn|amazon(hd)?)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "417804f7f2c4308c1f4c5d380d4c4475",
+   "name": "ATMOS (undefined)",
+   "trash_scores": {
+    "default": 3000,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 480
+   },
+   "specifications": [
+    {
+     "name": "ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not RlsGrp (Atmos Only)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(W4NK3R|HQMUX)\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "df13ed57843877b21ad969184ab6888f",
+   "name": "ATV",
+   "specifications": [
+    {
+     "name": "Apple TV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ATV)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "40e9380490e748672c2522eaaeb692f7",
+   "name": "ATVP",
+   "specifications": [
+    {
+     "name": "Apple TV+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(atvp|aptv|Apple TV\\+)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "3bf143ecd06f66ed88da4c704350af1d",
+   "name": "AUBC",
+   "specifications": [
+    {
+     "name": "AUBC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(AUBC)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "cae4ca30163749b891686f95532519bd",
+   "name": "AV1",
+   "trash_scores": {
+    "default": -10000,
+    "sqp-1-2160p": -10000,
+    "anime-radarr": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "AV1",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bAV1\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "b6832f586342ef70d9c128d40c07b872",
+   "name": "Bad Dual Groups",
+   "trash_scores": {
+    "default": -10000,
+    "french-multi-vf": 0,
+    "french-multi-vo": 0,
+    "french-vostfr": 0,
+    "german": 0,
+    "german-anime": 0
+   },
+   "specifications": [
+    {
+     "name": "alfaHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(alfaHD.*)$"
+     }
+    },
+    {
+     "name": "BAT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BAT)$"
+     }
+    },
+    {
+     "name": "BlackBit",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BlackBit)$"
+     }
+    },
+    {
+     "name": "BNd",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BNd)$"
+     }
+    },
+    {
+     "name": "C.A.A",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(C\\.A\\.A)$"
+     }
+    },
+    {
+     "name": "C76",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(C76)$"
+     }
+    },
+    {
+     "name": "Cory",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Cory)$"
+     }
+    },
+    {
+     "name": "CYPHER",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CYPHER)$"
+     }
+    },
+    {
+     "name": "EniaHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EniaHD)$"
+     }
+    },
+    {
+     "name": "EXTREME",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EXTREME)$"
+     }
+    },
+    {
+     "name": "FF",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FF)$"
+     }
+    },
+    {
+     "name": "FOXX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FOXX)$"
+     }
+    },
+    {
+     "name": "G4RiS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(G4RiS)$"
+     }
+    },
+    {
+     "name": "GUEIRA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GUEIRA)$"
+     }
+    },
+    {
+     "name": "LCD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LCD)$"
+     }
+    },
+    {
+     "name": "MGE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MGE\\b.*)$"
+     }
+    },
+    {
+     "name": "MLH",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MLH)$"
+     }
+    },
+    {
+     "name": "N3G4N",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(N3G4N)$"
+     }
+    },
+    {
+     "name": "OldT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(OldT)$"
+     }
+    },
+    {
+     "name": "ONLYMOViE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ONLYMOViE)$"
+     }
+    },
+    {
+     "name": "PD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PD)$"
+     }
+    },
+    {
+     "name": "PTHome",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PTHome)$"
+     }
+    },
+    {
+     "name": "RiPER",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RiPER)$"
+     }
+    },
+    {
+     "name": "RK",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RK)$"
+     }
+    },
+    {
+     "name": "SiGLA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SiGLA)$"
+     }
+    },
+    {
+     "name": "Tars",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Tars)$"
+     }
+    },
+    {
+     "name": "TM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TM\\b)$"
+     }
+    },
+    {
+     "name": "tokar86a",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(tokar86a)$"
+     }
+    },
+    {
+     "name": "TURG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TURG)$"
+     }
+    },
+    {
+     "name": "TvR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TvR)$"
+     }
+    },
+    {
+     "name": "vnlls",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(vnlls)$"
+     }
+    },
+    {
+     "name": "WTV",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(WTV)$"
+     }
+    },
+    {
+     "name": "XiQUEXiQUE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(XiQUEXiQUE)$"
+     }
+    },
+    {
+     "name": "Yatogam1",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Yatogam1)$"
+     }
+    },
+    {
+     "name": "YusukeFLA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(YusukeFLA)$"
+     }
+    },
+    {
+     "name": "ZigZag",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ZigZag)$"
+     }
+    },
+    {
+     "name": "ZNM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ZNM)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "cc5e51a9e85a6296ceefe097a77f12f4",
+   "name": "BCORE",
+   "trash_scores": {
+    "default": 15,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000
+   },
+   "specifications": [
+    {
+     "name": "Bravia Core",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(BCORE)\\b|\\b(\\d{3,4}(p|i))\\b.*\\b(CORE)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "cc444569854e9de0b084ab2b8b1532b2",
+   "name": "Black and White Editions",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Blackout/B&W/Black&Chrome",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b((B(lack)?[ ._-]?(out|(and|[n&])?[ ._-]?(W(hite)?|Chrome))))\\b(?!$)"
+     }
+    },
+    {
+     "name": "Monochrome",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Monochrome)\\b(?!$)"
+     }
+    },
+    {
+     "name": "Noir",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Noir)\\b(?!$)"
+     }
+    },
+    {
+     "name": "Shush Cut",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Shush[ ._-]?Cut)\\b(?!$)"
+     }
+    },
+    {
+     "name": "No/Minus Color",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b((No|Minus)[ ._-]?Colou?r)\\b(?!$)"
+     }
+    },
+    {
+     "name": "Grayscale",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Gr[ae]y([ ._-]?(scale))?)\\b(?!$)"
+     }
+    },
+    {
+     "name": "Darkness and Light",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Darkness?[ ._-]?(and|&)[ ._-]?(Light))\\b(?!$)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ed38b889b31be83fda192888e2286d83",
+   "name": "BR-DISK",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "BR-DISK",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "^(?!.*\\b((?<!HD[._ -]|HD)DVD|BDRip|MKV|XviD|WMV|d3g|(BD)?REMUX|^(?=.*1080p)(?=.*HEVC)|[xh][-_. ]?26[45]|German.*[DM]L|((?<=\\d{4}).*German.*([DM]L)?)(?=.*\\b(AVC|HEVC|VC[-_. ]?1|MVC|MPEG[-_. ]?2)\\b))\\b)(((?=.*\\b(Blu[-_. ]?ray|BD|HD[-_. ]?DVD)\\b)(?=.*\\b(AVC|HEVC|VC[-_. ]?1|MVC|MPEG[-_. ]?2|BDMV|ISO)\\b))|^((?=.*\\b(((?=.*\\b((.*_)?COMPLETE.*|Dis[ck])\\b)(?=.*(Blu[-_. ]?ray|HD[-_. ]?DVD)))|3D[-_. ]?BD|BR[-_. ]?DISK|Full[-_. ]?Blu[-_. ]?ray|^((?=.*((BD|UHD)[-_. ]?(25|50|66|100|ISO)))))))).*"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "d9058beaae2e147183870304dd526761",
+   "name": "CBC",
+   "specifications": [
+    {
+     "name": "CBC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(CBC)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "1f9dfb4b8d9cae1f6dc0099547d53513",
+   "name": "CNLP",
+   "specifications": [
+    {
+     "name": "CNLP",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(CNLP)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "f6ff65b3f4b464a79dcc75950fe20382",
+   "name": "CRAV",
+   "specifications": [
+    {
+     "name": "Crave",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(crav(e)?)\\b[ ._-]web[ ._-]?(dl|rip)?\\b"
+     }
+    },
+    {
+     "name": "Crave Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(CRAV)\\b|\\b(CRAV)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "16622a6911d1ab5d5b8b713d5b0036d4",
+   "name": "CRiT",
+   "trash_scores": {
+    "default": 20
+   },
+   "specifications": [
+    {
+     "name": "CRiT",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(CRiT)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    },
+    {
+     "name": "Not Criterion RlsGrp",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "^(Criterion)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e0c07d59beb37348e975a930d5e50319",
+   "name": "Criterion Collection",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Bluray",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 9
+     }
+    },
+    {
+     "name": "DVD",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Criterion",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Criterion)\\b"
+     }
+    },
+    {
+     "name": "CC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(CC)\\b"
+     }
+    },
+    {
+     "name": "Not Criterion RlsGrp",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "^(Criterion)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c2998bd0d90ed5621d8df281e839436e",
+   "name": "DD",
+   "trash_scores": {
+    "default": 750,
+    "sqp-1-1080p": 115,
+    "sqp-1-web-1080p": 115,
+    "sqp-1-2160p": 115,
+    "sqp-1-web-2160p": 115,
+    "sqp-4-ma-hybrid": 80
+   },
+   "specifications": [
+    {
+     "name": "Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "185f1dd7264c4562b9022d963ac37424",
+   "name": "DD+",
+   "trash_scores": {
+    "default": 1750,
+    "sqp-1-1080p": 125,
+    "sqp-1-web-1080p": 125,
+    "sqp-1-2160p": 125,
+    "sqp-1-web-2160p": 125,
+    "sqp-4-ma-hybrid": 280
+   },
+   "specifications": [
+    {
+     "name": "Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(True[ .-]?HD|ATMOS|DDPA)(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "1af239278386be2919e1bcee0bde047e",
+   "name": "DD+ ATMOS",
+   "trash_scores": {
+    "default": 3000,
+    "sqp-1-1080p": 135,
+    "sqp-1-web-1080p": 135,
+    "sqp-1-2160p": 135,
+    "sqp-1-web-2160p": 135,
+    "sqp-4-ma-hybrid": 480
+   },
+   "specifications": [
+    {
+     "name": "Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ATMOS|DDPA)(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not TrueHD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "84272245b2988854bfb76a16e60baea5",
+   "name": "DSNP",
+   "specifications": [
+    {
+     "name": "Disney+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(dsnp|dsny|disney|Disney\\+)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "1c1a4c5e823891c75bc50380a6866f73",
+   "name": "DTS",
+   "trash_scores": {
+    "default": 1250,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 75
+   },
+   "specifications": [
+    {
+     "name": "Basic DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS-HD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_. ]?(ma|hd([-_. ]?ma)?|xll))(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS-HD HRA/ES",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "dts[-. ]?(es|(hd[. ]?)?(hr|hi))"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "2f22d89048b01681dde8afe203bf2e95",
+   "name": "DTS X",
+   "trash_scores": {
+    "default": 4500,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000,
+    "sqp-4-ma-hybrid": 2510
+   },
+   "specifications": [
+    {
+     "name": "DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not Basic DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "DTS[ .]?[1-9]"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "f9f847ac70a0af62ea4a08280b859636",
+   "name": "DTS-ES",
+   "trash_scores": {
+    "default": 1500,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 330
+   },
+   "specifications": [
+    {
+     "name": "DTS-ES",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "dts[-. ]?es\\b"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Basic DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "DTS[ .]?[1-9]"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "8e109e50e0a0b83a5098b056e13bf6db",
+   "name": "DTS-HD HRA",
+   "trash_scores": {
+    "default": 2000,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000,
+    "sqp-4-ma-hybrid": 330
+   },
+   "specifications": [
+    {
+     "name": "DTS-HD HRA",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "dts[-. ]?(hd[. ]?)?(hra?|hi\\b)"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Basic DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "DTS[ .]?[1-9]"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS-ES",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "dts.?es"
+     }
+    },
+    {
+     "name": "Not 6.1 Surround",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "[^0-9]6[ .][0-1]"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "dcf3ec6938fa32445f590a4da84256cd",
+   "name": "DTS-HD MA",
+   "trash_scores": {
+    "default": 2500,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000,
+    "sqp-4-ma-hybrid": 2180
+   },
+   "specifications": [
+    {
+     "name": "DTS-HD MA",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_. ]?(ma|hd([-_. ]?ma)?|xll))(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS-HD HRA/ES",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "dts[-. ]?(es|(hd[. ]?)?(hr|hi))"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "f700d29429c023a5734505e77daeaea7",
+   "name": "DV (Disk)",
+   "trash_scores": {
+    "default": 101
+   },
+   "specifications": [
+    {
+     "name": "FraMeSToR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(FraMeSToR)\\b"
+     }
+    },
+    {
+     "name": "DV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(dv|dovi|dolby[ .]?v(ision)?)\\b"
+     }
+    },
+    {
+     "name": "No FANRES",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(FANRES)\\b"
+     }
+    },
+    {
+     "name": "Not Hybrid",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bhybrid(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Hybrid Release Group",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "-HYBRID"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "923b6abef9b17f937fab56cfcf89e1f1",
+   "name": "DV (w/o HDR fallback)",
+   "trash_scores": {
+    "default": -10000
+   },
+   "specifications": [
+    {
+     "name": "Dolby Vision",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(dv|dovi|dolby[ .]?V(ision)?)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    },
+    {
+     "name": "Not RlsGrp",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(Flights)\\b"
+     }
+    },
+    {
+     "name": "Not HDR",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bHDR(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Hulu",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(hulu)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "b337d6812e06c200ec9a2d3cfa9d20a7",
+   "name": "DV Boost",
+   "trash_scores": {
+    "default": 1000,
+    "sqp-4-ma-hybrid": 100
+   },
+   "specifications": [
+    {
+     "name": "DV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(dv|dovi|dolby[ .]?v(ision)?)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "0a3f082873eb454bde444150b70253cc",
+   "name": "Extras",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Extras",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Extras|Bonus|Extended[ ._-]Clip)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "6c6af63910e3e4e8ff32a85102a94c11",
+   "name": "FAH",
+   "specifications": [
+    {
+     "name": "Fandango",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(FAH|FAND|FDNG)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "a570d4a0e56a2874b64e5bfa55202a1b",
+   "name": "FLAC",
+   "trash_scores": {
+    "default": 2250,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 380
+   },
+   "specifications": [
+    {
+     "name": "FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "0d91270a7255a1e388fa85e959f359d8",
+   "name": "FreeLeech",
+   "trash_scores": {
+    "default": 1
+   },
+   "specifications": [
+    {
+     "name": "FreeLeech",
+     "implementation": "IndexerFlagSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 1
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e6886871085226c3da1830830146846c",
+   "name": "Generated Dynamic HDR",
+   "trash_scores": {
+    "default": -10000,
+    "german": 0,
+    "german-anime": 0
+   },
+   "specifications": [
+    {
+     "name": "BiTOR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BiTOR)$"
+     }
+    },
+    {
+     "name": "DepraveD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DepraveD)$"
+     }
+    },
+    {
+     "name": "Flights",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Flights)$"
+     }
+    },
+    {
+     "name": "GuyZo",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GuyZo|BR-GuyZo)$"
+     }
+    },
+    {
+     "name": "SasukeducK",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SasukeducK)$"
+     }
+    },
+    {
+     "name": "SumVision",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SumVision)$"
+     }
+    },
+    {
+     "name": "tarunk9c",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(tarunk9c)$"
+     }
+    },
+    {
+     "name": "VD0N",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(VD0N)$"
+     }
+    },
+    {
+     "name": "VECTOR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(VECTOR)$"
+     }
+    },
+    {
+     "name": "VisionXpert",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(VisionXpert)$"
+     }
+    },
+    {
+     "name": "DV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(dv|dovi|dolby[ .]?v(ision)?)\\b"
+     }
+    },
+    {
+     "name": "HDR10+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\bHDR10(\\+|P(lus)?\\b)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "86bc3115eb4e9873ac96904a4a68e19e",
+   "name": "German",
+   "trash_scores": {
+    "default": 10000
+   },
+   "specifications": [
+    {
+     "name": "German",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "NOT Original",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": -2
+     }
+    },
+    {
+     "name": "DL",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "(?<!WEB[-_. ]?)\\b(DL)\\b"
+     }
+    },
+    {
+     "name": "ML",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(ML)\\b"
+     }
+    },
+    {
+     "name": "Not Subbed",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "(?=.*(German|Ger))(?=.*(Sub|Multi(ple)?Sub))"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "f845be10da4f442654c13e1f2c3d6cd5",
+   "name": "German DL",
+   "trash_scores": {
+    "default": -10000,
+    "german": 11000,
+    "german-anime": 11000
+   },
+   "specifications": [
+    {
+     "name": "German",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "Original Language",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": -2
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "6aad77771dabe9d3e9d7be86f310b867",
+   "name": "German DL (undefined)",
+   "trash_scores": {
+    "default": 11000
+   },
+   "specifications": [
+    {
+     "name": "NOT Original Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": -2
+     }
+    },
+    {
+     "name": "German",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "DL",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<!WEB[-_. ]?)\\b(DL)\\b"
+     }
+    },
+    {
+     "name": "ML",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(ML)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "509e5f41146e278f9eab1ddaceb34515",
+   "name": "HBO",
+   "specifications": [
+    {
+     "name": "HBO",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(hbo)(?![ ._-]max)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "HBO Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(HBO)\\b|\\b(HBO)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ed27ebfef2f323e964fb1f61391bcb35",
+   "name": "HD Bluray Tier 01",
+   "trash_scores": {
+    "default": 1800,
+    "sqp-1-1080p": 1100,
+    "sqp-1-web-1080p": 1100,
+    "sqp-1-2160p": 1100,
+    "sqp-1-web-2160p": 1100,
+    "french-multi-vf": 0,
+    "german-anime": 1050
+   },
+   "specifications": [
+    {
+     "name": "BLURAY",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 9
+     }
+    },
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not 2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "ATELiER",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ATELiER)$"
+     }
+    },
+    {
+     "name": "BBQ",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BBQ)$"
+     }
+    },
+    {
+     "name": "BMF",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BMF)$"
+     }
+    },
+    {
+     "name": "c0kE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(c0kE)$"
+     }
+    },
+    {
+     "name": "Chotab",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Chotab)$"
+     }
+    },
+    {
+     "name": "CRiSC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CRiSC)$"
+     }
+    },
+    {
+     "name": "CtrlHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CtrlHD)$"
+     }
+    },
+    {
+     "name": "D-Z0N3",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(D-Z0N3)$"
+     }
+    },
+    {
+     "name": "Dariush",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Dariush)$"
+     }
+    },
+    {
+     "name": "decibeL",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(decibeL)$"
+     }
+    },
+    {
+     "name": "DON",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DON)$"
+     }
+    },
+    {
+     "name": "EbP",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EbP)$"
+     }
+    },
+    {
+     "name": "EDPH",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EDPH)$"
+     }
+    },
+    {
+     "name": "Geek",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Geek)$"
+     }
+    },
+    {
+     "name": "LolHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LolHD)$"
+     }
+    },
+    {
+     "name": "NCmt",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NCmt)$"
+     }
+    },
+    {
+     "name": "PTer",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PTer)$"
+     }
+    },
+    {
+     "name": "TayTO",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TayTO)$"
+     }
+    },
+    {
+     "name": "TDD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TDD)$"
+     }
+    },
+    {
+     "name": "TnP",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TnP)$"
+     }
+    },
+    {
+     "name": "VietHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(VietHD)$"
+     }
+    },
+    {
+     "name": "ZQ",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ZQ)$"
+     }
+    },
+    {
+     "name": "ZoroSenpai",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ZoroSenpai)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c20c8647f2746a1f4c4262b0fbbeeeae",
+   "name": "HD Bluray Tier 02",
+   "trash_scores": {
+    "default": 1750,
+    "sqp-1-1080p": 1050,
+    "sqp-1-web-1080p": 1050,
+    "sqp-1-2160p": 1050,
+    "sqp-1-web-2160p": 1050,
+    "french-multi-vf": 0,
+    "german-anime": 1000
+   },
+   "specifications": [
+    {
+     "name": "BLURAY",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 9
+     }
+    },
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not 2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "EA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EA)$"
+     }
+    },
+    {
+     "name": "HiDt",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HiDt)$"
+     }
+    },
+    {
+     "name": "HiSD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HiSD)$"
+     }
+    },
+    {
+     "name": "iFT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(iFT)$"
+     }
+    },
+    {
+     "name": "NTb",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NTb)$"
+     }
+    },
+    {
+     "name": "QOQ",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(QOQ)$"
+     }
+    },
+    {
+     "name": "SA89",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SA89)$"
+     }
+    },
+    {
+     "name": "sbR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(sbR)$"
+     }
+    },
+    {
+     "name": "SoLaR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SoLaR)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "5608c71bcebba0a5e666223bae8c9227",
+   "name": "HD Bluray Tier 03",
+   "trash_scores": {
+    "default": 1700,
+    "sqp-1-1080p": 1000,
+    "sqp-1-web-1080p": 1000,
+    "sqp-1-2160p": 1000,
+    "sqp-1-web-2160p": 1000,
+    "french-multi-vf": 0,
+    "german-anime": 950
+   },
+   "specifications": [
+    {
+     "name": "BLURAY",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 9
+     }
+    },
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not 2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "BHDStudio",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BHDStudio)$"
+     }
+    },
+    {
+     "name": "hallowed",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(hallowed)$"
+     }
+    },
+    {
+     "name": "HiFi",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HiFi)$"
+     }
+    },
+    {
+     "name": "HONE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HONE)$"
+     }
+    },
+    {
+     "name": "LoRD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LoRD)$"
+     }
+    },
+    {
+     "name": "playHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(playHD)$"
+     }
+    },
+    {
+     "name": "SPHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SPHD)$"
+     }
+    },
+    {
+     "name": "W4NK3R",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(W4NK3R)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "493b6d1dbec3c3364c59d7607f7e3405",
+   "name": "HDR",
+   "trash_scores": {
+    "default": 500,
+    "sqp-4-ma-hybrid": 510
+   },
+   "specifications": [
+    {
+     "name": "DV With HDR10 fallback",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(?=.*\\b(dv|dovi|dolby[ .]?v(ision)?)\\b)(?!(?=.*\\b(WEB[ ._-]?(DL|Rip)?)\\b)(?!.*\\b(hulu)\\b))"
+     }
+    },
+    {
+     "name": "HDR",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(HDR)\\b"
+     }
+    },
+    {
+     "name": "HDR10",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(HDR10(?![+]|P(lus)?))"
+     }
+    },
+    {
+     "name": "HDR10+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(HDR10(?=[+]|P(lus)?))"
+     }
+    },
+    {
+     "name": "HLG",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(HLG)\\b"
+     }
+    },
+    {
+     "name": "PQ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(PQ)\\b"
+     }
+    },
+    {
+     "name": "RlsGrp (Missing HDR)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(?=.*\\b(FraMeSToR|HQMUX|SiCFoI)\\b)(?=.*\\b(2160p)\\b)(?!.*\\b(HDR10([+]|P(lus)?)))(?!.*\\b(SDR)\\b).*"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "caa37d0df9c348912df1fb1d88f9273a",
+   "name": "HDR10+ Boost",
+   "trash_scores": {
+    "default": 100,
+    "sqp-4-ma-hybrid": 1
+   },
+   "specifications": [
+    {
+     "name": "HDR10+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(HDR10(?=[+]|P(lus)?))"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "73613461ac2cea99d52c4cd6e177ab82",
+   "name": "HFR",
+   "specifications": [
+    {
+     "name": "HFR",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(HFR)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "5763d1b0ce84aff3b21038eea8e9b8ad",
+   "name": "HMAX",
+   "specifications": [
+    {
+     "name": "HBO Max",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(hmax|hbom|hbo[ ._-]?max)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "HMAX Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(HMAX)\\b|\\b(HMAX)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "526d445d4c16214309f0fd2b3be18a89",
+   "name": "Hulu",
+   "specifications": [
+    {
+     "name": "Hulu",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(hulu)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "0f12c086e289cf966fa5948eac571f44",
+   "name": "Hybrid",
+   "trash_scores": {
+    "default": 100
+   },
+   "specifications": [
+    {
+     "name": "Hybrid",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\bhybrid(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Hybrid Release Group",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(HYBRID)\\b"
+     }
+    },
+    {
+     "name": "Bluray",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 9
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "eecf3a857724171f968a66cb5719e152",
+   "name": "IMAX",
+   "trash_scores": {
+    "default": 800,
+    "sqp-4-ma-hybrid": 0
+   },
+   "specifications": [
+    {
+     "name": "IMAX",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((?<!NON[ ._-])IMAX)\\b"
+     }
+    },
+    {
+     "name": "NOT: IMAX Enhanced",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "^(?=.*\\b((DSNP|BC|B?CORE)\\b|Disney\\+)(?=.*\\bWEB[ ._-]?(DL|Rip)\\b))(?=.*\\b((?<!NON[ ._-])IMAX)\\b)|^(?=.*\\b(IMAX[ ._-]Enhanced)\\b)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "9f6cbff8cfe4ebbc1bde14c7b7bec0de",
+   "name": "IMAX Enhanced",
+   "trash_scores": {
+    "default": 800,
+    "sqp-4-ma-hybrid": 1035
+   },
+   "specifications": [
+    {
+     "name": "IMAX Enhanced",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "^(?=.*\\b((DSNP|BC|B?CORE)\\b|Disney\\+)(?=.*\\bWEB[ ._-]?(DL|Rip)\\b))(?=.*\\b((?<!NON[ ._-])IMAX)\\b)|^(?=.*\\b(IMAX[ ._-]Enhanced)\\b)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "7737598007e71665c5edc7f1626bfbf1",
+   "name": "IMF",
+   "trash_scores": {
+    "default": 20
+   },
+   "specifications": [
+    {
+     "name": "Interoperable Master Format",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "(\\b(IMF)\\b(?=.*\\b(web[ ._-]?rip))\\b)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "182fa1c42a2468f8488e6dcf75a81b81",
+   "name": "INTERNAL",
+   "trash_scores": {
+    "default": 10
+   },
+   "specifications": [
+    {
+     "name": "INTERNAL",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(INTERNAL)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "6185878161f1e2eef9cd0641a0d09eae",
+   "name": "IP",
+   "specifications": [
+    {
+     "name": "BBC iPlayer",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ip|iplayer)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e0ec9672be6cac914ffad34a6b077209",
+   "name": "iT",
+   "specifications": [
+    {
+     "name": "iTunes",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(it|itunes)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "iT Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(iT)(?![+])\\b|\\b(?<![+])(iT)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c3492a26af412e385404eade438ec51c",
+   "name": "ITVX",
+   "specifications": [
+    {
+     "name": "ITVX",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(ITVX?)\\b[ ._-]web[ ._-]?(dl|rip)?\\b"
+     }
+    },
+    {
+     "name": "ITVX Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(ITVX)\\b|\\b(ITVX)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "0dc8aec3bd1c47cd6c40c46ecd27e846",
+   "name": "Language: Not English",
+   "trash_scores": {
+    "default": -10000
+   },
+   "specifications": [
+    {
+     "name": "Not English Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": 1
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "533f782474f0819643c2ec0c1eeeb0ac",
+   "name": "Language: Not French",
+   "trash_scores": {
+    "french-anime-multi": 0,
+    "french-anime-vostfr": 0,
+    "french-multi-vf": -10000,
+    "french-multi-vo": 0,
+    "french-vostfr": 0
+   },
+   "specifications": [
+    {
+     "name": "Not French Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": 2
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "d6e9318c875905d6cfb5bee961afcea9",
+   "name": "Language: Not Original",
+   "trash_scores": {
+    "default": -10000,
+    "german": 0,
+    "french-anime-multi": -10000,
+    "french-anime-vostfr": -10000,
+    "french-multi-vf": 0,
+    "french-multi-vo": -10000,
+    "french-vostfr": -10000
+   },
+   "specifications": [
+    {
+     "name": "Not Original Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": -2
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "0542a48746585dc4444bbbb8a6bdf6ea",
+   "name": "Language: Original + French",
+   "trash_scores": {
+    "french-anime-multi": 500,
+    "french-anime-vostfr": -10000,
+    "french-multi-vf": 500,
+    "french-multi-vo": 500,
+    "french-vostfr": 0
+   },
+   "specifications": [
+    {
+     "name": "Original Language",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": -2
+     }
+    },
+    {
+     "name": "French Language",
+     "implementation": "LanguageSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2
+     }
+    },
+    {
+     "name": "MULTi",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(MULTi)(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c465ccc73923871b3eb1802042331306",
+   "name": "Line/Mic Dubbed",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Line Dubbed",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(LD|AC3LD|Line[ .-]?Dubbed)\\b"
+     }
+    },
+    {
+     "name": "Mic Dubbed",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(MD|AC3MD|Mic[ .-]?Dubbed)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "90a6f9a284dff5103f6346090e6280c8",
+   "name": "LQ",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "126811",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(126811)$"
+     }
+    },
+    {
+     "name": "24xHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(24xHD)\\b"
+     }
+    },
+    {
+     "name": "41RGB",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(41RGB)$"
+     }
+    },
+    {
+     "name": "4K4U",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(4K4U)$"
+     }
+    },
+    {
+     "name": "AOC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(AOC)$"
+     }
+    },
+    {
+     "name": "AROMA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(AROMA)$"
+     }
+    },
+    {
+     "name": "aXXo",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(aXXo)$"
+     }
+    },
+    {
+     "name": "AZAZE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(AZAZE)$"
+     }
+    },
+    {
+     "name": "BARC0DE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BARC0DE)$"
+     }
+    },
+    {
+     "name": "BAUCKLEY",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BAUCKLEY)$"
+     }
+    },
+    {
+     "name": "BdC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BdC)$"
+     }
+    },
+    {
+     "name": "beAst",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(beAst)$"
+     }
+    },
+    {
+     "name": "BTM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BTM)$"
+     }
+    },
+    {
+     "name": "C1NEM4",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(C1NEM4)$"
+     }
+    },
+    {
+     "name": "C4K",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(C4K)$"
+     }
+    },
+    {
+     "name": "CDDHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CDDHD)$"
+     }
+    },
+    {
+     "name": "CHAOS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CHAOS)$"
+     }
+    },
+    {
+     "name": "CHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CHD)$"
+     }
+    },
+    {
+     "name": "CiNE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CiNE)$"
+     }
+    },
+    {
+     "name": "CLEANUP",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CLEANUP)$"
+     }
+    },
+    {
+     "name": "COLLECTiVE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(COLLECTiVE)$"
+     }
+    },
+    {
+     "name": "CREATiVE24",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CREATiVE24)$"
+     }
+    },
+    {
+     "name": "CrEwSaDe",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CrEwSaDe)$"
+     }
+    },
+    {
+     "name": "CTFOH",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CTFOH)$"
+     }
+    },
+    {
+     "name": "d3g",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(d3g)$"
+     }
+    },
+    {
+     "name": "DDR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DDR)$"
+     }
+    },
+    {
+     "name": "DNL",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DNL)$"
+     }
+    },
+    {
+     "name": "DRX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DRX)$"
+     }
+    },
+    {
+     "name": "E",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(E)$"
+     }
+    },
+    {
+     "name": "EPiC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EPiC)$"
+     }
+    },
+    {
+     "name": "EuReKA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(EuReKA)$"
+     }
+    },
+    {
+     "name": "FaNGDiNG0",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FaNGDiNG0)$"
+     }
+    },
+    {
+     "name": "Feranki1980",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Feranki1980)$"
+     }
+    },
+    {
+     "name": "FGT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FGT)$"
+     }
+    },
+    {
+     "name": "FMD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FMD)$"
+     }
+    },
+    {
+     "name": "FRDS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FRDS)$"
+     }
+    },
+    {
+     "name": "FS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FS)$"
+     }
+    },
+    {
+     "name": "FZHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FZHD)$"
+     }
+    },
+    {
+     "name": "GalaxyRG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GalaxyRG)$"
+     }
+    },
+    {
+     "name": "GHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GHD)$"
+     }
+    },
+    {
+     "name": "GPTHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GPTHD)$"
+     }
+    },
+    {
+     "name": "HDHUB4U",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HDHUB4U)$"
+     }
+    },
+    {
+     "name": "HDS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(10bit-)?HDS$"
+     }
+    },
+    {
+     "name": "HDT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HDT)$"
+     }
+    },
+    {
+     "name": "HDTime",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HDTime)$"
+     }
+    },
+    {
+     "name": "HDWinG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HDWinG)$"
+     }
+    },
+    {
+     "name": "iNTENSO",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(iNTENSO)$"
+     }
+    },
+    {
+     "name": "iPlanet",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(iPlanet)$"
+     }
+    },
+    {
+     "name": "iVy",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(iVy)$"
+     }
+    },
+    {
+     "name": "jennaortega",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(jennaortega(UHD)?)$"
+     }
+    },
+    {
+     "name": "JFF",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(JFF)$"
+     }
+    },
+    {
+     "name": "KC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(KC)$"
+     }
+    },
+    {
+     "name": "KiNGDOM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(KiNGDOM)$"
+     }
+    },
+    {
+     "name": "KIRA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(KIRA)$"
+     }
+    },
+    {
+     "name": "L0SERNIGHT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(L0SERNIGHT)$"
+     }
+    },
+    {
+     "name": "LAMA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LAMA)$"
+     }
+    },
+    {
+     "name": "Leffe",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Leffe)$"
+     }
+    },
+    {
+     "name": "Liber8",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Liber8)$"
+     }
+    },
+    {
+     "name": "LiGaS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LiGaS)$"
+     }
+    },
+    {
+     "name": "LUCY",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(LUCY)$"
+     }
+    },
+    {
+     "name": "MarkII",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MarkII)$"
+     }
+    },
+    {
+     "name": "MeGusta",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MeGusta)$"
+     }
+    },
+    {
+     "name": "Mesc",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Mesc)$"
+     }
+    },
+    {
+     "name": "mHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(mHD)$"
+     }
+    },
+    {
+     "name": "mSD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(mSD)$"
+     }
+    },
+    {
+     "name": "MTeam",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MTeam|MT)$"
+     }
+    },
+    {
+     "name": "MySiLU",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MySiLU)$"
+     }
+    },
+    {
+     "name": "NhaNc3",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NhaNc3)$"
+     }
+    },
+    {
+     "name": "nHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(nHD)$"
+     }
+    },
+    {
+     "name": "nikt0",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(nikt0)$"
+     }
+    },
+    {
+     "name": "NoGroup",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "NoGr(ou)?p"
+     }
+    },
+    {
+     "name": "nSD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(nSD)$"
+     }
+    },
+    {
+     "name": "OFT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(OFT)$"
+     }
+    },
+    {
+     "name": "Pahe",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "Pahe(\\.(ph|in))?\\b"
+     }
+    },
+    {
+     "name": "PATOMiEL",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PATOMiEL)$"
+     }
+    },
+    {
+     "name": "PRODJi",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PRODJi)$"
+     }
+    },
+    {
+     "name": "PSA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PSA)$"
+     }
+    },
+    {
+     "name": "PTNK",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PTNK)$"
+     }
+    },
+    {
+     "name": "RARBG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RARBG)$"
+     }
+    },
+    {
+     "name": "RBB",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RBB)$"
+     }
+    },
+    {
+     "name": "RDN",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RDN)$"
+     }
+    },
+    {
+     "name": "RiffTrax",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Rifftrax)$"
+     }
+    },
+    {
+     "name": "RU4HD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RU4HD)$"
+     }
+    },
+    {
+     "name": "SANTi",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SANTi)$"
+     }
+    },
+    {
+     "name": "Scene",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Scene)$"
+     }
+    },
+    {
+     "name": "SHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SHD)$"
+     }
+    },
+    {
+     "name": "ShieldBearer",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ShieldBearer)$"
+     }
+    },
+    {
+     "name": "STUTTERSHIT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(STUTTERSHIT)$"
+     }
+    },
+    {
+     "name": "SUNSCREEN",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SUNSCREEN)$"
+     }
+    },
+    {
+     "name": "SyncUP",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SyncUP)$"
+     }
+    },
+    {
+     "name": "TBS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TBS)$"
+     }
+    },
+    {
+     "name": "TEKNO3D",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TEKNO3D)$"
+     }
+    },
+    {
+     "name": "Tigole",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Tigole)$"
+     }
+    },
+    {
+     "name": "TIKO",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TIKO)$"
+     }
+    },
+    {
+     "name": "VISIONPLUSHDR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(VISIONPLUSHDR(-X|1000)?)$"
+     }
+    },
+    {
+     "name": "WAF",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(WAF)$"
+     }
+    },
+    {
+     "name": "WiKi",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(WiKi)$"
+     }
+    },
+    {
+     "name": "x0r",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(x0r)$"
+     }
+    },
+    {
+     "name": "YIFY",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(YIFY)$"
+     }
+    },
+    {
+     "name": "YTS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(YTS(.(MX|LT|AG))?)$"
+     }
+    },
+    {
+     "name": "Zeus",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Zeus)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e204b80c87be9497a8a6eaff48f72905",
+   "name": "LQ (Release Title)",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "1XBET",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(1XBET)\\b"
+     }
+    },
+    {
+     "name": "BEN THE MEN",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(BEN[ ._-]THE[ ._-]MEN)\\b"
+     }
+    },
+    {
+     "name": "D3US",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(-D3US|D3US-)"
+     }
+    },
+    {
+     "name": "EVO (no WEBDL)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<!\\bweb[ ._-]?(dl|rip)?\\b.*)-(EVO)\\b"
+     }
+    },
+    {
+     "name": "Feranki1980",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Feranki1980)\\b"
+     }
+    },
+    {
+     "name": "GalaxyRG",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(GalaxyRG)\\b"
+     }
+    },
+    {
+     "name": "HHWEB (No MA)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(?!.*\\bMA\\b.*\\bWEB-?DL\\b).*\\b(HHWEB)\\b"
+     }
+    },
+    {
+     "name": "jennaortega",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<!-)\\b(jennaortega(UHD)?)\\b"
+     }
+    },
+    {
+     "name": "PiRaTeS (no WEBDL)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<!\\bweb[ ._-]?(dl|rip)?\\b.*)-(PiRaTeS)\\b"
+     }
+    },
+    {
+     "name": "R&H",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(R&H)\\b"
+     }
+    },
+    {
+     "name": "READ NOTE",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(READ(\\s|\\.)+NOTE)\\b"
+     }
+    },
+    {
+     "name": "SiCFoI + CM4v",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(?=.*\\b(CMv4)\\b).*\\b(SiCFoI)\\b"
+     }
+    },
+    {
+     "name": "SWTYBLZ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(SWTYBLZ)\\b"
+     }
+    },
+    {
+     "name": "TeeWee",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(TeeWee)\\b"
+     }
+    },
+    {
+     "name": "TEKNO3D",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(TEKNO3D)\\b"
+     }
+    },
+    {
+     "name": "UnKn0wn (NoRemux)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<!\\b(remux).*?)\\b(unkn0wn)\\b"
+     }
+    },
+    {
+     "name": "Will1869",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Will1869)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "2a6039655313bf5dab1e43523b62c374",
+   "name": "MA",
+   "trash_scores": {
+    "default": 20,
+    "sqp-4-ma-hybrid": 1040
+   },
+   "specifications": [
+    {
+     "name": "Movies Anywhere",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "(?<!dts[ .-]?hd[ .-]?)\\b(ma|ykw)\\b(?=.*\\bweb[ ._-]?(dl|rip)\\b)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "9d27d9d2181838f76dee150882bdc58c",
+   "name": "Masters of Cinema",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Masters of Cinema",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Masters[ .-]?Of[ .-]?Cinema)(\\b|\\d)"
+     }
+    },
+    {
+     "name": "MoC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(MoC)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "6a061313d22e51e0f25b7cd4dc065233",
+   "name": "MAX",
+   "specifications": [
+    {
+     "name": "Max",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b((?<!hbo[ ._-])max)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "MAX Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(MAX)\\b|\\b(MAX)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "6ba9033150e7896bdc9ec4b44f2b230f",
+   "name": "MP3",
+   "trash_scores": {
+    "default": 500,
+    "sqp-4-ma-hybrid": 0
+   },
+   "specifications": [
+    {
+     "name": "MP3",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "mp3"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ff86c4326018682f817830ced463332b",
+   "name": "MPEG2",
+   "specifications": [
+    {
+     "name": "MPEG2",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "MPEG[-.]?2"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "4b900e171accbfb172729b63323ea8ca",
+   "name": "MULTi",
+   "specifications": [
+    {
+     "name": "Multi",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(Multi)(?![ ._-]?sub(s)?)(\\b|\\d)"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "eacd2cb6c6d4a93e459df2cec6d7b97a",
+   "name": "MY5",
+   "specifications": [
+    {
+     "name": "My5",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(MY5)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "170b1d363bd8516fbf3a3eb05d4faff6",
+   "name": "NF",
+   "specifications": [
+    {
+     "name": "Netflix",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(nf|netflix(u?hd)?)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ae9b7c9ebde1f3bd336a8cbd1ec4c5e5",
+   "name": "No-RlsGroup",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000
+   },
+   "specifications": [
+    {
+     "name": "No Parsed Group",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": "."
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "4eadb75fb23d09dfc0a8e3f687e72287",
+   "name": "Not German or English",
+   "trash_scores": {
+    "default": -35000
+   },
+   "specifications": [
+    {
+     "name": "Not English Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 1
+     }
+    },
+    {
+     "name": "Not German Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "Not German in Title",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "(?i)\\bgerman\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "532c4a41c94ae0f77c745ae478883c44",
+   "name": "Not German, Japanese or English",
+   "trash_scores": {
+    "default": -35000
+   },
+   "specifications": [
+    {
+     "name": "Not English Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 1
+     }
+    },
+    {
+     "name": "Not Japanese Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8,
+      "exceptLanguage": false
+     }
+    },
+    {
+     "name": "Not German Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "Not German in Title",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "(?i)\\bgerman\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "9a8f58fae5df94783c214c0ed63f589c",
+   "name": "Not German, Japanese, Korean, Chinese or English",
+   "trash_scores": {
+    "default": -35000
+   },
+   "specifications": [
+    {
+     "name": "Not English Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 1
+     }
+    },
+    {
+     "name": "Not Japanese Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8,
+      "exceptLanguage": false
+     }
+    },
+    {
+     "name": "Not Korean Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 21,
+      "exceptLanguage": false
+     }
+    },
+    {
+     "name": "Not Chinese Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 10,
+      "exceptLanguage": false
+     }
+    },
+    {
+     "name": "Not German Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 4
+     }
+    },
+    {
+     "name": "Not German in Title",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "(?i)\\bgerman\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "3dce1fce9ac06d1349dfbd9186289385",
+   "name": "NOW",
+   "specifications": [
+    {
+     "name": "NOW",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(now)\\b[ ._-]web[ ._-]?(dl|rip)?\\b"
+     }
+    },
+    {
+     "name": "NOW Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(NOW)\\b|\\b(NOW)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "7357cf5161efbf8c4d5d0c30b4815ee2",
+   "name": "Obfuscated",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000
+   },
+   "specifications": [
+    {
+     "name": "4P",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-4P\\b"
+     }
+    },
+    {
+     "name": "4Planet",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-4Planet\\b"
+     }
+    },
+    {
+     "name": "AsRequested",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-AsRequested\\b"
+     }
+    },
+    {
+     "name": "BUYMORE",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-BUYMORE\\b"
+     }
+    },
+    {
+     "name": "Chamele0n",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-Chamele0n\\b"
+     }
+    },
+    {
+     "name": "GEROV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-GEROV\\b"
+     }
+    },
+    {
+     "name": "iNC0GNiTO",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-iNC0GNiTO\\b"
+     }
+    },
+    {
+     "name": "NZBGeek",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-NZBGeek\\b"
+     }
+    },
+    {
+     "name": "Obfuscated",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-Obfuscated\\b"
+     }
+    },
+    {
+     "name": "postbot",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-postbot\\b"
+     }
+    },
+    {
+     "name": "Rakuv",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-Rakuv\\b"
+     }
+    },
+    {
+     "name": "Scrambled",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*(Scrambled)\\b"
+     }
+    },
+    {
+     "name": "WhiteRev",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-WhiteRev\\b"
+     }
+    },
+    {
+     "name": "xpost",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-xpost\\b"
+     }
+    },
+    {
+     "name": "WRTEAM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-WRTEAM\\b"
+     }
+    },
+    {
+     "name": "CAPTCHA",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "-CAPTCHA\\b"
+     }
+    },
+    {
+     "name": "_nzb",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "_nzb\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "09d9dd29a0fc958f9796e65c2a8864b4",
+   "name": "Open Matte",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Open Matte",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Open[ ._-]?Matte)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "a061e2e700f81932daf888599f8a8273",
+   "name": "Opus",
+   "trash_scores": {
+    "default": 250,
+    "sqp-4-ma-hybrid": 0
+   },
+   "specifications": [
+    {
+     "name": "Opus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bOPUS(\\b|\\d)(?!.*[ ._-](\\d{3,4}p))"
+     }
+    },
+    {
+     "name": "Not OPUS Release Group",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "OPUS"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "fbca986396c5e695ef7b2def3c755d01",
+   "name": "OViD",
+   "specifications": [
+    {
+     "name": "OViD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ovid)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "80f51de4636a294e31552e90d2e1decb",
+   "name": "P2P Internal",
+   "trash_scores": {
+    "default": 1
+   },
+   "specifications": [
+    {
+     "name": "Internal",
+     "implementation": "IndexerFlagSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 32
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e7c2fcae07cbada050a0af3357491d7b",
+   "name": "PCM",
+   "trash_scores": {
+    "default": 2250,
+    "sqp-1-1080p": 0,
+    "sqp-1-web-1080p": 0,
+    "sqp-1-2160p": 0,
+    "sqp-1-web-2160p": 0,
+    "sqp-4-ma-hybrid": 380
+   },
+   "specifications": [
+    {
+     "name": "PCM",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(l?)PCM(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not AAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bAAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not TrueHD/ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus ",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c9fd353f8f5f1baf56dc601c4cb29920",
+   "name": "PCOK",
+   "specifications": [
+    {
+     "name": "Peacock TV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(pcok|peacock)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "350e9170619683a55cb9191d0b1ababa",
+   "name": "PLAY",
+   "trash_scores": {
+    "sqp-4-ma-hybrid": 1040
+   },
+   "specifications": [
+    {
+     "name": "PLAY",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Play)\\b(?=[ ._-]web[ ._-]?(dl|rip)\\b)"
+     }
+    },
+    {
+     "name": "PLAY Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(Play)\\b|\\b(Play)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e36a0ba1bc902b26ee40818a1d59b8bd",
+   "name": "PMTP",
+   "specifications": [
+    {
+     "name": "Paramount+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(pmtp|Paramount Plus)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "570bc9ebecd92723d2d21500f4be314c",
+   "name": "Remaster",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Remaster",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "Remaster"
+     }
+    },
+    {
+     "name": "Not 4K Remaster",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "4K"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e7718d7a3ce595f289bfee26adc178f5",
+   "name": "Repack/Proper",
+   "trash_scores": {
+    "default": 5,
+    "anime-radarr": 1,
+    "french-anime-multi": 1,
+    "french-anime-vostfr": 1,
+    "sqp-4-ma-hybrid": 1
+   },
+   "specifications": [
+    {
+     "name": "Repack/Proper/Rerip",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(Repack|Proper|Rerip)\\b"
+     }
+    },
+    {
+     "name": "Not Higher Version Repack/Proper",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b((repack|proper)[23])\\b|\\bREAL\\.(REAL\\.)?(PROPER|REPACK)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ae43b294509409a6a13919dedd4764c4",
+   "name": "Repack2",
+   "trash_scores": {
+    "default": 6,
+    "anime-radarr": 2,
+    "french-anime-multi": 2,
+    "french-anime-vostfr": 2,
+    "sqp-4-ma-hybrid": 2
+   },
+   "specifications": [
+    {
+     "name": "Repack/Proper 2 or REAL.PROPER/REPACK",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((repack|proper)2)\\b|\\b(REAL\\.(PROPER|REPACK))\\b"
+     }
+    },
+    {
+     "name": "Not Repack/Proper 3",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b((repack|proper)3)\\b|\\bREAL\\.(REAL\\.)(PROPER|REPACK)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "5caaaa1c08c1742aa4342d8c4cc463f2",
+   "name": "Repack3",
+   "trash_scores": {
+    "default": 7,
+    "anime-radarr": 3,
+    "french-anime-multi": 3,
+    "french-anime-vostfr": 3,
+    "sqp-4-ma-hybrid": 3
+   },
+   "specifications": [
+    {
+     "name": "Repack/Proper 3 or REAL.REAL.PROPER/REPACK",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((repack|proper)3)\\b|\\b(REAL\\.REAL\\.(PROPER|REPACK))\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "5c44f52a8714fdd79bb4d98e2673be1f",
+   "name": "Retags",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000
+   },
+   "specifications": [
+    {
+     "name": "[rartv]",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[rartv\\]"
+     }
+    },
+    {
+     "name": "[rarbg]",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[rarbg\\]"
+     }
+    },
+    {
+     "name": "[eztv]",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[eztvx?[ ._-]?(io|re|to)?\\]"
+     }
+    },
+    {
+     "name": "[TGx]",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[TGx\\]"
+     }
+    },
+    {
+     "name": ".VAV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "[.]VAV\\b"
+     }
+    },
+    {
+     "name": ".heb",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "[.]heb\\b"
+     }
+    },
+    {
+     "name": "ORARBG",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(ORARBG)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "44c2b54d7c81c1a442a8b2cabeaef54f",
+   "name": "ROKU",
+   "specifications": [
+    {
+     "name": "ROKU",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ROKU)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "f537cf427b64c38c8e36298f657e4828",
+   "name": "Scene",
+   "trash_scores": {
+    "default": -10000,
+    "french-multi-vf": 0,
+    "french-multi-vo": 0,
+    "french-vostfr": 0,
+    "german": 0,
+    "german-anime": 0
+   },
+   "specifications": [
+    {
+     "name": "Scene Groups + Naming",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "^(?=.*(\\b\\d{3,4}p\\b).*([_. ]WEB[_. ])(?!DL)\\b)|\\b(-CAKES|-GGEZ|-GGWP|-GLHF|-GOSSIP|-NAISU|-KOGI|-PECULATE|-SLOT|-EDITH|-ETHEL|-ELEANOR|-B2B|-SPAMnEGGS|-FTP|-DiRT|-SYNCOPY|-BAE|-SuccessfulCrab|-NHTFS|-SURCODE|-B0MBARDIERS|-D3US|-BROTHERHOOD|-W4K|-STRiKES)"
+     }
+    },
+    {
+     "name": "Not INFLATE/DEFLATE",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(INFLATE|DEFLATE)\\b"
+     }
+    },
+    {
+     "name": "Not GERMAN",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(GERMAN)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "9c38ebb7384dada637be8899efa68e6f",
+   "name": "SDR",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "sqp-4-ma-hybrid": 0
+   },
+   "specifications": [
+    {
+     "name": "2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "HDR Formats",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": "\\bHDR(\\b|\\d)|\\b(dv|dovi|dolby[ .]?v(ision)?)\\b|\\b(FraMeSToR|HQMUX|SICFoI)\\b|\\b(PQ)\\b|\\bHLG(\\b|\\d)"
+     }
+    },
+    {
+     "name": "SDR",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\bSDR\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "25c12f78430a3a23413652cbd1d48d77",
+   "name": "SDR (no WEBDL)",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "sqp-4-ma-hybrid": 0
+   },
+   "specifications": [
+    {
+     "name": "2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "HDR Formats",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": false,
+     "fields": {
+      "value": "\\bHDR(\\b|\\d)|\\b(dv|dovi|dolby[ .]?v(ision)?)\\b|\\b(FraMeSToR|HQMUX|SICFoI)\\b|\\b(PQ)\\b|\\bHLG(\\b|\\d)"
+     }
+    },
+    {
+     "name": "SDR",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\bSDR\\b"
+     }
+    },
+    {
+     "name": "Not WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "Not WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "712d74cd88bceb883ee32f773656b1f5",
+   "name": "Sing-Along Versions",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Sing-Along",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(Sing[-_. ]Along)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "957d0f44b592285f26449575e8b1167e",
+   "name": "Special Edition",
+   "trash_scores": {
+    "default": 125
+   },
+   "specifications": [
+    {
+     "name": "Special Edition",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "(?<!^)\\b(extended|uncut|directors|special|unrated|uncensored|cut|version|(?<!{)edition)(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not IMAX Edition",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(IMAX[ ._-]Edition)\\b"
+     }
+    },
+    {
+     "name": "Not Open Matte",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(Open[ ._-]?Matte)\\b"
+     }
+    },
+    {
+     "name": "Not Theatrical",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "Theatrical"
+     }
+    },
+    {
+     "name": "Not Extended Clip",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(Extended[ ._-]Clip)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c2863d2a50c9acad1fb50e53ece60817",
+   "name": "STAN",
+   "specifications": [
+    {
+     "name": "Stan",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(stan)\\b[ ._-]web[ ._-]?(dl|rip)?\\b"
+     }
+    },
+    {
+     "name": "Stan Rename",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\[(STAN)\\b|\\b(STAN)\\]"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ab56ccdc473a1f2897c76187ea365be2",
+   "name": "STRP",
+   "specifications": [
+    {
+     "name": "Star+",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(STRP)\\b"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e9001909a4c88013a359d0b9920d7bea",
+   "name": "Theatrical Cut",
+   "specifications": [
+    {
+     "name": "Theatrical",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "Theatrical"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "3cafb66171b47f226146a0770576870f",
+   "name": "TrueHD",
+   "trash_scores": {
+    "default": 2750,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000,
+    "sqp-4-ma-hybrid": 2180
+   },
+   "specifications": [
+    {
+     "name": "TrueHD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD"
+     }
+    },
+    {
+     "name": "ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bATMOS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Atmos Group (non-5.1)",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "^(?!.*[^0-9]5[ .][0-1]\\b).*\\b(HQMUX|W4NK3R|DON|CtrlHD|3L)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "496f355514737f7d83bf7aa4d24f8169",
+   "name": "TrueHD ATMOS",
+   "trash_scores": {
+    "default": 5000,
+    "sqp-1-1080p": -10000,
+    "sqp-1-web-1080p": -10000,
+    "sqp-1-2160p": -10000,
+    "sqp-1-web-2160p": -10000,
+    "sqp-4-ma-hybrid": 2510
+   },
+   "specifications": [
+    {
+     "name": "TrueHD",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "True[ .-]?HD|W4NK3R|HQMUX"
+     }
+    },
+    {
+     "name": "ATMOS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(ATMOS|CtrlHD|W4NK3R|HQMUX|DON|3L)(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Basic Dolby Digital",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[^a-z+]|(?<!e-)\\b(ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not Dolby Digital Plus",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDD[P+]|\\b(e[-_. ]?ac-?3)\\b"
+     }
+    },
+    {
+     "name": "Not DTS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bDTS(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not DTS X",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dts[-_.: ]?x7?)\\b(?![-_. ]?(26[456]))"
+     }
+    },
+    {
+     "name": "Not FLAC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\bFLAC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not 5.1 Surround",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "[^0-9]5[ .][0-1]\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "4d74ac4c4db0b64bff6ce0cffef99bf0",
+   "name": "UHD Bluray Tier 01",
+   "trash_scores": {
+    "default": 1800,
+    "sqp-1-2160p": 1100,
+    "sqp-1-web-2160p": 1100,
+    "sqp-2": 2300,
+    "sqp-5": 2300,
+    "french-multi-vf": 0
+   },
+   "specifications": [
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "Not WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8
+     }
+    },
+    {
+     "name": "2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "CtrlHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CtrlHD)$"
+     }
+    },
+    {
+     "name": "MainFrame",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MainFrame)$"
+     }
+    },
+    {
+     "name": "DON",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(DON)$"
+     }
+    },
+    {
+     "name": "W4NK3R",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(W4NK3R)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "a58f517a70193f8e578056642178419d",
+   "name": "UHD Bluray Tier 02",
+   "trash_scores": {
+    "default": 1750,
+    "sqp-1-2160p": 1050,
+    "sqp-1-web-2160p": 1050,
+    "sqp-2": 2200,
+    "sqp-5": 2200,
+    "french-multi-vf": 0
+   },
+   "specifications": [
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "Not WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8
+     }
+    },
+    {
+     "name": "2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "HiDt",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HiDt)$"
+     }
+    },
+    {
+     "name": "HQMUX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HQMUX)$"
+     }
+    },
+    {
+     "name": "RandomBytes",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RandomBytes)$"
+     }
+    },
+    {
+     "name": "SoLaR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SoLaR)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e71939fae578037e7aed3ee219bbe7c1",
+   "name": "UHD Bluray Tier 03",
+   "trash_scores": {
+    "default": 1700,
+    "sqp-1-2160p": 1000,
+    "sqp-1-web-2160p": 1000,
+    "sqp-2": 2100,
+    "sqp-5": 2100,
+    "french-multi-vf": 0
+   },
+   "specifications": [
+    {
+     "name": "Not REMUX",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    },
+    {
+     "name": "Not WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "Not WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 8
+     }
+    },
+    {
+     "name": "2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    },
+    {
+     "name": "BHDStudio",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BHDStudio)$"
+     }
+    },
+    {
+     "name": "hallowed",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(hallowed)$"
+     }
+    },
+    {
+     "name": "HONE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HONE)$"
+     }
+    },
+    {
+     "name": "PTer",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PTer)$"
+     }
+    },
+    {
+     "name": "SPHD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SPHD)$"
+     }
+    },
+    {
+     "name": "WEBDV",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(WEBDV)$"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "bfd8eb01832d646a0a89c4deb46f8564",
+   "name": "Upscaled",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "AI Upscales",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b)(?=.*\\b(HEVC)\\b)(?=.*\\b(AI)\\b)"
+     }
+    },
+    {
+     "name": "AIUS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(AIUS)\\b"
+     }
+    },
+    {
+     "name": "GuyZo",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(GuyZo|BR-GuyZo)\\b"
+     }
+    },
+    {
+     "name": "Regrade",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b((Upscale)?Re-?graded?)\\b"
+     }
+    },
+    {
+     "name": "RW",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(RW)\\b"
+     }
+    },
+    {
+     "name": "TheUpscaler",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(The[ ._-]?Upscaler)\\b"
+     }
+    },
+    {
+     "name": "Upscaled",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "(?<=\\b[12]\\d{3}\\b).*\\b(AI[ ._-]?(Enhanced?|Remaster(ed)?)|UPS(UHD)?|Upscaled?([ ._-]?UHD)?|UpRez)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "11cd1db7165d6a7ad9a83bc97b8b1060",
+   "name": "VC-1",
+   "specifications": [
+    {
+     "name": "VC-1",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bVC[-_. ]?1\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "db9b4c4b53d312a3ca5f1378f6440fc9",
+   "name": "Vinegar Syndrome",
+   "trash_scores": {
+    "default": 25
+   },
+   "specifications": [
+    {
+     "name": "Vinegar Syndrome",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(Vinegar[ ._-]Syndrome)\\b"
+     }
+    },
+    {
+     "name": "VS",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(V-S)\\b"
+     }
+    },
+    {
+     "name": "VinSyn",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "\\b(VinSyn)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "ae4cfaa9283a4f2150ac3da08e388723",
+   "name": "VP9",
+   "specifications": [
+    {
+     "name": "VP9",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\bVP9\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "c20f169ef63c5f40c2def54abaf4438e",
+   "name": "WEB Tier 01",
+   "trash_scores": {
+    "default": 1700,
+    "sqp-4-ma-hybrid": 30,
+    "french-multi-vf": 0,
+    "german-anime": 350
+   },
+   "specifications": [
+    {
+     "name": "ABBIE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ABBIE)$"
+     }
+    },
+    {
+     "name": "AJP69",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(AJP69)$"
+     }
+    },
+    {
+     "name": "APEX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(APEX|PAXA|PEXA|XEPA)$"
+     }
+    },
+    {
+     "name": "BLUTONiUM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BLUTONiUM)$"
+     }
+    },
+    {
+     "name": "BYNDR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BYNDR)$"
+     }
+    },
+    {
+     "name": "CMRG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CMRG)$"
+     }
+    },
+    {
+     "name": "CRFW",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CRFW)$"
+     }
+    },
+    {
+     "name": "CRUD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(CRUD)$"
+     }
+    },
+    {
+     "name": "FLUX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(FLUX)$"
+     }
+    },
+    {
+     "name": "GNOME",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GNOME)$"
+     }
+    },
+    {
+     "name": "HONE",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(HONE)$"
+     }
+    },
+    {
+     "name": "KiNGS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(KiNGS)$"
+     }
+    },
+    {
+     "name": "Kitsune",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Kitsune)$"
+     }
+    },
+    {
+     "name": "MADSKY",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MADSKY)$"
+     }
+    },
+    {
+     "name": "NOSiViD",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NOSiViD)$"
+     }
+    },
+    {
+     "name": "NTb",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NTb)$"
+     }
+    },
+    {
+     "name": "NTG",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NTG)$"
+     }
+    },
+    {
+     "name": "RAWR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(RAWR)$"
+     }
+    },
+    {
+     "name": "SiC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SiC)$"
+     }
+    },
+    {
+     "name": "TEPES",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TEPES)$"
+     }
+    },
+    {
+     "name": "TheFarm",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TheFarm)$"
+     }
+    },
+    {
+     "name": "ZoroSenpai",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ZoroSenpai)$"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "403816d65392c79236dcb6dd591aeda4",
+   "name": "WEB Tier 02",
+   "trash_scores": {
+    "default": 1650,
+    "french-multi-vf": 0,
+    "sqp-4-ma-hybrid": 20,
+    "german-anime": 250
+   },
+   "specifications": [
+    {
+     "name": "dB",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(dB)$"
+     }
+    },
+    {
+     "name": "Flights",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Flights)$"
+     }
+    },
+    {
+     "name": "MiU",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MiU)$"
+     }
+    },
+    {
+     "name": "monkee",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(monkee)$"
+     }
+    },
+    {
+     "name": "MZABI",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(MZABI)$"
+     }
+    },
+    {
+     "name": "PHOENiX",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(PHOENiX)$"
+     }
+    },
+    {
+     "name": "playWEB",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(playWEB)$"
+     }
+    },
+    {
+     "name": "SbR",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SbR)$"
+     }
+    },
+    {
+     "name": "SMURF",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SMURF)$"
+     }
+    },
+    {
+     "name": "TOMMY",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(TOMMY)$"
+     }
+    },
+    {
+     "name": "XEBEC",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(XEBEC|4KBEC|CEBEX)$"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "af94e0fe497124d1f9ce732069ec8c3b",
+   "name": "WEB Tier 03",
+   "trash_scores": {
+    "default": 1600,
+    "sqp-4-ma-hybrid": 10,
+    "french-multi-vf": 0,
+    "german-anime": 150
+   },
+   "specifications": [
+    {
+     "name": "BLOOM",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(BLOOM)$"
+     }
+    },
+    {
+     "name": "Dooky",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(Dooky)$"
+     }
+    },
+    {
+     "name": "GNOMiSSiON",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(GNOMiSSiON)$"
+     }
+    },
+    {
+     "name": "NINJACENTRAL",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NINJACENTRAL)$"
+     }
+    },
+    {
+     "name": "NPMS",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(NPMS)$"
+     }
+    },
+    {
+     "name": "ROCCaT",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(ROCCaT)$"
+     }
+    },
+    {
+     "name": "SiGMA",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SiGMA)$"
+     }
+    },
+    {
+     "name": "SLiGNOME",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SLiGNOME)$"
+     }
+    },
+    {
+     "name": "SwAgLaNdEr",
+     "implementation": "ReleaseGroupSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": "^(SwAgLaNdEr)$"
+     }
+    },
+    {
+     "name": "WEBDL",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 7
+     }
+    },
+    {
+     "name": "WEBRIP",
+     "implementation": "SourceSpecification",
+     "negate": false,
+     "required": false,
+     "fields": {
+      "value": 8
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "127bdbadcf3e4463a8c707759fbaad75",
+   "name": "WiTH AD",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Audio Description",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((FRENCH|MULTi|WiTH|((BA?|A)SL[ ._-]and))[ ._-](AD|Audio[ ._-]Description))\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "09c60ba54fadb511c6986a7edec4da4b",
+   "name": "WiTH ASL",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "American Sign Language",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((WiTH)[ ._-](ASL))\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "41e4baea7b10ddefc6609d52f742dacd",
+   "name": "WiTH BASL",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "Black American Sign Language",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b(BASL)\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "e205c5ba6be76b472903f4aec97fdb4b",
+   "name": "WiTH BSL",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "British Sign Language",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "\\b((WiTH)[ ._-](BSL))\\b"
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "2051402ee9ca81162017d98cbe1dff2c",
+   "name": "Wrong Language",
+   "trash_scores": {
+    "default": -10000
+   },
+   "specifications": [
+    {
+     "name": "Wrong Language",
+     "implementation": "LanguageSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": -2,
+      "exceptLanguage": false
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "2899d84dc9372de3408e6d8cc18e9666",
+   "name": "x264",
+   "trash_scores": {
+    "sqp-2": -10000,
+    "sqp-3": -10000,
+    "sqp-4": -10000,
+    "sqp-5": -10000
+   },
+   "specifications": [
+    {
+     "name": "x|h264",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "[xh][ ._-]?264|\\bAVC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Remux",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "9170d55c319f4fe40da8711ba9d8050d",
+   "name": "x265",
+   "specifications": [
+    {
+     "name": "x|h265",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "[xh][ ._-]?265|\\bHEVC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Remux",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "dc98083864ea246d05a42df0d05f81cc",
+   "name": "x265 (HD)",
+   "trash_scores": {
+    "default": -10000,
+    "german": 0,
+    "german-anime": 0
+   },
+   "specifications": [
+    {
+     "name": "x265/HEVC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "[xh][ ._-]?265|\\bHEVC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not 2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "839bea857ed2c0a8e084f3cbdbd65ecb",
+   "name": "x265 (no HDR/DV)",
+   "trash_scores": {
+    "default": -10000,
+    "german": -35000,
+    "german-anime": -35000
+   },
+   "specifications": [
+    {
+     "name": "x265/HEVC",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "[xh][ ._-]?265|\\bHEVC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not HDR/DV",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": "\\b(dv|dovi|dolby[ .]?v(ision)?|hdr(10(P(lus)?)?)?|pq)\\b"
+     }
+    },
+    {
+     "name": "Not 2160p",
+     "implementation": "ResolutionSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 2160
+     }
+    }
+   ]
+  },
+  {
+   "trash_id": "390455c22a9cac81a738f6cbad705c3c",
+   "name": "x266",
+   "trash_scores": {
+    "default": -10000
+   },
+   "specifications": [
+    {
+     "name": "x|h266",
+     "implementation": "ReleaseTitleSpecification",
+     "negate": false,
+     "required": true,
+     "fields": {
+      "value": "[xh][ ._-]?266|\\bVVC(\\b|\\d)"
+     }
+    },
+    {
+     "name": "Not Remux",
+     "implementation": "QualityModifierSpecification",
+     "negate": true,
+     "required": true,
+     "fields": {
+      "value": 5
+     }
+    }
+   ]
+  }
+ ],
+ "sizes": [
+  {
+   "quality": "HDTV-720p",
+   "min": 17.1,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBDL-720p",
+   "min": 12.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBRip-720p",
+   "min": 12.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "Bluray-720p",
+   "min": 25.7,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "HDTV-1080p",
+   "min": 33.8,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBDL-1080p",
+   "min": 12.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBRip-1080p",
+   "min": 12.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "Bluray-1080p",
+   "min": 50.8,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "Remux-1080p",
+   "min": 102,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "HDTV-2160p",
+   "min": 85,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBDL-2160p",
+   "min": 34.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "WEBRip-2160p",
+   "min": 34.5,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "Bluray-2160p",
+   "min": 102,
+   "preferred": 1999,
+   "max": 2000
+  },
+  {
+   "quality": "Remux-2160p",
+   "min": 187.4,
+   "preferred": 1999,
+   "max": 2000
+  }
+ ]
+}

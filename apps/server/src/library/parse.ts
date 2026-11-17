@@ -119,6 +119,7 @@ export function parseQuality(fileName: string): ParsedQuality {
     webrip: 'WEBRip',
     hdtv: 'HDTV',
     dvd: 'DVD',
+    dvdr: 'DVD',
   };
   const hdr = r.hdr.includes('DV') ? 'Dolby Vision' : r.hdr.includes('HDR10+') ? 'HDR10+' : r.hdr.includes('HDR10') ? 'HDR10' : r.hdr.includes('HDR') ? 'HDR' : r.hdr.includes('HLG') ? 'HLG' : null;
   const codecs: Partial<Record<NonNullable<ParsedRelease['codec']>, ParsedQuality['codec']>> = { h265: 'x265', h264: 'x264', av1: 'AV1', vc1: 'VC-1', mpeg2: 'MPEG-2' };
