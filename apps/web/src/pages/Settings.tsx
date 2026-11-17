@@ -44,6 +44,8 @@ export function AccountPage() {
       ? { tone: 'success', text: `${status.providers.oidc.name} is linked. You can sign in with it now.` }
       : params.get('error') === 'oidc_in_use'
         ? { tone: 'error', text: 'That account is already linked to another Marquee user.' }
+        : params.get('error') === 'oidc_unreachable'
+          ? { tone: 'error', text: `Marquee couldn't reach ${status.providers.oidc.name}. Check that it's running and reachable from the Marquee container.` }
         : params.get('error')
           ? { tone: 'error', text: "Linking didn't complete. Please try again." }
           : null,

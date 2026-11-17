@@ -6,8 +6,9 @@ import type { AuthStatus, PlexPinCheck, PlexPinStart } from '@marquee/shared';
 import { users, type User } from '../db/schema.js';
 import { hashPassword, verifyPassword, burnPasswordCheck } from '../auth/password.js';
 import { deleteSession } from '../auth/sessions.js';
+import { describeError } from '../auth/oidc.js';
 import { createFlow, deleteFlow, readFlow } from '../auth/flows.js';
-import { USERNAME_RE, countUsers, findUserByUsername, insertUser, toSessionUser, uniqueUsername, updateUser } from '../auth/users.js';
+import { USERNAME_RE, countUsers, findLikelySamePerson, findUserByUsername, insertUser, toSessionUser, uniqueUsername, updateUser } from '../auth/users.js';
 import { HttpError, clearSessionCookie, clientIp, isSecure, publicOrigin, sessionToken, signIn, type Env } from '../http.js';
 
 export const usernameSchema = z
@@ -101,7 +102,14 @@ authRoutes.get('/oidc/start', async (c) => {
   if (linking && !current) throw new HttpError(401, 'unauthenticated', 'Sign in before linking an account.');
 
   const redirectUri = `${publicOrigin(c)}/api/auth/oidc/callback`;
-  const { url, state, verifier, nonce } = await oidc.start(redirectUri);
+  let started;
+  try {
+    started = await oidc.start(redirectUri);
+  } catch (err) {
+    console.warn(`[auth] couldn't start OIDC sign-in: ${describeError(err)}`);
+    return c.redirect(linking ? '/settings/account?error=oidc_unreachable' : '/login?error=oidc_unreachable', 302);
+  }
+  const { url, state, verifier, nonce } = started;
   const flowId = createFlow<OidcFlow>(db, 'oidc', { state, verifier, nonce, redirectUri, linkUserId: linking ? current!.id : null }, FLOW_TTL);
   setCookie(c, OIDC_COOKIE, flowId, { httpOnly: true, sameSite: 'Lax', secure: isSecure(c), path: '/api/auth/oidc', maxAge: FLOW_TTL / 1000 });
   return c.redirect(url, 302);
@@ -124,7 +132,7 @@ authRoutes.get('/oidc/callback', async (c) => {
     callbackUrl.search = new URL(c.req.url).search;
     identity = await oidc.finish(callbackUrl, flow);
   } catch (err) {
-    console.warn('[auth] OIDC sign-in failed:', (err as Error).message);
+    console.warn(`[auth] OIDC sign-in failed: ${describeError(err)}`);
     return back('oidc_failed');
   }
 
@@ -143,6 +151,7 @@ authRoutes.get('/oidc/callback', async (c) => {
   let user: User | undefined = existing;
   if (!user) {
     if (!config.oidc.autoCreate || countUsers(db) === 0) return back('oidc_no_account');
+    if (findLikelySamePerson(db, identity)) return back('oidc_account_exists');
     user = insertUser(db, {
       username: uniqueUsername(db, identity.username ?? identity.email?.split('@')[0] ?? identity.name ?? 'user'),
       displayName: identity.name ?? identity.username ?? 'New user',
@@ -217,6 +226,12 @@ authRoutes.post('/plex/check', async (c) => {
         message: autoCreate
           ? "This Plex account doesn't have access to the Plex server, so it can't sign in."
           : "This Plex account isn't linked to a Marquee user yet. Ask an admin to link it, or sign in another way and link it under Settings → Account.",
+      });
+    }
+    if (findLikelySamePerson(db, account)) {
+      return c.json<PlexPinCheck>({
+        status: 'denied',
+        message: 'You already have a Marquee account. Sign in with your password, then link Plex under Settings → Account.',
       });
     }
     user = insertUser(db, {
