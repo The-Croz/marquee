@@ -1,3 +1,5 @@
+import { parseRelease, type ParsedRelease } from '../releases/parse.js';
+
 /**
  * Reads titles, years, IDs, episode numbers and quality out of folder and file
  * names. Pure functions: no disk or network access, so they're easy to test.
@@ -105,59 +107,28 @@ export interface ParsedQuality {
   group: string | null;
 }
 
+/** Quality of a file in the library, in the shape stored on `media_files`. Read with the release-name parser. */
 export function parseQuality(fileName: string): ParsedQuality {
-  const n = fileName.replace(/\.[a-z0-9]{2,4}$/i, '');
-  const has = (re: RegExp) => re.test(n);
-  const resolution = has(/\b(2160p|4k|uhd)\b/i)
-    ? '2160p'
-    : has(/\b1080[pi]\b/i)
-      ? '1080p'
-      : has(/\b720p\b/i)
-        ? '720p'
-        : has(/\b576p\b/i)
-          ? '576p'
-          : has(/\b480p\b/i)
-            ? '480p'
-            : null;
-  const source = has(/\bremux\b/i)
-    ? 'Remux'
-    : has(/\bweb[ ._-]?dl\b|\bweb\b(?![ ._-]?rip)/i)
-      ? 'WEB-DL'
-      : has(/\bweb[ ._-]?rip\b/i)
-        ? 'WEBRip'
-        : has(/\b(blu[ ._-]?ray|bdrip|brrip|bd25|bd50)\b/i)
-          ? 'Blu-ray'
-          : has(/\bhdtv\b/i)
-            ? 'HDTV'
-            : has(/\b(dvd(rip|r|5|9)?)\b/i)
-              ? 'DVD'
-              : null;
-  const hdr = has(/\b(dv|dovi|dolby[ ._-]?vision)\b/i)
-    ? 'Dolby Vision'
-    : has(/\bhdr10(\+|plus|p)\b/i)
-      ? 'HDR10+'
-      : has(/\bhdr10\b/i)
-        ? 'HDR10'
-        : has(/\bhdr\b/i)
-          ? 'HDR'
-          : has(/\bhlg\b/i)
-            ? 'HLG'
-            : null;
-  const codec = has(/\b(x265|h[ ._]?265|hevc)\b/i)
-    ? 'x265'
-    : has(/\b(x264|h[ ._]?264|avc)\b/i)
-      ? 'x264'
-      : has(/\bav1\b/i)
-        ? 'AV1'
-        : has(/\bvc-?1\b/i)
-          ? 'VC-1'
-          : has(/\bmpeg-?2\b/i)
-            ? 'MPEG-2'
-            : null;
-  // Release group: the part after the last dash, e.g. "...x265-GROUP". Ignore things like "WEB-DL".
-  const g = n.match(/-([A-Za-z0-9]+)(?:\[[^\]]*\])?$/);
-  const group = g?.[1] && !/^(dl|rip|hd|ray)$/i.test(g[1]) ? g[1] : null;
-  return { resolution, source, hdr, codec, group };
+  const r = parseRelease(fileName);
+  const resolution = r.resolution === 2160 ? '2160p' : r.resolution === 1440 || r.resolution === 1080 ? '1080p' : r.resolution === 720 ? '720p' : r.resolution === 576 ? '576p' : r.resolution === 480 ? '480p' : null;
+  const sources: Partial<Record<NonNullable<ParsedRelease['source']>, ParsedQuality['source']>> = {
+    remux: 'Remux',
+    bluray: 'Blu-ray',
+    brdisk: 'Blu-ray',
+    webdl: 'WEB-DL',
+    webrip: 'WEBRip',
+    hdtv: 'HDTV',
+    dvd: 'DVD',
+  };
+  const hdr = r.hdr.includes('DV') ? 'Dolby Vision' : r.hdr.includes('HDR10+') ? 'HDR10+' : r.hdr.includes('HDR10') ? 'HDR10' : r.hdr.includes('HDR') ? 'HDR' : r.hdr.includes('HLG') ? 'HLG' : null;
+  const codecs: Partial<Record<NonNullable<ParsedRelease['codec']>, ParsedQuality['codec']>> = { h265: 'x265', h264: 'x264', av1: 'AV1', vc1: 'VC-1', mpeg2: 'MPEG-2' };
+  return {
+    resolution,
+    source: (r.source && sources[r.source]) ?? null,
+    hdr,
+    codec: (r.codec && codecs[r.codec]) ?? null,
+    group: r.group,
+  };
 }
 
 /** For comparing titles: lowercase, no accents or punctuation, "&" → "and", no leading "the". */
