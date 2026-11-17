@@ -62,6 +62,17 @@ describe('OIDC sign-in', () => {
     expect(me2.body.user.id).toBe(me.body.user.id);
   });
 
+  it("won't create a duplicate when a local account already has that username", async () => {
+    const { app } = oidcApp();
+    const admin = await setupAdmin(app);
+    await call(app, 'POST', '/api/users', { username: 'jess', displayName: 'Jess', role: 'member', password: 'jess password 1' }, admin);
+    const res = await signInWithOidc(app);
+    expect(res.location).toBe('/login?error=oidc_account_exists');
+    expect(res.cookie).toBeUndefined();
+    const list = await call(app, 'GET', '/api/users', undefined, admin);
+    expect(list.body.users.map((u: { username: string }) => u.username)).toEqual(['josh', 'jess']);
+  });
+
   it('refuses unknown identities when auto-create is off', async () => {
     const { app } = oidcApp(false);
     await setupAdmin(app);

@@ -67,6 +67,16 @@ describe('Plex sign-in', () => {
     expect((await call(no.app, 'POST', '/api/auth/plex/check', { flowId: s2.body.flowId })).body.status).toBe('denied');
   });
 
+  it("won't auto-create a duplicate of an existing local account", async () => {
+    const { app } = makeApp({ config: enabled({ serverId: 'srv1', autoCreate: true }), plex: fakePlex() });
+    const admin = await setupAdmin(app);
+    await call(app, 'POST', '/api/users', { username: 'jessplex', displayName: 'Jess', role: 'member' }, admin);
+    const start = await call(app, 'POST', '/api/auth/plex/start', {});
+    const res = await call(app, 'POST', '/api/auth/plex/check', { flowId: start.body.flowId });
+    expect(res.body.status).toBe('denied');
+    expect(res.body.message).toMatch(/already have a Marquee account/);
+  });
+
   it('treats an unknown flow as expired', async () => {
     const { app } = makeApp({ config: enabled(), plex: fakePlex() });
     expect((await call(app, 'POST', '/api/auth/plex/check', { flowId: 'x'.repeat(32) })).body).toEqual({ status: 'expired' });

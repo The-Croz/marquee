@@ -9,6 +9,7 @@ const ERRORS: Record<string, string> = {
   oidc_expired: 'That sign-in took too long. Please try again.',
   oidc_failed: "Single sign-on didn't complete. Please try again.",
   oidc_no_account: "That account isn't set up in Marquee yet. Ask an admin to add you.",
+  oidc_account_exists: 'You already have a Marquee account. Sign in with your password, then link single sign-on under Settings → Account.',
 };
 
 export function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
