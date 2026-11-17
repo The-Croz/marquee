@@ -105,3 +105,10 @@ describe('home', () => {
     expect(kidHome.body.recent.map((r: { title: string }) => r.title)).not.toContain('Dune: Part Two');
   });
 });
+
+describe('version', () => {
+  it('reports the running version', async () => {
+    const { app } = makeApp();
+    expect((await call(app, 'GET', '/api/auth/status')).body.version).toBe('dev');
+  });
+});

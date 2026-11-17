@@ -69,6 +69,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ steps.meta.outputs.version }}
+          # Tags get their version (1.2.3); everything else gets the commit, e.g. "main-f00a740"
+          build-args: VERSION=${{ startsWith(github.ref, 'refs/tags/v') && steps.meta.outputs.version || format('{0}-{1}', github.ref_name, github.sha) }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
