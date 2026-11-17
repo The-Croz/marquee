@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { to: '/settings/account', label: 'Settings', icon: 'settings' },
 ];
 
-export function Shell({ user }: { user: SessionUser }) {
+export function Shell({ user, version }: { user: SessionUser; version: string }) {
   const navigate = useNavigate();
   const items = NAV.filter((n) => (!n.adminOnly || user.role === 'admin') && (!n.hideForKids || user.role !== 'kid'));
 
@@ -88,6 +88,7 @@ export function Shell({ user }: { user: SessionUser }) {
           </div>
           {signOutButton}
         </div>
+        <div className="hidden px-3 pt-3 font-mono text-[11px] text-dim md:block">Marquee {version}</div>
       </nav>
 
       <main className="box-border flex min-w-0 flex-1 flex-col gap-8 px-5 pt-4 pb-16 sm:px-10 md:pt-7">

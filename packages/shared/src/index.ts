@@ -20,6 +20,8 @@ export interface AuthStatus {
     plex: { enabled: boolean };
   };
   user: SessionUser | null;
+  /** Running version, e.g. "1.2.0" or "main-f00a740". */
+  version: string;
 }
 
 export interface ApiError {

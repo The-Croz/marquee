@@ -7,6 +7,7 @@ import { users, type User } from '../db/schema.js';
 import { hashPassword, verifyPassword, burnPasswordCheck } from '../auth/password.js';
 import { deleteSession } from '../auth/sessions.js';
 import { describeError } from '../auth/oidc.js';
+import { VERSION } from '../version.js';
 import { createFlow, deleteFlow, readFlow } from '../auth/flows.js';
 import { USERNAME_RE, countUsers, findLikelySamePerson, findUserByUsername, insertUser, toSessionUser, uniqueUsername, updateUser } from '../auth/users.js';
 import { HttpError, clearSessionCookie, clientIp, isSecure, publicOrigin, sessionToken, signIn, type Env } from '../http.js';
@@ -46,6 +47,7 @@ authRoutes.get('/status', (c) => {
       plex: { enabled: config.plex.enabled },
     },
     user: user ? toSessionUser(user) : null,
+    version: VERSION,
   };
   return c.json(body);
 });

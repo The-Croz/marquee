@@ -13,7 +13,7 @@ import { homeRoutes } from './routes/home.js';
 import { servicesRoutes } from './routes/services.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
 
-const VERSION = process.env.MARQUEE_VERSION ?? 'dev';
+import { VERSION } from './version.js';
 
 export function createApp(deps: Deps) {
   const app = new Hono<Env>();

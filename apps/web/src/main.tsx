@@ -35,7 +35,7 @@ const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/setup', element: <SetupPage /> },
   {
-    element: <RequireUser render={(s) => <Shell user={s.user} />} />,
+    element: <RequireUser render={(s) => <Shell user={s.user} version={s.version} />} />,
     children: [
       { index: true, element: <HomePage /> },
       { path: 'discover', element: <Placeholder title="Discover" milestone={5}>Browse trending and upcoming movies and shows and request them. Kid profiles only see kid-safe titles.</Placeholder> },
