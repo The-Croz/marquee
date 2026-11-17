@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>marquee</Name>
+  <Repository>ghcr.io/the-croz/marquee:latest</Repository>
+  <Registry>https://github.com/The-Croz/marquee/pkgs/container/marquee</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/The-Croz/marquee/issues</Support>
+  <Project>https://github.com/The-Croz/marquee</Project>
+  <Overview>Marquee: movies and TV for your home server in one app. Requests, finding the right copy, downloads and who's watching, explained in plain English. Replaces Sonarr, Radarr, Prowlarr, Seerr and Tautulli (in progress).&#xD;
+&#xD;
+After installing, open the WebUI and create the admin account. Pocket ID (OIDC) and Plex sign-in are optional: fill in the variables under "Show more settings".</Overview>
+  <Category>MediaApp:Video Downloaders: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:9797]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/The-Croz/marquee/main/docker/unraid/marquee.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <Config Name="WebUI port" Target="9797" Default="9797" Mode="tcp" Description="Port for the Marquee web app." Type="Port" Display="always" Required="true" Mask="false">9797</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/marquee" Mode="rw" Description="Marquee's database and settings." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/marquee</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/data" Mode="rw" Description="Your TRaSH-style data share containing torrents/, movies/ and tv/. Must be one share so hardlinks work." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/data</Config>
+
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID Marquee runs as. 99 is Unraid's 'nobody'." Type="Variable" Display="advanced" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID Marquee runs as. 100 is Unraid's 'users'." Type="Variable" Display="advanced" Required="true" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="File permission mask for files Marquee creates." Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
+  <Config Name="Time zone" Target="TZ" Default="America/New_York" Mode="" Description="Used for schedules and times shown in the app." Type="Variable" Display="advanced" Required="false" Mask="false">America/New_York</Config>
+
+  <Config Name="Public URL" Target="MARQUEE_BASE_URL" Default="" Mode="" Description="The address you open Marquee at from outside, e.g. https://marquee.example.com. Needed for Pocket ID behind Pangolin/NPM. Leave blank if you only use the LAN address." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="TMDB API key" Target="TMDB_API_KEY" Default="" Mode="" Description="From themoviedb.org → Settings → API. The v3 API key or the v4 read access token both work. Used to match your library (Milestone 1)." Type="Variable" Display="always" Required="false" Mask="true"/>
+
+  <Config Name="OIDC issuer URL" Target="OIDC_ISSUER" Default="" Mode="" Description="Pocket ID's base URL, e.g. https://id.example.com. Fill this, the client ID and secret to show the sign-in button." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC client ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="Client ID from the OIDC client you create for Marquee. Callback URL to register: [Public URL]/api/auth/oidc/callback" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="OIDC client secret" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="Client secret from the OIDC client." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="OIDC button name" Target="OIDC_NAME" Default="Pocket ID" Mode="" Description="Label on the sign-in button." Type="Variable" Display="advanced" Required="false" Mask="false">Pocket ID</Config>
+  <Config Name="OIDC auto-create accounts" Target="OIDC_AUTO_CREATE" Default="true" Mode="" Description="true: anyone who can sign in to Pocket ID gets a member account. false: only accounts you've linked can sign in." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+
+  <Config Name="Plex sign-in" Target="PLEX_LOGIN" Default="false" Mode="" Description="true shows 'Continue with Plex'. People link their Plex account under Settings → Account." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Plex server ID" Target="PLEX_SERVER_ID" Default="" Mode="" Description="Your Plex server's machine identifier (open http://[plex-ip]:32400/identity). Only needed for auto-create." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Plex auto-create accounts" Target="PLEX_AUTO_CREATE" Default="false" Mode="" Description="true: anyone your Plex server is shared with can sign in and gets a member account. Needs Plex server ID." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+</Container>
