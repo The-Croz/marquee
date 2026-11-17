@@ -304,10 +304,15 @@ export class ProfileService {
     return this.db.select({ n: sql<number>`count(*)` }).from(table).where(eq(table.profile, key)).get()?.n ?? 0;
   }
 
-  /** A new profile: a copy of `copyFrom`, or of the Everyday HD preset. */
-  create(input: { kind: Kind; name: string; copyFrom?: number }): FullProfile {
+  /** A new profile: a copy of `copyFrom`, TRaSH's profile `fromTrash` as TRaSH sets it up, or else a copy of the Everyday HD preset. */
+  create(input: { kind: Kind; name: string; copyFrom?: number; fromTrash?: string }): FullProfile {
     let values: PresetValues;
-    if (input.copyFrom !== undefined) {
+    if (input.fromTrash !== undefined) {
+      const app = appFor(input.kind);
+      const tp = TRASH[app].profiles.find((x) => x.name === input.fromTrash);
+      if (!tp) throw new HttpError(400, 'invalid_input', `TRaSH has no ${input.kind === 'movie' ? 'movie' : 'TV'} profile called "${input.fromTrash}".`);
+      values = fromTrash(app, tp.name, [], tp.items.filter((i) => i.allowed).map((i) => i.name), tp.cutoff, { name: input.name, description: `Starts as TRaSH's ${tp.name}.` });
+    } else if (input.copyFrom !== undefined) {
       const src = this.get(input.copyFrom);
       if (src.kind !== input.kind) throw new HttpError(400, 'invalid_input', `That profile is for ${src.kind === 'movie' ? 'movies' : 'TV'}; copy one made for ${input.kind === 'movie' ? 'movies' : 'TV'}.`);
       values = { ...src, name: input.name };
@@ -495,4 +500,9 @@ export function ruleInfo(kind: Kind): Map<string, RuleInfo> {
   }
   ruleIndex.set(app, map);
   return map;
+}
+
+/** TRaSH's own profiles a new one can start from. */
+export function trashProfiles(): { kind: Kind; name: string; description: string }[] {
+  return (['movie', 'tv'] as Kind[]).flatMap((kind) => TRASH[appFor(kind)].profiles.map((p) => ({ kind, name: p.name, description: p.trash_description.replace(/<[^>]+>/g, '').trim() })));
 }

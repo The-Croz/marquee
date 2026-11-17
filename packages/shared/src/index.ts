@@ -328,6 +328,8 @@ export interface ProfileSummary {
 export interface ProfilesView {
   profiles: ProfileSummary[];
   defaults: Record<ProfileDefaultSlot, string>;
+  /** TRaSH's own profiles, which a new profile can start from. */
+  trashProfiles: { kind: ProfileKind; name: string; description: string }[];
 }
 
 export interface ProfileRuleView {
@@ -367,4 +369,59 @@ export interface ProfileDetail extends ProfileSummary {
   rules: ProfileRuleView[];
   /** Plain words for each quality name ("WEBDL-1080p" → "1080p web download"). */
   qualityLabels: Record<string, string>;
+}
+
+// ---------------------------------------------------------------- Copies we found (search)
+
+export interface CopyRejection {
+  code: string;
+  message: string;
+}
+
+export interface CopyRuleView {
+  trashId: string;
+  /** TRaSH's name, shown small. */
+  name: string;
+  label: string;
+  explain: string;
+  points: number;
+}
+
+/** One copy Marquee found, judged against the title's profile. No download link: that stays on the server. */
+export interface CopyView {
+  title: string;
+  sizeBytes: number | null;
+  seeders: number | null;
+  leechers: number | null;
+  publishedAt: number | null;
+  infoUrl: string | null;
+  /** Every Source that had it, best priority first. */
+  sources: { id: number; name: string }[];
+  quality: string;
+  qualityLabel: string;
+  /** Quality group in the profile, or null if it isn't in one. */
+  tier: string | null;
+  score: number;
+  rules: CopyRuleView[];
+  rejections: CopyRejection[];
+  accepted: boolean;
+  /** What the name says, for badges. */
+  details: { resolution: number | null; hdr: string[]; codec: string | null; audio: string | null; atmos: boolean; service: string | null; group: string | null; editions: string[]; repack: boolean };
+}
+
+export interface SourceSearchOutcome {
+  sourceId: number;
+  name: string;
+  status: 'searched' | 'failed' | 'skipped';
+  results: number;
+  ms: number;
+  message: string | null;
+}
+
+export interface CopiesResult {
+  profile: { id: number; key: string; name: string };
+  /** Best first; turned-down copies after the accepted ones. */
+  copies: CopyView[];
+  sources: SourceSearchOutcome[];
+  ms: number;
 }

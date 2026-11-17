@@ -14,6 +14,7 @@ import { servicesRoutes } from './routes/services.js';
 import { sourcesRoutes } from './routes/sources.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
 import { profileRoutes } from './routes/profiles.js';
+import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { seedProfiles } from './releases/profiles.js';
 
 import { VERSION } from './version.js';
@@ -62,6 +63,8 @@ export function createApp(deps: Deps) {
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);
+  app.route('/api/movies', movieCopyRoutes);
+  app.route('/api/shows', showCopyRoutes);
   app.all('/api/*', (c) => c.json<ApiError>({ error: 'not_found', message: 'No such endpoint.' }, 404));
 
   app.onError((err, c) => {

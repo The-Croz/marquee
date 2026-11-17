@@ -74,10 +74,11 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - Ranking like Radarr's: accepted first, then quality group, then proper/repack, then points, then Source priority, then freeleech, then people sharing (log scale, so 120 vs 130 ties), then size closest to the preferred size.
    - Tests: `test/decide.test.ts` (picks, every reason, merging, ranking, and real names from the corpus for six searches) and `test/profiles.test.ts` (presets, API, validation messages, delete guards, defaults).
    - Not yet: upgrade decisions against a file you already have ("is this better than what's on disk?"), which M3 needs for grabbing.
-5. ⬜ **Search API and screens**
-   - `POST /api/movies/:id/search` and `/api/series/:id/search` (admin): runs the search and returns every release with its parsed details, score breakdown and rejections. Nothing is stored or grabbed.
-   - "Copies we found" panel on movie and show detail, from the mockup: best pick first, each row expands to "why" (each matching rule, its points, its plain-English explanation and TRaSH name).
-   - Settings → Quality (replacing the placeholder in `main.tsx`): list and edit profiles on the PR 4 API, each rule in plain English with its TRaSH name; change a title's profile from its detail page. Needs Josh's OK on the layout first.
+5. ✅ **Search API and screens**
+   - `POST /api/movies/:id/search` and `/api/shows/:id/search` (`{ season, episode? }`), admin only: searches every Source by ID and returns each copy judged against the title's profile, best first, with points, rules and plain reasons. Download links never leave the server. Nothing is stored or grabbed. Shows don't store an episode length yet, so TV searches skip size limits.
+   - **Copies we found** on movie and show pages (admins): profile picker (changes the title's profile), season and episode pickers for shows, best pick first with badges, "Why?" with each rule's points and meaning, near misses before copies of other titles, Sources that failed with what happens next.
+   - **Quality** page (`/quality`): Movies and TV profile lists with title counts and defaults; every setting editable (qualities on/off and order, good enough, keep looking for better, each rule on/off and points with TRaSH's value shown when changed, minimum points, sizes under "For experts"); new profile as a copy of any profile or straight from a TRaSH profile; put a built-in profile back to TRaSH's values; delete; defaults for new movies, new shows and kids' requests.
+   - Demo mode has a richer set of copies (Dune: Part Two, Severance) so both screens can be tried without the LAN. Checked in the browser against demo mode.
 6. ⬜ **Comparison mode against Radarr** (gate for movie cutover)
    - Migration: `comparisons` (movie, when, Radarr's release, Marquee's pick, both scores, verdict, reasons).
    - Background job reads Radarr's grab history (`/api/v3/history?eventType=grabbed`, read-only). For each new grab, Marquee runs its own search and records what it would have picked.

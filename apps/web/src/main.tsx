@@ -15,6 +15,7 @@ import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
+import { QualityPage } from './pages/Quality';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -55,7 +56,7 @@ const router = createBrowserRouter([
           <RequireUser
             render={(s) => (
               <AdminOnly status={s}>
-                <Placeholder title="Quality" milestone={2}>Cinema, Everyday HD and Kids & Cartoons profiles built on the TRaSH Guides, explained in plain English.</Placeholder>
+                <QualityPage />
               </AdminOnly>
             )}
           />
