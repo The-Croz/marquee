@@ -10,6 +10,8 @@ import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/account.js';
 import { userRoutes } from './routes/users.js';
 import { homeRoutes } from './routes/home.js';
+import { servicesRoutes } from './routes/services.js';
+import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
 
 const VERSION = process.env.MARQUEE_VERSION ?? 'dev';
 
@@ -50,6 +52,10 @@ export function createApp(deps: Deps) {
   app.route('/api/me', accountRoutes);
   app.route('/api/users', userRoutes);
   app.route('/api/home', homeRoutes);
+  app.route('/api/settings/services', servicesRoutes);
+  app.route('/api/library', libraryRoutes);
+  app.route('/api/movies', movieRoutes);
+  app.route('/api/shows', showRoutes);
   app.all('/api/*', (c) => c.json<ApiError>({ error: 'not_found', message: 'No such endpoint.' }, 404));
 
   app.onError((err, c) => {

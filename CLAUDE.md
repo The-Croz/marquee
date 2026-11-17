@@ -40,6 +40,7 @@ pnpm test         # vitest (server)
 pnpm typecheck
 pnpm build        # web → apps/web/dist, server → apps/server/dist
 pnpm start        # serve the built app (set MARQUEE_WEB_DIR=apps/web/dist)
+pnpm build && pnpm --filter @marquee/server demo   # fake TMDB + sample library on :9797, no internet needed
 ```
 
 ## Conventions
@@ -56,4 +57,5 @@ pnpm start        # serve the built app (set MARQUEE_WEB_DIR=apps/web/dist)
 
 - `nodejs.org` is blocked there, so building `better-sqlite3` needs local headers: prefix installs with `npm_config_nodedir=/opt/node22`.
 - Docker Hub is blocked there too, so the image can only be built in GitHub Actions.
-- Live services on Josh's LAN aren't reachable from the sandbox. Use Claude Code on a machine on the LAN for integration work.
+- Live services on Josh's LAN aren't reachable from the sandbox, nor is TMDB (api or images). Use demo mode and the fakes in `apps/server/test/fakes/`; use Claude Code on a machine on the LAN for integration work.
+- Library code lives in `apps/server/src/library/` (parse, tmdb, arr, scanner, services). The scanner must stay read-only on disk until Milestone 3's import step.

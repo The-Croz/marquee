@@ -4,24 +4,38 @@ import { loadConfig, type Config } from '../src/config.js';
 import { RateLimiter } from '../src/auth/rateLimit.js';
 import { OidcProvider } from '../src/auth/oidc.js';
 import type { PlexClient } from '../src/auth/plex.js';
+import { LibraryScanner } from '../src/library/scanner.js';
+import type { Clients } from '../src/http.js';
 
 export interface TestOptions {
   config?: Partial<Config>;
   plex?: Partial<PlexClient>;
+  clients?: Partial<Clients>;
 }
 
 export function makeApp(opts: TestOptions = {}) {
   const db = openDb(':memory:');
   const config: Config = { ...loadConfig({}), webDir: null, ...opts.config };
+  const scanner = new LibraryScanner(db);
   const app = createApp({
     db,
     config,
     oidc: config.oidc ? new OidcProvider(config.oidc) : null,
     plex: () => opts.plex as PlexClient,
     loginLimiter: new RateLimiter(10, 15 * 60 * 1000),
+    clients: {
+      tmdb: () => {
+        throw new Error('no TMDB in this test');
+      },
+      arr: () => {
+        throw new Error('no Radarr/Sonarr in this test');
+      },
+      ...opts.clients,
+    },
+    scanner,
     now: Date.now,
   });
-  return { app, db, config };
+  return { app, db, config, scanner };
 }
 
 type App = ReturnType<typeof makeApp>['app'];

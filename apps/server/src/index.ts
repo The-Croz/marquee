@@ -7,6 +7,9 @@ import { OidcProvider } from './auth/oidc.js';
 import { PlexClient, plexClientId } from './auth/plex.js';
 import { RateLimiter } from './auth/rateLimit.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
+import { TmdbClient } from './library/tmdb.js';
+import { ArrClient } from './library/arr.js';
+import { LibraryScanner } from './library/scanner.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
@@ -18,6 +21,11 @@ const app = createApp({
   oidc: config.oidc ? new OidcProvider(config.oidc) : null,
   plex: () => new PlexClient(clientId),
   loginLimiter: new RateLimiter(10, 15 * 60 * 1000),
+  clients: {
+    tmdb: (key) => new TmdbClient(key, db),
+    arr: (kind, url, key) => new ArrClient(kind, url, key),
+  },
+  scanner: new LibraryScanner(db),
   now: Date.now,
 });
 

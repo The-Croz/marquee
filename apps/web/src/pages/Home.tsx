@@ -1,30 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import type { HomeData } from '@marquee/shared';
-import { api } from '../api';
+import { api, useAuthStatus } from '../api';
 import { Button, Card, Notice, Progress } from '../components/ui';
+import { Poster } from '../components/Poster';
+import { SearchBox } from './Search';
 
 export function HomePage() {
   const { data, error, isLoading } = useQuery({ queryKey: ['home'], queryFn: () => api<HomeData>('/home') });
+  const { data: auth } = useAuthStatus();
+  const isKid = auth?.user?.role === 'kid';
 
   if (isLoading) return <p className="text-muted">Loading…</p>;
   if (error || !data) return <Notice tone="error">Couldn't load the home screen.</Notice>;
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-4">
-        <label htmlFor="q" className="sr-only">
-          Search
-        </label>
-        <input
-          id="q"
-          type="search"
-          placeholder="Search movies and shows, or paste an IMDb / Letterboxd link"
-          className="h-12 flex-[1_1_360px] rounded-xl border border-line bg-panel px-[18px] text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
-        />
-      </div>
+      {!isKid && (
+        <div className="flex flex-wrap items-center gap-4">
+          <SearchBox />
+        </div>
+      )}
 
-      {data.sample && <Notice>You're looking at sample data. Real numbers show up here as each milestone lands.</Notice>}
+      {data.sample && (
+        <Notice>
+          {data.libraryReady
+            ? 'Your library is real. Downloads, requests and "Watching now" are still sample data until their milestones land.'
+            : "You're looking at sample data. Scan your library from Movies or Shows to see your real titles here."}
+        </Notice>
+      )}
 
       {data.nowDownloading && (
         <section aria-label="Now downloading" className="relative flex min-h-[340px] overflow-hidden rounded-[20px] bg-[#3A2412]">
@@ -132,11 +136,16 @@ export function HomePage() {
         </div>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-[18px]">
           {data.recent.map((p) => (
-            <Link key={p.title} to="/movies" className="flex flex-col gap-2 text-text no-underline hover:text-text">
-              <div className="box-border flex aspect-[2/3] items-end rounded-xl p-3.5" style={{ background: p.color }}>
-                <span className="font-display text-[22px] leading-[1.05] text-[#F7F3EA]">{p.title}</span>
-              </div>
-              <span className="text-[13px] text-muted">{p.sub}</span>
+            <Link key={p.href ?? p.title} to={p.href ?? '/movies'} className="flex flex-col gap-2 text-text no-underline hover:text-text">
+              {p.posterPath !== undefined ? (
+                <Poster title={p.title} path={p.posterPath} />
+              ) : (
+                <div className="box-border flex aspect-[2/3] items-end rounded-xl p-3.5" style={{ background: p.color }}>
+                  <span className="font-display text-[22px] leading-[1.05] text-[#F7F3EA]">{p.title}</span>
+                </div>
+              )}
+              {p.posterPath !== undefined && <span className="truncate text-[13px] font-semibold">{p.title}</span>}
+              <span className={p.posterPath !== undefined ? '-mt-1.5 text-[13px] text-muted' : 'text-[13px] text-muted'}>{p.sub}</span>
             </Link>
           ))}
         </div>
