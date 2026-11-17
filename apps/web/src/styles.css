@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/instrument-serif/400.css';
+
+/* Marquee design tokens: the "cinematic dark" direction from the mockups. */
+@theme {
+  --color-ink: #0a0c10;
+  --color-panel: #12151c;
+  --color-raised: #1a1f29;
+  --color-line: #1e2430;
+  --color-line-strong: #2e3543;
+  --color-text: #f3f4f6;
+  --color-soft: #c3cad5;
+  --color-muted: #a3acba;
+  --color-dim: #8a93a3;
+  --color-amber: #f2b33d;
+  --color-amber-hi: #ffd27a;
+  --color-amber-ink: #1a1206;
+  --color-blue: #6aa6ff;
+  --color-blue-hi: #a9cbff;
+  --color-teal: #4fd1c5;
+  --color-teal-hi: #8fe5dc;
+  --color-warn: #ff9e6b;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-ink);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 2px;
+  }
+  a {
+    color: var(--color-amber);
+  }
+  a:hover {
+    color: var(--color-amber-hi);
+  }
+}
