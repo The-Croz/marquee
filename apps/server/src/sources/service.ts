@@ -275,7 +275,10 @@ export class SourceService {
       const usable = sites.filter((s) => usableReason(s) === null).length;
       return { ok: true, message: `Connected to Prowlarr ${version}. ${sites.length} ${sites.length === 1 ? 'site' : 'sites'}, ${usable} with movies or TV.` };
     } catch (err) {
-      return { ok: false, message: (err as Error).message };
+      const message = (err as Error).message;
+      // Logged so a failed link shows up in the container log. Messages never contain the key.
+      console.warn(`[sources] Couldn't use Prowlarr at ${url}: ${message}`);
+      return { ok: false, message };
     }
   }
 

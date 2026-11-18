@@ -63,6 +63,8 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
   const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
   const [sync, setSync] = useState<ProwlarrSyncResult | null>(null);
   const [unlinking, setUnlinking] = useState(false);
+  /** Shown beside the buttons, so a failed link can't go unnoticed at the top of the page. */
+  const [error, setError] = useState<string | null>(null);
 
   const values = () => ({
     url: (document.getElementById('prowlarrUrl') as HTMLInputElement | null)?.value.trim() || undefined,
@@ -72,10 +74,11 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
   async function run(label: string, fn: () => Promise<void>) {
     setBusy(label);
     setMessage(null);
+    setError(null);
     try {
       await fn();
     } catch (e) {
-      setMessage({ tone: 'error', text: errMsg(e) });
+      setError(errMsg(e));
     } finally {
       setBusy(null);
     }
@@ -192,9 +195,11 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
               </span>
             )}
           </div>
+          {error && <Notice tone="error">{error}</Notice>}
         </form>
       )}
 
+      {error && !editing && <Notice tone="error">{error}</Notice>}
       {sync && sync.ok && (
         <div role="status" className="rounded-xl bg-raised px-4 py-3 text-sm text-soft">
           <p className="m-0">{sync.message}</p>
