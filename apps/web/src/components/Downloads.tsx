@@ -91,6 +91,20 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
           <div className={cx('h-full', BAR[d.status.tone])} style={{ width: `${Math.max(2, d.progress * 100)}%` }} />
         </div>
       )}
+      {d.importedPaths && d.importedPaths.length > 0 && (
+        <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-[12px] break-all text-muted">
+          {d.importedPaths.map((p) => (
+            <li key={p}>→ {p}</li>
+          ))}
+        </ul>
+      )}
+      {d.canImport && (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('import')}>
+            {busy ? 'Working…' : 'Try again'}
+          </Button>
+        </div>
+      )}
       {d.canControl && !confirmRemove && (
         <div className="flex flex-wrap gap-2">
           {paused ? (

@@ -7,8 +7,9 @@ import { Notice } from '../components/ui';
 export function DownloadsPage() {
   const q = useDownloads();
   const v = q.data;
-  const now = v?.items.filter((d) => d.state === 'sent' || d.state === 'downloading') ?? [];
-  const earlier = v?.items.filter((d) => !(d.state === 'sent' || d.state === 'downloading')).slice(0, 30) ?? [];
+  const current = (d: { state: string; canImport: boolean }) => d.state === 'sent' || d.state === 'downloading' || d.canImport;
+  const now = v?.items.filter(current) ?? [];
+  const earlier = v?.items.filter((d) => !current(d)).slice(0, 30) ?? [];
   return (
     <>
       <div className="flex flex-col gap-2">

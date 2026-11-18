@@ -334,6 +334,16 @@ export const downloads = sqliteTable('downloads', {
   filesChecked: integer('files_checked', { mode: 'boolean' }).notNull().default(false),
   checkedAt: integer('checked_at'),
   finishedAt: integer('finished_at'),
+  /** qBittorrent's save folder for it, as qBittorrent sees it. */
+  savePath: text('save_path'),
+  importedAt: integer('imported_at'),
+  /** JSON string[]: the library files it became. */
+  importedPaths: text('imported_paths'),
+  /** Why putting it in the library failed last time, in plain words. */
+  importError: text('import_error'),
+  importTriedAt: integer('import_tried_at'),
+  /** The library file is a copy, not a hardlink (different disks), so it takes twice the space. */
+  importCopied: integer('import_copied', { mode: 'boolean' }).notNull().default(false),
 });
 
 export type Download = typeof downloads.$inferSelect;

@@ -34,6 +34,15 @@ downloaderRoutes.put('/', async (c) => {
       stuckHours: z.number().int().min(1, 'Stuck after is at least 1 hour.').max(168, 'Stuck after is at most a week (168 hours).').optional(),
       giveUpHours: z.number().int().min(1).max(720, 'Try another copy after is at most 30 days (720 hours).').optional(),
       tryAnother: z.boolean().optional(),
+      folderPairs: z
+        .array(
+          z.object({
+            from: z.string().trim().refine((v) => v.startsWith('/'), 'Folders are full paths, like /downloads.'),
+            to: z.string().trim().refine((v) => v.startsWith('/'), 'Folders are full paths, like /data/torrents.'),
+          }),
+        )
+        .max(10)
+        .optional(),
     })
     .refine((v) => v.stuckHours === undefined || v.giveUpHours === undefined || v.giveUpHours >= v.stuckHours, 'Try another copy after has to be at least as long as Stuck after.')
     .parse(await c.req.json());

@@ -45,6 +45,11 @@ downloadRoutes.post('/:id{[0-9]+}/remove', async (c) => {
   return c.json<DownloadActionResult>(await monitorFor(c).remove(id(c), deleteFiles));
 });
 
+downloadRoutes.post('/:id{[0-9]+}/import', async (c) => {
+  requireAdmin(c);
+  return c.json<DownloadActionResult>(await monitorFor(c).putInLibrary(id(c)));
+});
+
 downloadRoutes.post('/:id{[0-9]+}/try-another', async (c) => {
   const user = requireAdmin(c);
   return c.json<DownloadActionResult>(await monitorFor(c).tryAnother(id(c), 'You asked for another copy.', user.id));

@@ -1,5 +1,6 @@
 import { getSetting, setSetting, type Db } from '../db/index.js';
 import type { Config } from '../config.js';
+import { DEFAULT_MOVIE_PATTERN, DEFAULT_TV_PATTERN } from './naming.js';
 
 /**
  * Connection settings for outside services, stored in the database so they
@@ -47,4 +48,20 @@ export function writeServices(db: Db, values: Partial<Record<keyof ServiceSettin
     if (value === undefined) continue;
     setSetting(db, KEYS[field], (value ?? '').trim());
   }
+}
+
+/** Where finished movies and TV go. */
+export function libraryRoots(db: Db): { movies: string; tv: string } {
+  return { movies: getSetting(db, KEYS.moviesRoot) || '/data/media/movies', tv: getSetting(db, KEYS.tvRoot) || '/data/media/tv' };
+}
+
+/** Name patterns for files Marquee puts in the library. */
+export function readNaming(db: Db): { movie: string; tv: string } {
+  return { movie: getSetting(db, 'library.movie_pattern') || DEFAULT_MOVIE_PATTERN, tv: getSetting(db, 'library.tv_pattern') || DEFAULT_TV_PATTERN };
+}
+
+/** "" puts a pattern back to the default. */
+export function writeNaming(db: Db, v: { movie?: string; tv?: string }): void {
+  if (v.movie !== undefined) setSetting(db, 'library.movie_pattern', v.movie.trim());
+  if (v.tv !== undefined) setSetting(db, 'library.tv_pattern', v.tv.trim());
 }

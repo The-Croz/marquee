@@ -74,6 +74,9 @@ function DownloaderAdmin() {
       stuckHours: Number(d.get('stuckHours')),
       giveUpHours: Number(d.get('giveUpHours')),
       tryAnother: d.get('tryAnother') === 'on',
+      folderPairs: [0, 1]
+        .map((i) => ({ from: String(d.get(`pairFrom${i}`) ?? '').trim(), to: String(d.get(`pairTo${i}`) ?? '').trim() }))
+        .filter((p) => p.from && p.to),
     };
     const password = String(d.get('password') ?? '');
     if (password) body.password = password; // blank means "keep what's saved"
@@ -130,8 +133,21 @@ function DownloaderAdmin() {
         </div>
         <details className="rounded-xl border border-line px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-soft">For experts</summary>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-4">
             <Field label="Category" id="dl-category" name="category" defaultValue={data.category} hint="Marquee files its downloads under this qBittorrent category and only follows that category, so Radarr's and Sonarr's downloads are left alone." />
+            <div className="flex flex-col gap-2">
+              <p className="m-0 text-sm font-medium text-soft">Different folder names</p>
+              <p className="m-0 text-sm text-muted">
+                Only if qBittorrent sees its download folder under another name than Marquee does. Example: qBittorrent saves to /downloads, and Marquee sees the same folder as /data/torrents. With the
+                Unraid templates both see /data, so leave these empty.
+              </p>
+              {[0, 1].map((i) => (
+                <div key={i} className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+                  <Field label={`qBittorrent's folder ${i + 1}`} name={`pairFrom${i}`} defaultValue={data.folderPairs[i]?.from ?? ''} placeholder="/downloads" />
+                  <Field label={`Marquee's folder ${i + 1}`} name={`pairTo${i}`} defaultValue={data.folderPairs[i]?.to ?? ''} placeholder="/data/torrents" />
+                </div>
+              ))}
+            </div>
           </div>
         </details>
         <div className="flex flex-wrap items-center gap-3">

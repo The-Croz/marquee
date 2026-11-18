@@ -79,6 +79,8 @@ export interface ServicesView {
   sonarr: { url: string | null; configured: boolean };
   moviesRoot: string;
   tvRoot: string;
+  /** Name patterns for files Marquee puts in the library. */
+  naming: { movie: string; tv: string; defaultMovie: string; defaultTv: string };
 }
 
 export interface ServicesUpdate {
@@ -89,6 +91,9 @@ export interface ServicesUpdate {
   sonarrApiKey?: string | null;
   moviesRoot?: string;
   tvRoot?: string;
+  /** "" puts it back to the default. */
+  moviePattern?: string;
+  tvPattern?: string;
 }
 
 export interface ServiceTestResult {
@@ -123,6 +128,8 @@ export interface DownloaderView {
   giveUpHours: number;
   /** Try another copy by itself (after giveUpHours, or when a download looks fake). */
   tryAnother: boolean;
+  /** When qBittorrent sees the download folder under another name than Marquee does. */
+  folderPairs: { from: string; to: string }[];
 }
 
 export interface DownloaderUpdate {
@@ -134,6 +141,7 @@ export interface DownloaderUpdate {
   stuckHours?: number;
   giveUpHours?: number;
   tryAnother?: boolean;
+  folderPairs?: { from: string; to: string }[];
 }
 
 export interface DownloaderHealth {
@@ -528,6 +536,10 @@ export interface DownloadView {
   status: DownloadStatus;
   /** Marquee can pause, remove or replace it (not for downloads it adopted from another app). */
   canControl: boolean;
+  /** Finished and not in the library yet: "Try again" puts it there. */
+  canImport: boolean;
+  /** The library files it became. */
+  importedPaths: string[] | null;
 }
 
 export interface DownloadStatus {
