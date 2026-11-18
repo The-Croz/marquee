@@ -1,7 +1,7 @@
 /**
- * qBittorrent Web API v2 client. Read-only for now (Milestone 3, PR 1):
- * it signs in and reads versions, preferences, connection status, free
- * space and categories so Settings → Downloader can say whether it works.
+ * qBittorrent Web API v2 client. It reads versions, preferences, connection
+ * status, free space, categories and torrents, and adds torrents under
+ * Marquee's category. It never touches torrents in other categories.
  *
  * The password is only ever sent to the address it was saved with, and is
  * never put in an error message.
@@ -35,9 +35,30 @@ export interface QbitStatus {
   categories: Record<string, string>;
 }
 
+/** A torrent as qBittorrent lists it (only the fields Marquee uses). */
+export interface QbitTorrent {
+  hash: string;
+  name: string;
+  category: string;
+  /** qBittorrent's state word, e.g. "downloading", "stalledDL". Never shown as-is. */
+  state: string;
+  /** 0 to 1. */
+  progress: number;
+  size: number;
+  savePath: string;
+}
+
+/** What to add: the .torrent file's bytes, or a magnet link. */
+export type TorrentPayload = { kind: 'file'; bytes: Uint8Array; name: string } | { kind: 'magnet'; uri: string };
+
 export interface QbitApi {
   /** Signs in if needed and reads everything the health check needs. Throws QbitError. */
   status(): Promise<QbitStatus>;
+  /** Torrents with these info-hashes (lowercase hex), in any category. */
+  torrents(hashes: string[]): Promise<QbitTorrent[]>;
+  /** Makes a category if it doesn't exist yet. */
+  ensureCategory(name: string): Promise<void>;
+  add(payload: TorrentPayload, opts: { category: string; tags: string[] }): Promise<void>;
 }
 
 export class QbitClient implements QbitApi {
@@ -74,8 +95,11 @@ export class QbitClient implements QbitApi {
     if (res.status === 403) throw new QbitError('banned', 'qBittorrent has blocked Marquee for a while after too many wrong passwords.');
     if (res.status === 404) throw new QbitError('not_qbittorrent', `${this.base} answers, but it isn't qBittorrent's web page.`);
     const text = (await res.text()).trim();
+    // Older versions answer 200 "Fails."; 5.2+ may answer 401.
+    if (res.status === 401 || text === 'Fails.') throw new QbitError('password_refused', 'qBittorrent turned down the username or password.');
     if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status} when signing in.`);
-    if (text !== 'Ok.') throw new QbitError('password_refused', 'qBittorrent turned down the username or password.');
+    // Success is 200 "Ok." before qBittorrent 5.2, and 204 with no body from 5.2 on.
+    if (text !== 'Ok.' && res.status !== 204 && text !== '') throw new QbitError('not_qbittorrent', `${this.base} answers, but not like qBittorrent does.`);
     const set = res.headers.get('set-cookie');
     // The cookie is SID, or QBT_SID_<port> on newer versions; keep whichever came.
     this.cookie = set ? set.split(';')[0]! : null;
@@ -101,6 +125,45 @@ export class QbitClient implements QbitApi {
     } catch {
       throw new QbitError('not_qbittorrent', `${this.base} answers, but not like qBittorrent does.`);
     }
+  }
+
+  /** A form POST that signs in on the first 403, like `get`. */
+  private async post(path: string, body: FormData | URLSearchParams): Promise<Response> {
+    let res = await this.send(path, { method: 'POST', body });
+    if (res.status === 403) {
+      await this.login();
+      res = await this.send(path, { method: 'POST', body });
+      if (res.status === 403) throw new QbitError('password_refused', 'qBittorrent turned down the username or password.');
+    }
+    if (res.status === 404) throw new QbitError('not_qbittorrent', `${this.base} answers, but it isn't qBittorrent's web page.`);
+    return res;
+  }
+
+  async torrents(hashes: string[]): Promise<QbitTorrent[]> {
+    if (hashes.length === 0) return [];
+    type T = { hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string };
+    const rows = await this.json<T[]>(`/torrents/info?hashes=${hashes.map((h) => h.toLowerCase()).join('|')}`);
+    return rows.map((r) => ({ hash: r.hash.toLowerCase(), name: r.name, category: r.category, state: r.state, progress: r.progress, size: r.size, savePath: r.save_path }));
+  }
+
+  async ensureCategory(name: string): Promise<void> {
+    const cats = await this.json<Record<string, unknown>>('/torrents/categories');
+    if (name in cats) return;
+    const res = await this.post('/torrents/createCategory', new URLSearchParams({ category: name, savePath: '' }));
+    // 409 means it appeared in the meantime, which is fine.
+    if (!res.ok && res.status !== 409) throw new QbitError('error', `qBittorrent wouldn't make the "${name}" category (it answered ${res.status}).`);
+  }
+
+  async add(payload: TorrentPayload, opts: { category: string; tags: string[] }): Promise<void> {
+    const form = new FormData();
+    if (payload.kind === 'magnet') form.set('urls', payload.uri);
+    else form.set('torrents', new Blob([payload.bytes.slice()], { type: 'application/x-bittorrent' }), payload.name);
+    form.set('category', opts.category);
+    if (opts.tags.length) form.set('tags', opts.tags.join(','));
+    const res = await this.post('/torrents/add', form);
+    const text = (await res.text()).trim();
+    if (res.status === 415 || text === 'Fails.') throw new QbitError('error', 'qBittorrent turned the torrent down (it may already have it, or the file is broken).');
+    if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status} when adding the torrent.`);
   }
 
   async status(): Promise<QbitStatus> {

@@ -12,6 +12,8 @@ import type { ArrApi, RadarrHistoryApi } from './library/arr.js';
 import type { LibraryScanner } from './library/scanner.js';
 import type { SourceClients, SourceService } from './sources/service.js';
 import type { QbitApi } from './downloads/qbittorrent.js';
+import type { FetchedTorrent } from './downloads/torrent.js';
+import type { CopyCache } from './downloads/cache.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
@@ -21,6 +23,8 @@ export interface Clients extends SourceClients {
   radarrHistory(url: string, apiKey: string): RadarrHistoryApi;
   /** qBittorrent (Web API v2). */
   qbittorrent(url: string, username: string, password: string): QbitApi;
+  /** Fetches a copy's torrent or magnet on the server. */
+  fetchTorrent(url: string): Promise<FetchedTorrent>;
 }
 
 export interface Deps {
@@ -32,6 +36,8 @@ export interface Deps {
   clients: Clients;
   scanner: LibraryScanner;
   sources: SourceService;
+  /** Recent searches' copies, for "Download this". Made by createApp when not given. */
+  copies: CopyCache;
   now: () => number;
 }
 

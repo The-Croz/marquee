@@ -119,17 +119,21 @@ Goal: Marquee sends the copy it picked to qBittorrent, follows it in plain words
 
 Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real one), a `PLAN.md` tick and demo-mode fakes. Nothing is ever deleted from disk in M3 (only qBittorrent's own copy of a torrent Marquee sent, and only when you say so).
 
-1. 🔨 **Downloader connection** (`apps/server/src/downloads/qbittorrent.ts`; read-only)
+1. ✅ **Downloader connection** (`apps/server/src/downloads/qbittorrent.ts`; read-only)
    - qBittorrent Web API v2 client: sign in (username and password; session cookie kept and renewed when it runs out), app and API version, preferences (save folder), connection status, free space, categories. Only reads in this PR.
    - Settings → Downloader: address, username, password (never sent back; a saved password is never sent to a different address), category (default `marquee`), Test connection.
    - Health in plain words with what to do: **Working**, **Can't reach it**, **Password turned down**, **Too many wrong passwords** (qBittorrent banned Marquee's address for a while), **Not qBittorrent**, **Too old** (needs Web API 2.8+, qBittorrent 4.5+), and VPN-aware states from qBittorrent's own connection status: **No internet for downloads** (the VPN, e.g. gluetun, is down) and **Others can't connect to you** (firewalled: downloads work but slower; check port forwarding).
    - Demo mode: a fake qBittorrent at `http://qbittorrent:8080` (admin / adminadmin).
-2. ⬜ **Send a copy** (grab from "Copies we found")
-   - Migration: `downloads` (title, episode(s), copy name, info-hash, Source, profile, points, who and when, state, last progress, files).
-   - **Download this** on any accepted copy (and on near misses, after a "Download anyway?" check). Marquee fetches the `.torrent` or magnet itself, server-side (the Source key never reaches qBittorrent's logs or the browser), and adds it to qBittorrent under the category with its save folder, tagged with Marquee's download id.
-   - Duplicate guard: the same info-hash already in qBittorrent is adopted, not added twice.
-   - Upgrade decision the M2 engine lacks: "is this better than the file you have?" (quality group, then points), so a copy that isn't better says so.
-   - Kids' requests still need approval (M5); admins and members send straight away.
+   - Learned live: qBittorrent 5.2 (Web API 2.15) answers a correct sign-in with 204 and no body, not "Ok.", and a wrong one with 401. Josh's qBittorrent lets LAN addresses in without signing in, but not the Marquee container.
+   - Idea for later: qBittorrent 5.2 also takes an API key instead of a password.
+2. ✅ **Send a copy** (`apps/server/src/downloads/send.ts`, `torrent.ts`, `releases/upgrade.ts`)
+   - Migration 8: `downloads` (title or season/episode, copy name, info-hash, Source, profile, quality, points, size, who and when, state, adopted, progress).
+   - Searches are kept in memory for an hour (`downloads/cache.ts`), so **Download this** points at a copy by id and download links still never leave the server.
+   - Marquee fetches the `.torrent` itself (following redirects, including Prowlarr's redirect to a magnet), works out the info-hash, makes the category in qBittorrent if it's missing, and adds the torrent under it tagged `marquee`. Errors say what happened without the Source key.
+   - Copies Marquee would turn down, and copies that aren't better than your file, ask "Download it anyway?" first.
+   - **Better than yours?** Your file's name is judged by the same profile, then compared by quality group first and points second. It respects "keep looking for better" and "good enough". A season counts as good as its worst episode. Shown on each copy Marquee would take ("Better than your 1080p web download.").
+   - Duplicate guard: if qBittorrent already has the torrent (say Radarr sent it), Marquee adopts it and follows it in its existing category. A second download for a movie, or for an episode that already has one on the way, is refused, saying which.
+   - `POST /api/downloads`, `GET /api/downloads` (admin). Members' "Download this" waits for requests in M5.
 3. ⬜ **Downloads page** (the queue, from the mockup)
    - Follows Marquee's category only, every 10 s while the page is open and every minute otherwise.
    - Plain states: *Waiting its turn*, *Downloading · 4.2 MB/s · about 12 min left*, *Getting ready* (fetching the file list), *Checking files*, *Paused*, *Stuck · nobody is sharing it*, *Stuck · no progress for 2 hours*, *Downloader full* (disk), *Finished · putting it in your library*, *Gone from qBittorrent*. Each says what Marquee will do next and when.

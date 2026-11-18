@@ -442,6 +442,10 @@ export interface CopyRuleView {
 
 /** One copy Marquee found, judged against the title's profile. No download link: that stays on the server. */
 export interface CopyView {
+  /** Points at this copy in its search, for "Download this". Only on search results. */
+  id?: string;
+  /** Compared with the file you already have, when you have one. */
+  vsYours?: { better: boolean; message: string } | null;
   title: string;
   sizeBytes: number | null;
   seeders: number | null;
@@ -472,11 +476,54 @@ export interface SourceSearchOutcome {
 }
 
 export interface CopiesResult {
+  /** Send with a copy's id to download it. Good for an hour. */
+  searchId: string;
+  /** The file you have now, as the profile judges it. */
+  yours: { name: string; qualityLabel: string; score: number } | null;
   profile: { id: number; key: string; name: string };
   /** Best first; turned-down copies after the accepted ones. */
   copies: CopyView[];
   sources: SourceSearchOutcome[];
   ms: number;
+}
+
+// ---------------------------------------------------------------- downloads
+
+export type DownloadState = 'sent' | 'downloading' | 'done' | 'failed' | 'removed';
+
+export interface DownloadView {
+  id: number;
+  kind: 'movie' | 'tv';
+  movieId: number | null;
+  seriesId: number | null;
+  season: number | null;
+  episodes: number[] | null;
+  /** The copy's name. */
+  title: string;
+  infoHash: string;
+  sourceName: string | null;
+  quality: string | null;
+  score: number | null;
+  size: number | null;
+  addedAt: number;
+  state: DownloadState;
+  /** qBittorrent already had it; Marquee only follows it. */
+  adopted: boolean;
+  progress: number;
+  message: string | null;
+}
+
+export interface SendRequest {
+  searchId: string;
+  copyId: string;
+  /** Send it even though Marquee wouldn't pick it, or it isn't better than your file. */
+  anyway?: boolean;
+}
+
+export interface SendResult {
+  download: DownloadView;
+  /** One plain sentence on what happened. */
+  message: string;
 }
 
 // ---------------------------------------------------------------- comparison mode (against Radarr)
