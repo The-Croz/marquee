@@ -35,6 +35,9 @@ export function makeApp(opts: TestOptions = {}) {
     radarrHistory: () => {
       throw new Error('no Radarr history in this test');
     },
+    qbittorrent: () => {
+      throw new Error('no qBittorrent in this test');
+    },
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;

@@ -14,6 +14,7 @@ import { TorznabClient } from './sources/torznab.js';
 import { ProwlarrClient } from './sources/prowlarr.js';
 import { SourceService } from './sources/service.js';
 import { ComparisonService } from './compare/service.js';
+import { QbitClient } from './downloads/qbittorrent.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
@@ -25,6 +26,7 @@ const clients = {
   radarrHistory: (url: string, key: string) => new RadarrHistoryClient(url, key),
   torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
+  qbittorrent: (url: string, username: string, password: string) => new QbitClient(url, username, password),
 };
 const sources = new SourceService(db, clients);
 
