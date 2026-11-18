@@ -240,6 +240,34 @@ const migrations: string[] = [
   ALTER TABLE series ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
   ALTER TABLE profile_choices ADD COLUMN conditions TEXT NOT NULL DEFAULT '[]';
   `,
+  /* 8: downloads Marquee sent to qBittorrent (or found already there) */ `
+  CREATE TABLE downloads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE SET NULL,
+    series_id INTEGER REFERENCES series (id) ON DELETE SET NULL,
+    season INTEGER,
+    episodes TEXT,
+    title TEXT NOT NULL,
+    info_hash TEXT NOT NULL,
+    source_id INTEGER REFERENCES sources (id) ON DELETE SET NULL,
+    source_name TEXT,
+    profile TEXT,
+    quality TEXT,
+    score INTEGER,
+    size INTEGER,
+    requested_by INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    added_at INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'sent',
+    adopted INTEGER NOT NULL DEFAULT 0,
+    progress REAL NOT NULL DEFAULT 0,
+    last_progress_at INTEGER,
+    message TEXT
+  );
+  CREATE INDEX downloads_hash ON downloads (info_hash);
+  CREATE INDEX downloads_movie ON downloads (movie_id);
+  CREATE INDEX downloads_series ON downloads (series_id, season);
+  `,
 ];
 
 export function openDb(file: string): Db {

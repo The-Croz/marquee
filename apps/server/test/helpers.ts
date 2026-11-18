@@ -38,6 +38,9 @@ export function makeApp(opts: TestOptions = {}) {
     qbittorrent: () => {
       throw new Error('no qBittorrent in this test');
     },
+    fetchTorrent: () => {
+      throw new Error('no torrent downloads in this test');
+    },
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;

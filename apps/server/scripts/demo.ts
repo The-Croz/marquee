@@ -21,7 +21,7 @@ import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
-import { FakeQbit } from '../test/fakes/qbittorrent.js';
+import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -100,6 +100,7 @@ setSetting(db, 'downloader.username', 'admin');
 setSetting(db, 'downloader.password', 'adminadmin');
 const clients = {
   qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
+  fetchTorrent: fakeFetchTorrent(),
   tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,
