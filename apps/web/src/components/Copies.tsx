@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { CopiesResult, CopyView, ProfileKind, ProfilesView } from '@marquee/shared';
+import type { CopiesResult, CopyView, ProfileKind, ProfilesView, SendResult } from '@marquee/shared';
 import { ApiFailure, api, queryClient } from '../api';
 import { formatBytes } from './Poster';
 import { Button, Card, Notice, cx } from './ui';
 
 /**
  * "Copies we found": searches every Source for a title and shows what
- * Marquee would pick and why. Admin only. Nothing is downloaded yet.
+ * Marquee would pick and why, and sends one to qBittorrent with
+ * "Download this". Admin only.
  */
 
 /** The profile picker's "let the rules pick" choice. */
@@ -52,7 +53,58 @@ function Why({ c, profile }: { c: CopyView; profile: string }) {
   );
 }
 
-function CopyRow({ c, best, profile }: { c: CopyView; best: boolean; profile: string }) {
+type Sending = { step: 'idle' } | { step: 'busy' } | { step: 'confirm'; message: string } | { step: 'sent'; message: string } | { step: 'error'; message: string };
+
+/** "Download this", with a "Download anyway?" check when Marquee wouldn't pick it or it isn't better than your file. */
+function SendButton({ c, searchId, best }: { c: CopyView; searchId: string; best: boolean }) {
+  const [s, setS] = useState<Sending>({ step: 'idle' });
+  if (!c.id) return null;
+  async function send(anyway: boolean) {
+    setS({ step: 'busy' });
+    try {
+      const res = await api<SendResult>('/downloads', { body: { searchId, copyId: c.id, ...(anyway ? { anyway } : {}) } });
+      setS({ step: 'sent', message: res.message });
+      await queryClient.invalidateQueries({ queryKey: ['downloads'] });
+    } catch (e) {
+      if (e instanceof ApiFailure && e.code === 'needs_confirm') setS({ step: 'confirm', message: e.message });
+      else setS({ step: 'error', message: errMsg(e) });
+    }
+  }
+  if (s.step === 'sent')
+    return (
+      <p role="status" className="m-0 text-sm text-teal-hi">
+        {s.message}
+      </p>
+    );
+  if (s.step === 'confirm')
+    return (
+      <div role="alertdialog" aria-label="Download anyway?" className="flex flex-col gap-2 rounded-xl border border-line-strong px-4 py-3 text-sm">
+        <p className="m-0 text-soft">{s.message}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => send(true)}>
+            Download anyway
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setS({ step: 'idle' })}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button type="button" variant={best ? 'primary' : 'ghost'} className={best ? undefined : 'h-11 px-3.5 text-sm'} disabled={s.step === 'busy'} onClick={() => send(false)}>
+        {s.step === 'busy' ? 'Sending…' : 'Download this'}
+      </Button>
+      {s.step === 'error' && (
+        <span role="status" className="text-sm text-warn">
+          {s.message}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; profile: string; searchId: string }) {
   const [open, setOpen] = useState(best);
   return (
     <li className={cx('flex flex-col gap-3 rounded-[14px] border px-5 py-4', best ? 'border-amber bg-raised' : c.accepted ? 'border-line-strong' : 'border-line')}>
@@ -86,6 +138,8 @@ function CopyRow({ c, best, profile }: { c: CopyView; best: boolean; profile: st
                 {r.message}
               </div>
             ))}
+          {c.vsYours && <div className={cx('text-sm', c.vsYours.better ? 'text-teal-hi' : 'text-muted')}>{c.vsYours.message}</div>}
+          <SendButton c={c} searchId={searchId} best={best} />
         </div>
         <div className="flex flex-none flex-col items-end">
           <div className={cx('font-bold', best ? 'text-[28px] text-amber' : 'text-[20px]', !c.accepted && 'text-muted')}>{points(c.score)}</div>
@@ -143,7 +197,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-xl font-semibold">Copies we found</h2>
-          <p className="m-0 text-[13px] text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads yet.</p>
+          <p className="m-0 text-[13px] text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads until you press “Download this”.</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[13px] text-muted">
@@ -212,6 +266,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
           <p className="m-0 text-[13px] text-muted">
             {r.copies.length} {r.copies.length === 1 ? 'copy' : 'copies'} from {r.sources.filter((s) => s.status === 'searched').length} Sources in {(r.ms / 1000).toFixed(1)} s · {accepted.length}{' '}
             {r.profile.name} would take
+            {r.yours && <> · you have {r.yours.qualityLabel}</>}
           </p>
           {failed.map((s) => (
             <Notice key={s.sourceId} tone="error">
@@ -221,7 +276,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
           {accepted.length === 0 && <Notice>None of these suit {r.profile.name}. The reasons are below each copy; changing the profile can let some through.</Notice>}
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {accepted.map((c, i) => (
-              <CopyRow key={c.title + i} c={c} best={i === 0} profile={r.profile.name} />
+              <CopyRow key={r.searchId + c.title + i} c={c} best={i === 0} profile={r.profile.name} searchId={r.searchId} />
             ))}
           </ul>
           {down.length > 0 && (
@@ -229,7 +284,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
               <h3 className="m-0 pt-2 text-xs font-normal tracking-[.08em] text-dim uppercase">Turned down · {down.length}</h3>
               <ul className="m-0 flex list-none flex-col gap-2 p-0">
                 {(showAllDown ? down : down.slice(0, 5)).map((c, i) => (
-                  <CopyRow key={c.title + i} c={c} best={false} profile={r.profile.name} />
+                  <CopyRow key={r.searchId + c.title + i} c={c} best={false} profile={r.profile.name} searchId={r.searchId} />
                 ))}
               </ul>
               {down.length > 5 && (

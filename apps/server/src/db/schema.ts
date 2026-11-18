@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // Timestamps are stored as Unix milliseconds.
 
@@ -294,6 +294,39 @@ export const comparisons = sqliteTable('comparisons', {
   checkedAt: integer('checked_at'),
 });
 
+/**
+ * Downloads Marquee sent to qBittorrent, or found already there (adopted).
+ * `state` is one of DOWNLOAD_STATES; the Downloads page (M3 PR 3) moves it on.
+ */
+export const downloads = sqliteTable('downloads', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'set null' }),
+  seriesId: integer('series_id').references(() => series.id, { onDelete: 'set null' }),
+  season: integer('season'),
+  /** JSON array of episode numbers; null for a whole season or a movie. */
+  episodes: text('episodes'),
+  /** The copy's name. */
+  title: text('title').notNull(),
+  /** Lowercase hex. */
+  infoHash: text('info_hash').notNull(),
+  sourceId: integer('source_id').references(() => sources.id, { onDelete: 'set null' }),
+  sourceName: text('source_name'),
+  profile: text('profile'),
+  quality: text('quality'),
+  score: integer('score'),
+  size: integer('size'),
+  requestedBy: integer('requested_by').references(() => users.id, { onDelete: 'set null' }),
+  addedAt: integer('added_at').notNull(),
+  state: text('state', { enum: ['sent', 'downloading', 'done', 'failed', 'removed'] }).notNull().default('sent'),
+  /** 1 when qBittorrent already had it and Marquee only started following it. */
+  adopted: integer('adopted', { mode: 'boolean' }).notNull().default(false),
+  progress: real('progress').notNull().default(0),
+  lastProgressAt: integer('last_progress_at'),
+  message: text('message'),
+});
+
+export type Download = typeof downloads.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;

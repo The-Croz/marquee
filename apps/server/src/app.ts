@@ -17,12 +17,15 @@ import { profileRoutes } from './routes/profiles.js';
 import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { compareRoutes } from './routes/compare.js';
 import { downloaderRoutes } from './routes/downloader.js';
+import { downloadRoutes } from './routes/downloads.js';
+import { CopyCache } from './downloads/cache.js';
 import { seedProfiles } from './releases/profiles.js';
 import { seedChoices } from './releases/choose.js';
 
 import { VERSION } from './version.js';
 
-export function createApp(deps: Deps) {
+export function createApp(given: Omit<Deps, 'copies'> & { copies?: CopyCache }) {
+  const deps: Deps = { ...given, copies: given.copies ?? new CopyCache(given.now) };
   const app = new Hono<Env>();
   seedProfiles(deps.db, deps.now());
   seedChoices(deps.db);
@@ -65,6 +68,7 @@ export function createApp(deps: Deps) {
   app.route('/api/settings/sources', sourcesRoutes);
   app.route('/api/settings/profiles', profileRoutes);
   app.route('/api/settings/downloader', downloaderRoutes);
+  app.route('/api/downloads', downloadRoutes);
   app.route('/api/compare', compareRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
