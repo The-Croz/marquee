@@ -99,7 +99,7 @@ function DownloaderAdmin() {
           <div>
             <h2 className="m-0 text-lg font-semibold">qBittorrent</h2>
             <p className="m-0 mt-1 text-sm text-muted">
-              Your Downloader: Marquee sends it the copies it picks and follows them until they're in your library. For now Marquee only checks the connection; it doesn't add or change anything in qBittorrent yet.
+              Your Downloader: Marquee sends it the copies you pick with “Download this”, under its own category. It never changes downloads in other categories, so Radarr's and Sonarr's are left alone.
             </p>
           </div>
           {data.url && (
