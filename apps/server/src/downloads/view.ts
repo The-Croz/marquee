@@ -40,7 +40,16 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
   const s = (label: string, tone: DownloadStatus['tone'], detail: string | null = null, nextTryAt: number | null = null): DownloadStatus => ({ label, tone, detail, nextTryAt });
   if (d.state === 'removed') return s('Removed', 'quiet', d.message);
   if (d.state === 'failed') return s('Replaced', 'quiet', d.message);
-  if (d.state === 'done') return s('Finished downloading', 'done', d.adopted ? 'qBittorrent has the whole copy. The app that sent it puts it in your library.' : 'qBittorrent has the whole copy and keeps sharing it.');
+  if (d.state === 'done') {
+    if (d.adopted) return s('Finished downloading', 'done', 'qBittorrent has the whole copy. The app that sent it puts it in your library.');
+    if (d.importedAt) {
+      return d.importCopied
+        ? s('In your library · copied', 'warn', 'The download folder and the library are on different disks, so this is a copy and takes twice the space. Put both under one share (like /data) so Marquee can hardlink instead.')
+        : s('In your library', 'done', 'Hardlinked, so it takes no extra space. qBittorrent keeps sharing the download.');
+    }
+    if (d.importError) return s('Couldn’t put it in your library', 'bad', `${d.importError} Marquee tries again every 15 minutes, or press Try again.`);
+    return s('Finished · putting it in your library', 'busy', null);
+  }
   const q = d.qbitState;
   if (!q) return s('Sent · waiting for qBittorrent', 'busy', 'Marquee checks on it every minute.');
   if (q === 'gone') return s('Gone from qBittorrent', 'bad', 'It was removed in qBittorrent. Press Try another copy to get a different one, or Remove to forget it.');
@@ -110,5 +119,7 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
     titleLink,
     status: downloadStatus(d, readDownloader(db), now),
     canControl: !d.adopted && (d.state === 'sent' || d.state === 'downloading'),
+    canImport: !d.adopted && d.state === 'done' && !d.importedAt,
+    importedPaths: d.importedPaths ? (JSON.parse(d.importedPaths) as string[]) : null,
   };
 }

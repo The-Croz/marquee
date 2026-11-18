@@ -289,6 +289,14 @@ const migrations: string[] = [
   CREATE INDEX never_pick_movie ON never_pick (movie_id);
   CREATE INDEX never_pick_series ON never_pick (series_id);
   `,
+  /* 10: putting finished downloads in the library */ `
+  ALTER TABLE downloads ADD COLUMN save_path TEXT;
+  ALTER TABLE downloads ADD COLUMN imported_at INTEGER;
+  ALTER TABLE downloads ADD COLUMN imported_paths TEXT;
+  ALTER TABLE downloads ADD COLUMN import_error TEXT;
+  ALTER TABLE downloads ADD COLUMN import_tried_at INTEGER;
+  ALTER TABLE downloads ADD COLUMN import_copied INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function openDb(file: string): Db {

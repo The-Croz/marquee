@@ -60,5 +60,9 @@ A failing Source is skipped and tried again by itself: 1 minute after the first 
 | **Problem in qBittorrent** | qBittorrent reported an error, often a full disk or missing folder. |
 | **Gone from qBittorrent** | Removed in qBittorrent, not by Marquee. |
 | **Finished downloading** | The whole copy is here. |
+| **Finished · putting it in your library** | Downloaded; Marquee is hardlinking it into the library folder. |
+| **In your library** | Hardlinked into the library under a clean name; qBittorrent keeps sharing the download. |
+| **In your library · copied** | Copied, not linked, because the download folder and the library are on different disks. |
+| **Couldn’t put it in your library** | Says why and what to do; tried again every 15 minutes. |
 | **Replaced** | Marquee turned the copy down (stuck, fake, or you asked) and sent the next best. |
 | **Never pick** | A copy turned down for a title, with the reason; searches skip it. |

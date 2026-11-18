@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, NavLink, Outlet, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { AuthStatus, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
@@ -356,6 +356,43 @@ function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'son
   );
 }
 
+/** A name pattern with a live example underneath, so you see what files will be called before saving. */
+function NamePattern({ kind, saved, fallback }: { kind: 'movie' | 'tv'; saved: string; fallback: string }) {
+  const [value, setValue] = useState(saved);
+  const [preview, setPreview] = useState<{ example: string | null; problem: string | null } | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      api<{ example: string | null; problem: string | null }>('/settings/services/name-example', { body: { kind, pattern: value } }).then(setPreview, () => setPreview(null));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [kind, value]);
+  const id = `${kind}Pattern`;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-soft">
+        {kind === 'movie' ? 'Movie names' : 'TV names'}
+      </label>
+      <input
+        id={id}
+        name={id}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        spellCheck={false}
+        aria-describedby={`${id}-preview`}
+        className="h-11 rounded-xl border border-line-strong bg-ink px-3.5 font-mono text-[13px] text-text"
+      />
+      <p id={`${id}-preview`} role="status" className={cx('m-0 font-mono text-[12px] break-all', preview?.problem ? 'text-warn' : 'text-muted')}>
+        {preview?.problem ?? (preview?.example ? `e.g. ${preview.example}` : ' ')}
+      </p>
+      {value !== fallback && (
+        <button type="button" onClick={() => setValue(fallback)} className="h-11 self-start text-sm font-medium text-amber">
+          Use the standard pattern
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ServicesPage() {
   const { status } = useOutletContext<Ctx>();
   if (status.user.role !== 'admin') return <Navigate to="/settings/account" replace />;
@@ -377,6 +414,8 @@ function ServicesAdmin() {
       sonarrUrl: String(d.get('sonarrUrl') ?? ''),
       moviesRoot: String(d.get('moviesRoot') ?? ''),
       tvRoot: String(d.get('tvRoot') ?? ''),
+      moviePattern: String(d.get('moviePattern') ?? ''),
+      tvPattern: String(d.get('tvPattern') ?? ''),
     };
     // Blank secret fields mean "keep what's saved".
     for (const k of ['tmdbApiKey', 'radarrApiKey', 'sonarrApiKey'] as const) {
@@ -434,6 +473,17 @@ function ServicesAdmin() {
           <Field label="Movies" name="moviesRoot" defaultValue={data.moviesRoot} required />
           <Field label="TV" name="tvRoot" defaultValue={data.tvRoot} required />
         </div>
+        <details className="rounded-xl border border-line px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium text-soft">How Marquee names files · For experts</summary>
+          <div className="mt-4 flex flex-col gap-4">
+            <p className="m-0 text-sm text-muted">
+              Finished downloads are hardlinked into these folders under clean names, so they take no extra space and qBittorrent keeps sharing. A “/” starts a folder. Titles that already have a folder keep it.
+              Words in braces are filled in: {'{Title} {Year} {TmdbId} {Quality} {HDR} {Edition} {Group}'}, and for TV {'{Show} {Season:00} {Episode:00} {Episode Title} {TvdbId}'}.
+            </p>
+            <NamePattern kind="movie" saved={data.naming.movie} fallback={data.naming.defaultMovie} />
+            <NamePattern kind="tv" saved={data.naming.tv} fallback={data.naming.defaultTv} />
+          </div>
+        </details>
       </Card>
 
       {(['radarr', 'sonarr'] as const).map((kind) => {

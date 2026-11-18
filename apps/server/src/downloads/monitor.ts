@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, lt } from 'drizzle-orm';
 import type { DownloadActionResult, DownloadsView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { downloads, neverPick, type Download } from '../db/schema.js';
@@ -11,6 +11,7 @@ import { sendFromSearch } from './send.js';
 import { DOWNLOADER_TEXT, readDownloader } from './service.js';
 import { FINISHED, RESTING, describeDownload } from './view.js';
 import type { SearchTarget } from './cache.js';
+import { ImportError, importDownload } from './importer.js';
 
 /**
  * Follows Marquee's downloads in qBittorrent: progress, finished, gone,
@@ -24,6 +25,8 @@ import type { SearchTarget } from './cache.js';
 
 const HOUR = 3_600_000;
 const FOLLOWED = ['sent', 'downloading'] as const;
+/** A failed import is tried again this often. */
+export const IMPORT_RETRY_MS = 15 * 60_000;
 
 export interface MonitorDeps {
   db: Db;
@@ -78,7 +81,17 @@ export class DownloadMonitor {
   async check(): Promise<{ replaced: number }> {
     const { db, now } = this.deps;
     const qbit = this.qbit();
-    const rows = db.select().from(downloads).where(inArray(downloads.state, [...FOLLOWED])).all();
+    const rows = db
+      .select()
+      .from(downloads)
+      .where(
+        or(
+          inArray(downloads.state, [...FOLLOWED]),
+          // Finished but not in the library yet: try again every 15 minutes.
+          and(eq(downloads.state, 'done'), eq(downloads.adopted, false), isNull(downloads.importedAt), or(isNull(downloads.importTriedAt), lt(downloads.importTriedAt, now() - IMPORT_RETRY_MS))),
+        ),
+      )
+      .all();
     if (!qbit || rows.length === 0) {
       this.lastCheck = now();
       return { replaced: 0 };
@@ -91,6 +104,17 @@ export class DownloadMonitor {
       const t = found.get(row.infoHash);
       if (!t) {
         if (row.qbitState !== 'gone') db.update(downloads).set({ qbitState: 'gone', checkedAt: now() }).where(eq(downloads.id, row.id)).run();
+        if (row.state === 'done') {
+          db.update(downloads)
+            .set({ importError: 'It was removed from qBittorrent before Marquee could put it in your library. Search again from the title’s page.', importTriedAt: now() })
+            .where(eq(downloads.id, row.id))
+            .run();
+        }
+        continue;
+      }
+      if (row.state === 'done') {
+        db.update(downloads).set({ savePath: t.savePath, qbitState: t.state, checkedAt: now() }).where(eq(downloads.id, row.id)).run();
+        await this.putInLibrary(row.id);
         continue;
       }
       const moved = t.progress > row.progress + 0.0001;
@@ -103,6 +127,7 @@ export class DownloadMonitor {
           speed: t.downloadSpeed,
           eta: t.eta,
           seeds: Math.max(t.seedsConnected, t.seedsKnown),
+          savePath: t.savePath,
           checkedAt: now(),
           // Waiting, paused and checking don't count towards "stuck".
           lastProgressAt: moved || resting ? now() : row.lastProgressAt ?? row.addedAt,
@@ -110,6 +135,7 @@ export class DownloadMonitor {
         })
         .where(eq(downloads.id, row.id))
         .run();
+      if (done && !row.adopted) await this.putInLibrary(row.id);
       if (done || row.adopted) continue;
 
       // Fakes show in the file list as soon as qBittorrent has it.
@@ -173,6 +199,32 @@ export class DownloadMonitor {
     await this.call(() => qbit.resume(row.infoHash));
     this.deps.db.update(downloads).set({ qbitState: 'downloading', lastProgressAt: this.deps.now() }).where(eq(downloads.id, id)).run();
     return { message: 'Carrying on.', next: null };
+  }
+
+  /**
+   * Puts a finished download in the library (see importer.ts). Records what
+   * happened on the download; never throws for an import problem.
+   */
+  async putInLibrary(id: number): Promise<DownloadActionResult> {
+    const { db, now } = this.deps;
+    const row = this.row(id);
+    if (row.state !== 'done' || row.adopted) throw new HttpError(409, 'not_finished', row.adopted ? 'Another app sent this download, so that app puts it in your library.' : 'It hasn’t finished downloading yet.');
+    if (row.importedAt) return { message: 'It’s already in your library.', next: null };
+    const qbit = this.qbit();
+    if (!qbit) throw new HttpError(409, 'no_downloader', 'Connect qBittorrent first, in Settings → Downloader.');
+    try {
+      const files = await this.call(() => qbit.files(row.infoHash));
+      const r = await importDownload(db, row, files, now());
+      db.update(downloads)
+        .set({ importedAt: now(), importedPaths: JSON.stringify(r.paths), importCopied: r.copied, importError: null, importTriedAt: now() })
+        .where(eq(downloads.id, id))
+        .run();
+      return { message: `In your library: ${r.paths.map((p) => p.split('/').at(-1)).join(', ')}.`, next: null };
+    } catch (err) {
+      if (!(err instanceof ImportError) && !(err instanceof HttpError)) throw err;
+      db.update(downloads).set({ importError: err.message, importTriedAt: now() }).where(eq(downloads.id, id)).run();
+      return { message: `Couldn't put it in your library: ${err.message}`, next: null };
+    }
   }
 
   /** Stops following a download; removes it from qBittorrent (and its files, if asked) when Marquee sent it. */

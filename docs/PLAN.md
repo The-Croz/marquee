@@ -145,13 +145,15 @@ Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real 
    - Movie and show pages list their downloads above "Copies we found".
    - "Copies we found" and "Try another copy" share one search (`downloads/search.ts`), and searches skip "Never pick" copies.
    - Gone from qBittorrent is not replaced by itself (you might have removed it on purpose); Try another copy does it.
-4. ⬜ **Put it in the library** (import)
-   - When a download finishes: pick the video file(s) (skip samples and extras), check it's the right title and episode, hardlink from `/data/torrents/…` into `/data/media/movies/…` or `/data/media/tv/…`, falling back to a copy only if the two folders are on different disks (and say so on the Health card, since that doubles space).
-   - Clean names, editable as patterns in Settings → Library with a live example: movies `{Title} ({Year}) {tmdb-ID}/{Title} ({Year}) {Quality}.ext`, TV `{Show} ({Year}) {tvdb-ID}/Season {00}/{Show} - S01E02 - {Episode Title} {Quality}.ext`, which Plex and Jellyfin both match.
-   - Upgrades: the old file is moved to a "replaced" folder inside Marquee's data, not deleted (no automatic deletion yet).
-   - Records the file in the library (`media_files`) and the step in a history list. Failures say what to do ("qBittorrent saves to /downloads but Marquee sees /data/torrents: add a folder pair").
-   - Folder pairs ("qBittorrent's folder" ↔ "Marquee's folder") under "For experts", for setups where the two containers see the download folder differently.
-   - Import from the old apps' downloads: a finished torrent in qBittorrent from Radarr's category that matches a wanted title can be imported, read-only until you say so.
+4. ✅ **Put it in the library** (`apps/server/src/downloads/importer.ts`, `library/naming.ts`)
+   - Migration 10: where qBittorrent saved each download, when it went into the library, which files it became, the last import problem, and whether it had to be copied.
+   - As soon as a download Marquee sent finishes: picks the video file(s) (skipping samples, extras folders and tiny files), checks a season pack's files are the right season and episodes, and **hardlinks** each into the library folder under a clean name. The download stays where it is so qBittorrent keeps sharing. Falls back to a copy only across disks, and the Downloads page says so ("In your library · copied", with how to fix it).
+   - Clean names from patterns in Settings → Services → "How Marquee names files" (For experts), with a live example and checks. Defaults: movies `{Title} ({Year}) {tmdb-{TmdbId}}/{Title} ({Year}) {Edition} [{Quality}][{HDR}]`, TV `{Show} ({Year}) {tvdb-{TvdbId}}/Season {Season:00}/{Show} - S{Season:00}E{Episode:00} - {Episode Title} [{Quality}][{HDR}]`. A title that already has a folder (from Radarr) keeps it.
+   - Upgrades: the file it replaces is moved into a hidden `.marquee-replaced` folder in the same library folder (same disk, instant; Plex and Jellyfin skip hidden folders). Nothing is deleted.
+   - Records the new files in the library (`media_files`) and the title's folder.
+   - Problems say what to do: can't see the download (with qBittorrent's folder and the folder-pair fix), not allowed to write (PUID/PGID), read-only, disk full, no video, wrong episodes. Retried every 15 minutes, or **Try again** on the Downloads page.
+   - Folder pairs ("qBittorrent's folder" / "Marquee's folder") in Settings → Downloader → For experts.
+   - Not done here: importing finished downloads that Radarr or Sonarr sent (Marquee leaves those to them during the side-by-side), and emptying `.marquee-replaced` (no automatic deletion yet).
 5. ⬜ **Seeding rules**
    - Per Source (defaults on Settings → Downloader): keep sharing until a ratio (default 2.0) or for some days (default 14), whichever first; private sites default to "until the site's minimum" (set by hand). Set on the torrent in qBittorrent when sent.
    - When seeding is done, Marquee removes the torrent from qBittorrent but leaves the library hardlink, so the file stays. Off by default; the list shows "Done sharing · can be removed".

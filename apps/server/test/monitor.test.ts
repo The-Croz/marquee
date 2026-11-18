@@ -56,8 +56,10 @@ describe('following downloads', () => {
     expect((await t.view()).items[0]!.status).toMatchObject({ label: 'Problem in qBittorrent', tone: 'bad' });
     Object.assign(t.torrent()!, { state: 'stalledUP', progress: 1 });
     const done = (await t.view()).items[0]!;
-    expect(done).toMatchObject({ state: 'done', canControl: false });
-    expect(done.status.label).toBe('Finished downloading');
+    expect(done).toMatchObject({ state: 'done', canControl: false, canImport: true });
+    // The fake's files aren't on disk, so putting it in the library says why.
+    expect(done.status.label).toBe('Couldn’t put it in your library');
+    expect(done.status.detail).toMatch(/can't see the downloaded file at \/data\/torrents\/.*folder pair/);
   });
 
   it('notices a download removed in qBittorrent', async () => {
@@ -185,5 +187,34 @@ describe('spotting fakes', () => {
     expect(fakeReason([{ name: 'Movie/Movie.mkv.exe', size: 1 }])).toMatch(/program \(Movie\.mkv\.exe\)/);
     expect(fakeReason([{ name: 'a.rar', size: 1 }, { name: 'a.r00', size: 1 }, { name: 'password.txt', size: 1 }])).toMatch(/only holds archives/);
     expect(fakeReason([{ name: 'a.txt', size: 1 }])).toMatch(/no video/);
+  });
+});
+
+describe('finished downloads go in the library by themselves', () => {
+  it('imports when qBittorrent finishes, and Try again retries a failed one', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const { setSetting } = await import('../src/db/index.js');
+    const t = await setup();
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-mon-'));
+    try {
+      setSetting(t.db, 'library.movies_root', path.join(root, 'movies'));
+      const tor = t.torrent()!;
+      Object.assign(tor, { name: BEST, savePath: path.join(root, 'torrents'), state: 'stalledUP', progress: 1, size: 4000 });
+      // Not on disk yet: it says why and offers Try again.
+      let v = (await t.view()).items[0]!;
+      expect(v.status.label).toBe('Couldn’t put it in your library');
+      expect(v.canImport).toBe(true);
+      fs.mkdirSync(path.join(root, 'torrents', BEST), { recursive: true });
+      fs.writeFileSync(path.join(root, 'torrents', BEST, `${BEST}.mkv`), Buffer.alloc(4000));
+      const again = await call(t.app, 'POST', `/api/downloads/${t.id}/import`, {}, t.cookie);
+      expect(again.body.message).toMatch(/^In your library: Dune - Part Two \(2024\) \[WEBDL-2160p\]\[DV HDR\]\.mkv\.$/);
+      v = (await t.view()).items[0]!;
+      expect(v).toMatchObject({ canImport: false, status: { label: 'In your library', tone: 'done' } });
+      expect(v.importedPaths![0]).toContain('{tmdb-693134}');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

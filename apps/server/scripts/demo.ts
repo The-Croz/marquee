@@ -99,6 +99,8 @@ setSetting(db, 'downloader.url', 'http://qbittorrent:8080');
 setSetting(db, 'downloader.username', 'admin');
 setSetting(db, 'downloader.password', 'adminadmin');
 const qbitTvHashes = new Set<string>();
+/** The copy name for each fake torrent, so finished ones get a real-looking file name. */
+const qbitNames = new Map<string, string>();
 // Make the fake qBittorrent's downloads move along. TV episodes get stuck with nobody sharing, to show that state.
 setInterval(() => {
   for (const t of qbit.list) {
@@ -111,7 +113,14 @@ setInterval(() => {
       Object.assign(t, { state: 'stalledDL', downloadSpeed: 0, seedsConnected: 0, seedsKnown: 0 });
       continue;
     }
-    t.progress = Math.min(1, t.progress + 0.02);
+    t.progress = Math.min(1, t.progress + 0.05);
+    if (t.progress >= 1) {
+      // Finished: put a (sparse) file where qBittorrent would have saved it, so Marquee can put it in the library.
+      t.name = qbitNames.get(t.hash) ?? t.name;
+      t.size = 3 * GB;
+      file(`torrents/${t.name}/${t.name}.mkv`, t.size, 0);
+      t.savePath = path.join(root, 'torrents');
+    }
     Object.assign(t, { downloadSpeed: 6.5 * 1024 ** 2, eta: Math.round(((1 - t.progress) / 0.02) * 3), seedsConnected: 40, state: t.progress >= 1 ? 'stalledUP' : 'downloading' });
   }
 }, 3000).unref();
@@ -119,6 +128,8 @@ const clients = {
   qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
   fetchTorrent: async (url: string) => {
     const t = await fakeFetchTorrent()(url);
+    const name = new URL(url).searchParams.get('file');
+    if (name) qbitNames.set(t.infoHash, name);
     if (/S\d\dE\d\d/i.test(decodeURIComponent(url))) qbitTvHashes.add(t.infoHash);
     return t;
   },

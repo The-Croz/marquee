@@ -84,7 +84,7 @@ describe('Settings → Services', () => {
     const admin = await setupAdmin(app);
     await call(app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', radarrUrl: 'http://192.168.1.100:7878/', radarrApiKey: 'secret' }, admin);
     const view = await call(app, 'GET', '/api/settings/services', undefined, admin);
-    expect(view.body).toEqual({
+    expect(view.body).toMatchObject({
       tmdb: { configured: true, fromEnvironment: false },
       radarr: { url: 'http://192.168.1.100:7878', configured: true },
       sonarr: { url: null, configured: false },

@@ -18,6 +18,15 @@ export interface DownloaderSettings {
   giveUpHours: number;
   /** Try another copy by itself after giveUpHours, or after spotting a fake. */
   tryAnother: boolean;
+  /** When qBittorrent sees the download folder under another name than Marquee does. */
+  folderPairs: FolderPair[];
+}
+
+export interface FolderPair {
+  /** The folder as qBittorrent sees it, e.g. /downloads. */
+  from: string;
+  /** The same folder as Marquee sees it, e.g. /data/torrents. */
+  to: string;
 }
 
 const KEYS = {
@@ -28,6 +37,7 @@ const KEYS = {
   stuckHours: 'downloader.stuck_hours',
   giveUpHours: 'downloader.give_up_hours',
   tryAnother: 'downloader.try_another',
+  folderPairs: 'downloader.folder_pairs',
 } as const;
 
 export const DEFAULT_STUCK_HOURS = 6;
@@ -44,12 +54,13 @@ export function readDownloader(db: Db): DownloaderSettings {
     stuckHours: Number(getSetting(db, KEYS.stuckHours)) || DEFAULT_STUCK_HOURS,
     giveUpHours: Number(getSetting(db, KEYS.giveUpHours)) || DEFAULT_GIVE_UP_HOURS,
     tryAnother: getSetting(db, KEYS.tryAnother) !== '0',
+    folderPairs: JSON.parse(getSetting(db, KEYS.folderPairs) || '[]') as FolderPair[],
   };
 }
 
 export function downloaderView(db: Db): DownloaderView {
   const s = readDownloader(db);
-  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother };
+  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother, folderPairs: s.folderPairs };
 }
 
 /**
@@ -59,7 +70,7 @@ export function downloaderView(db: Db): DownloaderView {
  */
 export function writeDownloader(
   db: Db,
-  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean },
+  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean; folderPairs?: FolderPair[] },
 ): void {
   const saved = readDownloader(db);
   if (v.url !== undefined) {
@@ -72,6 +83,7 @@ export function writeDownloader(
   if (v.category !== undefined) setSetting(db, KEYS.category, v.category.trim() || DEFAULT_CATEGORY);
   if (v.stuckHours !== undefined) setSetting(db, KEYS.stuckHours, String(v.stuckHours));
   if (v.giveUpHours !== undefined) setSetting(db, KEYS.giveUpHours, String(v.giveUpHours));
+  if (v.folderPairs !== undefined) setSetting(db, KEYS.folderPairs, JSON.stringify(v.folderPairs.map((p) => ({ from: p.from.replace(/\/+$/, ''), to: p.to.replace(/\/+$/, '') }))));
   if (v.tryAnother !== undefined) setSetting(db, KEYS.tryAnother, v.tryAnother ? '1' : '0');
 }
 
@@ -116,4 +128,10 @@ export async function checkDownloader(client: QbitApi | null, category: string, 
     }
     return health('error', now, { detail: (err as Error).message });
   }
+}
+
+/** A path as qBittorrent sees it, turned into the path Marquee sees, using the longest matching folder pair. */
+export function mapPath(p: string, pairs: FolderPair[]): string {
+  const hit = [...pairs].sort((a, b) => b.from.length - a.from.length).find((x) => p === x.from || p.startsWith(`${x.from}/`));
+  return hit ? hit.to + p.slice(hit.from.length) : p;
 }

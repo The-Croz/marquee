@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { ServiceTestResult, ServicesView } from '@marquee/shared';
-import { readServices, writeServices } from '../library/services.js';
+import { readNaming, readServices, writeNaming, writeServices } from '../library/services.js';
+import { DEFAULT_MOVIE_PATTERN, DEFAULT_TV_PATTERN, patternProblem, renderName } from '../library/naming.js';
 import { requireAdmin, type Env } from '../http.js';
 import { getSetting } from '../db/index.js';
 
@@ -20,6 +21,16 @@ const folder = z
   .refine((v) => v.startsWith('/'), 'Folders are full paths inside the container, e.g. /data/media/movies')
   .transform((v) => v.replace(/\/+$/, '') || '/');
 
+/** A name pattern; "" means the default. */
+const pattern = (kind: 'movie' | 'tv') =>
+  z
+    .string()
+    .max(300)
+    .superRefine((v, ctx) => {
+      const problem = v.trim() ? patternProblem(v, kind) : null;
+      if (problem) ctx.addIssue({ code: 'custom', message: problem });
+    });
+
 servicesRoutes.get('/', (c) => {
   requireAdmin(c);
   const { db, config } = c.get('deps');
@@ -30,6 +41,7 @@ servicesRoutes.get('/', (c) => {
     sonarr: { url: s.sonarrUrl, configured: !!(s.sonarrUrl && s.sonarrApiKey) },
     moviesRoot: s.moviesRoot,
     tvRoot: s.tvRoot,
+    naming: { ...readNaming(db), defaultMovie: DEFAULT_MOVIE_PATTERN, defaultTv: DEFAULT_TV_PATTERN },
   };
   return c.json(view);
 });
@@ -45,10 +57,28 @@ servicesRoutes.put('/', async (c) => {
       sonarrApiKey: secret.nullable().optional(),
       moviesRoot: folder.optional(),
       tvRoot: folder.optional(),
+      moviePattern: pattern('movie').optional(),
+      tvPattern: pattern('tv').optional(),
     })
     .parse(await c.req.json());
-  writeServices(c.get('deps').db, input);
+  const { moviePattern, tvPattern, ...rest } = input;
+  writeServices(c.get('deps').db, rest);
+  writeNaming(c.get('deps').db, { movie: moviePattern, tv: tvPattern });
   return c.json({ ok: true });
+});
+
+/** What a name pattern gives for an example title, or what's wrong with it. For the live preview. */
+servicesRoutes.post('/name-example', async (c) => {
+  requireAdmin(c);
+  const { kind, pattern } = z.object({ kind: z.enum(['movie', 'tv']), pattern: z.string().max(300) }).parse(await c.req.json());
+  const p = pattern.trim() || (kind === 'movie' ? DEFAULT_MOVIE_PATTERN : DEFAULT_TV_PATTERN);
+  const problem = patternProblem(p, kind);
+  if (problem) return c.json({ example: null, problem });
+  const example =
+    kind === 'movie'
+      ? renderName(p, { Title: 'Dune: Part Two', Year: 2024, TmdbId: 693134, ImdbId: 'tt15239678', Quality: 'WEBDL-2160p', HDR: 'DV HDR10', Group: 'FLUX' }) + '.mkv'
+      : renderName(p, { Show: 'Severance', Year: 2022, TvdbId: 371980, TmdbId: 95396, Season: 2, Episodes: [3], 'Episode Title': 'Who Is Alive?', Quality: 'WEBDL-1080p', HDR: null, Group: 'NTb' }) + '.mkv';
+  return c.json({ example, problem: null });
 });
 
 /** Tries a connection using the typed values if given, else the saved ones. */
