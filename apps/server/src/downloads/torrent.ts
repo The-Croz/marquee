@@ -18,13 +18,15 @@ export interface FetchedTorrent {
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export async function fetchTorrent(url: string, fetchImpl: typeof fetch = fetch, timeoutMs = 30_000): Promise<FetchedTorrent> {
+export async function fetchTorrent(url: string, fetchImpl: typeof fetch = fetch, timeoutMs = 30_000, headers: Record<string, string> = {}): Promise<FetchedTorrent> {
   let current = url;
+  const host = url.startsWith('magnet:') ? null : new URL(url).host;
   for (let hop = 0; hop < 5; hop++) {
     if (current.startsWith('magnet:')) return fromMagnet(current);
     let res: Response;
     try {
-      res = await fetchImpl(current, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+      // A site's cookies go to that site only, never to wherever it redirects.
+      res = await fetchImpl(current, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs), headers: new URL(current).host === host ? headers : {} });
     } catch (err) {
       const code = (err as { cause?: { code?: string } }).cause?.code;
       throw new TorrentFetchError(`Couldn't get the torrent from the Source${code ? ` (${code})` : ''}. Try again, or pick another copy.`);

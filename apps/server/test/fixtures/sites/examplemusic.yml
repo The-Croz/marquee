@@ -1,0 +1,23 @@
+---
+id: examplemusic
+name: ExampleMusic
+description: "Music only"
+type: public
+links:
+  - https://music.test/
+caps:
+  categories:
+    1: Audio
+  modes:
+    search: [q]
+search:
+  paths:
+    - path: s
+  rows:
+    selector: tr
+  fields:
+    title:
+      selector: td
+    download:
+      selector: a
+      attribute: href

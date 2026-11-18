@@ -118,6 +118,8 @@ export const episodes = sqliteTable('episodes', {
   title: text('title'),
   airDate: text('air_date'),
   overview: text('overview'),
+  /** When Marquee last searched for it (or its season) by itself. */
+  lastSearchedAt: integer('last_searched_at'),
 }, (t) => [uniqueIndex('episodes_series_season_episode').on(t.seriesId, t.season, t.episode)]);
 
 export const mediaFiles = sqliteTable('media_files', {
@@ -186,7 +188,7 @@ export const sources = sqliteTable('sources', {
   /** JSON TorznabCaps from the last successful check. */
   caps: text('caps'),
   prowlarrId: integer('prowlarr_id').unique(),
-  state: text('state', { enum: ['unchecked', 'working', 'unreachable', 'key_refused', 'slowed_down', 'set_aside', 'blocked', 'not_a_feed', 'error'] })
+  state: text('state', { enum: ['unchecked', 'working', 'unreachable', 'key_refused', 'sign_in_failed', 'slowed_down', 'set_aside', 'blocked', 'not_a_feed', 'not_supported', 'error'] })
     .notNull()
     .default('unchecked'),
   stateMessage: text('state_message'),
@@ -195,6 +197,24 @@ export const sources = sqliteTable('sources', {
   retryAt: integer('retry_at'),
   checkedAt: integer('checked_at'),
   createdAt: integer('created_at').notNull(),
+  /** feed: a Torznab address · site: Marquee searches the site itself from its definition. */
+  kind: text('kind', { enum: ['feed', 'site'] }).notNull().default('feed'),
+  /** For sites: the definition id ("1337x", "iptorrents"). `url` is the address picked from its links. */
+  siteId: text('site_id'),
+  /** JSON: the site's settings (username, password, cookie…). Secrets never leave the server. */
+  siteSettings: text('site_settings').notNull().default('{}'),
+  /** JSON SiteSession: cookies and browser name, kept between searches. */
+  siteSession: text('site_session'),
+  /** JSON { url, apiKey }: the Prowlarr feed it was before "Bring over", for "Put back". */
+  wasFeed: text('was_feed'),
+});
+
+/** Site definition files: Prowlarr's catalogue, or your own from the sites folder. */
+export const siteDefinitions = sqliteTable('site_definitions', {
+  id: text('id').primaryKey(),
+  origin: text('origin', { enum: ['catalogue', 'custom'] }).notNull(),
+  yaml: text('yaml').notNull(),
+  updatedAt: integer('updated_at').notNull(),
 });
 
 export const sourceCalls = sqliteTable('source_calls', {
@@ -379,6 +399,7 @@ export const neverPick = sqliteTable('never_pick', {
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;
+export type Episode = typeof episodes.$inferSelect;
 export type MediaFile = typeof mediaFiles.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Source = typeof sources.$inferSelect;

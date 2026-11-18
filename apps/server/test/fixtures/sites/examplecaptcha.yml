@@ -1,0 +1,30 @@
+---
+id: examplecaptcha
+name: ExampleCaptcha
+description: "Asks for a captcha to sign in"
+type: private
+links:
+  - https://captcha.test/
+caps:
+  categories:
+    1: Movies
+  modes:
+    search: [q]
+login:
+  path: login.php
+  method: form
+  captcha:
+    type: image
+    selector: img#captcha
+    input: captcha
+search:
+  paths:
+    - path: browse.php
+  rows:
+    selector: tr
+  fields:
+    title:
+      selector: td
+    download:
+      selector: a
+      attribute: href

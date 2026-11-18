@@ -18,6 +18,8 @@ export interface ArrApi {
   /** Returns the app name and version, or throws. */
   ping(): Promise<{ app: string; version: string }>;
   titles(): Promise<ArrTitle[]>;
+  /** How many downloads it still has on the way. */
+  queueSize(): Promise<number>;
 }
 
 export class ArrError extends Error {}
@@ -67,6 +69,11 @@ export class ArrClient implements ArrApi {
       imdbId: r.imdbId || null,
       monitored: r.monitored,
     }));
+  }
+
+  async queueSize(): Promise<number> {
+    const q = await this.get<{ totalRecords?: number }>('/queue?pageSize=1');
+    return q.totalRecords ?? 0;
   }
 }
 

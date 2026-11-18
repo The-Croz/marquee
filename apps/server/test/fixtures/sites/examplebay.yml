@@ -1,0 +1,74 @@
+---
+# A public site with HTML results; the download link is on each copy's page.
+id: examplebay
+name: ExampleBay
+description: "A public test site"
+language: en-US
+type: public
+encoding: UTF-8
+links:
+  - https://bay.test/
+  - https://bay-mirror.test/
+
+caps:
+  categorymappings:
+    - {id: 1, cat: Movies, desc: "Movies"}
+    - {id: 2, cat: TV, desc: "TV"}
+    - {id: 3, cat: Audio, desc: "Music"}
+  modes:
+    search: [q]
+    tv-search: [q, season, ep]
+    movie-search: [q]
+
+settings:
+  - name: sort
+    type: select
+    label: Sort requested from site
+    default: time
+    options:
+      time: created
+      seeders: seeders
+  - name: info_flaresolverr
+    type: info_flaresolverr
+
+download:
+  selectors:
+    - selector: a[href^="magnet:"]
+      attribute: href
+
+search:
+  paths:
+    - path: "{{ if .Keywords }}search/{{ .Keywords }}/{{ .Config.sort }}/{{ else }}latest/{{ end }}"
+  keywordsfilters:
+    - name: re_replace
+      args: ["[^\\w]+", " "]
+  rows:
+    selector: "table.list tr:has(a.name)"
+  fields:
+    title:
+      selector: a.name
+      filters:
+        - name: re_replace
+          args: ["(?i)\\[req\\]\\s*", ""]
+    category:
+      selector: a.name
+      attribute: data-cat
+    details:
+      selector: a.name
+      attribute: href
+    download:
+      selector: a.name
+      attribute: href
+    size:
+      selector: td.size
+    seeders:
+      selector: td.seeds
+    leechers:
+      selector: td.leech
+    date:
+      selector: td.age
+      filters:
+        - name: append
+          args: " ago"
+    downloadvolumefactor:
+      text: 0

@@ -88,9 +88,10 @@ export class FakeQbit {
 }
 
 /** Turns any download link into a magnet whose hash comes from the link, like a Source would. */
-export function fakeFetchTorrent(log: string[] = []) {
-  return async (url: string): Promise<FetchedTorrent> => {
+export function fakeFetchTorrent(log: string[] = [], headersLog: Record<string, string>[] = []) {
+  return async (url: string, headers: Record<string, string> = {}): Promise<FetchedTorrent> => {
     log.push(url);
+    headersLog.push(headers);
     const infoHash = createHash('sha1').update(url).digest('hex');
     return { infoHash, payload: { kind: 'magnet', uri: `magnet:?xt=urn:btih:${infoHash}&dn=demo` } };
   };

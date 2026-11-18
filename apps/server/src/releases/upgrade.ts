@@ -58,3 +58,14 @@ export function compareToYours(d: Decision, yours: YourFile | null, profile: Ful
   if (gain > 0 && yours.score >= profile.cutoffScore) return { better: false, message: `Your ${yours.qualityLabel} already has enough points for ${profile.name}.` };
   return { better: false, message: gain === 0 ? `About the same as your ${yours.qualityLabel}.` : `Not better than your ${yours.qualityLabel}.` };
 }
+
+/**
+ * Nothing would count as better than this file: the profile doesn't look for
+ * better copies, or the file is already "good enough" (at the profile's
+ * cutoff quality with enough points). Lets Marquee skip searching for it.
+ */
+export function doneUpgrading(yours: YourFile, profile: FullProfile): boolean {
+  if (!profile.upgrades) return true;
+  const cutoffRank = profile.tiers.findIndex((t) => t.name === profile.cutoff);
+  return cutoffRank >= 0 && rank(yours) <= cutoffRank && yours.score >= profile.cutoffScore;
+}

@@ -8,6 +8,7 @@ import type { CachedSearch, CopyCache } from './cache.js';
 import { QbitError, type QbitApi } from './qbittorrent.js';
 import { DOWNLOADER_TEXT, readDownloader } from './service.js';
 import { TorrentFetchError, type FetchedTorrent } from './torrent.js';
+import { TorznabError } from '../sources/torznab.js';
 
 /**
  * "Download this": takes a copy from a recent search, fetches its torrent on
@@ -20,7 +21,7 @@ export interface SendDeps {
   db: Db;
   copies: CopyCache;
   qbittorrent(url: string, username: string, password: string): QbitApi;
-  fetchTorrent(url: string): Promise<FetchedTorrent>;
+  fetchTorrent(url: string, headers?: Record<string, string>): Promise<FetchedTorrent>;
   now: () => number;
 }
 
@@ -67,9 +68,12 @@ export async function sendFromSearch(
 
   let torrent: FetchedTorrent;
   try {
-    torrent = await deps.fetchTorrent(d.copy.downloadUrl);
+    // Sites Marquee runs itself may need to open the copy's page first, and send their cookies.
+    const where = d.copy.resolveDownload ? await d.copy.resolveDownload() : { url: d.copy.downloadUrl, headers: {} };
+    torrent = await deps.fetchTorrent(where.url, where.headers);
   } catch (err) {
     if (err instanceof TorrentFetchError) throw new HttpError(502, 'source_failed', err.message);
+    if (err instanceof TorznabError) throw new HttpError(502, 'source_failed', `${err.message} Try again, or pick another copy.`);
     throw err;
   }
 

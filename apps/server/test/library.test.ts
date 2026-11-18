@@ -102,7 +102,7 @@ describe('Settings → Services', () => {
   });
 
   it('tests connections and explains failures', async () => {
-    const radarr: ArrApi = { ping: async () => ({ app: 'Radarr', version: '5.20' }), titles: async () => [] };
+    const radarr: ArrApi = { queueSize: async () => 0, ping: async () => ({ app: 'Radarr', version: '5.20' }), titles: async () => [] };
     const { app } = libraryApp({ radarr });
     const admin = await setupAdmin(app);
     expect((await call(app, 'POST', '/api/settings/services/test', { service: 'tmdb', apiKey: 'good-key' }, admin)).body).toEqual({ ok: true, message: 'Connected to TMDB.' });
@@ -233,14 +233,14 @@ describe('library scan', () => {
   });
 
   it("uses Radarr's IDs when connected, and keeps going if Radarr is down", async () => {
-    const radarr: ArrApi = {
+    const radarr: ArrApi = { queueSize: async () => 0,
       ping: async () => ({ app: 'Radarr', version: '5' }),
       titles: async () => [{ title: 'The Matrix Reloaded', year: 2003, path: '/data/movies/weird-folder-name', tmdbId: 604, tvdbId: null, imdbId: null, monitored: true }],
     };
     const { app, admin } = await scannedApp({ radarr });
     expect((await call(app, 'GET', '/api/movies?q=reloaded', undefined, admin)).body.items).toHaveLength(1);
 
-    const down: ArrApi = { ping: async () => ({ app: 'Radarr', version: '5' }), titles: async () => Promise.reject(new Error('Couldn\'t reach Radarr at http://radarr:7878 (ECONNREFUSED).')) };
+    const down: ArrApi = { queueSize: async () => 0, ping: async () => ({ app: 'Radarr', version: '5' }), titles: async () => Promise.reject(new Error('Couldn\'t reach Radarr at http://radarr:7878 (ECONNREFUSED).')) };
     const second = await scannedApp({ radarr: down });
     expect(second.scanner.status.phase).toBe('done');
     expect(second.scanner.status.warnings.join('\n')).toMatch(/Couldn't read Radarr, matching without it/);
@@ -248,7 +248,7 @@ describe('library scan', () => {
 
   it('falls back to other ways of matching when a TMDB ID no longer exists', async () => {
     // Sonarr remembers a TMDB id that TMDB has since deleted (like The Scooby-Doo Show's 205755)
-    const sonarr: ArrApi = {
+    const sonarr: ArrApi = { queueSize: async () => 0,
       ping: async () => ({ app: 'Sonarr', version: '4' }),
       titles: async () => [{ title: 'Severance', year: 2022, path: '/data/media/tv/Severance (2022)', tmdbId: 205755, tvdbId: 371980, imdbId: null, monitored: true }],
     };

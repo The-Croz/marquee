@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { count, desc, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { HomeData } from '@marquee/shared';
 import { mediaFiles, movies, series } from '../db/schema.js';
+import { comingUp } from '../library/airing.js';
 import { readServices } from '../library/services.js';
 import { KID_MOVIE_RATINGS, KID_TV_RATINGS, qualityLabel } from './library.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
@@ -145,5 +146,8 @@ homeRoutes.get('/', async (c) => {
     // Keep the sample "Watching now" and approvals tiles until Milestones 5 and 6.
     data.stats = [...real.stats, ...data.stats.filter((s) => s.label === 'Watching now' || s.label === 'Waiting for your OK')];
   }
+  // Real airing dates once there are shows in the library.
+  const { db, now } = c.get('deps');
+  if (db.select({ id: series.id }).from(series).limit(1).get()) data.upcoming = comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined);
   return c.json(data);
 });

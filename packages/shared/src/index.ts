@@ -68,7 +68,8 @@ export interface HomeData {
   recent: { title: string; sub: string; color: string; posterPath?: string | null; href?: string }[];
   /** True once a library scan has found something; "recent" and library stats are then real. */
   libraryReady: boolean;
-  upcoming: { day: string; title: string; note: string }[];
+  /** `href` is the show's page (real data only). */
+  upcoming: { day: string; title: string; note: string; href?: string }[];
 }
 
 // ---- Settings → Services ----
@@ -209,11 +210,19 @@ export interface DownloaderHealth {
 // ---- Settings → Sources ----
 
 /** Health of a Source, in words the UI shows as-is via `stateLabel`. */
-export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
+export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'sign_in_failed' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'not_supported' | 'error';
 
 export interface SourceView {
   id: number;
   name: string;
+  /** feed: a Torznab address (often through Prowlarr) · site: Marquee searches the site itself */
+  kind: 'feed' | 'site';
+  /** For sites: which one, its name in the catalogue, and its settings (secrets hidden). */
+  siteId: string | null;
+  siteName: string | null;
+  siteSettings: SiteSettingsView | null;
+  /** Brought over from Prowlarr, so "Put back" can undo it. */
+  canPutBack: boolean;
   /** The Torznab address. Never includes the key. */
   url: string;
   hasKey: boolean;
@@ -740,7 +749,7 @@ export interface ProfileChangeView {
 // ---------------------------------------------------------------- switching movies over from Radarr
 
 export interface CutoverStep {
-  key: 'agree' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'take_over';
+  key: 'agree' | 'movies_first' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'sonarr_queue' | 'sonarr_off' | 'take_over';
   title: string;
   /** done: checked and fine · todo: needs doing · warn: works but worth a look · unknown: Marquee can't check */
   state: 'done' | 'todo' | 'warn' | 'unknown';
@@ -751,17 +760,112 @@ export interface CutoverStep {
 
 export interface WantedRunView {
   at: number;
-  kind: 'missing' | 'better';
+  /** missing: titles with no file · better: titles you have · new: new episodes from the Sources' newest copies */
+  kind: 'missing' | 'better' | 'new';
+  /** Searches made (for "new": copies looked at). */
   searched: number;
-  sent: { movieId: number; title: string; copy: string }[];
+  /** `href` is the movie or show page; `title` says which season or episode for TV. */
+  sent: { href: string; title: string; copy: string }[];
   problems: string[];
 }
 
 export interface CutoverView {
+  kind: 'movie' | 'tv';
   steps: CutoverStep[];
   /** Every step before "Marquee looks for wanted movies" is done. */
   ready: boolean;
   lookingForWanted: boolean;
   /** The last few searches Marquee ran by itself, newest first. */
   runs: WantedRunView[];
+}
+
+// ---- Calendar ----
+
+export interface CalendarItem {
+  seriesId: number;
+  show: string;
+  posterPath: string | null;
+  season: number;
+  episode: number;
+  title: string | null;
+  /** "2026-11-18" */
+  airDate: string;
+  /** have: in your library · downloading · missing: aired, not here · coming: not aired yet · not_watched: the show isn't watched */
+  state: 'have' | 'downloading' | 'missing' | 'coming' | 'not_watched';
+  /** What happens next, in plain words. */
+  note: string;
+}
+
+export interface CalendarView {
+  from: string;
+  to: string;
+  today: string;
+  items: CalendarItem[];
+}
+
+// ---- Built-in sites ----
+
+/** One setting a site asks for when you add it. */
+export interface SiteField {
+  name: string;
+  /** info: text to read, nothing to fill in. */
+  type: 'text' | 'password' | 'checkbox' | 'select' | 'multiselect' | 'info';
+  label: string;
+  /** For info. */
+  text?: string;
+  /** Never sent back once saved (passwords, cookies, keys). */
+  secret?: boolean;
+  default?: string | string[] | boolean | null;
+  options?: { value: string; label: string }[];
+}
+
+/** A site in Marquee's catalogue. */
+export interface SiteSummary {
+  id: string;
+  name: string;
+  description: string;
+  /** public: anyone can use it · private: needs an account · semiPrivate: an account helps */
+  type: 'public' | 'private' | 'semiPrivate';
+  language: string | null;
+  /** catalogue: from Prowlarr's list · custom: a file in your sites folder · builtin: written into Marquee */
+  origin: 'catalogue' | 'custom' | 'builtin';
+  movies: boolean;
+  tv: boolean;
+  /** Why Marquee can't run it yet, or null. */
+  unsupported: string | null;
+}
+
+export interface SiteForm extends SiteSummary {
+  /** Addresses the site answers on, first is usual. */
+  links: string[];
+  fields: SiteField[];
+}
+
+export interface SitesView {
+  sites: SiteSummary[];
+  catalogue: { refreshedAt: number | null; message: string | null; count: number; customFolder: string };
+}
+
+/** Values of a site's settings. Secrets come back as { saved: true } instead of their value. */
+export type SiteSettingsView = Record<string, string | string[] | boolean | { saved: boolean } | null>;
+
+export interface BringOverResult {
+  /** Now run by Marquee itself. */
+  moved: string[];
+  /** Moved, but Prowlarr doesn't share passwords and cookies: type them once. */
+  needSignIn: string[];
+  /** Not in Marquee's catalogue, so still searched through Prowlarr. */
+  notInCatalogue: string[];
+  message: string;
+}
+
+export interface SolverView {
+  enabled: boolean;
+  /** Another solver's address (For experts); null uses the one inside Marquee. */
+  url: string | null;
+  /** Whether this install has a solver inside it. */
+  bundled: boolean;
+  /** off · starting · ready · failed · missing (no solver here and no address given) */
+  state: 'off' | 'starting' | 'ready' | 'failed' | 'missing';
+  message: string;
 }

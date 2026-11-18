@@ -13,6 +13,10 @@ export interface ProwlarrSite {
   priority: number;
   /** Category IDs, including subcategories. */
   categories: number[];
+  /** Which site file it runs ("1337x", "IPTorrents"), to bring it over into Marquee. */
+  definitionName: string | null;
+  /** Its settings by name. Prowlarr hides passwords and cookies as "********". */
+  settings: Record<string, unknown>;
 }
 
 export interface ProwlarrApi {
@@ -58,7 +62,7 @@ export class ProwlarrClient implements ProwlarrApi {
 
   async sites(): Promise<ProwlarrSite[]> {
     type Cat = { id: number; subCategories?: Cat[] };
-    type Row = { id: number; name: string; enable: boolean; protocol: string; privacy?: string; priority?: number; capabilities?: { categories?: Cat[] } };
+    type Row = { id: number; name: string; enable: boolean; protocol: string; privacy?: string; priority?: number; capabilities?: { categories?: Cat[] }; definitionName?: string; fields?: { name: string; value?: unknown }[] };
     const rows = await this.get<Row[]>('/indexer');
     const flatten = (cats: Cat[] = []): number[] => cats.flatMap((c) => [c.id, ...flatten(c.subCategories)]);
     return rows.map((r) => ({
@@ -69,6 +73,9 @@ export class ProwlarrClient implements ProwlarrApi {
       privacy: r.privacy ?? 'public',
       priority: r.priority ?? 25,
       categories: flatten(r.capabilities?.categories),
+      definitionName: r.definitionName ?? null,
+      // Field names can carry a prefix ("torrentBaseSettings.seedRatio"); keep the last part.
+      settings: Object.fromEntries((r.fields ?? []).filter((f) => f.value !== undefined && f.value !== null).map((f) => [f.name.split('.').at(-1)!, f.value])),
     }));
   }
 }

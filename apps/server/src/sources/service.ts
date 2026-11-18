@@ -1,9 +1,14 @@
 import { and, eq, gte, isNotNull, lt, sql } from 'drizzle-orm';
-import type { ProwlarrSyncResult, SourceCheckResult, SourceState, SourceView, SourcesView } from '@marquee/shared';
+import type { BringOverResult, ProwlarrSyncResult, SiteSettingsView, SourceCheckResult, SourceState, SourceView, SourcesView } from '@marquee/shared';
 import { getSetting, schema, setSetting, type Db } from '../db/index.js';
 import type { Source } from '../db/schema.js';
-import { MOVIE_CATEGORY, TV_CATEGORY, TorznabError, redactUrl, type Release, type SearchQuery, type TorznabApi, type TorznabCaps } from './torznab.js';
+import { MOVIE_CATEGORY, TV_CATEGORY, TorznabError, redactUrl, rightKind, type Release, type SearchQuery, type TorznabApi, type TorznabCaps } from './torznab.js';
 import { prowlarrFeedUrl, type ProwlarrApi } from './prowlarr.js';
+import { CardigannSite, type SiteSettingsValues } from './sites/cardigann.js';
+import { BUILTIN, definitionFor, siteForm } from './sites/catalogue.js';
+import { unsupportedReason } from './sites/definition.js';
+import { SiteHttp, type SiteFetch, type SiteSession, type SolverApi } from './sites/http.js';
+import { solverFor, type BundledSolver } from './sites/solver.js';
 
 /**
  * Sources are the places Marquee searches for copies. This module keeps their
@@ -14,6 +19,10 @@ import { prowlarrFeedUrl, type ProwlarrApi } from './prowlarr.js';
 export interface SourceClients {
   torznab(url: string, apiKey: string, timeoutMs: number): TorznabApi;
   prowlarr(url: string, apiKey: string): ProwlarrApi;
+  /** One request to a site Marquee searches itself. */
+  siteFetch: SiteFetch;
+  /** A FlareSolverr-compatible bot-check solver at this address. */
+  solver(url: string): SolverApi;
 }
 
 /** A search result plus where it came from. */
@@ -53,6 +62,8 @@ export const STATE_TEXT: Record<SourceState, { label: string; fix: string | null
   paused: { label: 'Paused', fix: 'Press Resume to search it again.' },
   unreachable: { label: "Can't reach it", fix: 'Check that Prowlarr (or the site) is running and that the address and port are right.' },
   key_refused: { label: 'Key turned down', fix: 'Copy the API key again from Prowlarr → Settings → General and save it.' },
+  sign_in_failed: { label: 'Sign-in turned down', fix: 'Check the site’s settings: username and password, or a fresh cookie (and user agent) from your browser. Then press Try now.' },
+  not_supported: { label: 'Not supported yet', fix: 'Marquee can’t run this site yet. Search it through Prowlarr for now, or put a fixed file for it in the sites folder.' },
   slowed_down: {
     label: 'Asked us to slow down',
     fix: 'Marquee waits and tries again by itself. If it keeps happening, lower the daily limit or raise the gap between searches.',
@@ -61,7 +72,7 @@ export const STATE_TEXT: Record<SourceState, { label: string; fix: string | null
     label: 'Set aside by Prowlarr',
     fix: 'Open this site in Prowlarr and press Test to see why it fails there. Sites behind Cloudflare usually need FlareSolverr.',
   },
-  blocked: { label: 'Blocked by a bot check', fix: 'Set up FlareSolverr for this site in Prowlarr, then press Try now.' },
+  blocked: { label: 'Blocked by a bot check', fix: 'Turn on bot-check solving in Settings → Sources, then press Try now. (For a site searched through Prowlarr, set up FlareSolverr there instead.)' },
   not_a_feed: { label: 'Not a Torznab feed', fix: 'That address isn’t a Torznab feed. Copy it again from Prowlarr or Jackett.' },
   error: { label: 'Something went wrong', fix: 'Press Try now. If it keeps failing, test the site in Prowlarr.' },
 };
@@ -84,12 +95,18 @@ export class SourceService {
   /** When each source was last called, for spacing calls out. In memory: a restart just forgets the gap. */
   private readonly lastCall = new Map<number, number>();
 
+  /** The bot-check solver to use right now, or null when that's off. */
+  readonly solver: () => Promise<SolverApi | null>;
+
   constructor(
     private readonly db: Db,
     private readonly clients: SourceClients,
     private readonly now: () => number = Date.now,
     private readonly sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
-  ) {}
+    readonly bundledSolver: BundledSolver | null = null,
+  ) {
+    this.solver = solverFor(db, bundledSolver, (url) => clients.solver(url));
+  }
 
   // ---------------- reading ----------------
 
@@ -118,7 +135,7 @@ export class SourceService {
     const rows = this.db.select().from(schema.sources).orderBy(schema.sources.priority, schema.sources.name).all();
     const url = getSetting(this.db, PROWLARR_URL) || null;
     return {
-      sources: rows.map((s) => toView(s, now, stats.get(s.id))),
+      sources: rows.map((s) => toView(s, now, stats.get(s.id), s.kind === 'site' ? this.siteInfo(s) : null)),
       prowlarr: {
         url,
         linked: !!(url && getSetting(this.db, PROWLARR_KEY)),
@@ -126,6 +143,18 @@ export class SourceService {
         syncMessage: getSetting(this.db, PROWLARR_MESSAGE) || null,
       },
     };
+  }
+
+  private siteInfo(s: Source): { name: string | null; settings: SiteSettingsView } {
+    const form = s.siteId ? siteForm(this.db, s.siteId) : null;
+    const values = JSON.parse(s.siteSettings) as SiteSettingsValues;
+    const settings: SiteSettingsView = {};
+    for (const f of form?.fields ?? []) {
+      if (f.type === 'info') continue;
+      const v = values[f.name];
+      settings[f.name] = f.secret ? { saved: v !== undefined && v !== null && v !== '' } : (v ?? f.default ?? null);
+    }
+    return { name: form?.name ?? null, settings };
   }
 
   // ---------------- managing ----------------
@@ -157,7 +186,128 @@ export class SourceService {
   // ---------------- calling ----------------
 
   private client(s: Source): TorznabApi {
+    if (s.kind === 'site') return this.siteClient(s);
     return this.clients.torznab(s.url, s.apiKey, s.timeoutSeconds * 1000);
+  }
+
+  /** A site Marquee searches itself: built in, or run from its definition file. */
+  private siteClient(s: Source): TorznabApi {
+    const session: SiteSession = (s.siteSession ? JSON.parse(s.siteSession) : null) ?? { cookies: {}, userAgent: null };
+    const http = new SiteHttp({
+      fetch: this.clients.siteFetch,
+      session,
+      saveSession: (ss) => this.db.update(schema.sources).set({ siteSession: JSON.stringify(ss) }).where(eq(schema.sources.id, s.id)).run(),
+      solver: this.solver,
+      timeoutMs: s.timeoutSeconds * 1000,
+    });
+    const settings = JSON.parse(s.siteSettings) as SiteSettingsValues;
+    const builtin = BUILTIN[s.siteId ?? ''];
+    if (builtin) return builtin.create({ settings, baseUrl: s.url, http, now: this.now });
+    const def = s.siteId ? definitionFor(this.db, s.siteId) : null;
+    if (!def) throw new TorznabError('not_supported', 'Marquee doesn’t have this site’s file. Press “Update the list of sites” on Settings → Sources.');
+    const why = unsupportedReason(def);
+    if (why) throw new TorznabError('not_supported', why);
+    return new CardigannSite({ def, settings, baseUrl: s.url, http, now: this.now, sleep: this.sleep });
+  }
+
+  // ---------------- sites ----------------
+
+  /** Adds a site from the catalogue with its settings. Checked by the caller. */
+  addSite(input: { siteId: string; name?: string; url?: string; settings: SiteSettingsValues }): Source {
+    const form = siteForm(this.db, input.siteId);
+    if (!form) throw new TorznabError('not_supported', 'Marquee doesn’t know that site. Update the list of sites and try again.');
+    const url = input.url && form.links.includes(input.url) ? input.url : form.links[0]!;
+    const priv = form.type !== 'public';
+    return this.db
+      .insert(schema.sources)
+      .values({
+        name: input.name?.trim() || form.name,
+        url,
+        kind: 'site',
+        siteId: form.id,
+        siteSettings: JSON.stringify(cleanSettings(form.fields, input.settings, {})),
+        private: priv,
+        forMovies: form.movies,
+        forTv: form.tv,
+        ...(priv ? PRIVATE_DEFAULTS : PUBLIC_DEFAULTS),
+        createdAt: this.now(),
+      })
+      .returning()
+      .get();
+  }
+
+  /** Changes a site's address or settings. Secrets left blank keep what was saved. Signs in afresh. */
+  updateSite(id: number, input: { url?: string; settings?: SiteSettingsValues }): void {
+    const s = this.get(id);
+    if (!s || s.kind !== 'site') return;
+    const form = siteForm(this.db, s.siteId!);
+    const changes: Partial<Source> = { siteSession: null, failures: 0, retryAt: null };
+    if (input.url && form?.links.includes(input.url)) changes.url = input.url;
+    if (input.settings && form) changes.siteSettings = JSON.stringify(cleanSettings(form.fields, input.settings, JSON.parse(s.siteSettings) as SiteSettingsValues));
+    this.db.update(schema.sources).set(changes).where(eq(schema.sources.id, id)).run();
+  }
+
+  /**
+   * "Bring over from Prowlarr": every Prowlarr site that's in Marquee's
+   * catalogue becomes a site Marquee searches itself, keeping its name,
+   * priority, limits and use choices. Prowlarr doesn't share passwords or
+   * cookies, so sites that need them say so.
+   */
+  async bringOver(): Promise<BringOverResult> {
+    const { url, apiKey } = this.prowlarrSettings();
+    const result: BringOverResult = { moved: [], needSignIn: [], notInCatalogue: [], message: '' };
+    if (!url || !apiKey) return { ...result, message: 'Link Prowlarr first.' };
+    const sites = new Map((await this.clients.prowlarr(url, apiKey).sites()).map((p) => [p.id, p]));
+    const rows = this.db.select().from(schema.sources).where(and(isNotNull(schema.sources.prowlarrId), eq(schema.sources.kind, 'feed'))).all();
+    for (const row of rows) {
+      const site = sites.get(row.prowlarrId!);
+      const id = site?.definitionName?.toLowerCase() ?? '';
+      const form = id ? siteForm(this.db, id) : null;
+      if (!site || !form || form.unsupported) {
+        result.notInCatalogue.push(row.name);
+        continue;
+      }
+      const given: SiteSettingsValues = {};
+      for (const [k, v] of Object.entries(site.settings)) {
+        if (typeof v === 'string' && /^\*+$/.test(v)) continue; // Prowlarr hides secrets
+        const name = k === 'freeLeechOnly' ? 'freeleech' : k;
+        const field = form.fields.find((f) => f.name === name);
+        if (!field) continue;
+        // Prowlarr keeps a dropdown choice as its place in the options sorted by value.
+        if (field.type === 'select' && typeof v === 'number') given[name] = field.options?.map((o) => o.value).sort()[v] ?? null;
+        else given[name] = v as SiteSettingsValues[string];
+      }
+      const settings = cleanSettings(form.fields, given, {});
+      const missing = form.fields.some((f) => f.secret && !settings[f.name]);
+      const baseUrl = typeof site.settings.baseUrl === 'string' && form.links.includes(site.settings.baseUrl) ? site.settings.baseUrl : form.links[0]!;
+      this.db
+        .update(schema.sources)
+        .set({ kind: 'site', siteId: form.id, url: baseUrl, apiKey: '', siteSettings: JSON.stringify(settings), siteSession: null, wasFeed: JSON.stringify({ url: row.url, apiKey: row.apiKey }), state: 'unchecked', stateMessage: null, failures: 0, retryAt: null, caps: null })
+        .where(eq(schema.sources.id, row.id))
+        .run();
+      result.moved.push(row.name);
+      if (missing) result.needSignIn.push(row.name);
+    }
+    const parts = [
+      result.moved.length ? `${result.moved.length} ${result.moved.length === 1 ? 'site' : 'sites'} now searched by Marquee itself` : 'Nothing to bring over',
+      result.needSignIn.length ? `${result.needSignIn.join(', ')} ${result.needSignIn.length === 1 ? 'needs' : 'need'} a password or cookie typed once (Prowlarr doesn’t share them)` : '',
+      result.notInCatalogue.length ? `${result.notInCatalogue.length} still through Prowlarr (not in Marquee’s list yet)` : '',
+    ].filter(Boolean);
+    result.message = `${parts.join('. ')}.`;
+    return result;
+  }
+
+  /** Undoes "Bring over": searches the site through Prowlarr again. */
+  putBack(id: number): boolean {
+    const s = this.get(id);
+    if (!s?.wasFeed) return false;
+    const was = JSON.parse(s.wasFeed) as { url: string; apiKey: string };
+    this.db
+      .update(schema.sources)
+      .set({ kind: 'feed', siteId: null, siteSettings: '{}', siteSession: null, wasFeed: null, url: was.url, apiKey: was.apiKey, state: 'unchecked', stateMessage: null, failures: 0, retryAt: null, caps: null })
+      .where(eq(schema.sources.id, id))
+      .run();
+    return true;
   }
 
   private async waitForGap(s: Source): Promise<void> {
@@ -216,7 +366,7 @@ export class SourceService {
   }
 
   /** Why a source won't be asked right now, or null if it can be. */
-  private skipReason(s: Source, kind: 'movie' | 'tv'): string | null {
+  private skipReason(s: Source, kind: 'movie' | 'tv', share = 1): string | null {
     if (!s.enabled) return 'Paused.';
     if (kind === 'movie' ? !s.forMovies : !s.forTv) return kind === 'movie' ? 'Not used for movies.' : 'Not used for TV.';
     if (s.retryAt && s.retryAt > this.now()) return `${STATE_TEXT[s.state].label}. Trying again ${relativeTime(s.retryAt - this.now())}.`;
@@ -228,22 +378,39 @@ export class SourceService {
           .where(and(eq(schema.sourceCalls.sourceId, s.id), eq(schema.sourceCalls.kind, 'search'), gte(schema.sourceCalls.at, this.now() - DAY)))
           .get()?.n ?? 0;
       if (used >= s.dailyLimit) return `Reached its limit of ${s.dailyLimit} searches a day.`;
+      if (used >= Math.floor(s.dailyLimit * share)) return `Used ${used} of its ${s.dailyLimit} searches today; the rest are kept for searching titles.`;
     }
     return null;
   }
 
   /** Searches every usable source at once. Failures are recorded, never thrown. */
-  async search(query: Exclude<SearchQuery, { kind: 'recent' }>): Promise<SearchOutcome> {
+  search(query: Exclude<SearchQuery, { kind: 'recent' }>): Promise<SearchOutcome> {
+    return this.askAll(query.kind, 1, query);
+  }
+
+  /**
+   * Asks every usable Source for its newest copies of this kind, to catch new
+   * episodes as they come out (older apps call this RSS). Each call counts
+   * toward a Source's daily limit, so a Source with a limit is only asked
+   * while it has used under half of it: searching for titles keeps the rest.
+   */
+  recent(kind: 'movie' | 'tv'): Promise<SearchOutcome> {
+    return this.askAll(kind, 0.5, { kind: 'recent', for: kind });
+  }
+
+  /** `share`: the part of a Source's daily limit this kind of call may use. */
+  private async askAll(kind: 'movie' | 'tv', share: number, query: SearchQuery): Promise<SearchOutcome> {
     const all = this.db.select().from(schema.sources).orderBy(schema.sources.priority, schema.sources.name).all();
     const outcomes = await Promise.all(
       all.map(async (s): Promise<{ outcome: SourceOutcome; releases: FoundRelease[] }> => {
-        const skip = this.skipReason(s, query.kind);
+        const skip = this.skipReason(s, kind, share);
         if (skip) return { outcome: { sourceId: s.id, name: s.name, status: 'skipped', results: 0, ms: 0, message: skip }, releases: [] };
         const started = this.now();
         try {
           await this.waitForGap(s);
           const caps = s.caps ? (JSON.parse(s.caps) as TorznabCaps) : null;
-          const found = await this.client(s).search(query, caps);
+          // Sites Marquee runs itself return every category; keep the kind asked for, as feeds do.
+          const found = (await this.client(s).search(query, caps)).filter((r) => s.kind === 'feed' || rightKind(r, query));
           const ms = this.now() - started;
           // Sources can't see a torrent's health before we ask, so drop the ones too few people share.
           const releases = found.filter((r) => r.seeders === null || r.seeders >= s.minSeeders).map((r) => ({ ...r, sourceId: s.id, sourceName: s.name, sourcePriority: s.priority }));
@@ -289,8 +456,9 @@ export class SourceService {
 
   /** Stops syncing. Its Sources are removed, or kept as ordinary Sources you manage. */
   unlink(removeSources: boolean): void {
-    if (removeSources) this.db.delete(schema.sources).where(isNotNull(schema.sources.prowlarrId)).run();
-    else this.db.update(schema.sources).set({ prowlarrId: null }).where(isNotNull(schema.sources.prowlarrId)).run();
+    // Sites brought over are Marquee's own now: they stay either way, without a way back to Prowlarr.
+    if (removeSources) this.db.delete(schema.sources).where(and(isNotNull(schema.sources.prowlarrId), eq(schema.sources.kind, 'feed'))).run();
+    this.db.update(schema.sources).set({ prowlarrId: null, wasFeed: null }).where(isNotNull(schema.sources.prowlarrId)).run();
     for (const k of [PROWLARR_URL, PROWLARR_KEY, PROWLARR_SYNCED_AT, PROWLARR_MESSAGE]) setSetting(this.db, k, '');
   }
 
@@ -340,6 +508,8 @@ export class SourceService {
           forTv: site.categories.some((c) => isIn(c, TV_CATEGORY)),
         };
         const old = existing.get(site.id);
+        // Brought over: Marquee runs it now, so Prowlarr's address and key don't apply.
+        if (old?.kind === 'site') continue;
         if (old) {
           // Keep the user's own use choices; only switch a kind off if the site stopped carrying it.
           const changes = { url: feed.url, apiKey: feed.apiKey, private: feed.private, forMovies: old.forMovies && feed.forMovies, forTv: old.forTv && feed.forTv };
@@ -354,7 +524,7 @@ export class SourceService {
         }
       }
       for (const [prowlarrId, s] of existing) {
-        if (keep.has(prowlarrId)) continue;
+        if (keep.has(prowlarrId) || s.kind === 'site') continue;
         tx.delete(schema.sources).where(eq(schema.sources.id, s.id)).run();
         result.removed.push(s.name);
       }
@@ -401,12 +571,36 @@ function relativeTime(ms: number): string {
   return `in ${h} ${h === 1 ? 'hour' : 'hours'}`;
 }
 
-function toView(s: Source, now: number, st?: { calls: number; failures: number; avgMs: number | null; today: number }): SourceView {
+/** Keeps only the site's own settings, with blank secrets keeping what was saved. */
+function cleanSettings(fields: { name: string; type: string; secret?: boolean }[], given: SiteSettingsValues, saved: SiteSettingsValues): SiteSettingsValues {
+  const out: SiteSettingsValues = {};
+  for (const f of fields) {
+    if (f.type === 'info') continue;
+    const v = given[f.name];
+    if (f.secret && (v === undefined || v === null || v === '')) {
+      if (saved[f.name]) out[f.name] = saved[f.name];
+      continue;
+    }
+    if (v === undefined) {
+      if (saved[f.name] !== undefined) out[f.name] = saved[f.name];
+      continue;
+    }
+    out[f.name] = f.type === 'checkbox' ? v === true || v === 'true' || v === 'True' : typeof v === 'string' ? v.trim() : v;
+  }
+  return out;
+}
+
+function toView(s: Source, now: number, st?: { calls: number; failures: number; avgMs: number | null; today: number }, site?: { name: string | null; settings: SiteSettingsView } | null): SourceView {
   const state: SourceState = s.enabled ? s.state : 'paused';
   const caps = s.caps ? (JSON.parse(s.caps) as TorznabCaps) : null;
   return {
     id: s.id,
     name: s.name,
+    kind: s.kind,
+    siteId: s.siteId,
+    siteName: site?.name ?? null,
+    siteSettings: site?.settings ?? null,
+    canPutBack: !!s.wasFeed,
     url: s.url,
     hasKey: !!s.apiKey,
     enabled: s.enabled,

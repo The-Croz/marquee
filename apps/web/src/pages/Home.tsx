@@ -155,13 +155,17 @@ export function HomePage() {
         <h2 id="cuh" className="m-0 mb-3 text-lg font-semibold">
           Coming up this week
         </h2>
+        {data.upcoming.length === 0 && <p className="m-0 border-t border-line py-3 text-sm text-muted">Nothing from your shows airs in the next 7 days.</p>}
         {data.upcoming.map((u) => (
           <div key={u.day + u.title} className="flex flex-wrap items-center gap-4 border-t border-line py-3">
             <div className="w-14 text-[13px] font-semibold tracking-wider text-amber uppercase">{u.day}</div>
-            <div className="flex-[1_1_200px] text-[15px]">{u.title}</div>
+            <div className="flex-[1_1_200px] text-[15px]">{u.href ? <Link to={u.href}>{u.title}</Link> : u.title}</div>
             <div className="text-[13px] text-muted">{u.note}</div>
           </div>
         ))}
+        <Link to="/calendar" className="flex min-h-11 items-center self-start border-t border-line pt-1 text-sm font-medium">
+          Open the calendar →
+        </Link>
       </Card>
     </>
   );

@@ -24,8 +24,10 @@ export interface Clients extends SourceClients {
   radarrHistory(url: string, apiKey: string): RadarrHistoryApi;
   /** qBittorrent (Web API v2). */
   qbittorrent(url: string, username: string, password: string): QbitApi;
-  /** Fetches a copy's torrent or magnet on the server. */
-  fetchTorrent(url: string): Promise<FetchedTorrent>;
+  /** Fetches a copy's torrent or magnet on the server. `headers` (a site's cookies) go only to the link's own host. */
+  fetchTorrent(url: string, headers?: Record<string, string>): Promise<FetchedTorrent>;
+  /** Downloads the site catalogue (a zip of site files). */
+  fetchCatalogue(): Promise<Uint8Array>;
   /** A Plex Media Server, to ask for scans. */
   plexServer(url: string, token: string): MediaServerApi;
   jellyfin(url: string, apiKey: string): MediaServerApi;

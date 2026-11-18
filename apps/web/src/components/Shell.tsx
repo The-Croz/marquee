@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { to: '/discover', label: 'Discover', icon: 'discover' },
   { to: '/movies', label: 'Movies', icon: 'movies' },
   { to: '/shows', label: 'Shows', icon: 'shows' },
+  { to: '/calendar', label: 'Calendar', icon: 'calendar' },
   { to: '/requests', label: 'Requests', icon: 'requests' },
   { to: '/downloads', label: 'Downloads', icon: 'downloads', hideForKids: true },
   { to: '/activity', label: 'Activity', icon: 'activity', hideForKids: true },

@@ -312,6 +312,23 @@ const migrations: string[] = [
   /* 13: Marquee looks for wanted movies itself */ `
   ALTER TABLE movies ADD COLUMN last_searched_at INTEGER;
   `,
+  /* 14: Marquee looks for wanted episodes itself */ `
+  ALTER TABLE episodes ADD COLUMN last_searched_at INTEGER;
+  CREATE INDEX episodes_air_date ON episodes (air_date);
+  `,
+  /* 15: sites Marquee searches itself (no Prowlarr), and the catalogue of site files */ `
+  ALTER TABLE sources ADD COLUMN kind TEXT NOT NULL DEFAULT 'feed';
+  ALTER TABLE sources ADD COLUMN site_id TEXT;
+  ALTER TABLE sources ADD COLUMN site_settings TEXT NOT NULL DEFAULT '{}';
+  ALTER TABLE sources ADD COLUMN site_session TEXT;
+  ALTER TABLE sources ADD COLUMN was_feed TEXT;
+  CREATE TABLE site_definitions (
+    id TEXT PRIMARY KEY,
+    origin TEXT NOT NULL CHECK (origin IN ('catalogue', 'custom')),
+    yaml TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {

@@ -47,6 +47,15 @@ export function makeApp(opts: TestOptions = {}) {
     jellyfin: () => {
       throw new Error('no Jellyfin in this test');
     },
+    siteFetch: () => {
+      throw new Error('no sites in this test');
+    },
+    solver: () => {
+      throw new Error('no bot-check solver in this test');
+    },
+    fetchCatalogue: () => {
+      throw new Error('no site catalogue in this test');
+    },
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;
