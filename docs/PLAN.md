@@ -160,9 +160,12 @@ Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real 
    - Marquee follows downloads in the library while they share: "In your library · sharing" with progress ("ratio 0.8 of 2.0 or 3 of 14 days"), then "In your library · done sharing".
    - "Remove from qBittorrent once it has shared enough" (off by default) removes the torrent with the download's files, but only after checking every library file is still there (the library file is a hardlink, so it stays). Otherwise it keeps the files and says why. **Remove from qBittorrent** does the same by hand.
    - Marquee doesn't set limits inside qBittorrent itself, so qBittorrent's own "when ratio is reached" setting can't remove anything behind Marquee's back.
-6. ⬜ **Tell Plex and Jellyfin**
-   - After an import, ask Plex (`/library/sections/{id}/refresh?path=`) and Jellyfin (`/Library/Media/Updated`) to scan just that folder. Settings → Services gets Jellyfin (address, API key) next to Plex; which Plex library is Movies/TV is picked from a list.
-   - Health card if a media server didn't answer, with retry.
+6. ✅ **Tell Plex and Jellyfin** (`apps/server/src/library/mediaServers.ts`)
+   - Settings → Services gets Plex (address and token) and Jellyfin (address and API key), each with Test connection and pickers for the movie and TV library ("Let Marquee pick" by default: the only library of that kind, or the one whose folder ends like Marquee's). Tokens and keys are never sent back, and never sent to a different address.
+   - Right after an import, Marquee asks each connected server to scan just the new folder: Plex `GET /library/sections/{id}/refresh?path=`, Jellyfin `POST /Library/Media/Updated`.
+   - Servers that see the library under another path (Plex at `/media/movies`, say) get their own path: the folder's place under Marquee's library folder, put under that library's folder. No folder pairs to set.
+   - The Downloads row says "Told Plex and Jellyfin to scan it." A server that didn't answer is named with the reason and asked again every 15 minutes for a day.
+   - Migration 12: whether a scan is still owed, and what happened.
 7. ⬜ **Movie cutover checklist** (a page, not automation)
    - Steps with checks Marquee can do itself: comparison agreement over the last 2 weeks, downloader working, a test import done, Plex/Jellyfin scanning, Radarr's queue empty. Then: turn off Radarr's monitoring (you do it in Radarr; Marquee says exactly where), turn on "Marquee looks for wanted movies" (a search for missing movies every 6 hours plus a daily "good enough yet?" check), and keep Radarr read-only for a week before removing it.
 

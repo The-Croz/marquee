@@ -3,7 +3,11 @@ import { z } from 'zod';
 import type { ServiceTestResult, ServicesView } from '@marquee/shared';
 import { readNaming, readServices, writeNaming, writeServices } from '../library/services.js';
 import { DEFAULT_MOVIE_PATTERN, DEFAULT_TV_PATTERN, patternProblem, renderName } from '../library/naming.js';
-import { requireAdmin, type Env } from '../http.js';
+import { pickLibrary, readMediaServer, writeMediaServer, type ServerKind } from '../library/mediaServers.js';
+import { libraryRoots } from '../library/services.js';
+import type { MediaLibrariesResult, MediaServerView } from '@marquee/shared';
+import type { Db } from '../db/index.js';
+import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
 import { getSetting } from '../db/index.js';
 
 /** Settings → Services: TMDB, Radarr, Sonarr and library folders. Admin only. */
@@ -42,6 +46,8 @@ servicesRoutes.get('/', (c) => {
     moviesRoot: s.moviesRoot,
     tvRoot: s.tvRoot,
     naming: { ...readNaming(db), defaultMovie: DEFAULT_MOVIE_PATTERN, defaultTv: DEFAULT_TV_PATTERN },
+    plex: serverView(db, 'plex'),
+    jellyfin: serverView(db, 'jellyfin'),
   };
   return c.json(view);
 });
@@ -59,12 +65,68 @@ servicesRoutes.put('/', async (c) => {
       tvRoot: folder.optional(),
       moviePattern: pattern('movie').optional(),
       tvPattern: pattern('tv').optional(),
+      plexUrl: url.nullable().optional(),
+      plexToken: secret.nullable().optional(),
+      plexMovieLibrary: z.string().max(100).nullable().optional(),
+      plexTvLibrary: z.string().max(100).nullable().optional(),
+      jellyfinUrl: url.nullable().optional(),
+      jellyfinApiKey: secret.nullable().optional(),
+      jellyfinMovieLibrary: z.string().max(100).nullable().optional(),
+      jellyfinTvLibrary: z.string().max(100).nullable().optional(),
     })
     .parse(await c.req.json());
-  const { moviePattern, tvPattern, ...rest } = input;
-  writeServices(c.get('deps').db, rest);
-  writeNaming(c.get('deps').db, { movie: moviePattern, tv: tvPattern });
+  const { moviePattern, tvPattern, plexUrl, plexToken, plexMovieLibrary, plexTvLibrary, jellyfinUrl, jellyfinApiKey, jellyfinMovieLibrary, jellyfinTvLibrary, ...rest } = input;
+  const db = c.get('deps').db;
+  writeServices(db, rest);
+  writeNaming(db, { movie: moviePattern, tv: tvPattern });
+  writeMediaServer(db, 'plex', { url: plexUrl, secret: plexToken, movieLibrary: plexMovieLibrary || (plexMovieLibrary === undefined ? undefined : null), tvLibrary: plexTvLibrary || (plexTvLibrary === undefined ? undefined : null) });
+  writeMediaServer(db, 'jellyfin', {
+    url: jellyfinUrl,
+    secret: jellyfinApiKey,
+    movieLibrary: jellyfinMovieLibrary || (jellyfinMovieLibrary === undefined ? undefined : null),
+    tvLibrary: jellyfinTvLibrary || (jellyfinTvLibrary === undefined ? undefined : null),
+  });
   return c.json({ ok: true });
+});
+
+function serverView(db: Db, kind: ServerKind): MediaServerView {
+  const s = readMediaServer(db, kind);
+  return { url: s.url, configured: !!(s.url && s.secret), movieLibrary: s.movieLibrary, tvLibrary: s.tvLibrary };
+}
+
+/** A media server from typed values, falling back to saved ones. A saved secret only goes to its own address. */
+function mediaServerFor(c: Ctx, kind: ServerKind, typed: { url?: string; secret?: string }) {
+  const { db, clients } = c.get('deps');
+  const saved = readMediaServer(db, kind);
+  const u = typed.url || saved.url;
+  const label = kind === 'plex' ? 'Plex' : 'Jellyfin';
+  if (!u) throw new HttpError(400, 'not_set_up', `Enter ${label}'s address first.`);
+  let secretValue = typed.secret;
+  if (!secretValue) {
+    if (saved.secret && u !== saved.url) throw new HttpError(400, 'needs_secret', `The address changed. For safety, type the ${kind === 'plex' ? 'token' : 'API key'} again.`);
+    secretValue = saved.secret ?? '';
+  }
+  if (!secretValue) throw new HttpError(400, 'needs_secret', `Enter ${label}'s ${kind === 'plex' ? 'token' : 'API key'} first.`);
+  return kind === 'plex' ? clients.plexServer(u, secretValue) : clients.jellyfin(u, secretValue);
+}
+
+/** A media server's libraries, and which ones Marquee would scan, for the pickers. */
+servicesRoutes.post('/media-libraries', async (c) => {
+  requireAdmin(c);
+  const input = z.object({ server: z.enum(['plex', 'jellyfin']), url: url.optional(), secret: secret.optional() }).parse(await c.req.json());
+  const { db } = c.get('deps');
+  const api = mediaServerFor(c, input.server, input);
+  try {
+    const libraries = await api.libraries();
+    const s = readMediaServer(db, input.server);
+    const roots = libraryRoots(db);
+    return c.json<MediaLibrariesResult>({
+      libraries,
+      picked: { movie: pickLibrary(libraries, 'movie', s.movieLibrary, roots.movies)?.id ?? null, tv: pickLibrary(libraries, 'tv', s.tvLibrary, roots.tv)?.id ?? null },
+    });
+  } catch (err) {
+    throw new HttpError(502, 'media_server_failed', (err as Error).message);
+  }
 });
 
 /** What a name pattern gives for an example title, or what's wrong with it. For the live preview. */
@@ -86,7 +148,7 @@ servicesRoutes.post('/test', async (c) => {
   requireAdmin(c);
   const { db, config, clients } = c.get('deps');
   const input = z
-    .object({ service: z.enum(['tmdb', 'radarr', 'sonarr']), url: url.optional(), apiKey: secret.optional() })
+    .object({ service: z.enum(['tmdb', 'radarr', 'sonarr', 'plex', 'jellyfin']), url: url.optional(), apiKey: secret.optional() })
     .parse(await c.req.json());
   const saved = readServices(db, config);
   const result = async (): Promise<ServiceTestResult> => {
@@ -95,6 +157,15 @@ servicesRoutes.post('/test', async (c) => {
       if (!key) return { ok: false, message: 'Enter your TMDB API key first.' };
       await clients.tmdb(key).ping();
       return { ok: true, message: 'Connected to TMDB.' };
+    }
+    if (input.service === 'plex' || input.service === 'jellyfin') {
+      const api = mediaServerFor(c, input.service, { url: input.url, secret: input.apiKey });
+      const { name, version } = await api.ping();
+      const libs = await api.libraries();
+      const movies = libs.filter((l) => l.kind === 'movie').length;
+      const tv = libs.filter((l) => l.kind === 'tv').length;
+      const count = (n: number, what: string) => `${n} ${what} ${n === 1 ? 'library' : 'libraries'}`;
+      return { ok: true, message: `Connected to ${name} (${input.service === 'plex' ? 'Plex' : 'Jellyfin'} ${version}): ${count(movies, 'movie')} and ${count(tv, 'TV')}.` };
     }
     const target = input.service === 'radarr' ? { url: saved.radarrUrl, key: saved.radarrApiKey } : { url: saved.sonarrUrl, key: saved.sonarrApiKey };
     const u = input.url || target.url;

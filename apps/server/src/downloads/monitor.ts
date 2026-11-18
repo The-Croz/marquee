@@ -14,6 +14,7 @@ import { FINISHED, RESTING, describeDownload } from './view.js';
 import type { SearchTarget } from './cache.js';
 import { ImportError, importDownload } from './importer.js';
 import { seedRule, sharedEnough, sharingProgress } from './seeding.js';
+import { tellMediaServers } from '../library/mediaServers.js';
 
 /**
  * Follows Marquee's downloads in qBittorrent: progress, finished, gone,
@@ -32,7 +33,7 @@ export const IMPORT_RETRY_MS = 15 * 60_000;
 
 export interface MonitorDeps {
   db: Db;
-  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent'>;
+  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin'>;
   sources: SourceService;
   now: () => number;
 }
@@ -121,7 +122,10 @@ export class DownloadMonitor {
       if (row.state === 'done') {
         db.update(downloads).set({ savePath: t.savePath, qbitState: t.state, ratio: t.ratio, seedingSeconds: t.seedingSeconds, checkedAt: now() }).where(eq(downloads.id, row.id)).run();
         if (!row.importedAt) await this.putInLibrary(row.id);
-        else await this.checkSharing(row.id, qbit);
+        else {
+          if (row.scanPending && now() - (row.scanTriedAt ?? 0) >= IMPORT_RETRY_MS) await this.tellServers(row.id);
+          await this.checkSharing(row.id, qbit);
+        }
         continue;
       }
       const moved = t.progress > row.progress + 0.0001;
@@ -223,15 +227,34 @@ export class DownloadMonitor {
       const files = await this.call(() => qbit.files(row.infoHash));
       const r = await importDownload(db, row, files, now());
       db.update(downloads)
-        .set({ importedAt: now(), importedPaths: JSON.stringify(r.paths), importCopied: r.copied, importError: null, importTriedAt: now() })
+        .set({ importedAt: now(), importedPaths: JSON.stringify(r.paths), importCopied: r.copied, importError: null, importTriedAt: now(), scanPending: true })
         .where(eq(downloads.id, id))
         .run();
-      return { message: `In your library: ${r.paths.map((p) => p.split('/').at(-1)).join(', ')}.`, next: null };
+      const told = await this.tellServers(id);
+      return { message: `In your library: ${r.paths.map((p) => p.split('/').at(-1)).join(', ')}.${told ? ` ${told}` : ''}`, next: null };
     } catch (err) {
       if (!(err instanceof ImportError) && !(err instanceof HttpError)) throw err;
       db.update(downloads).set({ importError: err.message, importTriedAt: now() }).where(eq(downloads.id, id)).run();
       return { message: `Couldn't put it in your library: ${err.message}`, next: null };
     }
+  }
+
+  /**
+   * Asks Plex and Jellyfin to scan the folders a download went into. A server
+   * that doesn't answer is asked again every 15 minutes for a day.
+   */
+  async tellServers(id: number): Promise<string> {
+    const { db, now } = this.deps;
+    const row = this.row(id);
+    const paths = row.importedPaths ? (JSON.parse(row.importedPaths) as string[]) : [];
+    const r = await tellMediaServers(db, this.deps.clients, row.kind, paths.map((p) => path.dirname(p)));
+    const tooLong = now() - (row.importedAt ?? now()) > 24 * HOUR;
+    const message = [r.told.length ? `Told ${r.told.join(' and ')} to scan it.` : null, ...r.failed].filter(Boolean).join(' ') || null;
+    db.update(downloads)
+      .set({ scanPending: r.failed.length > 0 && !tooLong, scanMessage: message, scanTriedAt: now() })
+      .where(eq(downloads.id, id))
+      .run();
+    return message ?? '';
   }
 
   /** Marks a download "done sharing" when it meets its rule, and removes it from qBittorrent if that's turned on. */

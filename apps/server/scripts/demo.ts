@@ -5,6 +5,7 @@
  * Data lives in a temp folder and is thrown away. Sign up as any admin.
  * Settings → Sources: link Prowlarr at http://prowlarr:9696 with the key prowlarr-key.
  * Settings → Downloader: a fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin).
+ * Settings → Services: fake Plex at http://plex:32400 (token plex-token), Jellyfin at http://jellyfin:8096 (key jellyfin-key).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -22,6 +23,7 @@ import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
 import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
+import { FakeMediaServer } from '../test/fakes/mediaServers.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -130,7 +132,18 @@ setInterval(() => {
     Object.assign(t, { downloadSpeed: 6.5 * 1024 ** 2, eta: Math.round(((1 - t.progress) / 0.02) * 3), seedsConnected: 40, state: t.progress >= 1 ? 'stalledUP' : 'downloading' });
   }
 }, 3000).unref();
+// Fake Plex (http://plex:32400, token plex-token) and Jellyfin (http://jellyfin:8096, key jellyfin-key), using the demo's library folders.
+const plex = new FakeMediaServer('plex', [
+  { id: '1', name: 'Movies', kind: 'movie', locations: [path.join(root, 'movies')] },
+  { id: '2', name: 'TV Shows', kind: 'tv', locations: [path.join(root, 'tv')] },
+]);
+const jellyfin = new FakeMediaServer('jellyfin', [
+  { id: 'a1', name: 'Movies', kind: 'movie', locations: [path.join(root, 'movies')] },
+  { id: 'b2', name: 'Shows', kind: 'tv', locations: [path.join(root, 'tv')] },
+]);
 const clients = {
+  plexServer: (url: string, token: string) => plex.as(url, token),
+  jellyfin: (url: string, key: string) => jellyfin.as(url, key),
   qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
   fetchTorrent: async (url: string) => {
     const t = await fakeFetchTorrent()(url);

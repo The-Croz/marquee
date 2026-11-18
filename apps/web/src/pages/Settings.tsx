@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, NavLink, Outlet, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { AuthStatus, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
+import type { AuthStatus, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
@@ -327,7 +327,7 @@ function UsersAdmin({ status }: Ctx) {
 
 // ---------------- Services (admin) ----------------
 
-function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'sonarr'; getValues: () => { url?: string; apiKey?: string } }) {
+function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
   const [result, setResult] = useState<ServiceTestResult | null>(null);
   const [busy, setBusy] = useState(false);
   async function test() {
@@ -353,6 +353,88 @@ function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'son
         </span>
       )}
     </div>
+  );
+}
+
+/** Plex or Jellyfin: address, token or key, test, and which libraries get scanned. */
+function MediaServerCard({ kind, s }: { kind: 'plex' | 'jellyfin'; s: MediaServerView }) {
+  const name = kind === 'plex' ? 'Plex' : 'Jellyfin';
+  const secretName = kind === 'plex' ? 'plexToken' : 'jellyfinApiKey';
+  const [libs, setLibs] = useState<MediaLibrariesResult | null>(null);
+  const [libError, setLibError] = useState<string | null>(null);
+  const val = (id: string) => (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? '';
+  async function load() {
+    setLibError(null);
+    try {
+      const url = val(`${kind}Url`);
+      const secret = val(secretName);
+      setLibs(await api<MediaLibrariesResult>('/settings/services/media-libraries', { body: { server: kind, ...(url ? { url } : {}), ...(secret ? { secret } : {}) } }));
+    } catch (e) {
+      setLibError(errMsg(e));
+    }
+  }
+  useEffect(() => {
+    if (s.configured) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.configured]);
+  const picker = (which: 'movie' | 'tv') => {
+    const field = `${kind}${which === 'movie' ? 'Movie' : 'Tv'}Library`;
+    const chosen = which === 'movie' ? s.movieLibrary : s.tvLibrary;
+    const auto = libs?.libraries.find((l) => l.id === libs.picked[which]);
+    return (
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={field} className="text-sm font-medium text-soft">
+          {which === 'movie' ? 'Movies library' : 'TV library'}
+        </label>
+        <select id={field} name={field} defaultValue={chosen ?? ''} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-sm text-text">
+          <option value="">{auto ? `Let Marquee pick (${auto.name})` : 'Let Marquee pick'}</option>
+          {libs?.libraries.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name} · {l.locations.join(', ') || 'no folders'}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+  return (
+    <Card className="flex flex-col gap-4">
+      <div>
+        <h2 className="m-0 text-lg font-semibold">
+          {name} <span className="text-sm font-normal text-dim">optional</span>
+        </h2>
+        <p className="m-0 mt-1 text-sm text-muted">
+          After Marquee puts something in your library, it asks {name} to scan just that folder, so it shows up in seconds. If {name} sees your library under different folder names, Marquee works out its own path from
+          the library you pick.
+        </p>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+        <Field label="Address" name={`${kind}Url`} id={`${kind}Url`} defaultValue={s.url ?? ''} placeholder={kind === 'plex' ? 'http://192.168.1.100:32400' : 'http://192.168.1.100:8096'} />
+        <Field
+          label={kind === 'plex' ? 'Token' : 'API key'}
+          name={secretName}
+          id={secretName}
+          type="password"
+          autoComplete="off"
+          placeholder={s.configured ? '••••••••••••' : ''}
+          hint={
+            s.configured
+              ? 'Saved. Leave blank to keep it.'
+              : kind === 'plex'
+                ? 'In Plex Web, open any movie → ⋯ → Get Info → View XML; the address ends in X-Plex-Token=…'
+                : 'Jellyfin → Dashboard → API Keys → +'
+          }
+        />
+      </div>
+      <ServiceTest service={kind} getValues={() => ({ url: val(`${kind}Url`), apiKey: val(secretName) })} />
+      {libs && <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">{(['movie', 'tv'] as const).map(picker)}</div>}
+      {!libs && (
+        <button type="button" onClick={load} className="h-11 self-start text-sm font-medium text-amber">
+          Show {name}'s libraries
+        </button>
+      )}
+      {libError && <p className="m-0 text-sm text-warn">{libError}</p>}
+    </Card>
   );
 }
 
@@ -416,9 +498,15 @@ function ServicesAdmin() {
       tvRoot: String(d.get('tvRoot') ?? ''),
       moviePattern: String(d.get('moviePattern') ?? ''),
       tvPattern: String(d.get('tvPattern') ?? ''),
+      plexUrl: String(d.get('plexUrl') ?? ''),
+      jellyfinUrl: String(d.get('jellyfinUrl') ?? ''),
     };
+    // Library pickers only exist once the libraries are shown.
+    for (const k of ['plexMovieLibrary', 'plexTvLibrary', 'jellyfinMovieLibrary', 'jellyfinTvLibrary'] as const) {
+      if (d.has(k)) body[k] = String(d.get(k) ?? '');
+    }
     // Blank secret fields mean "keep what's saved".
-    for (const k of ['tmdbApiKey', 'radarrApiKey', 'sonarrApiKey'] as const) {
+    for (const k of ['tmdbApiKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
       const v = String(d.get(k) ?? '').trim();
       if (v) body[k] = v;
     }
@@ -431,6 +519,12 @@ function ServicesAdmin() {
     } catch (err) {
       setMessage({ tone: 'error', text: errMsg(err) });
     }
+  }
+
+  async function clearServer(kind: 'plex' | 'jellyfin') {
+    await api('/settings/services', { method: 'PUT', body: kind === 'plex' ? { plexUrl: null, plexToken: null } : { jellyfinUrl: null, jellyfinApiKey: null } });
+    await queryClient.invalidateQueries({ queryKey: ['services'] });
+    setMessage({ tone: 'success', text: `${kind === 'plex' ? 'Plex' : 'Jellyfin'} disconnected.` });
   }
 
   async function clear(field: 'radarr' | 'sonarr') {
@@ -485,6 +579,17 @@ function ServicesAdmin() {
           </div>
         </details>
       </Card>
+
+      {(['plex', 'jellyfin'] as const).map((kind) => (
+        <div key={kind} className="flex flex-col gap-2">
+          <MediaServerCard kind={kind} s={data[kind]} />
+          {data[kind].configured && (
+            <Button type="button" variant="ghost" className="h-10 self-start px-3.5 text-sm" onClick={() => clearServer(kind)}>
+              Disconnect {kind === 'plex' ? 'Plex' : 'Jellyfin'}
+            </Button>
+          )}
+        </div>
+      ))}
 
       {(['radarr', 'sonarr'] as const).map((kind) => {
         const s = data[kind];
