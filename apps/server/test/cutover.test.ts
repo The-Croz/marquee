@@ -54,6 +54,7 @@ describe('switch-over checklist', () => {
     expect(v.ready).toBe(false);
     expect(v.steps.find((s) => s.key === 'radarr_queue')!.detail).toMatch(/Connect Radarr \(read-only\)/);
     for (const s of v.steps) expect(s.detail.length).toBeGreaterThan(10);
+    expect(v.steps.find((s) => s.key === 'import')!.action).toEqual({ label: 'Find a movie to add', to: '/search?kind=movie' });
   });
 
   it('is ready when Marquee agrees, downloads, imports, tells Plex and Radarr has stopped', async () => {
