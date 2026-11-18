@@ -1,4 +1,10 @@
 const paths = {
+  bell: (
+    <>
+      <path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z" />
+      <path d="M10 21a2 2 0 0 0 4 0" />
+    </>
+  ),
   home: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" />,
   discover: (
     <>

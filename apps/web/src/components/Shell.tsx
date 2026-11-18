@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router';
 import type { SessionUser } from '@marquee/shared';
 import { api, queryClient } from '../api';
+import { useQuery } from '@tanstack/react-query';
+import { Bell } from './Bell';
 import { Icon, type IconName } from './Icon';
 import { cx } from './ui';
 
@@ -29,6 +31,7 @@ const NAV: NavItem[] = [
 
 export function Shell({ user, version }: { user: SessionUser; version: string }) {
   const navigate = useNavigate();
+  const { data: summary } = useQuery({ queryKey: ['requests', 'summary'], queryFn: () => api<{ pending: number }>('/requests/summary'), refetchInterval: 30_000, enabled: user.role === 'admin' });
   const items = NAV.filter((n) => (!n.adminOnly || user.role === 'admin') && (!n.hideForKids || user.role !== 'kid'));
 
   async function signOut() {
@@ -56,6 +59,7 @@ export function Shell({ user, version }: { user: SessionUser; version: string })
           <span className="size-2.5 rounded-full bg-amber" aria-hidden="true" />
           <span className="flex-1 font-display text-[30px] leading-none">Marquee</span>
           <span className="flex items-center gap-1 md:hidden">
+            <Bell />
             {avatar}
             {signOutButton}
           </span>
@@ -77,6 +81,11 @@ export function Shell({ user, version }: { user: SessionUser; version: string })
                 <>
                   <Icon name={item.icon} className={isActive ? 'text-amber' : undefined} />
                   {item.label}
+                  {item.to === '/requests' && (summary?.pending ?? 0) > 0 && (
+                    <span aria-label={`${summary!.pending} waiting`} className="rounded-full bg-amber px-1.5 text-[11px] font-bold text-amber-ink">
+                      {summary!.pending}
+                    </span>
+                  )}
                 </>
               )}
             </NavLink>
@@ -89,6 +98,7 @@ export function Shell({ user, version }: { user: SessionUser; version: string })
             <div className="truncate text-sm font-semibold">{user.displayName}</div>
             <div className="text-xs text-dim capitalize">{user.role}</div>
           </div>
+          <Bell up />
           {signOutButton}
         </div>
         <div className="hidden px-3 pt-3 font-mono text-[11px] text-dim md:block">Marquee {version}</div>

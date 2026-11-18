@@ -43,6 +43,8 @@ export function createApp(given: Omit<Deps, 'copies'> & { copies?: CopyCache }) 
         imgSrc: ["'self'", 'data:', 'https:'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         connectSrc: ["'self'"],
+        // Trailers play in YouTube's no-cookie player.
+        frameSrc: ["'self'", 'https://www.youtube-nocookie.com'],
         frameAncestors: ["'none'"],
       },
       crossOriginOpenerPolicy: false, // the Plex sign-in popup needs to talk back

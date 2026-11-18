@@ -232,7 +232,7 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
 
 Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
 
-## Milestone 5: Family ⬜ (planned)
+## Milestone 5: Family 🔨
 
 Goal: the family can find something and ask for it, and Marquee tells the right people. Seerr retires. Ideas from HolyArrs's Explore and Requests pages (ideas only; it's AGPL).
 
@@ -243,7 +243,7 @@ Decided with Josh (2026-11-18):
 - **Kids** see Discover filtered by age rating only (the same G/PG, TV-Y to TV-PG rule as the library); no per-title overrides.
 - **No "popular with the household" row.**
 
-1. ⬜ **Discover** (`/discover`)
+1. ✅ **Discover** (`/discover`, `apps/server/src/discover/`)
    - Rotating **hero banner** at the top (backdrop, title, rating, year, short blurb, Request button, trailer), then rows of cover art that show more on hover or focus (rating, year, genres, blurb, status, Request).
    - Tabs: **All / Movies / Shows**, plus **service chips** for Netflix, Max, Disney+, Apple TV+, Prime Video, Hulu, Paramount+ and Peacock (US catalogue). Each person can hide the ones they don't want in their settings. Service data comes from TMDB's watch providers (JustWatch); the page carries the attribution TMDB asks for.
    - Rows: Trending, Popular, Top rated, Upcoming, Now in cinemas, New this week on each service, Browse by genre, and for each person **Because you watched…**, **Because you asked for…**, **Because you have…** and **Top picks for you**. Rows only show when they have enough titles and each title shows once per page.
@@ -252,15 +252,19 @@ Decided with Josh (2026-11-18):
    - Every card shows its state: in your library, downloading, requested, declined, not here yet.
    - Kids get only age-appropriate rows and titles. A title with no US rating is hidden from kids.
    - Demo mode gets a fake TMDB for all of this.
-2. ⬜ **Requests** (`/requests`)
+2. ✅ **Requests** (`/requests`, `apps/server/src/requests/`)
    - Request a movie, a whole show or chosen seasons from any card or title page. Admins' requests go through at once; others wait. Admin screen: approve (with a profile picker and season ticks), decline with a reason, approve all, remove, undo for a few seconds after declining. People see their own requests and a plain state for each: **Waiting for approval**, **Approved · looking for it**, **Downloading**, **Ready to watch**, **Declined** (with the reason).
    - Settings → Requests: optional weekly limit per person or role (none by default), which profile approved titles get.
-   - Menu badge for how many wait.
-3. ⬜ **Notifications** (the layer everything funnels through, built to carry what Radarr, Sonarr, Seerr and Tautulli send)
+   - Menu badge for how many wait, and Home's "Needs your OK" shows real waiting requests with an Approve button.
+   - Approving adds the title, marks it Wanted (only the asked seasons for a show), sets the profile if picked, and searches at once, without the daily limit (that limit is for the automatic jobs). Ongoing looking for new episodes still needs the switch-over's "look for wanted" turned on.
+   - Built and tested: ask (admins' go straight through), approve with a profile and seasons, turn down with a reason, undo, take back, remove, "already here", "already asked for", kids can only ask for kid-safe titles, "Ready to watch" told once.
+3. 🔨 **Notifications** (the layer everything funnels through, built to carry what Radarr, Sonarr, Seerr and Tautulli send)
    - Channels: **Pushover** first, **ntfy** next, a web app inbox (bell) in this milestone, iPhone push in M7. Each channel has a Test button and says plainly when it can't send.
    - Each person turns events on or off for themselves; admins choose which events go to the admin channels.
    - Events in M5: request waiting (admins); request approved, declined, ready to watch (the requester); new episode of a show you requested; download started, finished, stuck or failed; imported into the library; upgraded; Source or downloader health problems; Marquee updated; new FlareSolverr/Source trouble.
    - Events that wait for M6: someone started watching, a stream stopped, a user's first stream, and the other Tautulli-style ones.
+   - **Built:** Pushover and ntfy channels (Settings → Notifications, admin: add, pause, test, per-channel events, secrets never sent back), the bell inbox for everyone, and per-person muting. Events sent today: request waiting (admins); request approved, turned down, ready to watch (the person); download finished, stuck or replaced, couldn't be put in the library, and added to the library (admins).
+   - **Not yet:** Source and downloader health alerts, new-episode alerts for requested shows, upgraded, "Marquee updated", and a push address for each person (today pushes go to the admins' channels; other people get the bell). iPhone push is M7.
 4. ⬜ **Users from Plex and Jellyfin** (can land any time): pick people from each server's user list (Plex first, Jellyfin next), with Jellyfin sign-in when it fits.
 5. ⬜ **Retire Seerr**: with requests, Discover, notifications and people in place, a short checklist like the switch-over pages. No import from Seerr.
 

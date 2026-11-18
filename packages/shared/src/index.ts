@@ -63,7 +63,7 @@ export interface HomeData {
     eta: string;
   } | null;
   stats: { label: string; value: string; note: string }[];
-  approvals: { id: number; title: string; who: string; plan: string; color: string }[];
+  approvals: { id: number; title: string; who: string; plan: string; posterPath: string | null }[];
   watching: { title: string; who: string; mode: string; percent: number }[];
   recent: { title: string; sub: string; color: string; posterPath?: string | null; href?: string }[];
   /** True once a library scan has found something; "recent" and library stats are then real. */
@@ -957,6 +957,8 @@ export interface DiscoverTitle {
 export interface DiscoverPrefs {
   hiddenServices: string[];
   trailers: boolean;
+  /** Every service there is a chip for (sent back with the person's choices). */
+  all?: ServiceChip[];
 }
 
 export type RequestState = 'pending' | 'looking' | 'downloading' | 'ready' | 'declined';

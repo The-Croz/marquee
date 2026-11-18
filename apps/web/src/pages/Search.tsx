@@ -107,7 +107,9 @@ export function SearchPage({ user }: { user: SessionUser }) {
                 </Button>
               </div>
             ) : (
-              <span className="text-xs text-dim">Requests arrive in Milestone 5</span>
+              <Link to={`/discover/${r.kind}/${r.tmdbId}`} className="text-sm font-semibold">
+                Ask for it →
+              </Link>
             )}
           </div>
         ))}
