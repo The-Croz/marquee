@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { ProfileChangeView, ProfileChoicesView, ProfileDefaultSlot, ProfileDetail, ProfileSummary, ProfilesView, SizeLimitView } from '@marquee/shared';
+import type { ChoicesCheckView, ProfileChangeView, ProfileChoicesView, ProfileDefaultSlot, ProfileDetail, ProfileSummary, ProfilesView, SizeLimitView } from '@marquee/shared';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
 import { TRASH } from '../releases/formats.js';
-import { GENRES, RATINGS, applyChanges, listChoices, previewChanges, setChoices } from '../releases/choose.js';
+import { GENRES, LANGUAGES, RATINGS, applyChanges, listChoices, previewChanges, ruleCounts, setChoices, suggestions, tryTitles } from '../releases/choose.js';
 import { ProfileService, appFor, trashProfiles, knownQualities, qualityLabel, ruleInfo, sizeLimit, type FullProfile } from '../releases/profiles.js';
 
 /** Settings → Quality: profiles. Admin only. */
@@ -90,18 +90,40 @@ profileRoutes.put('/defaults', async (c) => {
 // ---------------- which profile a title gets
 
 const choiceKind = (raw: string) => kind.parse(raw);
-const choiceBody = z.object({ rules: z.array(z.object({ profile: z.string().min(1), genres: z.array(z.string()).max(30), ratings: z.array(z.string()).max(10) })).max(40) });
+const condition = z.object({
+  field: z.enum(['genre', 'rating', 'year', 'company', 'language', 'keyword']),
+  op: z.enum(['any', 'all', 'none', 'between']),
+  values: z.array(z.string().max(200)).max(100).optional(),
+  min: z.number().int().min(1870).max(2200).nullable().optional(),
+  max: z.number().int().min(1870).max(2200).nullable().optional(),
+});
+const rulesBody = z.object({ rules: z.array(z.object({ profile: z.string().min(1), conditions: z.array(condition).max(12) })).max(40) });
 
 profileRoutes.get('/choices', (c) => {
   requireAdmin(c);
   const { db } = c.get('deps');
-  return c.json<ProfileChoicesView>({ rules: { movie: listChoices(db, 'movie'), tv: listChoices(db, 'tv') }, genres: GENRES, ratings: RATINGS });
+  return c.json<ProfileChoicesView>({
+    rules: { movie: listChoices(db, 'movie'), tv: listChoices(db, 'tv') },
+    genres: GENRES,
+    ratings: RATINGS,
+    languageNames: LANGUAGES,
+    suggestions: { movie: suggestions(db, 'movie'), tv: suggestions(db, 'tv') },
+  });
 });
 
 profileRoutes.put('/choices/:kind', async (c) => {
   requireAdmin(c);
-  const { rules } = choiceBody.parse(await c.req.json());
+  const { rules } = rulesBody.parse(await c.req.json());
   return c.json({ rules: setChoices(c.get('deps').db, choiceKind(c.req.param('kind')), rules) });
+});
+
+/** How rules (saved or a draft being edited) sort the library, and "try a title". Changes nothing. */
+profileRoutes.post('/choices/:kind/check', async (c) => {
+  requireAdmin(c);
+  const { rules, query } = rulesBody.extend({ query: z.string().max(200).default('') }).parse(await c.req.json());
+  const { db } = c.get('deps');
+  const k = choiceKind(c.req.param('kind'));
+  return c.json<ChoicesCheckView>({ counts: ruleCounts(db, k, rules), titles: tryTitles(db, k, query, rules) });
 });
 
 /** What sorting the library by the rules would change. Changes nothing. */

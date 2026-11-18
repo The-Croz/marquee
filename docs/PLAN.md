@@ -95,6 +95,13 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - New titles from the scanner use the rules. A profile picked on a title's page is "by hand" and never changed by the rules; "Let the rules pick" hands it back.
    - Quality page: "Which profile a new movie/show gets" card to add, edit, reorder and remove rules and set "everything else"; **Sort my library by these rules…** previews every change before moving anything.
 
+8. ✅ **Profile rules with conditions**
+   - Migration 7: movies and shows keep TMDB's original language, studios (TV: networks and studios) and keywords; the next library scan fills them in once for titles matched before. `profile_choices.conditions` replaces the genre/rating columns (older rules are converted).
+   - A rule is a list of conditions that must all fit: genre is any/all/none of; age rating is any/none of; released (TV: first aired) between years, either end open; studio or network is any/none of; original language is any/none of; keyword is any/all/none of.
+   - New starting rules for movies: Documentary → Everyday HD; Animation or Family, rated G or PG, released 2009 or earlier → Kids & Cartoons; everything else → 4K Quality. Installs still on the first movie rules are moved to these once.
+   - Kids & Cartoons for TV now prefers 1080p, then 720p, then SD (no size cap); updated once on installs that never edited it.
+   - Quality page editor: each rule as one sentence with how many titles it picks (live, even before saving); click to edit conditions one per line, with your library's studios and keywords suggested; "Try a movie/show from your library" says which rule picks it and why earlier ones don't fit.
+
 ### Ideas from HolyArrs to reuse later (ideas only; it's AGPL)
 
 - Glossary with an "older apps call it" column, and a test that keeps arr jargon off screens (done in PR 1).

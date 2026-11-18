@@ -173,11 +173,11 @@ function fromTrash(app: App, base: string, extra: string[], allowed: string[], c
 }
 
 /**
- * Kids & Cartoons takes a 1080p web copy only when it's small: 40 MB a minute
- * for movies (about 3.6 GB for 90 minutes), 50 for TV episodes.
+ * Kids & Cartoons movies take a 1080p web copy only when it's small: 40 MB a
+ * minute (about 3.6 GB for 90 minutes). TV prefers 1080p with no cap.
  */
-const KIDS_1080P_MAX = { movie: 40, tv: 50 };
-const kidsSizes = (kind: Kind): Record<string, SizeLimit> => {
+const KIDS_1080P_MAX = { movie: 40 };
+const kidsSizes = (kind: 'movie'): Record<string, SizeLimit> => {
   const app = appFor(kind);
   const out: Record<string, SizeLimit> = {};
   for (const q of ['WEBDL-1080p', 'WEBRip-1080p']) {
@@ -189,6 +189,7 @@ const kidsSizes = (kind: Kind): Record<string, SizeLimit> => {
 
 const CINEMA = { name: '4K Quality', description: '4K with HDR and Dolby Vision at sensible sizes. Takes 1080p until a 4K copy turns up. Skips remuxes and full discs.' };
 const EVERYDAY = { name: 'Everyday HD', description: 'Good 1080p copies from Blu-ray or streaming services.' };
+const KIDS_TV = { name: 'Kids & Cartoons', description: '1080p when there’s a copy, otherwise 720p, then standard definition, so older cartoons still turn up.' };
 const KIDS = { name: 'Kids & Cartoons', description: '720p is plenty for cartoons and saves space. Takes a small 1080p web copy when there’s no 720p.' };
 
 export const PRESETS: Preset[] = [
@@ -197,11 +198,12 @@ export const PRESETS: Preset[] = [
   { key: 'kids', kind: 'movie', build: () => fromTrash('radarr', 'HD Bluray + WEB', [], ['Bluray-720p', 'WEB 720p', 'WEB 1080p'], 'Bluray-720p', KIDS, kidsSizes('movie')) },
   { key: 'cinema', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-2160p', ['WEB-1080p'], ['WEB 2160p', 'WEB 1080p'], 'WEB 2160p', CINEMA) },
   { key: 'everyday-hd', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p'], 'WEB 1080p', EVERYDAY) },
-  { key: 'kids', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-1080p', [], ['WEB 720p', 'Bluray-720p', 'WEB 1080p'], 'WEB 720p', KIDS, kidsSizes('tv')) },
+  { key: 'kids', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p', 'WEB 720p', 'Bluray-720p', 'HDTV-720p', 'WEB 480p', 'DVD', 'SDTV'], 'WEB 1080p', KIDS_TV) },
 ];
 
 const SEEDED = 'profiles.seeded';
 const RENAMED_4K = 'profiles.renamed_4k';
+const KIDS_TV_1080 = 'profiles.kids_tv_1080';
 export const DEFAULT_KEYS = { movie: 'profiles.default.movie', tv: 'profiles.default.tv', kids: 'profiles.default.kids' } as const;
 export type DefaultSlot = keyof typeof DEFAULT_KEYS;
 const FALLBACK: Record<DefaultSlot, string> = { movie: 'cinema', tv: 'cinema', kids: 'kids' };
@@ -217,6 +219,21 @@ export function seedProfiles(db: Db, now: number): void {
   if (!getSetting(db, RENAMED_4K)) {
     db.update(schema.profiles).set({ name: CINEMA.name }).where(and(eq(schema.profiles.preset, 'cinema'), eq(schema.profiles.name, 'Cinema'))).run();
     setSetting(db, RENAMED_4K, '1');
+  }
+  // Kids & Cartoons for TV now prefers 1080p and falls back to SD. Update it once if it was never edited.
+  if (!getSetting(db, KIDS_TV_1080)) {
+    const row = db.select().from(schema.profiles).where(and(eq(schema.profiles.kind, 'tv'), eq(schema.profiles.preset, 'kids'))).get();
+    if (row && row.updatedAt === row.createdAt) {
+      const v = PRESETS.find((p) => p.kind === 'tv' && p.key === 'kids')!.build();
+      db.transaction(() => {
+        db.update(schema.profiles)
+          .set({ description: v.description, tiers: JSON.stringify(v.tiers), cutoff: v.cutoff, sizes: JSON.stringify(v.sizes) })
+          .where(eq(schema.profiles.id, row.id))
+          .run();
+        writeRules(db, row.id, v.rules);
+      });
+    }
+    setSetting(db, KIDS_TV_1080, '1');
   }
   if (getSetting(db, SEEDED)) return;
   db.transaction(() => {

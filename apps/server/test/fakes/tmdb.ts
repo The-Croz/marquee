@@ -4,15 +4,17 @@ import { normalizeTitle } from '../../src/library/parse.js';
 
 /** A tiny TMDB with a handful of real titles, for tests. */
 
-type M = Omit<TmdbMovie, 'originalTitle' | 'releaseDate' | 'overview' | 'backdropPath' | 'runtime' | 'genres'> & { popularity: number };
-type S = Omit<TmdbShow, 'overview' | 'backdropPath' | 'network' | 'genres' | 'seasons' | 'status'> & { popularity: number; episodes: TmdbEpisode[] };
+/** Facts rules look at; tests and demo mode give a few titles real ones. */
+type Facts = Partial<Pick<TmdbMovie, 'genres' | 'originalLanguage' | 'companies' | 'keywords'>>;
+type M = Omit<TmdbMovie, 'originalTitle' | 'releaseDate' | 'overview' | 'backdropPath' | 'runtime' | 'genres' | 'originalLanguage' | 'companies' | 'keywords'> & { popularity: number } & Facts;
+type S = Omit<TmdbShow, 'overview' | 'backdropPath' | 'network' | 'genres' | 'seasons' | 'status' | 'originalLanguage' | 'companies' | 'keywords'> & { popularity: number; episodes: TmdbEpisode[] } & Facts;
 
 export const MOVIES: M[] = [
   { tmdbId: 603, imdbId: 'tt0133093', title: 'The Matrix', year: 1999, certification: 'R', posterPath: '/matrix.jpg', popularity: 90 },
   { tmdbId: 604, imdbId: 'tt0234215', title: 'The Matrix Reloaded', year: 2003, certification: 'R', posterPath: '/reloaded.jpg', popularity: 60 },
-  { tmdbId: 693134, imdbId: 'tt15239678', title: 'Dune: Part Two', year: 2024, certification: 'PG-13', posterPath: '/dune2.jpg', popularity: 300 },
-  { tmdbId: 1022789, imdbId: 'tt22022452', title: 'Inside Out 2', year: 2024, certification: 'PG', posterPath: '/io2.jpg', popularity: 250 },
-  { tmdbId: 14160, imdbId: 'tt1049413', title: 'Up', year: 2009, certification: 'PG', posterPath: '/up.jpg', popularity: 80 },
+  { tmdbId: 693134, imdbId: 'tt15239678', title: 'Dune: Part Two', year: 2024, certification: 'PG-13', posterPath: '/dune2.jpg', popularity: 300, genres: ['Science Fiction', 'Adventure'], companies: ['Legendary Pictures'], keywords: ['desert', 'based on novel or book'] },
+  { tmdbId: 1022789, imdbId: 'tt22022452', title: 'Inside Out 2', year: 2024, certification: 'PG', posterPath: '/io2.jpg', popularity: 250, genres: ['Animation', 'Family', 'Comedy'], companies: ['Pixar', 'Walt Disney Pictures'], keywords: ['emotions', 'sequel'] },
+  { tmdbId: 14160, imdbId: 'tt1049413', title: 'Up', year: 2009, certification: 'PG', posterPath: '/up.jpg', popularity: 80, genres: ['Animation', 'Family', 'Adventure'], companies: ['Pixar'], keywords: ['balloon', 'old man'] },
   { tmdbId: 78, imdbId: 'tt0083658', title: 'Blade Runner', year: 1982, certification: 'R', posterPath: '/br.jpg', popularity: 70 },
   { tmdbId: 335984, imdbId: 'tt1856101', title: 'Blade Runner 2049', year: 2017, certification: 'R', posterPath: '/br2049.jpg', popularity: 75 },
 ];
@@ -25,6 +27,8 @@ export const SHOWS: S[] = [
     title: 'Severance',
     year: 2022,
     certification: 'TV-MA',
+    genres: ['Drama', 'Mystery', 'Sci-Fi & Fantasy'],
+    companies: ['Apple TV+'],
     posterPath: '/sev.jpg',
     popularity: 200,
     episodes: [
@@ -41,6 +45,8 @@ export const SHOWS: S[] = [
     title: 'Bluey',
     year: 2018,
     certification: 'TV-Y',
+    genres: ['Animation', 'Kids', 'Family'],
+    companies: ['ABC Kids', 'Ludo Studio'],
     posterPath: '/bluey.jpg',
     popularity: 150,
     episodes: [
@@ -77,14 +83,14 @@ export class FakeTmdb implements TmdbApi {
     this.check(`movie:${id}`);
     const m = MOVIES.find((x) => x.tmdbId === id);
     if (!m) throw new TmdbError(404, 'not found');
-    return { ...m, originalTitle: m.title, releaseDate: `${m.year}-06-01`, overview: `About ${m.title}.`, backdropPath: null, runtime: 120, genres: ['Drama'] };
+    return { ...m, originalTitle: m.title, releaseDate: `${m.year}-06-01`, overview: `About ${m.title}.`, backdropPath: null, runtime: 120, genres: m.genres ?? ['Drama'], originalLanguage: m.originalLanguage ?? 'en', companies: m.companies ?? [], keywords: m.keywords ?? [] };
   }
   async show(id: number): Promise<TmdbShow> {
     this.check(`show:${id}`);
     const s = SHOWS.find((x) => x.tmdbId === id);
     if (!s) throw new TmdbError(404, 'not found');
     const seasons = [...new Set(s.episodes.map((e) => e.season))].map((n) => ({ season: n, episodeCount: s.episodes.filter((e) => e.season === n).length }));
-    return { tmdbId: s.tmdbId, tvdbId: s.tvdbId, imdbId: s.imdbId, title: s.title, year: s.year, certification: s.certification, posterPath: s.posterPath, overview: '', backdropPath: null, status: 'Returning Series', network: 'Apple TV+', genres: [], seasons };
+    return { tmdbId: s.tmdbId, tvdbId: s.tvdbId, imdbId: s.imdbId, title: s.title, year: s.year, certification: s.certification, posterPath: s.posterPath, overview: '', backdropPath: null, status: 'Returning Series', network: s.companies?.[0] ?? 'Apple TV+', genres: s.genres ?? [], originalLanguage: s.originalLanguage ?? 'en', companies: s.companies ?? [], keywords: s.keywords ?? [], seasons };
   }
   async season(showId: number, season: number): Promise<TmdbEpisode[]> {
     this.check(`season:${showId}:${season}`);

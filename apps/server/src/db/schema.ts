@@ -61,6 +61,12 @@ export const movies = sqliteTable('movies', {
   certification: text('certification'),
   /** JSON array of genre names */
   genres: text('genres').notNull().default('[]'),
+  /** ISO 639-1, from TMDB. */
+  originalLanguage: text('original_language'),
+  /** JSON string[]: studios (movies) or networks and studios (TV), from TMDB. */
+  companies: text('companies').notNull().default('[]'),
+  /** JSON string[]: TMDB keywords. */
+  keywords: text('keywords').notNull().default('[]'),
   releaseDate: text('release_date'),
   /** Folder on disk; null for a wanted movie with nothing downloaded yet. */
   path: text('path').unique(),
@@ -87,6 +93,12 @@ export const series = sqliteTable('series', {
   network: text('network'),
   certification: text('certification'),
   genres: text('genres').notNull().default('[]'),
+  /** ISO 639-1, from TMDB. */
+  originalLanguage: text('original_language'),
+  /** JSON string[]: studios (movies) or networks and studios (TV), from TMDB. */
+  companies: text('companies').notNull().default('[]'),
+  /** JSON string[]: TMDB keywords. */
+  keywords: text('keywords').notNull().default('[]'),
   path: text('path').unique(),
   monitored: integer('monitored', { mode: 'boolean' }).notNull().default(true),
   profile: text('profile').notNull().default('cinema'),
@@ -238,6 +250,8 @@ export const profileChoices = sqliteTable('profile_choices', {
   genres: text('genres').notNull().default('[]'),
   /** JSON string[]: US age ratings. */
   ratings: text('ratings').notNull().default('[]'),
+  /** JSON Condition[]: all must match. Replaces genres/ratings, which older rules used. */
+  conditions: text('conditions').notNull().default('[]'),
 });
 
 /** The TRaSH rules a profile scores, and how many points each is worth. */

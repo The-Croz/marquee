@@ -1,3 +1,4 @@
+import { schema } from '../src/db/index.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -209,6 +210,26 @@ describe('library scan', () => {
     ]);
     const shows = await call(app, 'GET', '/api/shows?q=sev', undefined, admin);
     expect(shows.body.items[0].badge).toBe('2 of 3 episodes');
+  });
+
+  it('keeps the facts profile rules use, and fetches them once for titles matched before', async () => {
+    const { app, admin, scanner, tmdb, db } = await scannedApp();
+    const io = db.select().from(schema.movies).all().find((m) => m.title === 'Inside Out 2')!;
+    // A 2024 family film: the starting rules keep it in 4K Quality.
+    expect(io).toMatchObject({ originalLanguage: 'en', profile: 'cinema' });
+    expect(JSON.parse(io.companies)).toEqual(['Pixar', 'Walt Disney Pictures']);
+    expect(JSON.parse(io.keywords)).toEqual(['emotions', 'sequel']);
+    // A title matched before these were kept has no language yet: the next scan asks TMDB once.
+    db.update(schema.movies).set({ originalLanguage: null, companies: '[]' }).run();
+    const before = tmdb.calls.length;
+    await call(app, 'POST', '/api/library/scan', {}, admin);
+    await scanner.wait();
+    expect(tmdb.calls.slice(before)).toContain('movie:1022789');
+    expect(JSON.parse(db.select().from(schema.movies).all().find((m) => m.title === 'Inside Out 2')!.companies)).toEqual(['Pixar', 'Walt Disney Pictures']);
+    const again = tmdb.calls.length;
+    await call(app, 'POST', '/api/library/scan', {}, admin);
+    await scanner.wait();
+    expect(tmdb.calls.slice(again).filter((c) => c.startsWith('movie:'))).toEqual([]);
   });
 
   it("uses Radarr's IDs when connected, and keeps going if Radarr is down", async () => {

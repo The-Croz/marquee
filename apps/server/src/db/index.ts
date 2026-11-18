@@ -231,6 +231,15 @@ const migrations: string[] = [
     ratings TEXT NOT NULL DEFAULT '[]'
   );
   `,
+  /* 7: more facts about titles for profile rules, and rules as lists of conditions */ `
+  ALTER TABLE movies ADD COLUMN original_language TEXT;
+  ALTER TABLE movies ADD COLUMN companies TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE movies ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE series ADD COLUMN original_language TEXT;
+  ALTER TABLE series ADD COLUMN companies TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE series ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE profile_choices ADD COLUMN conditions TEXT NOT NULL DEFAULT '[]';
+  `,
 ];
 
 export function openDb(file: string): Db {

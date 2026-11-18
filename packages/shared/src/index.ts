@@ -473,10 +473,22 @@ export interface CompareView {
 
 // ---------------------------------------------------------------- which profile a title gets
 
+export type ConditionField = 'genre' | 'rating' | 'year' | 'company' | 'language' | 'keyword';
+export type ConditionOp = 'any' | 'all' | 'none' | 'between';
+
+/** One test in a rule. List fields use `values`; year uses `min`/`max` (either may be open). */
+export interface ConditionView {
+  field: ConditionField;
+  op: ConditionOp;
+  values?: string[];
+  min?: number | null;
+  max?: number | null;
+}
+
 export interface ProfileChoiceView {
   profile: string;
-  genres: string[];
-  ratings: string[];
+  /** All must hold. */
+  conditions: ConditionView[];
 }
 
 export interface ProfileChoicesView {
@@ -484,6 +496,36 @@ export interface ProfileChoicesView {
   rules: Record<ProfileKind, ProfileChoiceView[]>;
   genres: Record<ProfileKind, string[]>;
   ratings: Record<ProfileKind, string[]>;
+  /** ISO 639-1 code → plain name. */
+  languageNames: Record<string, string>;
+  /** Values from your library, most common first, to suggest while editing. */
+  suggestions: Record<ProfileKind, { companies: string[]; keywords: string[]; languages: string[] }>;
+}
+
+export interface TitleFactsView {
+  genres: string[];
+  certification: string | null;
+  year: number | null;
+  companies: string[];
+  language: string | null;
+  keywords: string[];
+}
+
+/** How a set of rules (saved or a draft) sorts your library, and how it treats some titles. */
+export interface ChoicesCheckView {
+  /** Titles each rule picks (first match), then everything else. */
+  counts: { rules: number[]; rest: number };
+  titles: {
+    id: number;
+    title: string;
+    year: number | null;
+    facts: TitleFactsView;
+    /** For each rule, whether each condition holds. */
+    rules: boolean[][];
+    picked: number | null;
+    profile: string;
+    byHand: boolean;
+  }[];
 }
 
 export interface ProfileChangeView {
