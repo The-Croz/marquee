@@ -119,12 +119,14 @@ Goal: Marquee sends the copy it picked to qBittorrent, follows it in plain words
 
 Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real one), a `PLAN.md` tick and demo-mode fakes. Nothing is ever deleted from disk in M3 (only qBittorrent's own copy of a torrent Marquee sent, and only when you say so).
 
-1. ✅ **Downloader connection** (PR open) (`apps/server/src/downloads/qbittorrent.ts`; read-only)
+1. ✅ **Downloader connection** (`apps/server/src/downloads/qbittorrent.ts`; read-only)
    - qBittorrent Web API v2 client: sign in (username and password; session cookie kept and renewed when it runs out), app and API version, preferences (save folder), connection status, free space, categories. Only reads in this PR.
    - Settings → Downloader: address, username, password (never sent back; a saved password is never sent to a different address), category (default `marquee`), Test connection.
    - Health in plain words with what to do: **Working**, **Can't reach it**, **Password turned down**, **Too many wrong passwords** (qBittorrent banned Marquee's address for a while), **Not qBittorrent**, **Too old** (needs Web API 2.8+, qBittorrent 4.5+), and VPN-aware states from qBittorrent's own connection status: **No internet for downloads** (the VPN, e.g. gluetun, is down) and **Others can't connect to you** (firewalled: downloads work but slower; check port forwarding).
    - Demo mode: a fake qBittorrent at `http://qbittorrent:8080` (admin / adminadmin).
-2. 🔨 **Send a copy** (`apps/server/src/downloads/send.ts`, `torrent.ts`, `releases/upgrade.ts`; PR stacked on PR 1)
+   - Learned live: qBittorrent 5.2 (Web API 2.15) answers a correct sign-in with 204 and no body, not "Ok.", and a wrong one with 401. Josh's qBittorrent lets LAN addresses in without signing in, but not the Marquee container.
+   - Idea for later: qBittorrent 5.2 also takes an API key instead of a password.
+2. ✅ **Send a copy** (`apps/server/src/downloads/send.ts`, `torrent.ts`, `releases/upgrade.ts`)
    - Migration 8: `downloads` (title or season/episode, copy name, info-hash, Source, profile, quality, points, size, who and when, state, adopted, progress).
    - Searches are kept in memory for an hour (`downloads/cache.ts`), so **Download this** points at a copy by id and download links still never leave the server.
    - Marquee fetches the `.torrent` itself (following redirects, including Prowlarr's redirect to a magnet), works out the info-hash, makes the category in qBittorrent if it's missing, and adds the torrent under it tagged `marquee`. Errors say what happened without the Source key.
