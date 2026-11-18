@@ -34,6 +34,11 @@ export interface TmdbMovie {
   runtime: number | null;
   genres: string[];
   certification: string | null;
+  /** ISO 639-1 code, e.g. "en", "ja". */
+  originalLanguage: string | null;
+  /** Studios (movies) or networks and studios (TV). */
+  companies: string[];
+  keywords: string[];
 }
 
 export interface TmdbShow {
@@ -49,6 +54,11 @@ export interface TmdbShow {
   network: string | null;
   genres: string[];
   certification: string | null;
+  /** ISO 639-1 code, e.g. "en", "ja". */
+  originalLanguage: string | null;
+  /** Studios (movies) or networks and studios (TV). */
+  companies: string[];
+  keywords: string[];
   seasons: { season: number; episodeCount: number }[];
 }
 
@@ -160,9 +170,12 @@ export class TmdbClient implements TmdbApi {
       backdrop_path: string | null;
       runtime: number | null;
       genres: { name: string }[];
+      original_language?: string;
+      production_companies?: { name: string }[];
+      keywords?: { keywords?: { name: string }[] };
       release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number }[] }[] };
     };
-    const m = await this.get<R>(`/movie/${id}`, { append_to_response: 'release_dates' });
+    const m = await this.get<R>(`/movie/${id}`, { append_to_response: 'release_dates,keywords' });
     const us = m.release_dates?.results.find((r) => r.iso_3166_1 === 'US');
     // Prefer the theatrical (3) rating, then any non-empty one.
     const cert = us?.release_dates.find((d) => d.type === 3 && d.certification)?.certification ?? us?.release_dates.find((d) => d.certification)?.certification ?? null;
@@ -179,6 +192,9 @@ export class TmdbClient implements TmdbApi {
       runtime: m.runtime || null,
       genres: m.genres.map((g) => g.name),
       certification: cert,
+      originalLanguage: m.original_language || null,
+      companies: (m.production_companies ?? []).map((c) => c.name),
+      keywords: (m.keywords?.keywords ?? []).map((k) => k.name),
     };
   }
 
@@ -193,11 +209,14 @@ export class TmdbClient implements TmdbApi {
       status: string | null;
       networks?: { name: string }[];
       genres: { name: string }[];
+      original_language?: string;
+      production_companies?: { name: string }[];
+      keywords?: { results?: { name: string }[] };
       seasons: { season_number: number; episode_count: number }[];
       external_ids?: { tvdb_id: number | null; imdb_id: string | null };
       content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
     };
-    const s = await this.get<R>(`/tv/${id}`, { append_to_response: 'external_ids,content_ratings' }, DAY);
+    const s = await this.get<R>(`/tv/${id}`, { append_to_response: 'external_ids,content_ratings,keywords' }, DAY);
     return {
       tmdbId: s.id,
       tvdbId: s.external_ids?.tvdb_id ?? null,
@@ -211,6 +230,9 @@ export class TmdbClient implements TmdbApi {
       network: s.networks?.[0]?.name ?? null,
       genres: s.genres.map((g) => g.name),
       certification: s.content_ratings?.results.find((r) => r.iso_3166_1 === 'US')?.rating || null,
+      originalLanguage: s.original_language || null,
+      companies: [...new Set([...(s.networks ?? []), ...(s.production_companies ?? [])].map((c) => c.name))],
+      keywords: (s.keywords?.results ?? []).map((k) => k.name),
       seasons: s.seasons.map((x) => ({ season: x.season_number, episodeCount: x.episode_count })),
     };
   }

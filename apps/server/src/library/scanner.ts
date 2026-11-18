@@ -5,7 +5,7 @@ import type { Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
 import { TmdbError, type TmdbApi, type TmdbSearchResult } from './tmdb.js';
 import type { ArrApi, ArrTitle } from './arr.js';
-import { chooseProfile } from '../releases/choose.js';
+import { chooseProfile, factsFrom } from '../releases/choose.js';
 import { EXTRAS_FOLDERS, VIDEO_EXTENSIONS, normalizeTitle, parseEpisode, parseQuality, parseTitleName, sortTitle } from './parse.js';
 
 /**
@@ -256,7 +256,8 @@ export class LibraryScanner {
           },
         },
       ],
-      (id) => (existing && id === existing.tmdbId ? Promise.resolve(existing) : this.upsertMovie(tmdb, id, entry.path, Math.min(...files.map((f) => f.mtime)))),
+      // Titles matched before studios, language and keywords were kept are fetched once more.
+      (id) => (existing && id === existing.tmdbId && existing.originalLanguage !== null ? Promise.resolve(existing) : this.upsertMovie(tmdb, id, entry.path, Math.min(...files.map((f) => f.mtime)))),
     );
 
     if (!movie) {
@@ -282,6 +283,9 @@ export class LibraryScanner {
       runtime: d.runtime,
       certification: d.certification,
       genres: JSON.stringify(d.genres),
+      originalLanguage: d.originalLanguage,
+      companies: JSON.stringify(d.companies),
+      keywords: JSON.stringify(d.keywords),
       releaseDate: d.releaseDate,
       refreshedAt: this.now(),
     };
@@ -290,7 +294,7 @@ export class LibraryScanner {
       // A second folder for the same movie keeps the first folder as "the" folder.
       return this.db.update(movies).set({ ...values, path: current.path ?? folder }).where(eq(movies.id, current.id)).returning().get();
     }
-    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'movie', { genres: d.genres, certification: d.certification }), ...values }).returning().get();
+    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'movie', factsFrom(d)), ...values }).returning().get();
   }
 
   // ---------------- Shows ----------------
@@ -319,7 +323,7 @@ export class LibraryScanner {
         },
       ],
       (id) =>
-        existing && id === existing.tmdbId && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
+        existing && id === existing.tmdbId && existing.originalLanguage !== null && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
           ? Promise.resolve(existing)
           : this.upsertSeries(tmdb, id, folder, files.length ? Math.min(...files.map((f) => f.mtime)) : this.now()),
     );
@@ -363,12 +367,15 @@ export class LibraryScanner {
       network: d.network,
       certification: d.certification,
       genres: JSON.stringify(d.genres),
+      originalLanguage: d.originalLanguage,
+      companies: JSON.stringify(d.companies),
+      keywords: JSON.stringify(d.keywords),
       refreshedAt: this.now(),
     };
     const current = this.db.select().from(series).where(eq(series.tmdbId, tmdbId)).get();
     const row = current
       ? this.db.update(series).set({ ...values, path: current.path ?? folder }).where(eq(series.id, current.id)).returning().get()
-      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'tv', { genres: d.genres, certification: d.certification }), ...values }).returning().get();
+      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'tv', factsFrom(d)), ...values }).returning().get();
 
     for (const s of d.seasons) {
       if (s.episodeCount === 0) continue;
