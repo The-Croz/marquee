@@ -74,6 +74,10 @@ function DownloaderAdmin() {
       stuckHours: Number(d.get('stuckHours')),
       giveUpHours: Number(d.get('giveUpHours')),
       tryAnother: d.get('tryAnother') === 'on',
+      seedRatio: Number(d.get('seedRatio')),
+      seedDays: Number(d.get('seedDays')),
+      privateKeepSharing: d.get('privateKeepSharing') === 'on',
+      removeWhenShared: d.get('removeWhenShared') === 'on',
       folderPairs: [0, 1]
         .map((i) => ({ from: String(d.get(`pairFrom${i}`) ?? '').trim(), to: String(d.get(`pairTo${i}`) ?? '').trim() }))
         .filter((p) => p.from && p.to),
@@ -170,6 +174,27 @@ function DownloaderAdmin() {
           <Field label="Call it stuck after (hours)" name="stuckHours" type="number" min={1} max={168} defaultValue={data.stuckHours} hint="With no progress for this long, the Downloads page says it's stuck." />
           <Field label="Try another copy after (hours)" name="giveUpHours" type="number" min={1} max={720} defaultValue={data.giveUpHours} hint="Some copies come back after a while; this is how long to wait." />
         </div>
+      </Card>
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">Sharing after a download</h2>
+          <p className="m-0 mt-1 text-sm text-muted">
+            Once a download is in your library, qBittorrent keeps sharing it so others can download it too. The library file is a hardlink, so sharing costs no extra space. Each Source can have its own rule
+            under Settings → Sources → For experts.
+          </p>
+        </div>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <Field label="Keep sharing until ratio" name="seedRatio" type="number" min={0} step={0.1} defaultValue={data.seedRatio} hint="Uploaded ÷ downloaded. 0 means no ratio limit." />
+          <Field label="…or for days" name="seedDays" type="number" min={0} step={1} defaultValue={data.seedDays} hint="Whichever comes first. 0 means no time limit." />
+        </div>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="privateKeepSharing" defaultChecked={data.privateKeepSharing} className="size-5 accent-amber" />
+          Private sites keep sharing until I remove them (their rules vary; set a Source’s own rule to change this)
+        </label>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="removeWhenShared" defaultChecked={data.removeWhenShared} className="size-5 accent-amber" />
+          Remove from qBittorrent once it has shared enough (the library file stays)
+        </label>
       </Card>
       <div>
         <Button type="submit">Save</Button>

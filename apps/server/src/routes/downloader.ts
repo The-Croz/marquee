@@ -34,6 +34,10 @@ downloaderRoutes.put('/', async (c) => {
       stuckHours: z.number().int().min(1, 'Stuck after is at least 1 hour.').max(168, 'Stuck after is at most a week (168 hours).').optional(),
       giveUpHours: z.number().int().min(1).max(720, 'Try another copy after is at most 30 days (720 hours).').optional(),
       tryAnother: z.boolean().optional(),
+      seedRatio: z.number().min(0, 'Ratio is 0 (no limit) or more.').max(100).optional(),
+      seedDays: z.number().min(0, 'Days are 0 (no limit) or more.').max(3650).optional(),
+      privateKeepSharing: z.boolean().optional(),
+      removeWhenShared: z.boolean().optional(),
       folderPairs: z
         .array(
           z.object({

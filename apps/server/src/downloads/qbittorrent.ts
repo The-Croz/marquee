@@ -55,6 +55,10 @@ export interface QbitTorrent {
   seedsKnown: number;
   /** Where the download is, as qBittorrent sees it. */
   contentPath: string;
+  /** Uploaded ÷ downloaded. */
+  ratio: number;
+  /** Seconds spent sharing the whole copy. */
+  seedingSeconds: number;
 }
 
 export interface QbitFile {
@@ -163,7 +167,7 @@ export class QbitClient implements QbitApi {
     if (hashes.length === 0) return [];
     type T = {
       hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string;
-      dlspeed?: number; eta?: number; num_seeds?: number; num_complete?: number; content_path?: string;
+      dlspeed?: number; eta?: number; num_seeds?: number; num_complete?: number; content_path?: string; ratio?: number; seeding_time?: number;
     };
     const rows = await this.json<T[]>(`/torrents/info?hashes=${hashes.map((h) => h.toLowerCase()).join('|')}`);
     return rows.map((r) => ({
@@ -179,6 +183,8 @@ export class QbitClient implements QbitApi {
       seedsConnected: r.num_seeds ?? 0,
       seedsKnown: Math.max(r.num_complete ?? 0, 0),
       contentPath: r.content_path ?? r.save_path,
+      ratio: r.ratio ?? 0,
+      seedingSeconds: r.seeding_time ?? 0,
     }));
   }
 

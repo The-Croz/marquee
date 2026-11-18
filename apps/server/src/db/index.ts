@@ -297,6 +297,13 @@ const migrations: string[] = [
   ALTER TABLE downloads ADD COLUMN import_tried_at INTEGER;
   ALTER TABLE downloads ADD COLUMN import_copied INTEGER NOT NULL DEFAULT 0;
   `,
+  /* 11: seeding rules per Source, and how much each download has shared */ `
+  ALTER TABLE sources ADD COLUMN seed_ratio REAL;
+  ALTER TABLE sources ADD COLUMN seed_days REAL;
+  ALTER TABLE downloads ADD COLUMN ratio REAL;
+  ALTER TABLE downloads ADD COLUMN seeding_seconds INTEGER;
+  ALTER TABLE downloads ADD COLUMN shared_enough_at INTEGER;
+  `,
 ];
 
 export function openDb(file: string): Db {

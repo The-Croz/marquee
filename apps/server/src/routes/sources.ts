@@ -96,6 +96,8 @@ sourcesRoutes.put('/:id', async (c) => {
       dailyLimit: z.number().int().min(0).max(100_000).optional(),
       minGapMs: z.number().int().min(0).max(600_000).optional(),
       timeoutSeconds: z.number().int().min(1, 'Give up after is 1 to 300 seconds.').max(300, 'Give up after is 1 to 300 seconds.').optional(),
+      seedRatio: z.number().min(0, 'Ratio is 0 (no limit) or more.').max(100).nullable().optional(),
+      seedDays: z.number().min(0, 'Days are 0 (no limit) or more.').max(3650).nullable().optional(),
     })
     .parse(await c.req.json());
   if (s.prowlarrId !== null && (patch.url !== undefined || patch.apiKey !== undefined)) {

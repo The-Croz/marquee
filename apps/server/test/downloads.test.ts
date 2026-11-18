@@ -85,7 +85,7 @@ describe('qBittorrent client: adding', () => {
       return new Response('', { status: 404 });
     }) as typeof fetch;
     const q = new QbitClient('http://q:8080', 'admin', 'pw', f);
-    expect(await q.torrents(['ABC'])).toEqual([{ hash: 'abc', name: 'x', category: 'radarr', state: 'uploading', progress: 1, size: 5, savePath: '/data/torrents/movies', downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: '/data/torrents/movies' }]);
+    expect(await q.torrents(['ABC'])).toEqual([{ hash: 'abc', name: 'x', category: 'radarr', state: 'uploading', progress: 1, size: 5, savePath: '/data/torrents/movies', downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: '/data/torrents/movies', ratio: 0, seedingSeconds: 0 }]);
     expect(seen[0]!.path).toBe('/api/v2/torrents/info?hashes=abc');
     await q.ensureCategory('marquee');
     await q.ensureCategory('marquee');

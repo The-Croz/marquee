@@ -104,7 +104,13 @@ const qbitNames = new Map<string, string>();
 // Make the fake qBittorrent's downloads move along. TV episodes get stuck with nobody sharing, to show that state.
 setInterval(() => {
   for (const t of qbit.list) {
-    if (t.state === 'stoppedDL' || t.progress >= 1) continue;
+    if (t.progress >= 1) {
+      // Sharing: the ratio climbs so the seeding rule can be seen working.
+      t.ratio += 0.25;
+      t.seedingSeconds += 6 * 3600;
+      continue;
+    }
+    if (t.state === 'stoppedDL') continue;
     if (t.state === 'metaDL') {
       t.state = 'downloading';
       continue;
