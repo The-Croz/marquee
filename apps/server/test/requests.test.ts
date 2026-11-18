@@ -30,7 +30,7 @@ async function setup() {
   await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, admin);
   const person = async (username: string, role: 'member' | 'kid') => {
     await call(t.app, 'POST', '/api/users', { username, displayName: username[0]!.toUpperCase() + username.slice(1), role, password: `${username} password` }, admin);
-    return (await call(t.app, 'POST', '/api/auth/login', { username, password: `${username} password` })).cookie;
+    return (await call(t.app, 'POST', '/api/auth/login', { username, password: `${username} password` })).cookie!;
   };
   const jessie = await person('jessie', 'member');
   const kiddo = await person('kiddo', 'kid');
