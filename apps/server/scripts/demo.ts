@@ -93,6 +93,11 @@ radarr.history = [
   grab(104, 'Some.Movie.Not.In.Library.2023.1080p.WEB-DL-GRP', { radarrMovieId: 9, tmdbId: 1, movieTitle: 'Some Movie', date: Date.now() - 5 * day }),
 ];
 radarr.lists.set(1, dune.map((r) => radarrRelease(r.title, { size: r.size, seeders: r.seeders, infoHash: r.infoHash })));
+radarr.movies = [
+  { title: 'Dune: Part Two', monitored: true },
+  { title: 'The Matrix', monitored: true },
+  { title: 'Up', monitored: false },
+];
 setSetting(db, 'services.radarr_url', 'http://radarr:7878');
 setSetting(db, 'services.radarr_api_key', 'radarr-key');
 // A fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin), behind a VPN that's up.

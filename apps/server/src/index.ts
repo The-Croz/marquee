@@ -17,6 +17,7 @@ import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
 import { sharedMonitor } from './downloads/monitor.js';
+import { wantedTick } from './downloads/wanted.js';
 import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
 
 const config = loadConfig();
@@ -82,6 +83,14 @@ setInterval(() => {
     (err) => console.error('[downloads] check failed:', (err as Error).message),
   );
 }, 60 * 1000).unref();
+
+// Once switched over: look for missing movies every 6 hours and better copies once a day.
+setInterval(() => {
+  wantedTick({ db, clients, sources, now: Date.now }).then(
+    (r) => r && console.log(`[wanted] ${r.kind}: searched ${r.searched}, sent ${r.sent.length}`),
+    (err) => console.error('[wanted] failed:', (err as Error).message),
+  );
+}, 5 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);
