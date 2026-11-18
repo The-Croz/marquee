@@ -1,9 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { DownloadView, SendResult } from '@marquee/shared';
+import { describeDownload } from './view.js';
 import type { Db } from '../db/index.js';
 import { downloads, type Download } from '../db/schema.js';
 import { HttpError } from '../http.js';
-import type { CopyCache } from './cache.js';
+import type { CachedSearch, CopyCache } from './cache.js';
 import { QbitError, type QbitApi } from './qbittorrent.js';
 import { DOWNLOADER_TEXT, readDownloader } from './service.js';
 import { TorrentFetchError, type FetchedTorrent } from './torrent.js';
@@ -26,38 +27,28 @@ export interface SendDeps {
 const ACTIVE = ['sent', 'downloading'] as const;
 export const MARQUEE_TAG = 'marquee';
 
-export function downloadView(d: Download): DownloadView {
-  return {
-    id: d.id,
-    kind: d.kind,
-    movieId: d.movieId,
-    seriesId: d.seriesId,
-    season: d.season,
-    episodes: d.episodes ? (JSON.parse(d.episodes) as number[]) : null,
-    title: d.title,
-    infoHash: d.infoHash,
-    sourceName: d.sourceName,
-    quality: d.quality,
-    score: d.score,
-    size: d.size,
-    addedAt: d.addedAt,
-    state: d.state,
-    adopted: d.adopted,
-    progress: d.progress,
-    message: d.message,
-  };
-}
-
 export async function sendCopy(deps: SendDeps, input: { searchId: string; copyId: string; anyway?: boolean }, userId: number): Promise<SendResult> {
   const { db, now } = deps;
   const search = deps.copies.get(input.searchId);
   if (!search) throw new HttpError(404, 'search_expired', 'This list of copies is out of date. Search again, then pick a copy.');
   const index = Number(input.copyId);
-  const d = Number.isInteger(index) ? search.decisions[index] : undefined;
-  if (!d) throw new HttpError(404, 'no_such_copy', 'That copy isn’t in this search any more. Search again.');
+  if (!Number.isInteger(index) || !search.decisions[index]) throw new HttpError(404, 'no_such_copy', 'That copy isn’t in this search any more. Search again.');
+  return sendFromSearch(deps, search, index, userId, !!input.anyway);
+}
+
+/** Sends one copy of a search to qBittorrent. Used by "Download this" and "Try another copy". */
+export async function sendFromSearch(
+  deps: Omit<SendDeps, 'copies'>,
+  search: Omit<CachedSearch, 'at'>,
+  index: number,
+  userId: number | null,
+  anyway: boolean,
+): Promise<SendResult> {
+  const { db, now } = deps;
+  const d = search.decisions[index]!;
   const vs = search.vsYours[index] ?? null;
 
-  if (!input.anyway) {
+  if (!anyway) {
     if (!d.accepted) throw new HttpError(409, 'needs_confirm', `Marquee wouldn’t pick this one: ${d.rejections.map((r) => r.message).join(' ')} Download it anyway?`);
     if (vs && !vs.better) throw new HttpError(409, 'needs_confirm', `${vs.message} Download it anyway?`);
   }
@@ -112,7 +103,7 @@ export async function sendCopy(deps: SendDeps, input: { searchId: string; copyId
         .returning()
         .get();
       const where = existing.category ? `in the “${existing.category}” category` : 'with no category';
-      return { download: downloadView(saved), message: `qBittorrent already had this copy (${where}), so Marquee is following it there instead of adding it again.` };
+      return { download: describeDownload(db, saved, now()), message: `qBittorrent already had this copy (${where}), so Marquee is following it there instead of adding it again.` };
     }
     await qbit.ensureCategory(settings.category);
     await qbit.add(torrent.payload, { category: settings.category, tags: [MARQUEE_TAG] });
@@ -124,7 +115,7 @@ export async function sendCopy(deps: SendDeps, input: { searchId: string; copyId
     throw err;
   }
   const saved = db.insert(downloads).values(row).returning().get();
-  return { download: downloadView(saved), message: `Sent to qBittorrent. It’s in the “${settings.category}” category.` };
+  return { download: describeDownload(db, saved, now()), message: `Sent to qBittorrent. It’s in the “${settings.category}” category.` };
 }
 
 function overlaps(b: Download, episode: number | undefined): boolean {
@@ -132,6 +123,6 @@ function overlaps(b: Download, episode: number | undefined): boolean {
   return (JSON.parse(b.episodes) as number[]).includes(episode);
 }
 
-export function listDownloads(db: Db): DownloadView[] {
-  return db.select().from(downloads).all().reverse().map(downloadView);
+export function listDownloads(db: Db, now: number): DownloadView[] {
+  return db.select().from(downloads).all().reverse().map((d) => describeDownload(db, d, now));
 }

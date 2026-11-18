@@ -67,7 +67,14 @@ function DownloaderAdmin() {
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const d = new FormData(e.currentTarget);
-    const body: DownloaderUpdate = { url: String(d.get('url') ?? ''), username: String(d.get('username') ?? ''), category: String(d.get('category') ?? '') };
+    const body: DownloaderUpdate = {
+      url: String(d.get('url') ?? ''),
+      username: String(d.get('username') ?? ''),
+      category: String(d.get('category') ?? ''),
+      stuckHours: Number(d.get('stuckHours')),
+      giveUpHours: Number(d.get('giveUpHours')),
+      tryAnother: d.get('tryAnother') === 'on',
+    };
     const password = String(d.get('password') ?? '');
     if (password) body.password = password; // blank means "keep what's saved"
     setMessage(null);
@@ -133,6 +140,20 @@ function DownloaderAdmin() {
           </Button>
         </div>
         {shown && <HealthCard h={shown} category={val('dl-category') || data.category} />}
+      </Card>
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">When downloads get stuck</h2>
+          <p className="m-0 mt-1 text-sm text-muted">Time spent paused or waiting its turn doesn’t count. Downloads another app sent are never replaced.</p>
+        </div>
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input type="checkbox" name="tryAnother" defaultChecked={data.tryAnother} className="size-5 accent-amber" />
+          Try another copy by itself when a download is stuck too long or turns out to be fake
+        </label>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <Field label="Call it stuck after (hours)" name="stuckHours" type="number" min={1} max={168} defaultValue={data.stuckHours} hint="With no progress for this long, the Downloads page says it's stuck." />
+          <Field label="Try another copy after (hours)" name="giveUpHours" type="number" min={1} max={720} defaultValue={data.giveUpHours} hint="Some copies come back after a while; this is how long to wait." />
+        </div>
       </Card>
       <div>
         <Button type="submit">Save</Button>

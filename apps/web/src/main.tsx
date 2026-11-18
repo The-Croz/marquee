@@ -12,6 +12,7 @@ import { Placeholder } from './pages/Placeholder';
 import { AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
+import { DownloadsPage } from './pages/Downloads';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -50,7 +51,7 @@ const router = createBrowserRouter([
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <Placeholder title="Requests" milestone={5}>Requests from the family, with approvals for kid profiles.</Placeholder> },
-      { path: 'downloads', element: <Placeholder title="Downloads" milestone={3}>Your qBittorrent queue in plain English: what's downloading, what's stuck, and one-tap fixes.</Placeholder> },
+      { path: 'downloads', element: <DownloadsPage /> },
       { path: 'activity', element: <Placeholder title="Activity" milestone={6}>Who's watching now and watch history across Plex and Jellyfin.</Placeholder> },
       {
         path: 'quality',

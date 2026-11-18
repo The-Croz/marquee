@@ -324,9 +324,32 @@ export const downloads = sqliteTable('downloads', {
   progress: real('progress').notNull().default(0),
   lastProgressAt: integer('last_progress_at'),
   message: text('message'),
+  /** qBittorrent's own state word, from the last check. Never shown as-is. */
+  qbitState: text('qbit_state'),
+  /** Bytes a second, seconds left and people sharing, from the last check. */
+  speed: integer('speed'),
+  eta: integer('eta'),
+  seeds: integer('seeds'),
+  /** The file list has been checked for programs and fakes. */
+  filesChecked: integer('files_checked', { mode: 'boolean' }).notNull().default(false),
+  checkedAt: integer('checked_at'),
+  finishedAt: integer('finished_at'),
 });
 
 export type Download = typeof downloads.$inferSelect;
+
+/** Copies never to pick again for a title ("Never pick"), with the reason. */
+export const neverPick = sqliteTable('never_pick', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'cascade' }),
+  seriesId: integer('series_id').references(() => series.id, { onDelete: 'cascade' }),
+  infoHash: text('info_hash'),
+  /** The copy's name. */
+  title: text('title').notNull(),
+  reason: text('reason').notNull(),
+  at: integer('at').notNull(),
+});
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;

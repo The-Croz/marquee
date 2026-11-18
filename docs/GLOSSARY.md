@@ -46,3 +46,19 @@ A failing Source is skipped and tried again by itself: 1 minute after the first 
 | **Type the password again** | The address changed; a saved password is only sent to the address it was saved with. |
 | **Not qBittorrent** | The address answers, but isn't qBittorrent. |
 | **Too old** | Needs qBittorrent 4.5 or newer. |
+
+## Download states
+
+| Shown as | Meaning |
+|---|---|
+| **Getting ready** | qBittorrent is finding people sharing it and fetching the file list. |
+| **Downloading · 4.2 MB/s · about 12 min left** | Coming in. |
+| **Waiting its turn** | qBittorrent is busy with other downloads. Doesn't count towards stuck. |
+| **Paused** | Paused in Marquee or qBittorrent. Doesn't count towards stuck. |
+| **Waiting · nobody is sharing it right now** | Connected to nobody with the whole copy. Often comes back. |
+| **Stuck · nobody is sharing it** / **Stuck · no progress for 7 hours** | No progress for the "stuck" time (6 hours by default). Marquee tries another copy at the give-up time (24 hours) unless that's turned off. |
+| **Problem in qBittorrent** | qBittorrent reported an error, often a full disk or missing folder. |
+| **Gone from qBittorrent** | Removed in qBittorrent, not by Marquee. |
+| **Finished downloading** | The whole copy is here. |
+| **Replaced** | Marquee turned the copy down (stuck, fake, or you asked) and sent the next best. |
+| **Never pick** | A copy turned down for a title, with the reason; searches skip it. |

@@ -159,9 +159,9 @@ describe('Settings → Downloader API', () => {
   it('saves the connection and never sends the password back', async () => {
     const { app } = setup();
     const admin = await setupAdmin(app);
-    expect((await call(app, 'GET', '/api/settings/downloader', undefined, admin)).body).toEqual({ url: null, username: '', hasPassword: false, category: 'marquee' });
+    expect((await call(app, 'GET', '/api/settings/downloader', undefined, admin)).body).toEqual({ url: null, username: '', hasPassword: false, category: 'marquee', stuckHours: 6, giveUpHours: 24, tryAnother: true });
     const res = await call(app, 'PUT', '/api/settings/downloader', { url: 'http://qbittorrent:8080/', username: 'admin', password: 'adminadmin' }, admin);
-    expect(res.body).toEqual({ url: 'http://qbittorrent:8080', username: 'admin', hasPassword: true, category: 'marquee' });
+    expect(res.body).toMatchObject({ url: 'http://qbittorrent:8080', username: 'admin', hasPassword: true, category: 'marquee' });
     expect(JSON.stringify(res.body)).not.toContain('adminadmin');
     const health = await call(app, 'GET', '/api/settings/downloader/health', undefined, admin);
     expect(health.body).toMatchObject({ state: 'working', label: 'Working', categoryExists: false, savePath: '/data/torrents' });

@@ -268,6 +268,27 @@ const migrations: string[] = [
   CREATE INDEX downloads_movie ON downloads (movie_id);
   CREATE INDEX downloads_series ON downloads (series_id, season);
   `,
+  /* 9: what qBittorrent last said about each download, and copies never to pick again */ `
+  ALTER TABLE downloads ADD COLUMN qbit_state TEXT;
+  ALTER TABLE downloads ADD COLUMN speed INTEGER;
+  ALTER TABLE downloads ADD COLUMN eta INTEGER;
+  ALTER TABLE downloads ADD COLUMN seeds INTEGER;
+  ALTER TABLE downloads ADD COLUMN files_checked INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE downloads ADD COLUMN checked_at INTEGER;
+  ALTER TABLE downloads ADD COLUMN finished_at INTEGER;
+  CREATE TABLE never_pick (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE CASCADE,
+    series_id INTEGER REFERENCES series (id) ON DELETE CASCADE,
+    info_hash TEXT,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    at INTEGER NOT NULL
+  );
+  CREATE INDEX never_pick_movie ON never_pick (movie_id);
+  CREATE INDEX never_pick_series ON never_pick (series_id);
+  `,
 ];
 
 export function openDb(file: string): Db {
