@@ -11,6 +11,7 @@ const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['r
 
 const STATE: Record<RequestState, { label: string; tone: string }> = {
   pending: { label: 'Waiting for approval', tone: 'bg-amber/16 text-amber-hi' },
+  unreleased: { label: 'Approved · not out yet', tone: 'bg-blue/18 text-blue-hi' },
   looking: { label: 'Approved · looking for it', tone: 'bg-blue/18 text-blue-hi' },
   downloading: { label: 'Downloading', tone: 'bg-blue/18 text-blue-hi' },
   ready: { label: 'Ready to watch', tone: 'bg-teal/15 text-teal-hi' },

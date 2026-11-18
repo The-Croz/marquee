@@ -1,10 +1,10 @@
 import { and, desc, eq, or } from 'drizzle-orm';
-import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle } from '@marquee/shared';
+import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle, ServiceTop } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { movies, requests, series, userPrefs, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
 import { GENRES, SERVICES, TmdbError, type TmdbApi, type TmdbCard } from '../library/tmdb.js';
-import { requestView, showCoverage, titleStates } from '../requests/service.js';
+import { prettyDate, requestView, showCoverage, titleStates } from '../requests/service.js';
 import { isKidSafe } from './kids.js';
 import { watchedTitles } from './seeds.js';
 
@@ -286,6 +286,7 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
     null,
   );
   card.genres = extras.genres.slice(0, 3);
+  card.score = extras.score;
 
   // Open requests (anyone's) decide what can still be asked for.
   const open = db.select().from(requests).where(and(eq(requests.kind, kind), eq(requests.tmdbId, tmdbId), or(eq(requests.status, 'pending'), eq(requests.status, 'approved')))).all();
@@ -303,11 +304,19 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
     }
     return { ...s, state };
   });
+  const released = !extras.releaseDate || extras.releaseDate <= today;
   let canRequest = true;
   let note: string | null = null;
   if (kind === 'movie') {
     if (st.state === 'in_library') ((canRequest = false), (note = 'Already in your library.'));
-    else if (open.length) ((canRequest = false), (note = open.some((r) => r.status === 'approved') ? 'Approved. Marquee is looking for it.' : 'Someone has already asked for it.'));
+    else if (open.length) {
+      canRequest = false;
+      note = open.some((r) => r.status === 'approved')
+        ? released
+          ? 'Approved. Marquee is looking for it.'
+          : `Approved. It comes out ${prettyDate(extras.releaseDate!)}, and Marquee will look for it then.`
+        : 'Someone has already asked for it.';
+    } else if (!released) note = `Not out yet. It comes out ${prettyDate(extras.releaseDate!)}. You can ask now; Marquee starts looking when it’s out.`;
   } else if (seasons.length && seasons.every((s) => s.state !== 'none')) {
     canRequest = false;
     note = seasons.every((s) => s.state === 'in_library') ? 'Already in your library.' : 'Every season is here or already asked for.';
@@ -324,6 +333,28 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
   const similar: DiscoverRow | null = safeRecs.length >= 2 ? { id: 'similar', title: 'More like this', subtitle: null, items: safeRecs.slice(0, ROW_MAX).map((c) => toCard(c, states.get(c.tmdbId) ?? { state: 'none', libraryId: null }, today)) } : null;
 
   return {
+    details: {
+      releaseDate: extras.releaseDate,
+      released,
+      releases: extras.releases,
+      originalTitle: extras.originalTitle && extras.originalTitle !== core.title ? extras.originalTitle : null,
+      language: extras.language,
+      status: extras.status,
+      score: extras.score,
+      votes: extras.votes,
+      directors: extras.directors,
+      writers: extras.writers,
+      studios: extras.studios,
+      networks: extras.networks,
+      countries: extras.countries,
+      budget: extras.budget,
+      revenue: extras.revenue,
+      homepage: extras.homepage,
+      seasonCount: extras.seasonCount,
+      episodeCount: extras.episodeCount,
+      lastAirDate: extras.lastAirDate,
+      nextAirDate: extras.nextAirDate,
+    },
     card,
     tagline: extras.tagline,
     runtime: extras.runtime,
@@ -340,3 +371,19 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
   };
 }
 
+
+/** The top 10 movies and shows on one service, for the row of service chips. */
+export async function serviceTop(deps: DiscoverDeps, user: User, serviceKey: string): Promise<ServiceTop> {
+  const { db, tmdb, now } = deps;
+  const service = SERVICES.find((s) => s.key === serviceKey);
+  if (!service) throw new HttpError(400, 'invalid_input', 'No such service.');
+  const today = iso(now());
+  const one = async (kind: 'movie' | 'series') => {
+    const cards = await soft(tmdb.discover(kind, { provider: service.id }), [] as TmdbCard[]);
+    const safe = (await forUser(deps, user, dedupe(cards))).filter((c) => !!c.posterPath).slice(0, 10);
+    const states = titleStates(db, kind, safe.map((c) => c.tmdbId), user.id, now());
+    return safe.map((c) => toCard(c, states.get(c.tmdbId) ?? { state: 'none', libraryId: null }, today));
+  };
+  const [movies, shows] = await Promise.all([one('movie'), one('series')]);
+  return { service: serviceKey, movies, shows };
+}
