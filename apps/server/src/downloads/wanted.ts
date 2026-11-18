@@ -50,6 +50,9 @@ export interface WantedDeps {
   now: () => number;
   /** Search as usual but send nothing and don't remember the run. */
   preview?: boolean;
+  /** Only this movie or show (by library id), for an approved request. It skips the daily limit and isn't remembered. */
+  only?: { id: number };
+  manual?: boolean;
 }
 
 /** Movies with a download on the way or waiting to go in the library are left alone. */
@@ -78,6 +81,7 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
     .where(
       and(
         eq(movies.monitored, true),
+        deps.only ? eq(movies.id, deps.only.id) : undefined,
         busy.length ? notInArray(movies.id, busy) : undefined,
         kind === 'missing' ? (withFiles.length ? notInArray(movies.id, withFiles) : undefined) : withFiles.length ? inArray(movies.id, withFiles) : sql`0`,
       ),
@@ -93,7 +97,7 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
       const found = await searchTitle({ db, sources: deps.sources, now }, { kind: 'movie', movieId: m.id });
       const pick = bestPick(found.search);
       if (pick === null) continue;
-      const copy = await deliver({ db, now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}) }, run, found.search, pick);
+      const copy = await deliver({ db, now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, found.search, pick);
       if (copy !== null) run.sent.push({ href: `/movies/${m.id}`, title: m.year ? `${m.title} (${m.year})` : m.title, copy });
     } catch (err) {
       run.problems.push(`${m.title}: ${(err as Error).message}`);
@@ -103,8 +107,8 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
 }
 
 /** Keeps the last few runs for the checklist page. */
-function save({ db, preview }: { db: Db; preview?: boolean }, run: WantedRun): WantedRun {
-  if (preview) return run;
+function save({ db, preview, manual }: { db: Db; preview?: boolean; manual?: boolean }, run: WantedRun): WantedRun {
+  if (preview || manual) return run;
   setSetting(db, LAST, JSON.stringify([run, ...lastWantedRuns(db)].slice(0, 6)));
   return run;
 }

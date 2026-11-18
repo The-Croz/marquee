@@ -22,8 +22,8 @@ import { useRules } from '../releases/choose.js';
 
 // Ratings a kid profile can see. Unrated titles are hidden from kids.
 // (Milestone 5 makes this adjustable per profile.)
-export const KID_MOVIE_RATINGS = ['G', 'PG'];
-export const KID_TV_RATINGS = ['TV-Y', 'TV-Y7', 'TV-Y7-FV', 'TV-G', 'TV-PG'];
+export { KID_MOVIE_RATINGS, KID_TV_RATINGS } from '../discover/kids.js';
+import { KID_MOVIE_RATINGS, KID_TV_RATINGS } from '../discover/kids.js';
 
 const today = () => new Date().toISOString().slice(0, 10);
 

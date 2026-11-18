@@ -44,6 +44,8 @@ export type WantedRun = WantedRunView;
 export interface DeliverDeps extends Omit<SendDeps, 'copies'> {
   /** Look and report, but send nothing. */
   preview?: boolean;
+  /** An admin asked for this one (approving a request): the daily limit doesn't apply and it isn't counted. */
+  manual?: boolean;
 }
 
 /**
@@ -52,7 +54,7 @@ export interface DeliverDeps extends Omit<SendDeps, 'copies'> {
  */
 export async function deliver(deps: DeliverDeps, run: WantedRun, search: Omit<CachedSearch, 'at'>, pick: number): Promise<string | null> {
   const { db, now } = deps;
-  const left = sendsLeft(db, now()) - (deps.preview ? run.sent.length : 0);
+  const left = deps.manual ? Infinity : sendsLeft(db, now()) - (deps.preview ? run.sent.length : 0);
   if (left <= 0) {
     if (!run.capped) {
       run.capped = true;
@@ -63,6 +65,6 @@ export async function deliver(deps: DeliverDeps, run: WantedRun, search: Omit<Ca
   }
   if (deps.preview) return search.decisions[pick]!.copy.title;
   const sent = await sendFromSearch(deps, search, pick, null, false);
-  setSetting(db, LOG, JSON.stringify([...sentToday(db, now()), now()]));
+  if (!deps.manual) setSetting(db, LOG, JSON.stringify([...sentToday(db, now()), now()]));
   return sent.download.title;
 }

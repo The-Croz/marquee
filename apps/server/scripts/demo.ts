@@ -218,6 +218,7 @@ const clients = {
     return t;
   },
   tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr,
+  push: { send: async () => {} },
   siteFetch: web.fetch,
   solver: () => solver,
   fetchCatalogue: async () => catalogue,

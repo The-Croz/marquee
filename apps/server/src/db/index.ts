@@ -334,6 +334,55 @@ const migrations: string[] = [
   UPDATE series SET monitored = 0;
   ALTER TABLE episodes ADD COLUMN monitored INTEGER NOT NULL DEFAULT 1;
   `,
+  /* 17: requests, what each person turned on or off, and notifications */ `
+  CREATE TABLE requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    poster_path TEXT,
+    seasons TEXT,
+    requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'declined')),
+    profile TEXT,
+    reason TEXT,
+    decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    decided_at INTEGER,
+    created_at INTEGER NOT NULL,
+    title_id INTEGER,
+    ready_at INTEGER
+  );
+  CREATE INDEX requests_title ON requests (kind, tmdb_id);
+  CREATE TABLE user_prefs (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    hidden_services TEXT NOT NULL DEFAULT '[]',
+    trailers INTEGER NOT NULL DEFAULT 1,
+    muted_events TEXT NOT NULL DEFAULT '[]'
+  );
+  CREATE TABLE notification_channels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('pushover', 'ntfy')),
+    name TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    events TEXT NOT NULL DEFAULT '[]',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    last_ok_at INTEGER,
+    last_error TEXT
+  );
+  CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    link TEXT,
+    created_at INTEGER NOT NULL,
+    read_at INTEGER
+  );
+  CREATE INDEX notifications_user ON notifications (user_id, created_at);
+  `,
 ];
 
 export function openDb(file: string): Db {

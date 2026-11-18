@@ -10,7 +10,8 @@ import { tmdbCache } from '../db/schema.js';
  */
 
 const API = 'https://api.themoviedb.org/3';
-const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 export interface TmdbSearchResult {
   tmdbId: number;
@@ -70,6 +71,52 @@ export interface TmdbEpisode {
   overview: string | null;
 }
 
+/** A title in a list (trending, popular, a service's catalogue, recommendations…). No rating or runtime; those come from `extras`. */
+export interface TmdbCard {
+  tmdbId: number;
+  kind: 'movie' | 'series';
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  overview: string;
+  /** TMDB's 0–10 score. */
+  score: number;
+  genreIds: number[];
+  /** Release date (movies) or first air date (shows). */
+  date: string | null;
+  popularity: number;
+}
+
+export type TmdbList = 'trending' | 'popular' | 'top_rated' | 'upcoming' | 'now_playing' | 'airing_today' | 'on_the_air';
+
+export interface TmdbDiscoverQuery {
+  genre?: number;
+  /** TMDB watch-provider id (Netflix = 8…), US flat-rate catalogue. */
+  provider?: number;
+  sort?: 'popularity.desc' | 'vote_average.desc' | 'date.desc';
+  /** Release (or first air) date range, "2026-11-18". */
+  from?: string;
+  to?: string;
+  page?: number;
+}
+
+/** What a title's page needs beyond its list card. */
+export interface TmdbExtras {
+  tagline: string | null;
+  runtime: number | null;
+  certification: string | null;
+  genres: string[];
+  /** YouTube video key of the best trailer. */
+  trailerKey: string | null;
+  cast: { name: string; character: string | null }[];
+  /** Names of US services streaming it (flat rate). */
+  providers: string[];
+  status: string | null;
+  /** Shows: real seasons (not specials) with their episode count. */
+  seasons: { season: number; episodeCount: number }[];
+}
+
 /** What the scanner and routes need. Tests provide a fake. */
 export interface TmdbApi {
   ping(): Promise<void>;
@@ -81,7 +128,40 @@ export interface TmdbApi {
   /** Looks up a show by its TheTVDB id (Sonarr's id) or an IMDb id. */
   findShow(external: { tvdbId?: number | null; imdbId?: string | null }): Promise<number | null>;
   findMovie(external: { imdbId: string }): Promise<number | null>;
+  /** Discover: charts and lists. */
+  list(kind: 'movie' | 'series', list: TmdbList): Promise<TmdbCard[]>;
+  discover(kind: 'movie' | 'series', query: TmdbDiscoverQuery): Promise<TmdbCard[]>;
+  /** "People who liked this also liked…" */
+  recommendations(kind: 'movie' | 'series', id: number): Promise<TmdbCard[]>;
+  extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras>;
 }
+
+/** TMDB's genre ids, which don't change. */
+export const GENRES: Record<'movie' | 'series', { id: number; name: string }[]> = {
+  movie: [
+    { id: 28, name: 'Action' }, { id: 12, name: 'Adventure' }, { id: 16, name: 'Animation' }, { id: 35, name: 'Comedy' }, { id: 80, name: 'Crime' },
+    { id: 99, name: 'Documentary' }, { id: 18, name: 'Drama' }, { id: 10751, name: 'Family' }, { id: 14, name: 'Fantasy' }, { id: 36, name: 'History' },
+    { id: 27, name: 'Horror' }, { id: 10402, name: 'Music' }, { id: 9648, name: 'Mystery' }, { id: 10749, name: 'Romance' }, { id: 878, name: 'Science Fiction' },
+    { id: 53, name: 'Thriller' }, { id: 10752, name: 'War' }, { id: 37, name: 'Western' },
+  ],
+  series: [
+    { id: 10759, name: 'Action & Adventure' }, { id: 16, name: 'Animation' }, { id: 35, name: 'Comedy' }, { id: 80, name: 'Crime' }, { id: 99, name: 'Documentary' },
+    { id: 18, name: 'Drama' }, { id: 10751, name: 'Family' }, { id: 10762, name: 'Kids' }, { id: 9648, name: 'Mystery' }, { id: 10764, name: 'Reality' },
+    { id: 10765, name: 'Sci-Fi & Fantasy' }, { id: 10766, name: 'Soap' }, { id: 10768, name: 'War & Politics' }, { id: 37, name: 'Western' },
+  ],
+};
+
+/** US streaming services Discover has a chip for (TMDB watch-provider ids). */
+export const SERVICES = [
+  { key: 'netflix', name: 'Netflix', id: 8 },
+  { key: 'max', name: 'Max', id: 1899 },
+  { key: 'disney', name: 'Disney+', id: 337 },
+  { key: 'apple', name: 'Apple TV+', id: 350 },
+  { key: 'prime', name: 'Prime Video', id: 9 },
+  { key: 'hulu', name: 'Hulu', id: 15 },
+  { key: 'paramount', name: 'Paramount+', id: 531 },
+  { key: 'peacock', name: 'Peacock', id: 386 },
+] as const;
 
 export class TmdbError extends Error {
   constructor(
@@ -260,4 +340,117 @@ export class TmdbClient implements TmdbApi {
     const r = await this.get<{ movie_results: { id: number }[] }>(`/find/${external.imdbId}`, { external_source: 'imdb_id' });
     return r.movie_results[0]?.id ?? null;
   }
+
+  // ---------------- Discover ----------------
+
+  private cards(kind: 'movie' | 'series', results: RawCard[]): TmdbCard[] {
+    return results
+      .filter((r) => (r.title ?? r.name) && !r.adult)
+      .map((r) => {
+        const date = (kind === 'movie' ? r.release_date : r.first_air_date) || null;
+        return {
+          tmdbId: r.id,
+          kind,
+          title: (kind === 'movie' ? r.title : r.name) ?? '',
+          year: yearOf(date),
+          posterPath: r.poster_path ?? null,
+          backdropPath: r.backdrop_path ?? null,
+          overview: r.overview ?? '',
+          score: r.vote_average ?? 0,
+          genreIds: r.genre_ids ?? [],
+          date,
+          popularity: r.popularity ?? 0,
+        };
+      });
+  }
+
+  async list(kind: 'movie' | 'series', list: TmdbList): Promise<TmdbCard[]> {
+    const base = kind === 'movie' ? '/movie' : '/tv';
+    const path = list === 'trending' ? `/trending/${kind === 'movie' ? 'movie' : 'tv'}/week` : `${base}/${list}`;
+    const r = await this.get<{ results: RawCard[] }>(path, { region: 'US', language: 'en-US' }, 6 * HOUR);
+    return this.cards(kind, r.results);
+  }
+
+  async discover(kind: 'movie' | 'series', q: TmdbDiscoverQuery): Promise<TmdbCard[]> {
+    const dateKey = kind === 'movie' ? 'primary_release_date' : 'first_air_date';
+    const sort = q.sort === 'date.desc' ? `${dateKey}.desc` : (q.sort ?? 'popularity.desc');
+    const r = await this.get<{ results: RawCard[] }>(
+      `/discover/${kind === 'movie' ? 'movie' : 'tv'}`,
+      {
+        sort_by: sort,
+        with_genres: q.genre,
+        with_watch_providers: q.provider,
+        watch_region: q.provider ? 'US' : undefined,
+        with_watch_monetization_types: q.provider ? 'flatrate' : undefined,
+        [`${dateKey}.gte`]: q.from,
+        [`${dateKey}.lte`]: q.to,
+        // Newest-first lists are mostly obscure without a vote floor.
+        'vote_count.gte': q.sort === 'vote_average.desc' ? 300 : q.sort === 'date.desc' ? 20 : undefined,
+        include_adult: 'false',
+        language: 'en-US',
+        page: q.page,
+      },
+      6 * HOUR,
+    );
+    return this.cards(kind, r.results);
+  }
+
+  async recommendations(kind: 'movie' | 'series', id: number): Promise<TmdbCard[]> {
+    const r = await this.get<{ results: RawCard[] }>(`/${kind === 'movie' ? 'movie' : 'tv'}/${id}/recommendations`, { language: 'en-US' }, DAY);
+    return this.cards(kind, r.results);
+  }
+
+  async extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras> {
+    type R = {
+      tagline?: string;
+      runtime?: number | null;
+      episode_run_time?: number[];
+      status?: string | null;
+      genres?: { name: string }[];
+      videos?: { results: { site: string; type: string; key: string; official?: boolean; iso_639_1?: string }[] };
+      credits?: { cast: { name: string; character?: string }[] };
+      'watch/providers'?: { results?: { US?: { flatrate?: { provider_name: string }[] } } };
+      release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number }[] }[] };
+      content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
+      seasons?: { season_number: number; episode_count: number }[];
+    };
+    const r = await this.get<R>(
+      `/${kind === 'movie' ? 'movie' : 'tv'}/${id}`,
+      { append_to_response: `videos,credits,watch/providers,${kind === 'movie' ? 'release_dates' : 'content_ratings'}`, include_video_language: 'en,null', language: 'en-US' },
+      DAY,
+    );
+    const trailers = (r.videos?.results ?? []).filter((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
+    const trailer = trailers.find((v) => v.type === 'Trailer' && v.official) ?? trailers.find((v) => v.type === 'Trailer') ?? trailers[0];
+    const us = r.release_dates?.results.find((x) => x.iso_3166_1 === 'US');
+    const cert =
+      kind === 'movie'
+        ? (us?.release_dates.find((d) => d.type === 3 && d.certification)?.certification ?? us?.release_dates.find((d) => d.certification)?.certification ?? null)
+        : (r.content_ratings?.results.find((x) => x.iso_3166_1 === 'US')?.rating ?? null);
+    return {
+      tagline: r.tagline || null,
+      runtime: (kind === 'movie' ? r.runtime : r.episode_run_time?.[0]) || null,
+      certification: cert,
+      genres: (r.genres ?? []).map((g) => g.name),
+      trailerKey: trailer?.key ?? null,
+      cast: (r.credits?.cast ?? []).slice(0, 8).map((c) => ({ name: c.name, character: c.character || null })),
+      providers: (r['watch/providers']?.results?.US?.flatrate ?? []).map((p) => p.provider_name),
+      status: r.status ?? null,
+      seasons: (r.seasons ?? []).filter((x) => x.season_number > 0).map((x) => ({ season: x.season_number, episodeCount: x.episode_count })),
+    };
+  }
 }
+
+type RawCard = {
+  id: number;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  overview?: string;
+  vote_average?: number;
+  genre_ids?: number[];
+  popularity?: number;
+  adult?: boolean;
+};

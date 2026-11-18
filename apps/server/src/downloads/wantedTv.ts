@@ -52,8 +52,8 @@ export function lastWantedTvRuns(db: Db): WantedRun[] {
   return JSON.parse(getSetting(db, LAST) || '[]') as WantedRun[];
 }
 
-function save({ db, preview }: { db: Db; preview?: boolean }, run: WantedRun): WantedRun {
-  if (preview) return run;
+function save({ db, preview, manual }: { db: Db; preview?: boolean; manual?: boolean }, run: WantedRun): WantedRun {
+  if (preview || manual) return run;
   setSetting(db, LAST, JSON.stringify([run, ...lastWantedTvRuns(db)].slice(0, 8)));
   return run;
 }
@@ -121,8 +121,8 @@ const newestAir = (eps: Episode[]) => eps.reduce((a, e) => (e.airDate && e.airDa
 const byWaiting = (a: Unit, b: Unit) => a.waited - b.waited || b.airDate.localeCompare(a.airDate) || a.show.id - b.show.id;
 
 /** Monitored shows' regular seasons (no specials), grouped as "series:season". */
-function watchedSeasons(db: Db): { shows: Map<number, Series>; seasons: Map<string, Episode[]> } {
-  const shows = new Map(db.select().from(series).where(eq(series.monitored, true)).all().map((s) => [s.id, s]));
+function watchedSeasons(db: Db, only?: number): { shows: Map<number, Series>; seasons: Map<string, Episode[]> } {
+  const shows = new Map(db.select().from(series).where(and(eq(series.monitored, true), only ? eq(series.id, only) : undefined)).all().map((s) => [s.id, s]));
   const seasons = new Map<string, Episode[]>();
   if (!shows.size) return { shows, seasons };
   const rows = db.select().from(episodes).where(and(inArray(episodes.seriesId, [...shows.keys()]), gt(episodes.season, 0))).all();
@@ -133,8 +133,8 @@ function watchedSeasons(db: Db): { shows: Map<number, Series>; seasons: Map<stri
   return { shows, seasons };
 }
 
-function missingUnits(db: Db, today: string, lib: Library): Unit[] {
-  const { shows, seasons } = watchedSeasons(db);
+function missingUnits(db: Db, today: string, lib: Library, only?: number): Unit[] {
+  const { shows, seasons } = watchedSeasons(db, only);
   const units: Unit[] = [];
   for (const eps of seasons.values()) {
     const show = shows.get(eps[0]!.seriesId)!;
@@ -156,7 +156,7 @@ function missingUnits(db: Db, today: string, lib: Library): Unit[] {
 
 function betterUnits(deps: WantedDeps, today: string, lib: Library): Unit[] {
   const { db, now } = deps;
-  const { shows, seasons } = watchedSeasons(db);
+  const { shows, seasons } = watchedSeasons(db, deps.only?.id);
   const units: Unit[] = [];
   for (const eps of seasons.values()) {
     const show = shows.get(eps[0]!.seriesId)!;
@@ -172,7 +172,7 @@ function betterUnits(deps: WantedDeps, today: string, lib: Library): Unit[] {
 }
 
 async function trySend(deps: WantedDeps, run: WantedRun, lib: Library, show: Series, search: Parameters<typeof deliver>[2], pick: number): Promise<void> {
-  const copy = await deliver({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}) }, run, search, pick);
+  const copy = await deliver({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, search, pick);
   if (copy === null) return;
   lib.sent(search.target);
   run.sent.push({ href: `/shows/${show.id}`, title: label(show, search.target.season!, search.target.episode), copy });
@@ -187,7 +187,7 @@ export async function lookForWantedTv(deps: WantedDeps, kind: 'missing' | 'bette
   }
   const today = isoDay(now());
   const lib = new Library(db);
-  const queue = kind === 'missing' ? missingUnits(db, today, lib) : betterUnits(deps, today, lib);
+  const queue = kind === 'missing' ? missingUnits(db, today, lib, deps.only?.id) : betterUnits(deps, today, lib);
   while (queue.length && run.searched < limit) {
     if (run.capped) break;
     const u = queue.shift()!;

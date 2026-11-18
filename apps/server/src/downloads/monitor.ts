@@ -1,3 +1,5 @@
+import { notifyAdmins, type NotifyDeps } from '../notify/service.js';
+import { markReady } from '../requests/service.js';
 import path from 'node:path';
 import { and, eq, inArray, isNotNull, isNull, or, lt } from 'drizzle-orm';
 import fs from 'node:fs/promises';
@@ -36,6 +38,8 @@ export interface MonitorDeps {
   clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin'>;
   sources: SourceService;
   now: () => number;
+  /** Tells people about finished, imported and problem downloads (and what they asked for being ready). */
+  notify?: NotifyDeps;
 }
 
 const PROGRAMS = /\.(exe|bat|cmd|scr|lnk|msi|com|vbs|ps1|jar|apk|dmg|pif)$/i;
@@ -146,7 +150,10 @@ export class DownloadMonitor {
         })
         .where(eq(downloads.id, row.id))
         .run();
-      if (done && !row.adopted) await this.putInLibrary(row.id);
+      if (done && !row.adopted) {
+        this.tell('download_finished', 'Download finished', row.title);
+        await this.putInLibrary(row.id);
+      }
       if (done || row.adopted) continue;
 
       // Fakes show in the file list as soon as qBittorrent has it.
@@ -172,6 +179,12 @@ export class DownloadMonitor {
       }
     }
     return { replaced };
+  }
+
+  /** Tells the admins (inbox and push). Never holds up the monitor. */
+  private tell(event: string, title: string, body: string, link: string | null = '/downloads'): void {
+    const n = this.deps.notify;
+    if (n) void notifyAdmins(n, event, { title, body, link }).catch((e) => console.error('[notify] failed:', (e as Error).message));
   }
 
   private row(id: number): Download {
@@ -231,9 +244,12 @@ export class DownloadMonitor {
         .where(eq(downloads.id, id))
         .run();
       const told = await this.tellServers(id);
+      this.tell('imported', 'Added to the library', r.paths.map((p) => p.split('/').at(-1)).join(', '), row.kind === 'movie' && row.movieId ? `/movies/${row.movieId}` : row.seriesId ? `/shows/${row.seriesId}` : '/downloads');
+      if (this.deps.notify) markReady({ db, notify: this.deps.notify, now });
       return { message: `In your library: ${r.paths.map((p) => p.split('/').at(-1)).join(', ')}.${told ? ` ${told}` : ''}`, next: null };
     } catch (err) {
       if (!(err instanceof ImportError) && !(err instanceof HttpError)) throw err;
+      if (!row.importError) this.tell('download_problem', 'Couldn’t put a download in the library', `${row.title}: ${err.message}`);
       db.update(downloads).set({ importError: err.message, importTriedAt: now() }).where(eq(downloads.id, id)).run();
       return { message: `Couldn't put it in your library: ${err.message}`, next: null };
     }
@@ -314,6 +330,7 @@ export class DownloadMonitor {
       .run();
     if (row.qbitState !== 'gone') await this.call(() => qbit.remove(row.infoHash, true));
     db.update(downloads).set({ state: 'failed', message: reason }).where(eq(downloads.id, id)).run();
+    this.tell('download_problem', 'Tried another copy', `${row.title}: ${reason}`);
 
     const target: SearchTarget =
       row.kind === 'movie'

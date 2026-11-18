@@ -15,6 +15,7 @@ import type { QbitApi } from './downloads/qbittorrent.js';
 import type { FetchedTorrent } from './downloads/torrent.js';
 import type { CopyCache } from './downloads/cache.js';
 import type { MediaServerApi } from './library/mediaServers.js';
+import type { PushClient } from './notify/push.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
@@ -31,6 +32,8 @@ export interface Clients extends SourceClients {
   /** A Plex Media Server, to ask for scans. */
   plexServer(url: string, token: string): MediaServerApi;
   jellyfin(url: string, apiKey: string): MediaServerApi;
+  /** Pushover and ntfy. */
+  push: PushClient;
 }
 
 export interface Deps {

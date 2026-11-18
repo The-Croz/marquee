@@ -406,3 +406,62 @@ export type MediaFile = typeof mediaFiles.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Source = typeof sources.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
+
+export const requests = sqliteTable('requests', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+  tmdbId: integer('tmdb_id').notNull(),
+  title: text('title').notNull(),
+  year: integer('year'),
+  posterPath: text('poster_path'),
+  /** JSON number[]; null means the whole show (or a movie). */
+  seasons: text('seasons'),
+  requestedBy: integer('requested_by').references(() => users.id, { onDelete: 'set null' }),
+  status: text('status', { enum: ['pending', 'approved', 'declined'] }).notNull().default('pending'),
+  /** The profile the admin picked when approving; null = the rules decide. */
+  profile: text('profile'),
+  reason: text('reason'),
+  decidedBy: integer('decided_by').references(() => users.id, { onDelete: 'set null' }),
+  decidedAt: integer('decided_at'),
+  createdAt: integer('created_at').notNull(),
+  /** The movie or show in the library, once approved. */
+  titleId: integer('title_id'),
+  /** When it first reached the library (the requester is told once). */
+  readyAt: integer('ready_at'),
+});
+export type RequestRow = typeof requests.$inferSelect;
+
+export const userPrefs = sqliteTable('user_prefs', {
+  userId: integer('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  /** JSON string[] of service keys. */
+  hiddenServices: text('hidden_services').notNull().default('[]'),
+  trailers: integer('trailers', { mode: 'boolean' }).notNull().default(true),
+  /** JSON string[] of notification event keys this person turned off. */
+  mutedEvents: text('muted_events').notNull().default('[]'),
+});
+
+export const notificationChannels = sqliteTable('notification_channels', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['pushover', 'ntfy'] }).notNull(),
+  name: text('name').notNull(),
+  /** JSON; holds secrets, never sent back. */
+  config: text('config').notNull().default('{}'),
+  /** JSON string[] of event keys sent to admins on this channel. */
+  events: text('events').notNull().default('[]'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull(),
+  lastOkAt: integer('last_ok_at'),
+  lastError: text('last_error'),
+});
+export type NotificationChannel = typeof notificationChannels.$inferSelect;
+
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  event: text('event').notNull(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  link: text('link'),
+  createdAt: integer('created_at').notNull(),
+  readAt: integer('read_at'),
+});

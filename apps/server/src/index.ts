@@ -1,3 +1,5 @@
+import { markReady } from './requests/service.js';
+import { HttpPushClient } from './notify/push.js';
 import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { loadConfig } from './config.js';
@@ -39,6 +41,7 @@ const clients = {
   fetchTorrent: (url: string, headers?: Record<string, string>) => fetchTorrent(url, fetch, 30_000, headers),
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
+  push: new HttpPushClient(),
   siteFetch: realSiteFetch,
   solver: (url: string) => new FlareSolverrClient(url),
   fetchCatalogue: async () => {
@@ -102,10 +105,13 @@ setInterval(() => {
 }, 60 * 60 * 1000).unref();
 
 // Downloads: follow qBittorrent every minute; stuck or fake downloads get another copy.
-const downloads = sharedMonitor({ db, clients, sources, now: Date.now });
+const downloads = sharedMonitor({ db, clients, sources, now: Date.now, notify: { db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null } });
 setInterval(() => {
   downloads.check().then(
-    (r) => r.replaced && console.log(`[downloads] tried another copy for ${r.replaced}`),
+    (r) => {
+      markReady({ db, notify: { db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }, now: Date.now });
+      if (r.replaced) console.log(`[downloads] tried another copy for ${r.replaced}`);
+    },
     (err) => console.error('[downloads] check failed:', (err as Error).message),
   );
 }, 60 * 1000).unref();
