@@ -74,8 +74,11 @@ export class QbitClient implements QbitApi {
     if (res.status === 403) throw new QbitError('banned', 'qBittorrent has blocked Marquee for a while after too many wrong passwords.');
     if (res.status === 404) throw new QbitError('not_qbittorrent', `${this.base} answers, but it isn't qBittorrent's web page.`);
     const text = (await res.text()).trim();
+    // Older versions answer 200 "Fails."; 5.2+ may answer 401.
+    if (res.status === 401 || text === 'Fails.') throw new QbitError('password_refused', 'qBittorrent turned down the username or password.');
     if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status} when signing in.`);
-    if (text !== 'Ok.') throw new QbitError('password_refused', 'qBittorrent turned down the username or password.');
+    // Success is 200 "Ok." before qBittorrent 5.2, and 204 with no body from 5.2 on.
+    if (text !== 'Ok.' && res.status !== 204 && text !== '') throw new QbitError('not_qbittorrent', `${this.base} answers, but not like qBittorrent does.`);
     const set = res.headers.get('set-cookie');
     // The cookie is SID, or QBT_SID_<port> on newer versions; keep whichever came.
     this.cookie = set ? set.split(';')[0]! : null;

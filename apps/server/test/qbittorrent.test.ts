@@ -5,7 +5,7 @@ import { FakeQbit } from './fakes/qbittorrent.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
 /** Speaks just enough of qBittorrent's Web API v2 over a fake fetch. */
-function fakeServer(opts: { password?: string; bypass?: boolean; banned?: boolean; connection?: string; api?: string; notQbit?: boolean; down?: boolean } = {}) {
+function fakeServer(opts: { modern?: boolean; password?: string; bypass?: boolean; banned?: boolean; connection?: string; api?: string; notQbit?: boolean; down?: boolean } = {}) {
   const seen: { path: string; method: string; cookie: string | null; referer: string | null; body: string | null }[] = [];
   const impl = (async (input: string | URL, init: RequestInit = {}) => {
     const u = new URL(String(input));
@@ -18,7 +18,13 @@ function fakeServer(opts: { password?: string; bypass?: boolean; banned?: boolea
     if (p === '/auth/login') {
       if (opts.banned) return new Response('Your IP address has been banned', { status: 403 });
       const f = new URLSearchParams(body ?? '');
-      if (f.get('username') === 'admin' && f.get('password') === (opts.password ?? 'secret')) return new Response('Ok.', { headers: { 'set-cookie': 'QBT_SID_8080=abc123; HttpOnly; path=/' } });
+      const good = f.get('username') === 'admin' && f.get('password') === (opts.password ?? 'secret');
+      if (opts.modern) {
+        // qBittorrent 5.2: 204 with no body on success, 401 on a wrong password.
+        if (good) return new Response(null, { status: 204, headers: { 'set-cookie': 'QBT_SID_8080=abc123; HttpOnly; path=/' } });
+        return new Response('Fails.', { status: 401 });
+      }
+      if (good) return new Response('Ok.', { headers: { 'set-cookie': 'QBT_SID_8080=abc123; HttpOnly; path=/' } });
       return new Response('Fails.');
     }
     if (!opts.bypass && h.get('cookie') !== 'QBT_SID_8080=abc123') return new Response('Forbidden', { status: 403 });
@@ -56,6 +62,14 @@ describe('qBittorrent client', () => {
     expect(f.seen.at(-1)!.cookie).toBe('QBT_SID_8080=abc123');
     // Read-only: nothing but the sign-in is a write.
     expect(f.seen.filter((r) => r.method !== 'GET').map((r) => r.path)).toEqual(['/api/v2/auth/login']);
+  });
+
+  it('signs in to qBittorrent 5.2, which answers 204 with no body', async () => {
+    const f = fakeServer({ modern: true });
+    expect((await client(f).status()).version).toBe('5.0.4');
+    expect(f.seen.at(-1)!.cookie).toBe('QBT_SID_8080=abc123');
+    const wrong = await client(fakeServer({ modern: true }), 'nope').status().catch((e) => e);
+    expect(wrong.kind).toBe('password_refused');
   });
 
   it('skips signing in when qBittorrent lets this address in without one', async () => {
