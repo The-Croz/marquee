@@ -67,7 +67,7 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - Presets seeded on first run (once; deleting one doesn't bring it back), each for movies and for TV, resettable to TRaSH's values (the name you gave it is kept):
      - **Cinema**: movies = TRaSH *UHD Bluray + WEB* plus *HD Bluray + WEB*'s rules, taking Blu-ray/WEB 2160p, then Blu-ray/WEB 1080p; TV = *WEB-2160p* with WEB 1080p fallback. Remuxes and full discs refused.
      - **Everyday HD**: movies = *HD Bluray + WEB* (Blu-ray 1080p, WEB 1080p, Blu-ray 720p); TV = *WEB-1080p* plus Blu-ray 1080p.
-     - **Kids & Cartoons**: 720p Blu-ray/WEB first, then a 1080p web copy only if it's at most 40 MB a minute (movies, about 3.6 GB for 90 minutes) or 50 MB a minute (TV). *HD* rules (so the same "never" rules: low-quality groups, full discs, upscales, x265 at HD). **Josh to confirm** this fallback.
+     - **Kids & Cartoons**: 720p Blu-ray/WEB first, then a 1080p web copy only if it's at most 40 MB a minute (movies, about 3.6 GB for 90 minutes) or 50 MB a minute (TV). *HD* rules (so the same "never" rules: low-quality groups, full discs, upscales, x265 at HD). Confirmed by Josh.
      - Each preset also carries TRaSH's opt-in rules, switched off, so they can be turned on from the screen.
    - API (admin): `GET/POST /api/settings/profiles` (new = copy of another, or of Everyday HD), `GET/PATCH/DELETE /api/settings/profiles/:id`, `POST …/:id/reset`, `PUT …/defaults` (new movies, new shows, kids' requests), `PUT /api/movies/:id/profile` and `/api/shows/:id/profile`. Delete is refused while a title uses it or it's a default, with the count and what to do. Edits are checked: every quality has one place, at least one is on, "good enough" is on, sizes in order, rules known. New titles from the scanner get the library's default.
    - `decide(wanted, copies, profile)`: merges the same torrent from several Sources by info-hash (keeps the most people sharing, lists every Source), then turns copies down with plain reasons: wrong title (or a Source ID for another title), wrong year (±1), a TV episode when looking for a movie, wrong season/episode, a season pack for a one-episode search, no episode in the name, sample, quality not in the profile, too small/too big for the runtime (TRaSH's MB-per-minute sizes; skipped when the runtime is unknown; season packs sized by episode count), nobody sharing, a "never" rule (-10000), points below the minimum.
@@ -219,7 +219,13 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
    - The pass (cookies and browser name) is kept per Source and reused until a bot check comes back. A solver that fails, or gets the check again, says so.
    - CI's container smoke test turns it on and checks it answers inside the image.
    - Kept up to date by `.github/workflows/flaresolverr.yml`: every Monday it checks for a new FlareSolverr release and opens a PR bumping the version and checksum, then runs the container test on it. Merge when green.
-4. ⬜ **Josh, on the LAN**: Settings → Sources → Bring sites over; type IPTorrents' cookie and user agent; turn on Solve bot checks and press Try now on EZTV and 1337x. When every Source shows Working and searches look right for a week, stop Prowlarr.
+4. ✅ **Josh, on the LAN**: all Sources are set up inside Marquee (sites brought over, IPTorrents, bot-check solving working, including the sites that need it). Working so far; Prowlarr stops after a week of good searches.
+
+5. ⬜ **Wanted / not wanted** (blocks turning on "look for wanted movies/episodes")
+   - Josh switched over but has **not** turned on the automatic looking, because Marquee has no way to say which titles are wanted. Turning it on today would mean it goes after every monitored movie and show and grabs a ton of media. It must stay off until this is built.
+   - Needed: a plain per-title choice, **Wanted / Not wanted**, on movie and show pages and in bulk from the Movies and Shows lists. Shows get it per season and episode too (the "not done" item from TV PR 1). New titles default to **Not wanted** unless you pick otherwise (a request, or "Add and look for it"). Existing library titles start as **Not wanted** so nothing happens by surprise.
+   - The wanted jobs only touch wanted titles; the switch-over pages say how many titles are wanted and what the jobs would look for, with a "preview, send nothing" run before the switch can go on.
+   - Probably also a cap on how many copies get sent per day.
 
 Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
 
