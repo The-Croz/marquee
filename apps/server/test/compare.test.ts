@@ -59,10 +59,10 @@ describe('comparison mode', () => {
     expect(t.radarr.asked[0]).toBe(NOW - 30 * DAY);
     const v = res.body.view as CompareView;
 
-    expect(byTitle(v, FLUX)).toMatchObject({ status: 'done', verdict: 'same', summary: 'Both picked the same copy.', mode: 'own_search', profileName: 'Cinema' });
+    expect(byTitle(v, FLUX)).toMatchObject({ status: 'done', verdict: 'same', summary: 'Both picked the same copy.', mode: 'own_search', profileName: '4K Quality' });
     const remux = byTitle(v, REMUX);
     expect(remux.verdict).toBe('lower');
-    expect(remux.summary).toMatch(/^Marquee picks 4K web download; Radarr took 4K Blu-ray remux\. Cinema would turn Radarr’s down: 4K Blu-ray remux isn't one of the qualities/);
+    expect(remux.summary).toMatch(/^Marquee picks 4K web download; Radarr took 4K Blu-ray remux. 4K Quality would turn Radarr’s down: 4K Blu-ray remux isn't one of the qualities/);
     expect(remux.marqueeCopy!.title).toBe(FLUX);
     expect(remux.radarrCopy!.accepted).toBe(false);
     expect(byTitle(v, 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-OTHER').verdict).toBe('same_quality');

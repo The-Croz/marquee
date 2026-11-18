@@ -80,7 +80,7 @@ describe('decide: picking the best copy', () => {
     expect(codes(decide(dune, [uhd], profile('movie', 'everyday-hd'))[0]!)).toContain('quality');
     const remux = decide(dune, [copy('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { size: 70 * GB })], profile('movie', 'cinema'))[0]!;
     expect(remux.accepted).toBe(false);
-    expect(remux.rejections.find((r) => r.code === 'quality')!.message).toMatch(/4K Blu-ray remux isn't one of the qualities Cinema takes/);
+    expect(remux.rejections.find((r) => r.code === 'quality')!.message).toMatch(/4K Blu-ray remux isn't one of the qualities 4K Quality takes/);
     const disc = decide(dune, [copy('Dune.Part.Two.2024.COMPLETE.UHD.BLURAY-SURCODE', { size: 80 * GB })], profile('movie', 'cinema'))[0]!;
     expect(disc.accepted).toBe(false);
   });

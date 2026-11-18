@@ -17,12 +17,14 @@ import { profileRoutes } from './routes/profiles.js';
 import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { compareRoutes } from './routes/compare.js';
 import { seedProfiles } from './releases/profiles.js';
+import { seedChoices } from './releases/choose.js';
 
 import { VERSION } from './version.js';
 
 export function createApp(deps: Deps) {
   const app = new Hono<Env>();
   seedProfiles(deps.db, deps.now());
+  seedChoices(deps.db);
 
   app.use(
     '*',

@@ -34,7 +34,7 @@ describe('Copies we found', () => {
     const res = await call(t.app, 'POST', `/api/movies/${t.movie.id}/search`, {}, t.cookie);
     expect(res.status).toBe(200);
     const body = res.body as CopiesResult;
-    expect(body.profile.name).toBe('Cinema');
+    expect(body.profile.name).toBe('4K Quality');
     expect(body.sources.map((s) => s.status)).toEqual(['searched', 'searched']);
     expect(body.copies).toHaveLength(3);
     expect(body.copies[0]).toMatchObject({ title: best, accepted: true, seeders: 90, qualityLabel: '4K web download' });
@@ -42,7 +42,7 @@ describe('Copies we found', () => {
     expect(body.copies[0]!.details).toMatchObject({ resolution: 2160, group: 'FLUX', atmos: true });
     const remux = body.copies.find((c) => c.title.includes('REMUX'))!;
     expect(remux.accepted).toBe(false);
-    expect(remux.rejections[0]!.message).toMatch(/isn't one of the qualities Cinema takes/);
+    expect(remux.rejections[0]!.message).toMatch(/isn't one of the qualities 4K Quality takes/);
     expect(JSON.stringify(body)).not.toMatch(/apikey|SECRET|download\?/);
     // Searched by ID.
     expect(t.sites.feeds.get('http://tpb.test/api')!.searches!.at(-1)).toMatchObject({ kind: 'movie', tmdbId: 693134 });

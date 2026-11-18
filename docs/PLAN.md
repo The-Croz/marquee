@@ -88,6 +88,13 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - Tests: `test/compare.test.ts` with a fake Radarr (`test/fakes/radarr.ts`), also used by demo mode.
    - **Needs Josh on the LAN:** connect Radarr in Settings → Services, turn on "Check every hour" and let it run for a while. Josh's Radarr profiles come from Profilarr, not TRaSH, so some disagreement is expected; that's what the review is for.
 
+7. ✅ **Which profile a title gets** (after M2 review)
+   - The Cinema preset is now called **4K Quality** (renamed once on existing installs unless you'd renamed it; its key stays `cinema`).
+   - Migration 6: `profile_choices` (rules: any of these TMDB genres and any of these US ratings → a profile; checked in order, first match wins, else the library default) and `profile_by_hand` on movies and shows. Picked by what kind of title it is, never by who asked for it.
+   - Starting rules. Movies: Animation or Family rated G/PG → Kids & Cartoons; Documentary → Everyday HD; everything else → 4K Quality. TV: Kids → Kids & Cartoons; rated TV-Y/TV-Y7/TV-G → Kids & Cartoons; Reality, Talk, News, Soap or Documentary → Everyday HD; everything else → 4K Quality.
+   - New titles from the scanner use the rules. A profile picked on a title's page is "by hand" and never changed by the rules; "Let the rules pick" hands it back.
+   - Quality page: "Which profile a new movie/show gets" card to add, edit, reorder and remove rules and set "everything else"; **Sort my library by these rules…** previews every change before moving anything.
+
 ### Ideas from HolyArrs to reuse later (ideas only; it's AGPL)
 
 - Glossary with an "older apps call it" column, and a test that keeps arr jargon off screens (done in PR 1).

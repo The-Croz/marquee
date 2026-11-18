@@ -10,6 +10,8 @@ import { Button, Card, Notice, cx } from './ui';
  * Marquee would pick and why. Admin only. Nothing is downloaded yet.
  */
 
+/** The profile picker's "let the rules pick" choice. */
+const RULES = '__rules';
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong.');
 const points = (n: number) => (n > 0 ? `+${n.toLocaleString()}` : n.toLocaleString().replace('-', '−'));
 
@@ -102,11 +104,13 @@ export interface CopiesProps {
   kind: ProfileKind;
   titleId: number;
   profile: string;
+  /** You picked the profile; otherwise the profile rules did. */
+  byHand: boolean;
   /** Shows: seasons with their episode numbers. */
   seasons?: { season: number; episodes: number[] }[];
 }
 
-export function CopiesPanel({ kind, titleId, profile, seasons }: CopiesProps) {
+export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesProps) {
   const base = kind === 'movie' ? `/movies/${titleId}` : `/shows/${titleId}`;
   const firstSeason = seasons?.find((s) => s.season > 0) ?? seasons?.[0];
   const [season, setSeason] = useState(firstSeason?.season ?? 1);
@@ -119,7 +123,7 @@ export function CopiesPanel({ kind, titleId, profile, seasons }: CopiesProps) {
     mutationFn: () => api<CopiesResult>(`${base}/search`, { body: kind === 'tv' ? { season, ...(episode === 'all' ? {} : { episode }) } : {} }),
   });
   const change = useMutation({
-    mutationFn: (key: string) => api(`${base}/profile`, { method: 'PUT', body: { profile: key } }),
+    mutationFn: (key: string) => api(`${base}/profile`, { method: 'PUT', body: { profile: key === RULES ? null : key } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['library'] });
       await queryClient.invalidateQueries({ queryKey: ['profiles'] });
@@ -151,12 +155,14 @@ export function CopiesPanel({ kind, titleId, profile, seasons }: CopiesProps) {
               className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text"
             >
               {!mine.some((p) => p.key === profile) && <option value={profile}>{profile}</option>}
+              {byHand && <option value={RULES}>Let the rules pick</option>}
               {mine.map((p) => (
                 <option key={p.key} value={p.key}>
                   {p.name}
                 </option>
               ))}
             </select>
+            <span className="text-xs text-dim">{byHand ? 'You picked it' : 'Picked by the rules'}</span>
           </label>
           {kind === 'tv' && seasons && (
             <>

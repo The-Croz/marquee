@@ -187,7 +187,7 @@ const kidsSizes = (kind: Kind): Record<string, SizeLimit> => {
   return out;
 };
 
-const CINEMA = { name: 'Cinema', description: '4K with HDR and Dolby Vision at sensible sizes. Takes 1080p until a 4K copy turns up. Skips remuxes and full discs.' };
+const CINEMA = { name: '4K Quality', description: '4K with HDR and Dolby Vision at sensible sizes. Takes 1080p until a 4K copy turns up. Skips remuxes and full discs.' };
 const EVERYDAY = { name: 'Everyday HD', description: 'Good 1080p copies from Blu-ray or streaming services.' };
 const KIDS = { name: 'Kids & Cartoons', description: '720p is plenty for cartoons and saves space. Takes a small 1080p web copy when there’s no 720p.' };
 
@@ -201,6 +201,7 @@ export const PRESETS: Preset[] = [
 ];
 
 const SEEDED = 'profiles.seeded';
+const RENAMED_4K = 'profiles.renamed_4k';
 export const DEFAULT_KEYS = { movie: 'profiles.default.movie', tv: 'profiles.default.tv', kids: 'profiles.default.kids' } as const;
 export type DefaultSlot = keyof typeof DEFAULT_KEYS;
 const FALLBACK: Record<DefaultSlot, string> = { movie: 'cinema', tv: 'cinema', kids: 'kids' };
@@ -212,6 +213,11 @@ export function defaultProfileKey(db: Db, kind: Kind): string {
 
 /** Adds the presets the first time Marquee runs. Deleting one later doesn't bring it back. */
 export function seedProfiles(db: Db, now: number): void {
+  // The Cinema preset is now called 4K Quality; rename it once unless you've renamed it yourself.
+  if (!getSetting(db, RENAMED_4K)) {
+    db.update(schema.profiles).set({ name: CINEMA.name }).where(and(eq(schema.profiles.preset, 'cinema'), eq(schema.profiles.name, 'Cinema'))).run();
+    setSetting(db, RENAMED_4K, '1');
+  }
   if (getSetting(db, SEEDED)) return;
   db.transaction(() => {
     for (const p of PRESETS) {
@@ -395,7 +401,8 @@ export class ProfileService {
     const found = this.db.select({ id: schema.profiles.id }).from(schema.profiles).where(and(eq(schema.profiles.kind, kind), eq(schema.profiles.key, key))).get();
     if (!found) throw new HttpError(400, 'invalid_input', 'No such profile.');
     const table = kind === 'movie' ? schema.movies : schema.series;
-    const res = this.db.update(table).set({ profile: key }).where(eq(table.id, titleId)).run();
+    // Picked by hand: the profile rules never change it after this.
+    const res = this.db.update(table).set({ profile: key, profileByHand: true }).where(eq(table.id, titleId)).run();
     if (res.changes === 0) throw new HttpError(404, 'not_found', kind === 'movie' ? 'No such movie.' : 'No such show.');
   }
 

@@ -66,6 +66,8 @@ export const movies = sqliteTable('movies', {
   path: text('path').unique(),
   monitored: integer('monitored', { mode: 'boolean' }).notNull().default(true),
   profile: text('profile').notNull().default('cinema'),
+  /** You picked the profile yourself, so the profile rules leave it alone. */
+  profileByHand: integer('profile_by_hand', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull(),
   refreshedAt: integer('refreshed_at').notNull(),
 });
@@ -88,6 +90,8 @@ export const series = sqliteTable('series', {
   path: text('path').unique(),
   monitored: integer('monitored', { mode: 'boolean' }).notNull().default(true),
   profile: text('profile').notNull().default('cinema'),
+  /** You picked the profile yourself, so the profile rules leave it alone. */
+  profileByHand: integer('profile_by_hand', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull(),
   refreshedAt: integer('refreshed_at').notNull(),
 });
@@ -219,6 +223,22 @@ export const profiles = sqliteTable(
   },
   (t) => [uniqueIndex('profiles_kind_key').on(t.kind, t.key)],
 );
+
+/**
+ * Which profile a new title gets: checked in order, first match wins, else
+ * the library's default. A rule matches when the title has any of its genres
+ * (or it lists none) and any of its age ratings (or it lists none).
+ */
+export const profileChoices = sqliteTable('profile_choices', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+  position: integer('position').notNull(),
+  profile: text('profile').notNull(),
+  /** JSON string[]: TMDB genre names. */
+  genres: text('genres').notNull().default('[]'),
+  /** JSON string[]: US age ratings. */
+  ratings: text('ratings').notNull().default('[]'),
+});
 
 /** The TRaSH rules a profile scores, and how many points each is worth. */
 export const profileRules = sqliteTable(

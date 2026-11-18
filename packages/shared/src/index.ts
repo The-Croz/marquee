@@ -234,6 +234,8 @@ export interface MovieDetail {
   path: string | null;
   monitored: boolean;
   profile: string;
+  /** You picked the profile yourself; the profile rules leave it alone. */
+  profileByHand: boolean;
   addedAt: number;
   files: MediaFileView[];
 }
@@ -270,6 +272,8 @@ export interface ShowDetail {
   path: string | null;
   monitored: boolean;
   profile: string;
+  /** You picked the profile yourself; the profile rules leave it alone. */
+  profileByHand: boolean;
   addedAt: number;
   sizeBytes: number;
   seasons: SeasonView[];
@@ -465,4 +469,29 @@ export interface CompareView {
   /** Share of compared downloads where both picked the same quality or copy, 0–100; null before any. */
   agreement: number | null;
   items: ComparisonView[];
+}
+
+// ---------------------------------------------------------------- which profile a title gets
+
+export interface ProfileChoiceView {
+  profile: string;
+  genres: string[];
+  ratings: string[];
+}
+
+export interface ProfileChoicesView {
+  /** Checked in order, first match wins; otherwise the library's default. */
+  rules: Record<ProfileKind, ProfileChoiceView[]>;
+  genres: Record<ProfileKind, string[]>;
+  ratings: Record<ProfileKind, string[]>;
+}
+
+export interface ProfileChangeView {
+  id: number;
+  title: string;
+  year: number | null;
+  from: string;
+  to: string;
+  /** Rule number that picked it, or null for the library default. */
+  rule: number | null;
 }
