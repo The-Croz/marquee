@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import type { CutoverView, LibraryCard, ShowDetail, WantedRunView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
@@ -179,5 +180,15 @@ describe('Preview and the daily limit', () => {
     v = (await call(t.app, 'GET', '/api/cutover', undefined, t.cookie)).body as CutoverView;
     expect(v).toMatchObject({ wantedTitles: 1, sentToday: 1 });
     expect(v.steps.find((s) => s.key === 'take_over')!.detail).toMatch(/1 movie is Wanted/);
+  });
+});
+
+describe('Movies that aren’t out yet', () => {
+  it('are left alone until their release date, and requests say so', async () => {
+    const t = await setup();
+    t.db.update(schema.movies).set({ releaseDate: '2026-12-20', monitored: true }).where(eq(schema.movies.id, t.up.id)).run();
+    expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(0);
+    t.later(40 * 86_400_000);
+    expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(1);
   });
 });

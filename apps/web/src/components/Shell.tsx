@@ -29,7 +29,7 @@ const NAV: NavItem[] = [
   { to: '/settings/account', label: 'Settings', icon: 'settings' },
 ];
 
-export function Shell({ user, version }: { user: SessionUser; version: string }) {
+export function Shell({ user }: { user: SessionUser; version?: string }) {
   const navigate = useNavigate();
   const { data: summary } = useQuery({ queryKey: ['requests', 'summary'], queryFn: () => api<{ pending: number }>('/requests/summary'), refetchInterval: 30_000, enabled: user.role === 'admin' });
   const items = NAV.filter((n) => (!n.adminOnly || user.role === 'admin') && (!n.hideForKids || user.role !== 'kid'));
@@ -58,8 +58,8 @@ export function Shell({ user, version }: { user: SessionUser; version: string })
         <div className="flex items-center gap-2.5 px-3 pb-3 md:pb-6">
           <span className="size-2.5 rounded-full bg-amber" aria-hidden="true" />
           <span className="flex-1 font-display text-[30px] leading-none">Marquee</span>
+          <Bell />
           <span className="flex items-center gap-1 md:hidden">
-            <Bell />
             {avatar}
             {signOutButton}
           </span>
@@ -98,10 +98,8 @@ export function Shell({ user, version }: { user: SessionUser; version: string })
             <div className="truncate text-sm font-semibold">{user.displayName}</div>
             <div className="text-xs text-dim capitalize">{user.role}</div>
           </div>
-          <Bell up />
           {signOutButton}
         </div>
-        <div className="hidden px-3 pt-3 font-mono text-[11px] text-dim md:block">Marquee {version}</div>
       </nav>
 
       <main className="box-border flex min-w-0 flex-1 flex-col gap-8 px-5 pt-4 pb-16 sm:px-10 md:pt-7">

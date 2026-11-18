@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { CardState, DiscoverCard, DiscoverRow, DiscoverTitle } from '@marquee/shared';
@@ -6,9 +7,8 @@ import { api, ApiFailure, queryClient } from '../api';
 import { Poster, tmdbImage } from './Poster';
 import { Button, cx } from './ui';
 
-/** Where a card goes: the library page when it's there, else its Discover page. */
-export const cardHref = (c: Pick<DiscoverCard, 'kind' | 'tmdbId' | 'libraryId' | 'state'>) =>
-  c.libraryId !== null && c.state === 'in_library' ? `/${c.kind === 'movie' ? 'movies' : 'shows'}/${c.libraryId}` : `/discover/${c.kind}/${c.tmdbId}`;
+/** Where a card goes: the title's page (which links to the library copy when there is one). */
+export const cardHref = (c: Pick<DiscoverCard, 'kind' | 'tmdbId'>) => `/discover/${c.kind}/${c.tmdbId}`;
 
 export const STATE_LABEL: Record<CardState, string | null> = {
   in_library: 'In your library',
@@ -73,42 +73,104 @@ export function Trailer({ videoKey, autoplay = true, muted = false, className }:
   );
 }
 
-/** One cover with its state. Rest on it (or tab to it) for more, and after a moment a trailer plays. */
+/** Where the preview sits: over the cover and rising above it, kept on screen. */
+function previewPosition(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  const w = 320;
+  const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+  const top = Math.max(8, Math.min(r.top - 150, window.innerHeight - 400));
+  return { left, top, width: w };
+}
+
+/** The bigger preview that rises above a cover after you rest on it: the trailer, then a little about it. Clicking anywhere on it opens the title. */
+function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard; videoKey: string; pos: { left: number; top: number; width: number }; onEnter: () => void; onLeave: () => void }) {
+  const { ask, busy, message } = useRequest();
+  const canAsk = card.state === 'none' || card.state === 'declined';
+  return createPortal(
+    <div
+      role="dialog"
+      aria-label={`Preview of ${card.title}`}
+      style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, zIndex: 60 }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      className="overflow-hidden rounded-2xl border border-line-strong bg-panel shadow-[0_20px_60px_rgba(0,0,0,.7)]"
+    >
+      <div className="relative">
+        <Trailer videoKey={videoKey} muted className="pointer-events-none !rounded-none" />
+        <Link to={cardHref(card)} aria-label={`Open ${card.title}`} className="absolute inset-0" />
+      </div>
+      <div className="flex flex-col gap-2 p-4">
+        <Link to={cardHref(card)} className="font-display text-[22px] leading-tight text-text no-underline hover:text-amber">
+          {card.title}
+        </Link>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-soft">
+          {card.score !== null && <span className="font-semibold text-amber-hi">★ {card.score.toFixed(1)}</span>}
+          {card.year && <span>{card.year}</span>}
+          {card.genres.length > 0 && <span>{card.genres.slice(0, 3).join(' · ')}</span>}
+        </div>
+        <p className="m-0 line-clamp-3 text-[13px] leading-snug text-muted">{card.overview}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {canAsk ? (
+            <button type="button" onClick={() => ask(card)} disabled={busy !== null} className="h-11 rounded-lg bg-amber px-4 text-sm font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60">
+              {busy === card.tmdbId ? 'Asking…' : 'Request'}
+            </button>
+          ) : (
+            <StateBadge state={card.state} className="px-2.5 py-1" />
+          )}
+          <Link to={cardHref(card)} className="flex min-h-11 items-center text-sm font-semibold">
+            More info →
+          </Link>
+        </div>
+        {message && <span className="text-xs text-warn">{message}</span>}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** One cover with its state. Rest on it for a little about it; rest a couple of seconds more and the trailer rises above it. Clicking the cover or the trailer opens the title. */
 export function TitleCard({ card, trailers = true, className }: { card: DiscoverCard; trailers?: boolean; className?: string }) {
   const { ask, busy, message } = useRequest();
-  const [wanted, setWanted] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const closer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
   const q = useQuery({
-    queryKey: ['discover', 'title', card.kind, card.tmdbId],
+    queryKey: ['discover', 'title', card.kind, String(card.tmdbId)],
     queryFn: () => api<DiscoverTitle>(`/discover/title/${card.kind}/${card.tmdbId}`),
-    enabled: wanted && trailers,
+    enabled: hovered && trailers,
     staleTime: 10 * 60_000,
   });
-  const key = q.data?.trailerKey;
-  const [play, setPlay] = useState(false);
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const key = q.data?.trailerKey ?? null;
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      clearTimeout(closer.current);
+    },
+    [],
+  );
 
   const enter = () => {
+    clearTimeout(closer.current);
     if (!trailers || reducedMotion() || !canHover()) return;
-    timer.current = setTimeout(() => setWanted(true), 700);
+    setHovered(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => ref.current && setPos(previewPosition(ref.current)), 2000);
   };
   const leave = () => {
     clearTimeout(timer.current);
-    setWanted(false);
-    setPlay(false);
+    clearTimeout(closer.current);
+    // A moment's grace so the pointer can travel onto the preview.
+    closer.current = setTimeout(() => {
+      setHovered(false);
+      setPos(null);
+    }, 250);
   };
-  useEffect(() => {
-    if (wanted && key) setPlay(true);
-  }, [wanted, key]);
 
   const canAsk = card.state === 'none' || card.state === 'declined';
   return (
-    <div
-      className={cx('group relative flex w-[160px] flex-none snap-start flex-col gap-2', className)}
-      onMouseEnter={enter}
-      onMouseLeave={leave}
-      onFocus={() => undefined}
-    >
+    <div ref={ref} className={cx('group relative flex w-[160px] flex-none snap-start flex-col gap-2', className)} onMouseEnter={enter} onMouseLeave={leave}>
       <Link to={cardHref(card)} className="flex flex-col gap-2 text-text no-underline hover:text-text" aria-label={`${card.title}${card.year ? `, ${card.year}` : ''}`}>
         <div className="relative">
           <Poster title={card.title} path={card.posterPath} className="transition duration-200 group-hover:ring-2 group-hover:ring-amber group-focus-within:ring-2 group-focus-within:ring-amber" />
@@ -124,36 +186,32 @@ export function TitleCard({ card, trailers = true, className }: { card: Discover
         </div>
       </Link>
 
-      {/* More about it, over the cover, on hover or keyboard focus. */}
-      <div
-        className={cx(
-          'pointer-events-none absolute inset-x-0 top-0 flex aspect-[2/3] flex-col justify-end gap-1.5 overflow-hidden rounded-xl bg-gradient-to-t from-ink via-ink/85 to-transparent p-3 opacity-0 transition duration-200',
-          'group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
-        )}
-      >
-        {play && key && <Trailer videoKey={key} muted className="pointer-events-auto absolute inset-0 z-0 !aspect-auto h-full rounded-none object-cover" />}
-        <div className="relative z-10 flex flex-col gap-1.5">
-          <span className="font-display text-[19px] leading-[1.05] text-text">{card.title}</span>
+      {/* A little about it over the cover, on hover or keyboard focus. The whole cover is still a link. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-[2/3] overflow-hidden rounded-xl opacity-0 transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+        <Link to={cardHref(card)} tabIndex={-1} aria-hidden="true" className="pointer-events-auto absolute inset-0 flex flex-col justify-end gap-1.5 bg-gradient-to-t from-ink via-ink/85 to-transparent p-3 text-text no-underline hover:text-text">
+          <span className="font-display text-[19px] leading-[1.05]">{card.title}</span>
           <span className="text-[11px] text-soft">
             {card.score !== null && `★ ${card.score.toFixed(1)} · `}
             {card.genres.slice(0, 2).join(', ')}
           </span>
-          {!play && <p className="m-0 line-clamp-4 text-[11px] leading-snug text-soft">{card.overview}</p>}
-          {canAsk ? (
-            <button
-              type="button"
-              onClick={() => ask(card)}
-              disabled={busy !== null}
-              className="pointer-events-auto flex h-11 items-center justify-center rounded-lg bg-amber px-3 text-[13px] font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60"
-            >
-              {busy === card.tmdbId ? 'Asking…' : 'Request'}
-            </button>
-          ) : (
-            <StateBadge state={card.state} className="self-start" />
-          )}
-          {message && <span className="text-[11px] text-warn">{message}</span>}
-        </div>
+          <p className="m-0 line-clamp-4 text-[11px] leading-snug text-soft">{card.overview}</p>
+        </Link>
+        {canAsk ? (
+          <button
+            type="button"
+            onClick={() => ask(card)}
+            disabled={busy !== null}
+            className="pointer-events-auto absolute right-3 bottom-3 left-3 z-10 flex h-11 items-center justify-center rounded-lg bg-amber px-3 text-[13px] font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60"
+          >
+            {busy === card.tmdbId ? 'Asking…' : 'Request'}
+          </button>
+        ) : (
+          <StateBadge state={card.state} className="absolute top-2 left-2" />
+        )}
+        {message && <span className="absolute right-3 bottom-16 left-3 text-[11px] text-warn">{message}</span>}
       </div>
+
+      {pos && key && <Preview card={card} videoKey={key} pos={pos} onEnter={() => clearTimeout(closer.current)} onLeave={leave} />}
     </div>
   );
 }

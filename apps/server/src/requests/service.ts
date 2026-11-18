@@ -94,6 +94,7 @@ export function titleStates(db: Db, kind: 'movie' | 'series', tmdbIds: number[],
 
 const STATE_TEXT: Record<RequestState, string> = {
   pending: 'Waiting for an admin to approve it.',
+  unreleased: 'Approved. It isn’t out yet, so Marquee will look for it when it is.',
   looking: 'Approved. Marquee is looking for a copy.',
   downloading: 'Downloading now.',
   ready: 'Ready to watch.',
@@ -105,11 +106,43 @@ export function approvedState(db: Db, r: RequestRow, now: number): RequestState 
   if (r.titleId === null) return 'looking';
   if (r.kind === 'movie') {
     if (db.select({ id: mediaFiles.id }).from(mediaFiles).where(eq(mediaFiles.movieId, r.titleId)).get()) return 'ready';
-    return activeDownload(db, 'movie', r.titleId) ? 'downloading' : 'looking';
+    if (activeDownload(db, 'movie', r.titleId)) return 'downloading';
+    return isReleased(db, 'movie', r.titleId, now) ? 'looking' : 'unreleased';
   }
   const cov = showCoverage(db, r.titleId, seasonsOf(r), todayOf(now));
   if (cov.aired > 0 && cov.have >= cov.aired) return 'ready';
-  return activeDownload(db, 'series', r.titleId) ? 'downloading' : 'looking';
+  if (activeDownload(db, 'series', r.titleId)) return 'downloading';
+  return cov.aired === 0 ? 'unreleased' : 'looking';
+}
+
+/** A movie is out once its release date has come (no date counts as out). */
+export function isReleased(db: Db, kind: 'movie' | 'series', id: number, now: number): boolean {
+  if (kind !== 'movie') return true;
+  const date = db.select({ d: movies.releaseDate }).from(movies).where(eq(movies.id, id)).get()?.d;
+  return !date || date <= todayOf(now);
+}
+
+/** "Dec 20, 2026" from "2026-12-20". */
+export const prettyDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+/** When an approved request's title comes out, for the plain sentence. */
+function comesOut(db: Db, r: RequestRow): string | null {
+  if (r.titleId === null) return null;
+  if (r.kind === 'movie') return db.select({ d: movies.releaseDate }).from(movies).where(eq(movies.id, r.titleId)).get()?.d ?? null;
+  const seasons = seasonsOf(r);
+  const dates = db.select({ s: episodes.season, d: episodes.airDate }).from(episodes).where(eq(episodes.seriesId, r.titleId)).all().filter((e) => e.s > 0 && e.d && (!seasons || seasons.includes(e.s))).map((e) => e.d!);
+  return dates.sort()[0] ?? null;
+}
+
+function stateText(db: Db, r: RequestRow, state: RequestState): string {
+  if (state === 'declined' && r.reason) return `Turned down: ${r.reason}`;
+  if (state === 'unreleased') {
+    const date = comesOut(db, r);
+    return r.kind === 'movie'
+      ? `Approved. It comes out ${date ? prettyDate(date) : 'later'}, and Marquee will look for it then.`
+      : `Approved. The first episode ${date ? `airs ${prettyDate(date)}` : 'hasn’t aired yet'}, and Marquee will look for it then.`;
+  }
+  return STATE_TEXT[state];
 }
 
 export function requestView(db: Db, r: RequestRow, now: number): RequestView {
@@ -127,7 +160,7 @@ export function requestView(db: Db, r: RequestRow, now: number): RequestView {
     seasons: seasonsOf(r),
     requestedBy: by,
     state,
-    stateText: state === 'declined' && r.reason ? `Turned down: ${r.reason}` : STATE_TEXT[state],
+    stateText: stateText(db, r, state),
     profile,
     reason: r.reason,
     decidedBy: decider,

@@ -275,3 +275,36 @@ describe('Discover', () => {
     expect(after.request).toMatchObject({ seasons: [2], state: 'pending' });
   });
 });
+
+describe('Not out yet', () => {
+  it('an approved request for a movie not out says when, and doesn’t search', async () => {
+    const t = await setup();
+    const r = (await t.ask(t.admin, { kind: 'movie', tmdbId: 990001 })).body as RequestView;
+    expect(r.state).toBe('unreleased');
+    expect(r.stateText).toBe('Approved. It comes out Jun 1, 2027, and Marquee will look for it then.');
+    expect(t.db.select().from(schema.downloads).all()).toEqual([]);
+    const page = (await call(t.app, 'GET', '/api/discover/title/movie/990001', undefined, t.jessie)).body as DiscoverTitle;
+    expect(page.details).toMatchObject({ released: false, releaseDate: '2027-11-24' });
+    expect(page.note).toMatch(/Approved\. It comes out/);
+  });
+
+  it('a title page carries the details other apps show', async () => {
+    const t = await setup();
+    const d = ((await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.jessie)).body as DiscoverTitle).details;
+    expect(d).toMatchObject({ released: true, directors: ['A. Director'], language: 'English', score: 8.1, budget: 100_000_000 });
+    expect(d.releases.map((x) => x.kind)).toEqual(['Theatrical', 'Digital']);
+  });
+});
+
+describe('Top 10 on a service', () => {
+  it('lists the movies and shows on it, with kids kept to kid-safe ones', async () => {
+    const t = await setup();
+    const top = (await call(t.app, 'GET', '/api/discover/top?service=disney', undefined, t.admin)).body as { movies: { title: string }[]; shows: { title: string }[] };
+    expect(top.movies.map((m) => m.title)).toContain('Inside Out 2');
+    expect(top.shows.map((m) => m.title)).toContain('Bluey');
+    const kid = (await call(t.app, 'GET', '/api/discover/top?service=max', undefined, t.kiddo)).body as { movies: { title: string }[]; shows: { title: string }[] };
+    expect(kid.movies).toEqual([]);
+    expect(kid.shows.map((m) => m.title)).toEqual(['Sesame Street']);
+    expect((await call(t.app, 'GET', '/api/discover/top?service=nope', undefined, t.admin)).status).toBe(400);
+  });
+});

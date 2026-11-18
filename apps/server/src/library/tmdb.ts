@@ -103,6 +103,31 @@ export interface TmdbDiscoverQuery {
 
 /** What a title's page needs beyond its list card. */
 export interface TmdbExtras {
+  /** Release date (movies) or first air date (shows), "2026-12-20". */
+  releaseDate: string | null;
+  /** Movies: when it came or comes out in the US, by kind. */
+  releases: { kind: 'Premiere' | 'Limited' | 'Theatrical' | 'Digital' | 'Physical' | 'TV'; date: string }[];
+  originalTitle: string | null;
+  /** "English", "Japanese"… */
+  language: string | null;
+  /** TMDB's 0–10 score and how many votes it's from. */
+  score: number | null;
+  votes: number;
+  /** Directors (movies) or creators (shows). */
+  directors: string[];
+  /** Writers, for movies. */
+  writers: string[];
+  studios: string[];
+  networks: string[];
+  countries: string[];
+  budget: number | null;
+  revenue: number | null;
+  homepage: string | null;
+  /** Shows: counts, last and next air dates. */
+  seasonCount: number | null;
+  episodeCount: number | null;
+  lastAirDate: string | null;
+  nextAirDate: string | null;
   tagline: string | null;
   runtime: number | null;
   certification: string | null;
@@ -408,9 +433,29 @@ export class TmdbClient implements TmdbApi {
       status?: string | null;
       genres?: { name: string }[];
       videos?: { results: { site: string; type: string; key: string; official?: boolean; iso_639_1?: string }[] };
-      credits?: { cast: { name: string; character?: string }[] };
+      credits?: { cast: { name: string; character?: string }[]; crew?: { name: string; job: string }[] };
+      release_date?: string;
+      first_air_date?: string;
+      last_air_date?: string | null;
+      original_title?: string;
+      original_name?: string;
+      original_language?: string;
+      spoken_languages?: { iso_639_1: string; english_name: string }[];
+      vote_average?: number;
+      vote_count?: number;
+      created_by?: { name: string }[];
+      production_companies?: { name: string }[];
+      networks?: { name: string }[];
+      production_countries?: { name: string }[];
+      origin_country?: string[];
+      budget?: number;
+      revenue?: number;
+      homepage?: string;
+      number_of_seasons?: number;
+      number_of_episodes?: number;
+      next_episode_to_air?: { air_date?: string | null } | null;
       'watch/providers'?: { results?: { US?: { flatrate?: { provider_name: string }[] } } };
-      release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number }[] }[] };
+      release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number; release_date?: string }[] }[] };
       content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
       seasons?: { season_number: number; episode_count: number }[];
     };
@@ -426,7 +471,33 @@ export class TmdbClient implements TmdbApi {
       kind === 'movie'
         ? (us?.release_dates.find((d) => d.type === 3 && d.certification)?.certification ?? us?.release_dates.find((d) => d.certification)?.certification ?? null)
         : (r.content_ratings?.results.find((x) => x.iso_3166_1 === 'US')?.rating ?? null);
+    const KINDS = { 1: 'Premiere', 2: 'Limited', 3: 'Theatrical', 4: 'Digital', 5: 'Physical', 6: 'TV' } as const;
+    const releases: TmdbExtras['releases'] = [];
+    for (const d of [...(us?.release_dates ?? [])].sort((a, b) => (a.release_date ?? '').localeCompare(b.release_date ?? ''))) {
+      const kindName = KINDS[d.type as keyof typeof KINDS];
+      if (kindName && d.release_date && !releases.some((x) => x.kind === kindName)) releases.push({ kind: kindName, date: d.release_date.slice(0, 10) });
+    }
+    const crew = r.credits?.crew ?? [];
+    const lang = r.spoken_languages?.find((l) => l.iso_639_1 === r.original_language)?.english_name ?? null;
     return {
+      releaseDate: (kind === 'movie' ? r.release_date : r.first_air_date) || null,
+      releases,
+      originalTitle: (kind === 'movie' ? r.original_title : r.original_name) || null,
+      language: lang,
+      score: r.vote_average ? Math.round(r.vote_average * 10) / 10 : null,
+      votes: r.vote_count ?? 0,
+      directors: kind === 'movie' ? [...new Set(crew.filter((c) => c.job === 'Director').map((c) => c.name))] : (r.created_by ?? []).map((c) => c.name),
+      writers: kind === 'movie' ? [...new Set(crew.filter((c) => c.job === 'Screenplay' || c.job === 'Writer').map((c) => c.name))].slice(0, 4) : [],
+      studios: (r.production_companies ?? []).map((c) => c.name).slice(0, 5),
+      networks: (r.networks ?? []).map((c) => c.name),
+      countries: (r.production_countries?.map((c) => c.name) ?? r.origin_country ?? []).slice(0, 4),
+      budget: r.budget || null,
+      revenue: r.revenue || null,
+      homepage: r.homepage || null,
+      seasonCount: r.number_of_seasons ?? null,
+      episodeCount: r.number_of_episodes ?? null,
+      lastAirDate: r.last_air_date ?? null,
+      nextAirDate: r.next_episode_to_air?.air_date ?? null,
       tagline: r.tagline || null,
       runtime: (kind === 'movie' ? r.runtime : r.episode_run_time?.[0]) || null,
       certification: cert,

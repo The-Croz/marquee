@@ -933,7 +933,36 @@ export interface DiscoverPage {
   genre: string | null;
 }
 
+/** Everything TMDB knows about a title that a page can show. */
+export interface TitleDetails {
+  /** Release date (movies) or first air date (shows), "2026-12-20". */
+  releaseDate: string | null;
+  /** False for a movie not out yet, or a show whose first episode hasn't aired. */
+  released: boolean;
+  /** Movies, US: premiere, cinema, digital and disc dates. */
+  releases: { kind: string; date: string }[];
+  originalTitle: string | null;
+  language: string | null;
+  status: string | null;
+  /** TMDB's 0–10 score and how many votes. */
+  score: number | null;
+  votes: number;
+  directors: string[];
+  writers: string[];
+  studios: string[];
+  networks: string[];
+  countries: string[];
+  budget: number | null;
+  revenue: number | null;
+  homepage: string | null;
+  seasonCount: number | null;
+  episodeCount: number | null;
+  lastAirDate: string | null;
+  nextAirDate: string | null;
+}
+
 export interface DiscoverTitle {
+  details: TitleDetails;
   card: DiscoverCard;
   tagline: string | null;
   runtime: number | null;
@@ -954,6 +983,13 @@ export interface DiscoverTitle {
   note: string | null;
 }
 
+/** The top 10 movies and top 10 shows on one streaming service. */
+export interface ServiceTop {
+  service: string;
+  movies: DiscoverCard[];
+  shows: DiscoverCard[];
+}
+
 export interface DiscoverPrefs {
   hiddenServices: string[];
   trailers: boolean;
@@ -961,7 +997,7 @@ export interface DiscoverPrefs {
   all?: ServiceChip[];
 }
 
-export type RequestState = 'pending' | 'looking' | 'downloading' | 'ready' | 'declined';
+export type RequestState = 'pending' | 'unreleased' | 'looking' | 'downloading' | 'ready' | 'declined';
 
 export interface RequestView {
   id: number;

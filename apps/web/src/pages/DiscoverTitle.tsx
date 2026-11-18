@@ -3,9 +3,67 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { DiscoverPrefs, DiscoverTitle } from '@marquee/shared';
 import { api, ApiFailure } from '../api';
-import { Row, STATE_LABEL, StateBadge, Trailer, cardHref, useRequest } from '../components/Discover';
+import { Row, STATE_LABEL, StateBadge, Trailer, useRequest } from '../components/Discover';
 import { Poster, tmdbImage } from '../components/Poster';
 import { Button, Card, Notice, cx } from '../components/ui';
+
+const pretty = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)} billion` : `$${Math.round(n / 1e6)} million`);
+const RELEASE_LABEL: Record<string, string> = { Premiere: 'Premiere', Limited: 'Limited release', Theatrical: 'In cinemas', Digital: 'Digital', Physical: 'On disc', TV: 'On TV' };
+
+/** The facts other apps show: dates, ratings, who made it, what it cost. */
+function DetailsCard({ t, kind }: { t: DiscoverTitle; kind: 'movie' | 'series' }) {
+  const d = t.details;
+  const rows: [string, string | null][] = [
+    [kind === 'movie' ? 'Release date' : 'First aired', d.releaseDate ? pretty(d.releaseDate) : null],
+    ['Age rating', t.certification],
+    ['TMDB score', d.score !== null ? `${d.score.toFixed(1)} out of 10 · ${d.votes.toLocaleString()} votes` : null],
+    ['Runtime', t.runtime ? (kind === 'movie' ? (t.runtime >= 60 ? `${Math.floor(t.runtime / 60)} h ${t.runtime % 60} min` : `${t.runtime} min`) : `${t.runtime} min an episode`) : null],
+    ['Status', d.status],
+    ['Seasons', d.seasonCount ? `${d.seasonCount} ${d.seasonCount === 1 ? 'season' : 'seasons'}${d.episodeCount ? `, ${d.episodeCount} episodes` : ''}` : null],
+    ['Last aired', d.lastAirDate ? pretty(d.lastAirDate) : null],
+    ['Next episode', d.nextAirDate ? pretty(d.nextAirDate) : null],
+    [kind === 'movie' ? 'Directed by' : 'Created by', d.directors.join(', ') || null],
+    ['Written by', d.writers.join(', ') || null],
+    ['Studios', d.studios.join(', ') || null],
+    ['Networks', d.networks.join(', ') || null],
+    ['Language', d.language],
+    ['Original title', d.originalTitle],
+    ['Made in', d.countries.join(', ') || null],
+    ['Budget', d.budget ? money(d.budget) : null],
+    ['Box office', d.revenue ? money(d.revenue) : null],
+    ['Where to watch', t.providers.join(', ') || null],
+  ];
+  const shown = rows.filter(([, v]) => v);
+  return (
+    <Card className="flex flex-col gap-4">
+      <h2 className="m-0 text-lg font-semibold">Details</h2>
+      {d.releases.length > 0 && (
+        <div className="flex flex-wrap gap-3">
+          {d.releases.map((r) => (
+            <div key={r.kind} className="flex min-w-[150px] flex-col rounded-xl border border-line bg-ink/50 px-4 py-2.5">
+              <span className="text-xs text-dim">{RELEASE_LABEL[r.kind] ?? r.kind}</span>
+              <span className="text-[15px] font-semibold">{pretty(r.date)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <dl className="m-0 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-x-8 gap-y-3">
+        {shown.map(([label, value]) => (
+          <div key={label} className="flex flex-col">
+            <dt className="text-xs text-dim">{label}</dt>
+            <dd className="m-0 text-[15px] text-soft">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {d.homepage && (
+        <a href={d.homepage} target="_blank" rel="noreferrer" className="flex min-h-11 items-center self-start text-sm font-semibold">
+          Official site →
+        </a>
+      )}
+    </Card>
+  );
+}
 
 /** A movie or show that may not be in your library yet: all about it, its trailer, and asking for it. */
 export function DiscoverTitlePage() {
@@ -26,8 +84,7 @@ export function DiscoverTitlePage() {
   if (!t) return <p className="text-muted">Loading…</p>;
 
   const c = t.card;
-  // Already in the library with files? Go to its own page.
-  if (c.state === 'in_library' && c.libraryId !== null && c.kind === 'movie') return <Navigate to={cardHref(c)} replace />;
+  const d = t.details;
   const bg = tmdbImage(c.backdropPath, 'w1280');
   const open = t.seasons.filter((s) => s.state === 'none');
   const toggle = (n: number) => setPicked((p) => new Set(p.has(n) ? [...p].filter((x) => x !== n) : [...p, n]));
@@ -38,7 +95,15 @@ export function DiscoverTitlePage() {
       <Link to="/discover" className="text-sm no-underline">
         ← Discover
       </Link>
-      <section className="relative overflow-hidden rounded-[22px] bg-raised">
+      {showTrailer && t.trailerKey && (
+        <section aria-label="Trailer" className="flex flex-col gap-2">
+          <Trailer videoKey={t.trailerKey} className="max-h-[70vh] shadow-2xl" />
+          <button type="button" onClick={() => setShowTrailer(false)} className="min-h-11 self-start text-sm font-medium text-muted hover:text-text">
+            Close the trailer
+          </button>
+        </section>
+      )}
+      <section className={cx('relative overflow-hidden rounded-[22px] bg-raised', showTrailer && t.trailerKey && 'hidden')}>
         {bg && <img src={bg} alt="" className="absolute inset-0 size-full object-cover opacity-60" />}
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
         <div className="relative flex flex-wrap items-end gap-8 px-6 pt-32 pb-8 sm:px-10">
@@ -53,7 +118,22 @@ export function DiscoverTitlePage() {
             {t.tagline && <p className="m-0 text-[15px] text-soft italic">{t.tagline}</p>}
             <div className="flex flex-wrap items-center gap-2 text-[13px]">
               <StateBadge state={c.state} className="px-2.5 py-1" />
+              {!d.released && d.releaseDate && <span className="rounded-full bg-amber/20 px-2.5 py-1 font-semibold text-amber-hi">Not out yet · {pretty(d.releaseDate)}</span>}
+              {d.score !== null && <span className="rounded-full bg-white/8 px-2.5 py-1 font-semibold text-amber-hi">★ {d.score.toFixed(1)}</span>}
+              {t.certification && <span className="rounded-full border border-white/25 px-2.5 py-1 text-soft">{t.certification}</span>}
               {t.providers.length > 0 && <span className="rounded-full bg-white/8 px-2.5 py-1 text-soft">On {t.providers.join(', ')}</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {t.trailerKey && (
+                <button type="button" onClick={() => setShowTrailer(true)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-ink hover:bg-amber">
+                  <span aria-hidden="true">▶</span> Play trailer
+                </button>
+              )}
+              {c.libraryId !== null && c.state === 'in_library' && (
+                <Link to={`/${k === 'movie' ? 'movies' : 'shows'}/${c.libraryId}`} className="inline-flex h-12 items-center rounded-full border border-white/30 px-6 text-[15px] font-semibold text-text no-underline hover:bg-white/10 hover:text-text">
+                  Open in your library
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -110,20 +190,7 @@ export function DiscoverTitlePage() {
         {message && <Notice tone="error">{message}</Notice>}
       </Card>
 
-      {t.trailerKey && (
-        <section aria-labelledby="trailer" className="flex max-w-[860px] flex-col gap-3">
-          <h2 id="trailer" className="m-0 text-lg font-semibold">
-            Trailer
-          </h2>
-          {showTrailer ? (
-            <Trailer videoKey={t.trailerKey} />
-          ) : (
-            <Button type="button" variant="ghost" className="self-start" onClick={() => setShowTrailer(true)}>
-              <span aria-hidden="true">▶</span> Play the trailer
-            </Button>
-          )}
-        </section>
-      )}
+      <DetailsCard t={t} kind={k} />
 
       {t.cast.length > 0 && (
         <section aria-labelledby="cast" className="flex flex-col gap-2">

@@ -9,7 +9,7 @@ import { LoginPage } from './pages/Login';
 import { SetupPage } from './pages/Setup';
 import { HomePage } from './pages/Home';
 import { Placeholder } from './pages/Placeholder';
-import { AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
+import { AboutPage, AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
@@ -82,6 +82,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="account" replace /> },
           { path: 'account', element: <AccountPage /> },
+          { path: 'about', element: <AboutPage /> },
           { path: 'discover', element: <DiscoverSettingsPage /> },
           { path: 'notifications', element: <NotificationSettingsPage /> },
           { path: 'users', element: <UsersPage /> },

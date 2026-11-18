@@ -21,6 +21,7 @@ export function SettingsLayout({ status }: Ctx) {
           { to: '/settings/downloader', label: 'Downloader' },
         ]
       : []),
+    { to: '/settings/about', label: 'About' },
   ];
   return (
     <>
@@ -634,5 +635,34 @@ function ServicesAdmin() {
         <Button type="submit">Save</Button>
       </div>
     </form>
+  );
+}
+
+// ---------------- About ----------------
+
+export function AboutPage() {
+  const { status } = useOutletContext<Ctx>();
+  return (
+    <Card className="flex max-w-[640px] flex-col gap-4">
+      <div>
+        <h2 className="m-0 text-lg font-semibold">About Marquee</h2>
+        <p className="m-0 text-sm text-muted">Movies and shows for your household, from one app.</p>
+      </div>
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[15px]">
+        <dt className="text-dim">Version</dt>
+        <dd className="m-0 font-mono text-soft">{status.version}</dd>
+        <dt className="text-dim">License</dt>
+        <dd className="m-0 text-soft">GPL-3.0-or-later</dd>
+        <dt className="text-dim">Source</dt>
+        <dd className="m-0">
+          <a href="https://github.com/The-Croz/marquee" target="_blank" rel="noreferrer">
+            github.com/The-Croz/marquee
+          </a>
+        </dd>
+      </dl>
+      <p className="m-0 text-sm text-muted">
+        Movie and show information and artwork come from TMDB. Where to watch comes from JustWatch, through TMDB. Marquee isn’t endorsed or certified by TMDB.
+      </p>
+    </Card>
   );
 }

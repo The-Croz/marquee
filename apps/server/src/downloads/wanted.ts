@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { getSetting, setSetting } from '../db/index.js';
 import { downloads, mediaFiles, movies } from '../db/schema.js';
@@ -82,6 +82,8 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
       and(
         eq(movies.monitored, true),
         deps.only ? eq(movies.id, deps.only.id) : undefined,
+        // Not out yet: nothing to find. It's picked up once its release date comes.
+        or(isNull(movies.releaseDate), lte(movies.releaseDate, new Date(now()).toISOString().slice(0, 10))),
         busy.length ? notInArray(movies.id, busy) : undefined,
         kind === 'missing' ? (withFiles.length ? notInArray(movies.id, withFiles) : undefined) : withFiles.length ? inArray(movies.id, withFiles) : sql`0`,
       ),

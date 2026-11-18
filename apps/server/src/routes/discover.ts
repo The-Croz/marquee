@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { DiscoverPage, DiscoverPrefs, DiscoverTitle } from '@marquee/shared';
-import { discoverPage, discoverTitle, readPrefs, writePrefs, type DiscoverDeps } from '../discover/service.js';
+import type { DiscoverPage, DiscoverPrefs, DiscoverTitle, ServiceTop } from '@marquee/shared';
+import { discoverPage, discoverTitle, readPrefs, serviceTop, writePrefs, type DiscoverDeps } from '../discover/service.js';
 import { SERVICES } from '../library/tmdb.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
 import { scanSources } from './library.js';
@@ -21,6 +21,12 @@ discoverRoutes.get('/', async (c) => {
   const user = requireUser(c);
   const q = pageQuery.parse(c.req.query());
   return c.json<DiscoverPage>(await discoverPage(deps(c), user, { type: q.type, service: q.service, genre: q.genre ?? null }));
+});
+
+discoverRoutes.get('/top', async (c) => {
+  const user = requireUser(c);
+  const { service } = z.object({ service: z.string().max(30) }).parse(c.req.query());
+  return c.json<ServiceTop>(await serviceTop(deps(c), user, service));
 });
 
 discoverRoutes.get('/prefs', (c) => c.json<DiscoverPrefs>({ ...readPrefs(c.get('deps').db, requireUser(c).id), all: SERVICES.map((s) => ({ key: s.key, name: s.name })) }));

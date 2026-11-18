@@ -189,7 +189,26 @@ export class FakeTmdb implements TmdbApi {
     if (!t) throw new TmdbError(404, 'not found');
     const d = DISC[id];
     const seasons = kind === 'series' ? [...new Set(SHOWS.find((x) => x.tmdbId === id)!.episodes.map((e) => e.season))].filter((n) => n > 0).map((n) => ({ season: n, episodeCount: SHOWS.find((x) => x.tmdbId === id)!.episodes.filter((e) => e.season === n).length })) : [];
+    const date = d?.date ?? `${t.year}-06-01`;
     return {
+      releaseDate: date,
+      releases: kind === 'movie' ? [{ kind: 'Theatrical', date }, { kind: 'Digital', date: `${date.slice(0, 4)}-09-01` }] : [],
+      originalTitle: t.title,
+      language: 'English',
+      score: d?.score || null,
+      votes: 1200,
+      directors: ['A. Director'],
+      writers: kind === 'movie' ? ['A. Writer'] : [],
+      studios: (t.companies as string[] | undefined)?.slice(0, 2) ?? ['A Studio'],
+      networks: kind === 'series' ? ['A Network'] : [],
+      countries: ['United States of America'],
+      budget: kind === 'movie' ? 100_000_000 : null,
+      revenue: kind === 'movie' ? 400_000_000 : null,
+      homepage: null,
+      seasonCount: kind === 'series' ? seasons.length : null,
+      episodeCount: kind === 'series' ? SHOWS.find((x) => x.tmdbId === id)!.episodes.length : null,
+      lastAirDate: null,
+      nextAirDate: null,
       tagline: null,
       runtime: kind === 'movie' ? 120 : 45,
       certification: t.certification,
