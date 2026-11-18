@@ -13,6 +13,7 @@ import { AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Se
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
+import { SwitchOverPage } from './pages/SwitchOver';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -66,6 +67,7 @@ const router = createBrowserRouter([
         ),
       },
       { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
+      { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage /></AdminOnly>} /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,

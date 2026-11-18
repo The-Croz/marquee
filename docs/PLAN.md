@@ -113,7 +113,7 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
 
 Not in M2: grabbing, qBittorrent, RSS polling (M4), native indexer definitions to replace Prowlarr (decided at M4).
 
-## Milestone 3: Downloads 🔨 (movies can switch over here)
+## Milestone 3: Downloads ✅ (movies can switch over here)
 
 Goal: Marquee sends the copy it picked to qBittorrent, follows it in plain words, puts the finished file in the library with a hardlink and a clean name, keeps seeding by your rules, and tells Plex and Jellyfin. Then Radarr can stop.
 
@@ -166,8 +166,20 @@ Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real 
    - Servers that see the library under another path (Plex at `/media/movies`, say) get their own path: the folder's place under Marquee's library folder, put under that library's folder. No folder pairs to set.
    - The Downloads row says "Told Plex and Jellyfin to scan it." A server that didn't answer is named with the reason and asked again every 15 minutes for a day.
    - Migration 12: whether a scan is still owed, and what happened.
-7. ⬜ **Movie cutover checklist** (a page, not automation)
-   - Steps with checks Marquee can do itself: comparison agreement over the last 2 weeks, downloader working, a test import done, Plex/Jellyfin scanning, Radarr's queue empty. Then: turn off Radarr's monitoring (you do it in Radarr; Marquee says exactly where), turn on "Marquee looks for wanted movies" (a search for missing movies every 6 hours plus a daily "good enough yet?" check), and keep Radarr read-only for a week before removing it.
+7. ✅ **Switch movies over** (page at `/switch-over`; `apps/server/src/compare/cutover.ts`, `downloads/wanted.ts`)
+   - A checklist page where Marquee checks what it can itself, each step saying what it found and what to do:
+     1. Marquee picks what Radarr would: at least 80% agreement over at least 10 compared downloads in the last two weeks.
+     2. qBittorrent is connected.
+     3. A movie went all the way into the library.
+     4. Plex or Jellyfin is connected and answering.
+     5. Radarr's queue is empty (read via `/api/v3/queue`).
+     6. Radarr watches no movies. You turn that off in Radarr; the page gives the exact clicks. Marquee never changes Radarr.
+     7. **Marquee looks for wanted movies**.
+   - Step 7 is a switch, off by default. When it's on, Marquee searches for monitored movies with no file every 6 hours and checks movies you have for a better copy once a day. Each run takes 10 movies, longest-waiting first, and skips any with a download on the way. A copy is sent only when it beats your file under the title's profile ("good enough" and "keep looking for better" respected). Turning it on before the other steps are done asks first and warns about double downloads. **Look now** buttons and the last few runs, with what was sent, are on the page.
+   - Migration 13: when Marquee last searched each movie.
+   - **Josh, on the LAN**: work down the checklist, turn Radarr's monitoring off, then turn on step 7.
+
+Milestone 3 is done in code. The real switch-over happens on Josh's server when the checklist is all ticks.
 
 Later ideas from HolyArrs for M3 (ideas only): a History page per title and overall; "Downloader can change things" switch for a qBittorrent shared with Radarr during side-by-side; per-stage Health page.
 

@@ -8,12 +8,21 @@ export class FakeRadarr implements RadarrHistoryApi, ArrApi {
   /** Each `grabs` call's `since`. */
   asked: number[] = [];
   fail: string | null = null;
+  /** Downloads still on the way in Radarr. */
+  queue = 0;
+  /** Radarr's movies, for the monitored count. */
+  movies: { title: string; monitored: boolean }[] = [];
+
+  async queueSize() {
+    if (this.fail) throw new ArrError(this.fail);
+    return this.queue;
+  }
 
   async ping() {
     return { app: 'Radarr', version: '5.20.0' };
   }
   async titles() {
-    return [];
+    return this.movies.map((m) => ({ title: m.title, year: null, path: `/movies/${m.title}`, tmdbId: null, tvdbId: null, imdbId: null, monitored: m.monitored }));
   }
   async grabs(since: number): Promise<RadarrGrab[]> {
     if (this.fail) throw new ArrError(this.fail);

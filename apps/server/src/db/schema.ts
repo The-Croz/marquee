@@ -76,6 +76,8 @@ export const movies = sqliteTable('movies', {
   profileByHand: integer('profile_by_hand', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull(),
   refreshedAt: integer('refreshed_at').notNull(),
+  /** When Marquee last searched for it by itself. */
+  lastSearchedAt: integer('last_searched_at'),
 });
 
 export const series = sqliteTable('series', {

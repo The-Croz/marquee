@@ -736,3 +736,32 @@ export interface ProfileChangeView {
   /** Rule number that picked it, or null for the library default. */
   rule: number | null;
 }
+
+// ---------------------------------------------------------------- switching movies over from Radarr
+
+export interface CutoverStep {
+  key: 'agree' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'take_over';
+  title: string;
+  /** done: checked and fine · todo: needs doing · warn: works but worth a look · unknown: Marquee can't check */
+  state: 'done' | 'todo' | 'warn' | 'unknown';
+  /** What Marquee found, and what to do. */
+  detail: string;
+  action: { label: string; to: string } | null;
+}
+
+export interface WantedRunView {
+  at: number;
+  kind: 'missing' | 'better';
+  searched: number;
+  sent: { movieId: number; title: string; copy: string }[];
+  problems: string[];
+}
+
+export interface CutoverView {
+  steps: CutoverStep[];
+  /** Every step before "Marquee looks for wanted movies" is done. */
+  ready: boolean;
+  lookingForWanted: boolean;
+  /** The last few searches Marquee ran by itself, newest first. */
+  runs: WantedRunView[];
+}

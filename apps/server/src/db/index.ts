@@ -309,6 +309,9 @@ const migrations: string[] = [
   ALTER TABLE downloads ADD COLUMN scan_message TEXT;
   ALTER TABLE downloads ADD COLUMN scan_tried_at INTEGER;
   `,
+  /* 13: Marquee looks for wanted movies itself */ `
+  ALTER TABLE movies ADD COLUMN last_searched_at INTEGER;
+  `,
 ];
 
 export function openDb(file: string): Db {

@@ -111,6 +111,8 @@ export interface RadarrRelease {
 
 /** Read-only: Radarr's downloads and its own release list for a movie. */
 export interface RadarrHistoryApi {
+  /** How many downloads Radarr still has on the way. */
+  queueSize(): Promise<number>;
   grabs(since: number): Promise<RadarrGrab[]>;
   releases(radarrMovieId: number): Promise<RadarrRelease[]>;
 }
@@ -134,6 +136,11 @@ export class RadarrHistoryClient implements RadarrHistoryApi {
     if (res.status === 401) throw new ArrError('Radarr rejected the API key.');
     if (!res.ok) throw new ArrError(`Radarr returned ${res.status}.`);
     return (await res.json()) as T;
+  }
+
+  async queueSize(): Promise<number> {
+    const q = await this.get<{ totalRecords?: number }>('/queue?pageSize=1');
+    return q.totalRecords ?? 0;
   }
 
   async grabs(since: number): Promise<RadarrGrab[]> {
