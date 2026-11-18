@@ -111,7 +111,7 @@ export function MovieDetailPage() {
         )}
         {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
       </Card>
-      {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} />}
+      {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} byHand={m.profileByHand} />}
     </>
   );
 }
@@ -184,7 +184,7 @@ export function ShowDetailPage() {
         ))}
       </div>
       {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
-      {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
+      {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} byHand={s.profileByHand} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
     </>
   );
 }

@@ -21,10 +21,10 @@ describe('profile presets', () => {
     expect(res.status).toBe(200);
     const view = res.body as ProfilesView;
     expect(view.profiles.map((p) => `${p.kind}:${p.name}`)).toEqual([
-      'movie:Cinema',
+      'movie:4K Quality',
       'movie:Everyday HD',
       'movie:Kids & Cartoons',
-      'tv:Cinema',
+      'tv:4K Quality',
       'tv:Everyday HD',
       'tv:Kids & Cartoons',
     ]);
@@ -76,7 +76,7 @@ describe('Settings → Quality API', () => {
     const res = await call(app, 'GET', `/api/settings/profiles/${list.profiles[0]!.id}`, undefined, cookie);
     expect(res.status).toBe(200);
     const p = res.body as ProfileDetail;
-    expect(p.name).toBe('Cinema');
+    expect(p.name).toBe('4K Quality');
     const lq = p.rules.find((r) => r.name === 'LQ')!;
     expect(lq).toMatchObject({ label: 'Low-quality group', enabled: true, score: -10000, trashScore: -10000 });
     expect(lq.group).toMatch(/Unwanted/);
@@ -151,7 +151,7 @@ describe('Settings → Quality API', () => {
     // A TV copy of a movie profile isn't allowed.
     expect((await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: 'X', copyFrom: cinema.id }, cookie)).status).toBe(400);
     // A blank new one starts from Everyday HD.
-    const blank = (await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: 'Cinema' }, cookie));
+    const blank = (await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: '4K Quality' }, cookie));
     expect(blank.status).toBe(409);
     const tv = (await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: 'Weekend' }, cookie)).body as ProfileDetail;
     expect(tv.cutoff).toBe('WEB 1080p');

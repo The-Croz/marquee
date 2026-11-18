@@ -5,7 +5,7 @@ import type { Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
 import { TmdbError, type TmdbApi, type TmdbSearchResult } from './tmdb.js';
 import type { ArrApi, ArrTitle } from './arr.js';
-import { defaultProfileKey } from '../releases/profiles.js';
+import { chooseProfile } from '../releases/choose.js';
 import { EXTRAS_FOLDERS, VIDEO_EXTENSIONS, normalizeTitle, parseEpisode, parseQuality, parseTitleName, sortTitle } from './parse.js';
 
 /**
@@ -290,7 +290,7 @@ export class LibraryScanner {
       // A second folder for the same movie keeps the first folder as "the" folder.
       return this.db.update(movies).set({ ...values, path: current.path ?? folder }).where(eq(movies.id, current.id)).returning().get();
     }
-    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, profile: defaultProfileKey(this.db, 'movie'), ...values }).returning().get();
+    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'movie', { genres: d.genres, certification: d.certification }), ...values }).returning().get();
   }
 
   // ---------------- Shows ----------------
@@ -368,7 +368,7 @@ export class LibraryScanner {
     const current = this.db.select().from(series).where(eq(series.tmdbId, tmdbId)).get();
     const row = current
       ? this.db.update(series).set({ ...values, path: current.path ?? folder }).where(eq(series.id, current.id)).returning().get()
-      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, profile: defaultProfileKey(this.db, 'tv'), ...values }).returning().get();
+      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'tv', { genres: d.genres, certification: d.certification }), ...values }).returning().get();
 
     for (const s of d.seasons) {
       if (s.episodeCount === 0) continue;

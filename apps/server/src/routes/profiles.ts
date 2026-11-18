@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { ProfileDefaultSlot, ProfileDetail, ProfileSummary, ProfilesView, SizeLimitView } from '@marquee/shared';
+import type { ProfileChangeView, ProfileChoicesView, ProfileDefaultSlot, ProfileDetail, ProfileSummary, ProfilesView, SizeLimitView } from '@marquee/shared';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
 import { TRASH } from '../releases/formats.js';
+import { GENRES, RATINGS, applyChanges, listChoices, previewChanges, setChoices } from '../releases/choose.js';
 import { ProfileService, appFor, trashProfiles, knownQualities, qualityLabel, ruleInfo, sizeLimit, type FullProfile } from '../releases/profiles.js';
 
 /** Settings → Quality: profiles. Admin only. */
@@ -84,6 +85,34 @@ profileRoutes.put('/defaults', async (c) => {
   requireAdmin(c);
   const input = z.object({ movie: z.string(), tv: z.string(), kids: z.string() }).partial().parse(await c.req.json());
   return c.json(service(c).setDefaults(input));
+});
+
+// ---------------- which profile a title gets
+
+const choiceKind = (raw: string) => kind.parse(raw);
+const choiceBody = z.object({ rules: z.array(z.object({ profile: z.string().min(1), genres: z.array(z.string()).max(30), ratings: z.array(z.string()).max(10) })).max(40) });
+
+profileRoutes.get('/choices', (c) => {
+  requireAdmin(c);
+  const { db } = c.get('deps');
+  return c.json<ProfileChoicesView>({ rules: { movie: listChoices(db, 'movie'), tv: listChoices(db, 'tv') }, genres: GENRES, ratings: RATINGS });
+});
+
+profileRoutes.put('/choices/:kind', async (c) => {
+  requireAdmin(c);
+  const { rules } = choiceBody.parse(await c.req.json());
+  return c.json({ rules: setChoices(c.get('deps').db, choiceKind(c.req.param('kind')), rules) });
+});
+
+/** What sorting the library by the rules would change. Changes nothing. */
+profileRoutes.get('/choices/:kind/preview', (c) => {
+  requireAdmin(c);
+  return c.json<{ changes: ProfileChangeView[] }>({ changes: previewChanges(c.get('deps').db, choiceKind(c.req.param('kind'))) });
+});
+
+profileRoutes.post('/choices/:kind/apply', (c) => {
+  requireAdmin(c);
+  return c.json({ changed: applyChanges(c.get('deps').db, choiceKind(c.req.param('kind'))) });
 });
 
 profileRoutes.get('/:id', (c) => {

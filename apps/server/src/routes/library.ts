@@ -17,6 +17,7 @@ import { readServices } from '../library/services.js';
 import type { ScanSources } from '../library/scanner.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
 import { ProfileService } from '../releases/profiles.js';
+import { useRules } from '../releases/choose.js';
 
 // Ratings a kid profile can see. Unrated titles are hidden from kids.
 // (Milestone 5 makes this adjustable per profile.)
@@ -226,6 +227,7 @@ movieRoutes.get('/:id{[0-9]+}', (c) => {
     path: m.path,
     monitored: m.monitored,
     profile: m.profile,
+    profileByHand: m.profileByHand,
     addedAt: m.addedAt,
     files: files.map(fileView),
   };
@@ -340,6 +342,7 @@ showRoutes.get('/:id{[0-9]+}', (c) => {
     path: s.path,
     monitored: s.monitored,
     profile: s.profile,
+    profileByHand: s.profileByHand,
     addedAt: s.addedAt,
     sizeBytes: files.reduce((n, f) => n + f.size, 0),
     // Regular seasons first, specials last
@@ -349,16 +352,16 @@ showRoutes.get('/:id{[0-9]+}', (c) => {
 });
 
 /** Changes which profile a movie or show uses. Admin only. */
-const profileBody = z.object({ profile: z.string().min(1) });
-movieRoutes.put('/:id{[0-9]+}/profile', async (c) => {
+// `profile: null` hands the title back to the profile rules.
+const profileBody = z.object({ profile: z.string().min(1).nullable() });
+async function setProfile(c: Ctx, kind: 'movie' | 'tv') {
   requireAdmin(c);
   const { profile } = profileBody.parse(await c.req.json());
-  new ProfileService(c.get('deps').db, c.get('deps').now).assign('movie', Number(c.req.param('id')), profile);
-  return c.json({ ok: true, profile });
-});
-showRoutes.put('/:id{[0-9]+}/profile', async (c) => {
-  requireAdmin(c);
-  const { profile } = profileBody.parse(await c.req.json());
-  new ProfileService(c.get('deps').db, c.get('deps').now).assign('tv', Number(c.req.param('id')), profile);
-  return c.json({ ok: true, profile });
-});
+  const { db, now } = c.get('deps');
+  const id = Number(c.req.param('id'));
+  if (profile === null) return c.json({ ok: true, profile: useRules(db, kind, id), byHand: false });
+  new ProfileService(db, now).assign(kind, id, profile);
+  return c.json({ ok: true, profile, byHand: true });
+}
+movieRoutes.put('/:id{[0-9]+}/profile', (c) => setProfile(c, 'movie'));
+showRoutes.put('/:id{[0-9]+}/profile', (c) => setProfile(c, 'tv'));

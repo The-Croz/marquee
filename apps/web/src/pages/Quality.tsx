@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ProfileDetail, ProfileKind, ProfileRuleView, ProfilesView, QualityTier, SizeLimitView } from '@marquee/shared';
 import { ApiFailure, api, queryClient } from '../api';
 import { Button, Card, Notice, cx } from '../components/ui';
+import { ProfileChoices } from '../components/ProfileChoices';
 
 /**
  * Quality: the profiles that decide which copy Marquee picks for a title.
@@ -78,7 +79,10 @@ export function QualityPage() {
           {list.data && <NewProfile kind={kind} view={list.data} onCreated={setSelected} />}
           {list.data && <Defaults view={list.data} />}
         </section>
-        <div className="min-w-0 flex-[999_1_560px]">{current ? <ProfileEditor key={current.id} id={current.id} /> : list.isLoading ? <p className="text-muted">Loading…</p> : null}</div>
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
+          {list.data && <ProfileChoices kind={kind} view={list.data} />}
+          {current ? <ProfileEditor key={current.id} id={current.id} /> : list.isLoading ? <p className="text-muted">Loading…</p> : null}
+        </div>
       </div>
     </>
   );
@@ -142,14 +146,11 @@ function Defaults({ view }: { view: ProfilesView }) {
   const keysFor = (kind: ProfileKind) => view.profiles.filter((p) => p.kind === kind);
   // Kids' requests can be movies or shows, so the profile must exist in both.
   const kidsKeys = keysFor('movie').filter((m) => keysFor('tv').some((t) => t.key === m.key));
-  const rows: { slot: keyof ProfilesView['defaults']; label: string; options: { key: string; name: string }[] }[] = [
-    { slot: 'movie', label: 'New movies', options: keysFor('movie') },
-    { slot: 'tv', label: 'New shows', options: keysFor('tv') },
-    { slot: 'kids', label: "Kids' requests", options: kidsKeys },
-  ];
+  // New movies and shows are picked by the rules card; this is only for kids' requests.
+  const rows: { slot: keyof ProfilesView['defaults']; label: string; options: { key: string; name: string }[] }[] = [{ slot: 'kids', label: "Kids' requests", options: kidsKeys }];
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-4">
-      <h2 className="m-0 text-sm font-semibold">Used unless you pick another</h2>
+      <h2 className="m-0 text-sm font-semibold">Requests from kids</h2>
       {rows.map((r) => (
         <label key={r.slot} className="flex items-center justify-between gap-3 text-[13px] text-muted">
           {r.label}

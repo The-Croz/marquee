@@ -219,6 +219,18 @@ const migrations: string[] = [
   );
   CREATE INDEX comparisons_grabbed ON comparisons (grabbed_at);
   `,
+  /* 6: rules that pick a title's profile from its genres and age rating */ `
+  ALTER TABLE movies ADD COLUMN profile_by_hand INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE series ADD COLUMN profile_by_hand INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE profile_choices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    position INTEGER NOT NULL,
+    profile TEXT NOT NULL,
+    genres TEXT NOT NULL DEFAULT '[]',
+    ratings TEXT NOT NULL DEFAULT '[]'
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {
