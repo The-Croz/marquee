@@ -44,7 +44,8 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
   if (d.state === 'done') {
     if (d.adopted) return s('Finished downloading', 'done', 'qBittorrent has the whole copy. The app that sent it puts it in your library.');
     if (d.importedAt) {
-      const [label, detail] = inLibrary(d, rule);
+      const [label, shared] = inLibrary(d, rule);
+      const detail = d.scanMessage ? `${shared} ${d.scanMessage}` : shared;
       return d.importCopied
         ? s(`${label} · copied`, 'warn', `${detail} It’s a copy, not a hardlink, because the download folder and the library are on different disks, so it takes twice the space. Put both under one share (like /data).`)
         : s(label, 'done', detail);

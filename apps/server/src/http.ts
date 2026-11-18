@@ -14,6 +14,7 @@ import type { SourceClients, SourceService } from './sources/service.js';
 import type { QbitApi } from './downloads/qbittorrent.js';
 import type { FetchedTorrent } from './downloads/torrent.js';
 import type { CopyCache } from './downloads/cache.js';
+import type { MediaServerApi } from './library/mediaServers.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
@@ -25,6 +26,9 @@ export interface Clients extends SourceClients {
   qbittorrent(url: string, username: string, password: string): QbitApi;
   /** Fetches a copy's torrent or magnet on the server. */
   fetchTorrent(url: string): Promise<FetchedTorrent>;
+  /** A Plex Media Server, to ask for scans. */
+  plexServer(url: string, token: string): MediaServerApi;
+  jellyfin(url: string, apiKey: string): MediaServerApi;
 }
 
 export interface Deps {

@@ -353,6 +353,11 @@ export const downloads = sqliteTable('downloads', {
   seedingSeconds: integer('seeding_seconds'),
   /** When it met its seeding rule. */
   sharedEnoughAt: integer('shared_enough_at'),
+  /** Plex or Jellyfin still has to be told about the new files. */
+  scanPending: integer('scan_pending', { mode: 'boolean' }).notNull().default(false),
+  /** Which media servers were told, or why one couldn't be. */
+  scanMessage: text('scan_message'),
+  scanTriedAt: integer('scan_tried_at'),
 });
 
 export type Download = typeof downloads.$inferSelect;

@@ -41,6 +41,12 @@ export function makeApp(opts: TestOptions = {}) {
     fetchTorrent: () => {
       throw new Error('no torrent downloads in this test');
     },
+    plexServer: () => {
+      throw new Error('no Plex server in this test');
+    },
+    jellyfin: () => {
+      throw new Error('no Jellyfin in this test');
+    },
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;

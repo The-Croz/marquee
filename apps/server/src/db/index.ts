@@ -304,6 +304,11 @@ const migrations: string[] = [
   ALTER TABLE downloads ADD COLUMN seeding_seconds INTEGER;
   ALTER TABLE downloads ADD COLUMN shared_enough_at INTEGER;
   `,
+  /* 12: telling Plex and Jellyfin to scan after an import */ `
+  ALTER TABLE downloads ADD COLUMN scan_pending INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE downloads ADD COLUMN scan_message TEXT;
+  ALTER TABLE downloads ADD COLUMN scan_tried_at INTEGER;
+  `,
 ];
 
 export function openDb(file: string): Db {

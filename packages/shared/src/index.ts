@@ -81,6 +81,30 @@ export interface ServicesView {
   tvRoot: string;
   /** Name patterns for files Marquee puts in the library. */
   naming: { movie: string; tv: string; defaultMovie: string; defaultTv: string };
+  plex: MediaServerView;
+  jellyfin: MediaServerView;
+}
+
+/** A Plex or Jellyfin server Marquee asks to scan. The token or key is never sent back. */
+export interface MediaServerView {
+  url: string | null;
+  configured: boolean;
+  /** Picked library ids; null means Marquee picks. */
+  movieLibrary: string | null;
+  tvLibrary: string | null;
+}
+
+export interface MediaLibraryView {
+  id: string;
+  name: string;
+  kind: 'movie' | 'tv' | 'other';
+  locations: string[];
+}
+
+export interface MediaLibrariesResult {
+  libraries: MediaLibraryView[];
+  /** What Marquee would scan for movies and TV with the current choices. */
+  picked: { movie: string | null; tv: string | null };
 }
 
 export interface ServicesUpdate {
@@ -94,6 +118,14 @@ export interface ServicesUpdate {
   /** "" puts it back to the default. */
   moviePattern?: string;
   tvPattern?: string;
+  plexUrl?: string | null;
+  plexToken?: string | null;
+  plexMovieLibrary?: string | null;
+  plexTvLibrary?: string | null;
+  jellyfinUrl?: string | null;
+  jellyfinApiKey?: string | null;
+  jellyfinMovieLibrary?: string | null;
+  jellyfinTvLibrary?: string | null;
 }
 
 export interface ServiceTestResult {

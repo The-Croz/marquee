@@ -17,6 +17,7 @@ import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
 import { sharedMonitor } from './downloads/monitor.js';
+import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
@@ -30,6 +31,8 @@ const clients = {
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
   qbittorrent: (url: string, username: string, password: string) => new QbitClient(url, username, password),
   fetchTorrent: (url: string) => fetchTorrent(url),
+  plexServer: (url: string, token: string) => new PlexServerClient(url, token),
+  jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
 };
 const sources = new SourceService(db, clients);
 
