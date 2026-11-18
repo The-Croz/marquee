@@ -32,3 +32,17 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Paused** | You paused it. |
 
 A failing Source is skipped and tried again by itself: 1 minute after the first failure, doubling each time, at most 6 hours. **Try now** checks at once.
+
+## Downloader health
+
+| Shown as | Meaning |
+|---|---|
+| **Working** | qBittorrent answered and has an internet connection. |
+| **Others can't connect to you** | qBittorrent is firewalled: downloads work, but slower. Turn on port forwarding in the VPN. |
+| **No internet for downloads** | qBittorrent says it has no connection, usually because the VPN (gluetun) is down. |
+| **Can't reach it** | No answer: qBittorrent is down, or the address or port is wrong. |
+| **Password turned down** | The username or password wasn't accepted. |
+| **Too many wrong passwords** | qBittorrent blocked Marquee's address for a while. |
+| **Type the password again** | The address changed; a saved password is only sent to the address it was saved with. |
+| **Not qBittorrent** | The address answers, but isn't qBittorrent. |
+| **Too old** | Needs qBittorrent 4.5 or newer. |

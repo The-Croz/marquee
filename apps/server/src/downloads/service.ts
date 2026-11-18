@@ -1,0 +1,98 @@
+import type { DownloaderHealth, DownloaderState, DownloaderView } from '@marquee/shared';
+import { getSetting, setSetting, type Db } from '../db/index.js';
+import { QbitError, apiAtLeast, type QbitApi } from './qbittorrent.js';
+
+/**
+ * Settings → Downloader: where qBittorrent is, how to sign in, which category
+ * Marquee files its downloads under, and its health in plain words.
+ */
+
+export interface DownloaderSettings {
+  url: string | null;
+  username: string;
+  password: string | null;
+  category: string;
+}
+
+const KEYS = {
+  url: 'downloader.url',
+  username: 'downloader.username',
+  password: 'downloader.password',
+  category: 'downloader.category',
+} as const;
+
+export const DEFAULT_CATEGORY = 'marquee';
+
+export function readDownloader(db: Db): DownloaderSettings {
+  return {
+    url: getSetting(db, KEYS.url) || null,
+    username: getSetting(db, KEYS.username) ?? '',
+    password: getSetting(db, KEYS.password) || null,
+    category: getSetting(db, KEYS.category) || DEFAULT_CATEGORY,
+  };
+}
+
+export function downloaderView(db: Db): DownloaderView {
+  const s = readDownloader(db);
+  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category };
+}
+
+/**
+ * Saves the given fields. `undefined` leaves a field alone; `null` or "" clears it.
+ * A saved password belongs to its address: changing the address without typing
+ * a password forgets the old one, so it's never sent somewhere new.
+ */
+export function writeDownloader(db: Db, v: { url?: string | null; username?: string; password?: string | null; category?: string }): void {
+  const saved = readDownloader(db);
+  if (v.url !== undefined) {
+    const url = v.url?.trim() || '';
+    if (url !== (saved.url ?? '') && v.password === undefined) setSetting(db, KEYS.password, '');
+    setSetting(db, KEYS.url, url);
+  }
+  if (v.username !== undefined) setSetting(db, KEYS.username, v.username.trim());
+  if (v.password !== undefined) setSetting(db, KEYS.password, v.password ?? '');
+  if (v.category !== undefined) setSetting(db, KEYS.category, v.category.trim() || DEFAULT_CATEGORY);
+}
+
+/** The label and what to do for each state. Screens show these as-is. */
+export const DOWNLOADER_TEXT: Record<DownloaderState, { label: string; fix: string | null }> = {
+  not_set_up: { label: 'Not set up', fix: 'Enter the address of qBittorrent\'s web page and its username and password.' },
+  working: { label: 'Working', fix: null },
+  unreachable: { label: "Can't reach it", fix: 'Check qBittorrent is running and the address and port are right (Unraid: the port on the qBittorrent or gluetun container). Marquee tries again next time it needs it.' },
+  password_refused: { label: 'Password turned down', fix: 'Type the username and password from qBittorrent → Options → Web UI again, then Test.' },
+  banned: { label: 'Too many wrong passwords', fix: 'qBittorrent blocks an address for a while after several wrong passwords (one hour by default). Fix the password, then wait or restart qBittorrent.' },
+  needs_password: { label: 'Type the password again', fix: 'The address changed. For safety, Marquee only sends a saved password to the address it was saved with.' },
+  not_qbittorrent: { label: 'Not qBittorrent', fix: "The address answers, but not as qBittorrent. Use the address of qBittorrent's web page, e.g. http://192.168.1.100:8080." },
+  too_old: { label: 'Too old', fix: 'Marquee needs qBittorrent 4.5 or newer. Update the container.' },
+  no_internet: { label: 'No internet for downloads', fix: "qBittorrent says it has no connection. If it runs behind a VPN (like gluetun), check the VPN container is up and connected, then restart qBittorrent." },
+  firewalled: { label: "Others can't connect to you", fix: 'Downloads still work, but slower. Turn on port forwarding in your VPN and set that port in qBittorrent → Options → Connection.' },
+  error: { label: 'Something went wrong', fix: 'qBittorrent gave an answer Marquee didn\'t expect. Try again; if it keeps happening, check qBittorrent\'s log.' },
+};
+
+function health(state: DownloaderState, now: number, extra: Partial<DownloaderHealth> = {}): DownloaderHealth {
+  const t = DOWNLOADER_TEXT[state];
+  return { state, ok: state === 'working' || state === 'firewalled', label: t.label, fix: t.fix, detail: null, checkedAt: now, ...extra };
+}
+
+/** Checks qBittorrent and describes what it found. Never throws. */
+export async function checkDownloader(client: QbitApi | null, category: string, now: number): Promise<DownloaderHealth> {
+  if (!client) return health('not_set_up', now);
+  try {
+    const s = await client.status();
+    const facts = {
+      version: s.version,
+      savePath: s.savePath,
+      freeSpace: s.freeSpace,
+      categoryExists: category in s.categories,
+    };
+    if (!apiAtLeast(s.apiVersion)) return health('too_old', now, { ...facts, detail: `This is qBittorrent ${s.version}.` });
+    if (s.connection === 'disconnected') return health('no_internet', now, facts);
+    return health(s.connection === 'firewalled' ? 'firewalled' : 'working', now, facts);
+  } catch (err) {
+    if (err instanceof QbitError) {
+      const state: DownloaderState = err.kind === 'error' ? 'error' : err.kind;
+      return health(state, now, { detail: err.message });
+    }
+    return health('error', now, { detail: (err as Error).message });
+  }
+}

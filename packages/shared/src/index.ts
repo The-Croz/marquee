@@ -96,6 +96,55 @@ export interface ServiceTestResult {
   message: string;
 }
 
+// ---- Settings → Downloader (qBittorrent) ----
+
+export type DownloaderState =
+  | 'not_set_up'
+  | 'working'
+  | 'unreachable'
+  | 'password_refused'
+  | 'banned'
+  | 'needs_password'
+  | 'not_qbittorrent'
+  | 'too_old'
+  | 'no_internet'
+  | 'firewalled'
+  | 'error';
+
+export interface DownloaderView {
+  url: string | null;
+  username: string;
+  /** Whether a password is saved. The password itself is never sent back. */
+  hasPassword: boolean;
+  category: string;
+}
+
+export interface DownloaderUpdate {
+  url?: string | null;
+  username?: string;
+  /** Omit to keep the saved one; null clears it. */
+  password?: string | null;
+  category?: string;
+}
+
+export interface DownloaderHealth {
+  state: DownloaderState;
+  /** Working well enough to download (firewalled still downloads). */
+  ok: boolean;
+  label: string;
+  /** What to do about it, or null when nothing needs doing. */
+  fix: string | null;
+  /** The specific error, if any. */
+  detail: string | null;
+  checkedAt: number;
+  version?: string;
+  /** qBittorrent's default save folder, as qBittorrent sees it. */
+  savePath?: string;
+  freeSpace?: number | null;
+  /** Whether Marquee's category already exists in qBittorrent (it's made on the first download). */
+  categoryExists?: boolean;
+}
+
 // ---- Settings → Sources ----
 
 /** Health of a Source, in words the UI shows as-is via `stateLabel`. */

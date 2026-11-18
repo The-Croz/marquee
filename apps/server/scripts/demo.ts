@@ -4,6 +4,7 @@
  *   pnpm --filter @marquee/server demo        (serves the built web app on :9797)
  * Data lives in a temp folder and is thrown away. Sign up as any admin.
  * Settings → Sources: link Prowlarr at http://prowlarr:9696 with the key prowlarr-key.
+ * Settings → Downloader: a fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -20,6 +21,7 @@ import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
+import { FakeQbit } from '../test/fakes/qbittorrent.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -91,7 +93,14 @@ radarr.history = [
 radarr.lists.set(1, dune.map((r) => radarrRelease(r.title, { size: r.size, seeders: r.seeders, infoHash: r.infoHash })));
 setSetting(db, 'services.radarr_url', 'http://radarr:7878');
 setSetting(db, 'services.radarr_api_key', 'radarr-key');
-const clients = { tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
+// A fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin), behind a VPN that's up.
+const qbit = new FakeQbit();
+setSetting(db, 'downloader.url', 'http://qbittorrent:8080');
+setSetting(db, 'downloader.username', 'admin');
+setSetting(db, 'downloader.password', 'adminadmin');
+const clients = {
+  qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
+  tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,
   config,

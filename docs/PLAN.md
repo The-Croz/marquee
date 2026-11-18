@@ -113,14 +113,46 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
 
 Not in M2: grabbing, qBittorrent, RSS polling (M4), native indexer definitions to replace Prowlarr (decided at M4).
 
-## Milestone 3: Downloads ⬜ (movies can switch over here)
+## Milestone 3: Downloads 🔨 (movies can switch over here)
 
-- ⬜ qBittorrent client (add, pause, resume, delete, categories, progress, ratio); VPN-aware health check
-- ⬜ Queue page from the mockup; stall detection → "try another copy" automatically after N minutes
-- ⬜ Import: hardlink from `/data/torrents/...` to `/data/media/movies/...` and `/data/media/tv/...`, rename to a clean scheme, verify, record `media_files`
-- ⬜ Seeding rules (ratio goal / max days) and cleanup of finished torrents
-- ⬜ Tell Plex and Jellyfin to scan the folder
-- ⬜ Cutover checklist for movies: turn off Radarr's monitoring, Marquee takes over
+Goal: Marquee sends the copy it picked to qBittorrent, follows it in plain words, puts the finished file in the library with a hardlink and a clean name, keeps seeding by your rules, and tells Plex and Jellyfin. Then Radarr can stop.
+
+Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real one), a `PLAN.md` tick and demo-mode fakes. Nothing is ever deleted from disk in M3 (only qBittorrent's own copy of a torrent Marquee sent, and only when you say so).
+
+1. 🔨 **Downloader connection** (`apps/server/src/downloads/qbittorrent.ts`; read-only)
+   - qBittorrent Web API v2 client: sign in (username and password; session cookie kept and renewed when it runs out), app and API version, preferences (save folder), connection status, free space, categories. Only reads in this PR.
+   - Settings → Downloader: address, username, password (never sent back; a saved password is never sent to a different address), category (default `marquee`), Test connection.
+   - Health in plain words with what to do: **Working**, **Can't reach it**, **Password turned down**, **Too many wrong passwords** (qBittorrent banned Marquee's address for a while), **Not qBittorrent**, **Too old** (needs Web API 2.8+, qBittorrent 4.5+), and VPN-aware states from qBittorrent's own connection status: **No internet for downloads** (the VPN, e.g. gluetun, is down) and **Others can't connect to you** (firewalled: downloads work but slower; check port forwarding).
+   - Demo mode: a fake qBittorrent at `http://qbittorrent:8080` (admin / adminadmin).
+2. ⬜ **Send a copy** (grab from "Copies we found")
+   - Migration: `downloads` (title, episode(s), copy name, info-hash, Source, profile, points, who and when, state, last progress, files).
+   - **Download this** on any accepted copy (and on near misses, after a "Download anyway?" check). Marquee fetches the `.torrent` or magnet itself, server-side (the Source key never reaches qBittorrent's logs or the browser), and adds it to qBittorrent under the category with its save folder, tagged with Marquee's download id.
+   - Duplicate guard: the same info-hash already in qBittorrent is adopted, not added twice.
+   - Upgrade decision the M2 engine lacks: "is this better than the file you have?" (quality group, then points), so a copy that isn't better says so.
+   - Kids' requests still need approval (M5); admins and members send straight away.
+3. ⬜ **Downloads page** (the queue, from the mockup)
+   - Follows Marquee's category only, every 10 s while the page is open and every minute otherwise.
+   - Plain states: *Waiting its turn*, *Downloading · 4.2 MB/s · about 12 min left*, *Getting ready* (fetching the file list), *Checking files*, *Paused*, *Stuck · nobody is sharing it*, *Stuck · no progress for 2 hours*, *Downloader full* (disk), *Finished · putting it in your library*, *Gone from qBittorrent*. Each says what Marquee will do next and when.
+   - **Try another copy**: turns this copy down for the title ("Never pick", with the reason), removes it from qBittorrent with its files, and sends the next best. Done by itself after a stuck time (default 6 hours stuck, 24 hours to give up; "For experts", per profile kind). Fake-looking downloads (programs like `.exe`, only archives, a password note) fail as soon as the file list arrives.
+   - Pause, Resume, Remove (with "also delete its files?", default yes for unfinished).
+   - Title pages show their download.
+4. ⬜ **Put it in the library** (import)
+   - When a download finishes: pick the video file(s) (skip samples and extras), check it's the right title and episode, hardlink from `/data/torrents/…` into `/data/media/movies/…` or `/data/media/tv/…`, falling back to a copy only if the two folders are on different disks (and say so on the Health card, since that doubles space).
+   - Clean names, editable as patterns in Settings → Library with a live example: movies `{Title} ({Year}) {tmdb-ID}/{Title} ({Year}) {Quality}.ext`, TV `{Show} ({Year}) {tvdb-ID}/Season {00}/{Show} - S01E02 - {Episode Title} {Quality}.ext`, which Plex and Jellyfin both match.
+   - Upgrades: the old file is moved to a "replaced" folder inside Marquee's data, not deleted (no automatic deletion yet).
+   - Records the file in the library (`media_files`) and the step in a history list. Failures say what to do ("qBittorrent saves to /downloads but Marquee sees /data/torrents: add a folder pair").
+   - Folder pairs ("qBittorrent's folder" ↔ "Marquee's folder") under "For experts", for setups where the two containers see the download folder differently.
+   - Import from the old apps' downloads: a finished torrent in qBittorrent from Radarr's category that matches a wanted title can be imported, read-only until you say so.
+5. ⬜ **Seeding rules**
+   - Per Source (defaults on Settings → Downloader): keep sharing until a ratio (default 2.0) or for some days (default 14), whichever first; private sites default to "until the site's minimum" (set by hand). Set on the torrent in qBittorrent when sent.
+   - When seeding is done, Marquee removes the torrent from qBittorrent but leaves the library hardlink, so the file stays. Off by default; the list shows "Done sharing · can be removed".
+6. ⬜ **Tell Plex and Jellyfin**
+   - After an import, ask Plex (`/library/sections/{id}/refresh?path=`) and Jellyfin (`/Library/Media/Updated`) to scan just that folder. Settings → Services gets Jellyfin (address, API key) next to Plex; which Plex library is Movies/TV is picked from a list.
+   - Health card if a media server didn't answer, with retry.
+7. ⬜ **Movie cutover checklist** (a page, not automation)
+   - Steps with checks Marquee can do itself: comparison agreement over the last 2 weeks, downloader working, a test import done, Plex/Jellyfin scanning, Radarr's queue empty. Then: turn off Radarr's monitoring (you do it in Radarr; Marquee says exactly where), turn on "Marquee looks for wanted movies" (a search for missing movies every 6 hours plus a daily "good enough yet?" check), and keep Radarr read-only for a week before removing it.
+
+Later ideas from HolyArrs for M3 (ideas only): a History page per title and overall; "Downloader can change things" switch for a qBittorrent shared with Radarr during side-by-side; per-stage Health page.
 
 ## Milestone 4: TV ⬜ (TV can switch over here)
 
