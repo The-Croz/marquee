@@ -210,11 +210,19 @@ export interface DownloaderHealth {
 // ---- Settings → Sources ----
 
 /** Health of a Source, in words the UI shows as-is via `stateLabel`. */
-export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
+export type SourceState = 'unchecked' | 'working' | 'paused' | 'unreachable' | 'key_refused' | 'sign_in_failed' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'not_supported' | 'error';
 
 export interface SourceView {
   id: number;
   name: string;
+  /** feed: a Torznab address (often through Prowlarr) · site: Marquee searches the site itself */
+  kind: 'feed' | 'site';
+  /** For sites: which one, its name in the catalogue, and its settings (secrets hidden). */
+  siteId: string | null;
+  siteName: string | null;
+  siteSettings: SiteSettingsView | null;
+  /** Brought over from Prowlarr, so "Put back" can undo it. */
+  canPutBack: boolean;
   /** The Torznab address. Never includes the key. */
   url: string;
   hasKey: boolean;
@@ -793,4 +801,71 @@ export interface CalendarView {
   to: string;
   today: string;
   items: CalendarItem[];
+}
+
+// ---- Built-in sites ----
+
+/** One setting a site asks for when you add it. */
+export interface SiteField {
+  name: string;
+  /** info: text to read, nothing to fill in. */
+  type: 'text' | 'password' | 'checkbox' | 'select' | 'multiselect' | 'info';
+  label: string;
+  /** For info. */
+  text?: string;
+  /** Never sent back once saved (passwords, cookies, keys). */
+  secret?: boolean;
+  default?: string | string[] | boolean | null;
+  options?: { value: string; label: string }[];
+}
+
+/** A site in Marquee's catalogue. */
+export interface SiteSummary {
+  id: string;
+  name: string;
+  description: string;
+  /** public: anyone can use it · private: needs an account · semiPrivate: an account helps */
+  type: 'public' | 'private' | 'semiPrivate';
+  language: string | null;
+  /** catalogue: from Prowlarr's list · custom: a file in your sites folder · builtin: written into Marquee */
+  origin: 'catalogue' | 'custom' | 'builtin';
+  movies: boolean;
+  tv: boolean;
+  /** Why Marquee can't run it yet, or null. */
+  unsupported: string | null;
+}
+
+export interface SiteForm extends SiteSummary {
+  /** Addresses the site answers on, first is usual. */
+  links: string[];
+  fields: SiteField[];
+}
+
+export interface SitesView {
+  sites: SiteSummary[];
+  catalogue: { refreshedAt: number | null; message: string | null; count: number; customFolder: string };
+}
+
+/** Values of a site's settings. Secrets come back as { saved: true } instead of their value. */
+export type SiteSettingsView = Record<string, string | string[] | boolean | { saved: boolean } | null>;
+
+export interface BringOverResult {
+  /** Now run by Marquee itself. */
+  moved: string[];
+  /** Moved, but Prowlarr doesn't share passwords and cookies: type them once. */
+  needSignIn: string[];
+  /** Not in Marquee's catalogue, so still searched through Prowlarr. */
+  notInCatalogue: string[];
+  message: string;
+}
+
+export interface SolverView {
+  enabled: boolean;
+  /** Another solver's address (For experts); null uses the one inside Marquee. */
+  url: string | null;
+  /** Whether this install has a solver inside it. */
+  bundled: boolean;
+  /** off · starting · ready · failed · missing (no solver here and no address given) */
+  state: 'off' | 'starting' | 'ready' | 'failed' | 'missing';
+  message: string;
 }

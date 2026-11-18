@@ -1,0 +1,41 @@
+---
+id: examplecookie
+name: ExampleCookie
+description: "A private site you sign in to with your browser's cookie"
+type: private
+links:
+  - https://cookie.test/
+caps:
+  categories:
+    1: TV
+  modes:
+    search: [q]
+    tv-search: [q, season, ep]
+settings:
+  - name: cookie
+    type: text
+    label: Cookie
+  - name: info_cookie
+    type: info_cookie
+login:
+  method: cookie
+  inputs:
+    cookie: "{{ .Config.cookie }}"
+  test:
+    path: /
+    selector: a.logout
+search:
+  paths:
+    - path: "search.php"
+  inputs:
+    q: "{{ .Keywords }}"
+  rows:
+    selector: div.result
+  fields:
+    title:
+      selector: h3
+    download:
+      selector: a.get
+      attribute: href
+    size:
+      text: 1.5 GB

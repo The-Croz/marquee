@@ -61,3 +61,4 @@ pnpm build && pnpm --filter @marquee/server demo   # fake TMDB + sample library 
 - Docker Hub is blocked there too, so the image can only be built in GitHub Actions.
 - Live services on Josh's LAN aren't reachable from the sandbox, nor is TMDB (api or images). Use demo mode and the fakes in `apps/server/test/fakes/`; use Claude Code on a machine on the LAN for integration work.
 - Library code lives in `apps/server/src/library/` (parse, tmdb, arr, scanner, services). The scanner must stay read-only on disk until Milestone 3's import step.
+- Sites Marquee searches itself live in `apps/server/src/sources/sites/`: an engine for Prowlarr's site files (downloaded at runtime, never committed: their repo has no license file), built-in IPTorrents and Knaben, and the FlareSolverr-protocol solver. Test sites are our own files in `apps/server/test/fixtures/sites/`. `scripts/try-site.ts` tries a site file against the real site by hand.

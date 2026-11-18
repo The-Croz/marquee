@@ -7,6 +7,9 @@
  * Settings → Downloader: a fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin).
  * Settings → Services: fake Plex at http://plex:32400 (token plex-token), Jellyfin at http://jellyfin:8096 (key jellyfin-key).
  * Radarr (http://radarr:7878) and Sonarr (http://sonarr:8989) are fakes too, already filled in.
+ * Settings → Sources → Add a site: ExampleBay (behind a fake bot check: turn on bot-check solving
+ * with any address under For experts), ExampleJSON, and ExamplePrivate (josh / hunter2). Prowlarr's
+ * fake sites can be brought over too.
  * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
  */
 import fs from 'node:fs';
@@ -26,6 +29,8 @@ import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
 import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
 import { FakeMediaServer } from '../test/fakes/mediaServers.js';
+import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
+import { refreshCatalogue } from '../src/sources/sites/catalogue.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -49,7 +54,7 @@ file('tv/Severance (2022)/Season 01/Severance - S01E02 - Half Loop [WEBDL-2160p]
 file('tv/Severance (2022)/Season 02/Severance - S02E01 - Hello, Ms. Cobel [WEBDL-2160p].mkv', 5 * GB, 1);
 file('tv/Bluey (2018) {tvdb-353546}/Season 1/Bluey.S01E01-E03.720p.WEBRip.mkv', GB, 10);
 
-const config = { ...loadConfig(), webDir: process.env.MARQUEE_WEB_DIR ?? path.resolve('../web/dist') };
+const config = { ...loadConfig(), dataDir: root, webDir: process.env.MARQUEE_WEB_DIR ?? path.resolve('../web/dist') };
 const db = openDb(':memory:');
 setSetting(db, 'services.tmdb_api_key', 'good-key');
 setSetting(db, 'library.movies_root', path.join(root, 'movies'));
@@ -75,11 +80,11 @@ tmdb.season = async (showId, season) => {
 // A fake Prowlarr at http://prowlarr:9696 (key "prowlarr-key") with a few sites, one of them failing.
 const sites = new FakeSites();
 sites.prowlarrSites = [
-  site(1, 'YTS', { categories: [2000, 2040, 2045] }),
+  site(1, 'YTS', { categories: [2000, 2040, 2045], definitionName: 'examplejson' }),
   site(2, 'EZTV', { categories: [5000, 5040] }),
   site(3, 'IPTorrents', { privacy: 'private', priority: 10 }),
   site(4, 'MyAnonamouse', { privacy: 'private', categories: [7000, 3030] }),
-  site(5, 'The Pirate Bay'),
+  site(5, 'The Pirate Bay', { definitionName: 'examplebay' }),
 ];
 // Every feed answers every search with these; Marquee sorts out which fit the title.
 const dune = [
@@ -172,6 +177,35 @@ const jellyfin = new FakeMediaServer('jellyfin', [
   { id: 'a1', name: 'Movies', kind: 'movie', locations: [path.join(root, 'movies')] },
   { id: 'b2', name: 'Shows', kind: 'tv', locations: [path.join(root, 'tv')] },
 ]);
+// Fake sites Marquee searches itself, and the catalogue they come from (the test site files).
+const web = new FakeWeb();
+const fixtures = path.resolve(import.meta.dirname, '../test/fixtures/sites');
+const catalogue = catalogueZip(Object.fromEntries(fs.readdirSync(fixtures).map((n) => [n, fs.readFileSync(path.join(fixtures, n), 'utf8')])));
+const bayRows = dune
+  .map((r, i) => `<tr><td><a class="name" data-cat="${/S\d\dE?/.test(r.title) ? 2 : 1}" href="/torrent/${i}/">${r.title}</a></td><td class="size">${((r.size ?? 0) / 1e9).toFixed(1)} GB</td><td class="seeds">${r.seeders}</td><td class="leech">3</td><td class="age">${i + 1} hours</td></tr>`)
+  .join('');
+web.on('GET', /^https:\/\/bay\.test\/(search|latest)\//, (req) => ((req.headers?.Cookie ?? '').includes('cf_clearance') ? { body: `<table class="list">${bayRows}</table>` } : BOT_CHECK));
+web.on('GET', /^https:\/\/bay\.test\/torrent\/\d+\/$/, (req) => ({ body: `<a href="magnet:?xt=urn:btih:${'b'.repeat(39)}${req.url.match(/(\d+)\/$/)![1]}">Magnet</a>` }));
+web.on('GET', 'https://json.test/api/list.json', () => ({
+  body: JSON.stringify({ data: { movie_count: 1, movies: [{ title: 'Dune: Part Two', year: 2024, imdb_code: 'tt15239678', torrents: [{ quality: '2160p', url: 'https://json.test/dl/1.torrent', hash: 'c'.repeat(40), size_bytes: 8e9, seeds: 120, peers: 9, date_uploaded_unix: 1714573800 }] }] } }),
+}));
+let privSession = '';
+web.on('GET', 'https://priv.test/login.php', () => ({ body: '<form id="login" action="takelogin.php" method="post"><input name="username"><input name="password" type="password"></form>' }));
+web.on('POST', 'https://priv.test/takelogin.php', (req) => {
+  const f = new URLSearchParams(req.body);
+  if (f.get('username') !== 'josh' || f.get('password') !== 'hunter2') return { body: '<div class="error">Wrong username or password.</div>' };
+  privSession = `s${Date.now()}`;
+  return { status: 302, headers: { location: '/index.php' }, setCookies: [`sid=${privSession}`] };
+});
+const privIn = (req: { headers?: Record<string, string> }) => !!privSession && (req.headers?.Cookie ?? '').includes(privSession);
+web.on('GET', 'https://priv.test/index.php', (req) => ({ body: privIn(req) ? '<a href="logout.php">Log out</a>' : '' }));
+web.on('GET', 'https://priv.test/browse.php', (req) =>
+  privIn(req)
+    ? { body: `<table>${dune.slice(0, 4).map((r, i) => `<tr class="torrent"><td class="name"><a href="details.php?id=${i}">${r.title}</a></td><td><a class="dl" href="download.php?id=${i}">get</a></td><td class="size">${((r.size ?? 0) / 1e9).toFixed(1)} GB</td><td class="seeds">${r.seeders}</td><td class="leech">2</td><td class="added">2024-05-01 14:30</td></tr>`).join('')}</table>` }
+    : { status: 302, headers: { location: 'https://priv.test/login.php' } },
+);
+const solver = new FakeSolver(web);
+
 const clients = {
   plexServer: (url: string, token: string) => plex.as(url, token),
   jellyfin: (url: string, key: string) => jellyfin.as(url, key),
@@ -183,7 +217,12 @@ const clients = {
     if (/S\d\dE\d\d/i.test(decodeURIComponent(url))) qbitTvHashes.add(t.infoHash);
     return t;
   },
-  tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
+  tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr,
+  siteFetch: web.fetch,
+  solver: () => solver,
+  fetchCatalogue: async () => catalogue,
+};
+
 const app = createApp({
   db,
   config,
@@ -195,4 +234,5 @@ const app = createApp({
   sources: new SourceService(db, clients),
   now: Date.now,
 });
+void refreshCatalogue({ db, dataDir: root, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
 serve({ fetch: app.fetch, port: config.port }, (i) => console.log(`Marquee demo on http://localhost:${i.port} (library at ${root})`));

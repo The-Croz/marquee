@@ -21,6 +21,9 @@ import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
 import { refreshAiring } from './library/airing.js';
 import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
+import { realSiteFetch } from './sources/sites/http.js';
+import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
+import { CATALOGUE_URL, catalogueDue, refreshCatalogue } from './sources/sites/catalogue.js';
 
 const config = loadConfig();
 const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
@@ -33,11 +36,20 @@ const clients = {
   torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
   qbittorrent: (url: string, username: string, password: string) => new QbitClient(url, username, password),
-  fetchTorrent: (url: string) => fetchTorrent(url),
+  fetchTorrent: (url: string, headers?: Record<string, string>) => fetchTorrent(url, fetch, 30_000, headers),
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
+  siteFetch: realSiteFetch,
+  solver: (url: string) => new FlareSolverrClient(url),
+  fetchCatalogue: async () => {
+    const res = await fetch(CATALOGUE_URL, { signal: AbortSignal.timeout(60_000) });
+    if (!res.ok) throw new Error(`answered ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  },
 };
-const sources = new SourceService(db, clients);
+// The bot-check solver inside Marquee's image, started only when a site needs it.
+const bundledSolver = new BundledSolver(process.env.MARQUEE_SOLVER_BIN ?? null, config.dataDir);
+const sources = new SourceService(db, clients, Date.now, undefined, bundledSolver);
 
 const appScanner = new LibraryScanner(db);
 const app = createApp({
@@ -67,6 +79,17 @@ const housekeeping = () => {
 };
 housekeeping();
 setInterval(housekeeping, 6 * 60 * 60 * 1000).unref();
+
+// The list of sites Marquee can run: Prowlarr's catalogue once a day, plus your own files.
+const catalogue = () => {
+  if (!catalogueDue(db, Date.now())) return;
+  refreshCatalogue({ db, dataDir: config.dataDir, fetchCatalogue: clients.fetchCatalogue, now: Date.now }).then(
+    (r) => console.log(`[sites] ${r.message}`),
+    (err) => console.error('[sites] catalogue failed:', (err as Error).message),
+  );
+};
+catalogue();
+setInterval(catalogue, 60 * 60 * 1000).unref();
 
 // Comparison mode: every hour, bring in Radarr's new downloads and compare a few.
 const comparisons = new ComparisonService(db, config, clients, sources, Date.now);
@@ -121,6 +144,7 @@ const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     server.close();
+    bundledSolver.stop();
     db.$client.close();
     process.exit(0);
   });

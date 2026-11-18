@@ -27,6 +27,20 @@ ENV NODE_ENV=production \
     MARQUEE_DATA_DIR=/config \
     MARQUEE_WEB_DIR=/app/web
 
+# Bot-check solver: FlareSolverr (MIT), with its own Chrome. Marquee starts it
+# only when "Solve bot checks" is on, listening on 127.0.0.1 only.
+ARG FLARESOLVERR_VERSION=v3.5.2
+ARG FLARESOLVERR_SHA256=84f6df48849b2e1742692841805c4f284118fe4e2798b49d3a78159e89a46a91
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl xvfb xauth \
+      libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 libxdamage1 \
+      libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2 libxshmfence1 libx11-xcb1 libxss1 libgtk-3-0 fonts-liberation \
+ && curl -fsSL -o /tmp/fs.tar.gz "https://github.com/FlareSolverr/FlareSolverr/releases/download/${FLARESOLVERR_VERSION}/flaresolverr_linux_x64.tar.gz" \
+ && echo "${FLARESOLVERR_SHA256}  /tmp/fs.tar.gz" | sha256sum -c - \
+ && tar -xzf /tmp/fs.tar.gz -C /opt && rm /tmp/fs.tar.gz \
+ && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+ENV MARQUEE_SOLVER_BIN=/opt/flaresolverr/flaresolverr
+
 WORKDIR /app
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/package.json ./package.json

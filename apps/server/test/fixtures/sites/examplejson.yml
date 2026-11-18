@@ -1,0 +1,64 @@
+---
+# A public movie site with a JSON search service; each movie lists several copies.
+id: examplejson
+name: ExampleJSON
+description: "Movies from a JSON search service"
+language: en-US
+type: public
+links:
+  - https://json.test/
+
+caps:
+  categorymappings:
+    - {id: 45, cat: Movies/HD, desc: "1080p"}
+    - {id: 46, cat: Movies/UHD, desc: "2160p"}
+  modes:
+    search: [q]
+    movie-search: [q, imdbid]
+
+settings: []
+
+search:
+  paths:
+    - path: api/list.json
+      response:
+        type: json
+  inputs:
+    query_term: "{{ if .Query.IMDBID }}{{ .Query.IMDBID }}{{ else }}{{ .Keywords }}{{ end }}"
+    limit: 50
+  rows:
+    selector: data.movies
+    attribute: torrents
+    multiple: true
+    missingAttributeEqualsNoResults: true
+    count:
+      selector: data.movie_count
+  fields:
+    _quality:
+      selector: quality
+    year:
+      selector: ..year
+    title:
+      selector: ..title
+      filters:
+        - name: append
+          args: " {{ .Result.year }} {{ .Result._quality }} WEBRip x265-JSN"
+    category:
+      selector: quality
+      case:
+        "2160p": 46
+        "*": 45
+    download:
+      selector: url
+    infohash:
+      selector: hash
+    size:
+      selector: size_bytes
+    seeders:
+      selector: seeds
+    leechers:
+      selector: peers
+    date:
+      selector: date_uploaded_unix
+    imdbid:
+      selector: ..imdb_code

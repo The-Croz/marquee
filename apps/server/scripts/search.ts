@@ -12,6 +12,8 @@ import { openDb } from '../src/db/index.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabClient } from '../src/sources/torznab.js';
 import { ProwlarrClient } from '../src/sources/prowlarr.js';
+import { realSiteFetch } from '../src/sources/sites/http.js';
+import { FlareSolverrClient } from '../src/sources/sites/solver.js';
 
 const [dbPath, kind, title, ...rest] = process.argv.slice(2);
 if (!dbPath || (kind !== 'movie' && kind !== 'tv') || !title) {
@@ -24,6 +26,8 @@ const db = openDb(dbPath);
 const sources = new SourceService(db, {
   torznab: (url, key, timeoutMs) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url, key) => new ProwlarrClient(url, key),
+  siteFetch: realSiteFetch,
+  solver: (url) => new FlareSolverrClient(url),
 });
 
 const query =

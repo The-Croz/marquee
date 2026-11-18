@@ -41,6 +41,11 @@ export interface Release {
   tvdbId: number | null;
   /** True when downloading it doesn't count against your ratio (private sites). */
   freeleech: boolean;
+  /**
+   * Sites Marquee runs itself: gets the real download (opening the copy's page
+   * if needed) and the cookies to send with it. Server-side only.
+   */
+  resolveDownload?: () => Promise<{ url: string; headers: Record<string, string> }>;
 }
 
 export type SearchQuery =
@@ -50,7 +55,7 @@ export type SearchQuery =
   | { kind: 'recent'; for?: 'movie' | 'tv' };
 
 /** Why a call failed, in a form the UI can turn into a plain sentence and a fix. */
-export type TorznabProblem = 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
+export type TorznabProblem = 'unreachable' | 'key_refused' | 'sign_in_failed' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'not_supported' | 'error';
 
 export class TorznabError extends Error {
   constructor(
@@ -196,7 +201,7 @@ export class TorznabClient implements TorznabApi {
  * site's ebooks or music never get through. Untagged results are kept and
  * left to the name checks.
  */
-function rightKind(r: Release, query: SearchQuery): boolean {
+export function rightKind(r: Release, query: SearchQuery): boolean {
   if (r.categories.length === 0) return true;
   const kind = query.kind === 'recent' ? query.for : query.kind;
   if (!kind) return true;

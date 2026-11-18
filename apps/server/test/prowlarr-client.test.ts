@@ -14,8 +14,16 @@ describe('Prowlarr client errors', () => {
   });
 
   it('reads Prowlarr 3’s site list', async () => {
-    const body = [{ id: 1, name: 'YTS', enable: true, protocol: 'torrent', privacy: 'public', priority: 25, capabilities: { categories: [{ id: 2000, subCategories: [{ id: 2040 }] }] } }];
+    const body = [
+      {
+        id: 1, name: 'YTS', enable: true, protocol: 'torrent', privacy: 'public', priority: 25, capabilities: { categories: [{ id: 2000, subCategories: [{ id: 2040 }] }] },
+        definitionName: 'yts',
+        fields: [{ name: 'baseUrl', value: 'https://yts.mx/' }, { name: 'password', value: '********' }, { name: 'torrentBaseSettings.seedRatio' }, { name: 'sort', value: 1 }],
+      },
+    ];
     const ok = (async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
-    expect(await new ProwlarrClient('http://p:9696', 'k', ok).sites()).toEqual([{ id: 1, name: 'YTS', enabled: true, protocol: 'torrent', privacy: 'public', priority: 25, categories: [2000, 2040] }]);
+    expect(await new ProwlarrClient('http://p:9696', 'k', ok).sites()).toEqual([
+      { id: 1, name: 'YTS', enabled: true, protocol: 'torrent', privacy: 'public', priority: 25, categories: [2000, 2040], definitionName: 'yts', settings: { baseUrl: 'https://yts.mx/', password: '********', sort: 1 } },
+    ]);
   });
 });

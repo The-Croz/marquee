@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useOutletContext } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { AuthStatus, ProwlarrSyncResult, SessionUser, SourceCheckResult, SourceState, SourceUpdate, SourceView, SourcesView } from '@marquee/shared';
+import type { AuthStatus, BringOverResult, ProwlarrSyncResult, SessionUser, SourceCheckResult, SourceState, SourceUpdate, SourceView, SourcesView } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { AddSiteCard, SiteSettingsEditor, SolverCard } from './SourceSites';
 
 /**
  * Settings → Sources: the sites Marquee searches for copies (older apps call
- * them indexers). Prowlarr first, since that's how most people have them.
+ * them indexers). Your Sources first, then adding a site Marquee searches
+ * itself, bot checks, and Prowlarr for anyone still using it.
  */
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
@@ -35,21 +37,24 @@ function SourcesAdmin() {
   return (
     <div className="flex max-w-[960px] flex-col gap-6">
       <p className="m-0 max-w-[680px] text-[15px] text-muted">
-        Sources are the sites Marquee searches for copies of a movie or show. Older apps call them indexers. Marquee only reads from them: nothing is downloaded until you say so.
+        Sources are the sites Marquee searches for copies of a movie or show. Older apps call them indexers. Marquee searches them itself, or through Prowlarr if you still use it. It only reads
+        from them: nothing is downloaded until you say so.
       </p>
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
-      <ProwlarrCard prowlarr={data.prowlarr} setMessage={setMessage} />
       <Card className="flex flex-col gap-1">
         <h2 className="m-0 mb-3 text-lg font-semibold">
           Your Sources <span className="text-sm font-normal text-dim">{data.sources.length || ''}</span>
         </h2>
         {data.sources.length === 0 && (
-          <p className="m-0 border-t border-line py-4 text-sm text-muted">None yet. Link Prowlarr above, or add a Torznab feed by hand below.</p>
+          <p className="m-0 border-t border-line py-4 text-sm text-muted">None yet. Add a site below, or link Prowlarr and bring its sites over.</p>
         )}
         {data.sources.map((s) => (
           <SourceRow key={s.id} source={s} setMessage={setMessage} />
         ))}
       </Card>
+      <AddSiteCard setMessage={setMessage} />
+      <SolverCard />
+      <ProwlarrCard prowlarr={data.prowlarr} feeds={data.sources.filter((s) => s.fromProwlarr && s.kind === 'feed').length} setMessage={setMessage} />
       <AddByHand setMessage={setMessage} />
     </div>
   );
@@ -57,8 +62,9 @@ function SourcesAdmin() {
 
 // ---------------- Prowlarr ----------------
 
-function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlarr']; setMessage: (m: Msg) => void }) {
+function ProwlarrCard({ prowlarr, feeds, setMessage }: { prowlarr: SourcesView['prowlarr']; feeds: number; setMessage: (m: Msg) => void }) {
   const [editing, setEditing] = useState(!prowlarr.linked);
+  const [brought, setBrought] = useState<BringOverResult | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
   const [sync, setSync] = useState<ProwlarrSyncResult | null>(null);
@@ -102,6 +108,11 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
       if (!r.ok) setMessage({ tone: 'error', text: r.message });
       await reload();
     });
+  const onBringOver = () =>
+    run('bring', async () => {
+      setBrought(await api<BringOverResult>('/settings/sources/prowlarr/bring-over', { body: {} }));
+      await reload();
+    });
   const onUnlink = (removeSources: boolean) =>
     run('unlink', async () => {
       await api('/settings/sources/prowlarr/unlink', { body: { removeSources } });
@@ -133,6 +144,11 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
         </div>
         {prowlarr.linked && !editing && (
           <div className="flex flex-wrap gap-2">
+            {feeds > 0 && (
+              <Button type="button" className="h-11 px-4 text-sm" onClick={onBringOver} disabled={!!busy}>
+                {busy === 'bring' ? 'Bringing over…' : 'Bring sites over to Marquee'}
+              </Button>
+            )}
             <Button type="button" variant="ghost" className="h-11 px-4 text-sm" onClick={onSync} disabled={!!busy}>
               {busy === 'sync' ? 'Syncing…' : 'Sync now'}
             </Button>
@@ -199,6 +215,17 @@ function ProwlarrCard({ prowlarr, setMessage }: { prowlarr: SourcesView['prowlar
         </form>
       )}
 
+      {prowlarr.linked && feeds > 0 && !brought && (
+        <p className="m-0 max-w-[640px] text-[13px] text-dim">
+          “Bring sites over” moves each Prowlarr site Marquee knows into Marquee itself, keeping its name, priority and limits, so you can stop using Prowlarr. Each one can be put back.
+        </p>
+      )}
+      {brought && (
+        <div role="status" className="rounded-xl bg-raised px-4 py-3 text-sm text-soft">
+          <p className="m-0">{brought.message}</p>
+          {brought.notInCatalogue.length > 0 && <p className="m-0 mt-1 text-muted">Still through Prowlarr: {brought.notInCatalogue.join(', ')}.</p>}
+        </div>
+      )}
       {error && !editing && <Notice tone="error">{error}</Notice>}
       {sync && sync.ok && (
         <div role="status" className="rounded-xl bg-raised px-4 py-3 text-sm text-soft">
@@ -230,8 +257,10 @@ const STATE_COLOR: Record<SourceState, string> = {
   set_aside: 'bg-amber',
   unreachable: 'bg-warn',
   key_refused: 'bg-warn',
+  sign_in_failed: 'bg-warn',
   blocked: 'bg-warn',
   not_a_feed: 'bg-warn',
+  not_supported: 'bg-warn',
   error: 'bg-warn',
 };
 
@@ -256,6 +285,11 @@ function SourceRow({ source: s, setMessage }: { source: SourceView; setMessage: 
 
   const onCheck = () => run('check', async () => setCheck(await api<SourceCheckResult>(`/settings/sources/${s.id}/check`, { body: {} })));
   const setEnabled = (enabled: boolean) => run('pause', async () => void (await api(`/settings/sources/${s.id}`, { method: 'PUT', body: { enabled } })));
+  const onPutBack = () =>
+    run('putback', async () => {
+      setCheck(await api<SourceCheckResult>(`/settings/sources/${s.id}/put-back`, { body: {} }));
+      setMessage({ tone: 'success', text: `${s.name} is searched through Prowlarr again.` });
+    });
   const onRemove = () => {
     if (!window.confirm(`Remove ${s.name}? Marquee will stop searching it.`)) return;
     void run('remove', async () => {
@@ -273,7 +307,9 @@ function SourceRow({ source: s, setMessage }: { source: SourceView; setMessage: 
           <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
             {s.name}
             {s.private && <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-soft">Private</span>}
-            {s.fromProwlarr && <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-dim">From Prowlarr</span>}
+            {s.kind === 'site' && <span className="rounded-full border border-teal px-2 py-0.5 text-xs font-medium text-teal-hi">Searched by Marquee</span>}
+            {s.kind === 'site' && s.siteName && s.siteName !== s.name && <span className="text-xs font-normal text-dim">{s.siteName}</span>}
+            {s.fromProwlarr && s.kind === 'feed' && <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-dim">From Prowlarr</span>}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
             <span className="inline-flex items-center gap-1.5">
@@ -319,12 +355,24 @@ function SourceRow({ source: s, setMessage }: { source: SourceView; setMessage: 
       )}
       {!check && s.state === 'working' && s.searchesById && <p className="m-0 text-[13px] text-dim">{s.searchesById}</p>}
 
-      {open && <SourceSettings source={s} onSaved={() => setOpen(false)} onRemove={s.fromProwlarr ? null : onRemove} setMessage={setMessage} />}
+      {open && <SourceSettings source={s} onSaved={() => setOpen(false)} onRemove={s.fromProwlarr ? null : onRemove} onPutBack={s.canPutBack ? onPutBack : null} setMessage={setMessage} />}
     </div>
   );
 }
 
-function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: SourceView; onSaved: () => void; onRemove: (() => void) | null; setMessage: (m: Msg) => void }) {
+function SourceSettings({
+  source: s,
+  onSaved,
+  onRemove,
+  onPutBack,
+  setMessage,
+}: {
+  source: SourceView;
+  onSaved: () => void;
+  onRemove: (() => void) | null;
+  onPutBack: (() => void) | null;
+  setMessage: (m: Msg) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const id = (name: string) => `source-${s.id}-${name}`;
 
@@ -345,7 +393,7 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
       seedRatio: String(d.get('seedRatio') ?? '').trim() === '' ? null : n('seedRatio'),
       seedDays: String(d.get('seedDays') ?? '').trim() === '' ? null : n('seedDays'),
     };
-    if (!s.fromProwlarr) {
+    if (!s.fromProwlarr && s.kind === 'feed') {
       body.url = String(d.get('url') ?? '');
       const key = String(d.get('apiKey') ?? '').trim();
       if (key) body.apiKey = key;
@@ -365,7 +413,9 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
   }
 
   return (
-    <form id={`source-${s.id}-settings`} onSubmit={save} className="flex flex-col gap-4 rounded-xl border border-line bg-ink/40 p-4">
+    <div id={`source-${s.id}-settings`} className="flex flex-col gap-4 rounded-xl border border-line bg-ink/40 p-4">
+      {s.kind === 'site' && <SiteSettingsEditor source={s} setMessage={setMessage} />}
+      <form onSubmit={save} className="flex flex-col gap-4">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
         <Field label="Name" id={id('name')} name="name" defaultValue={s.name} required />
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
@@ -375,14 +425,14 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
             <Check id={id('tv')} name="forTv" label="TV" defaultChecked={s.forTv} />
           </div>
         </fieldset>
-        {!s.fromProwlarr && (
+        {!s.fromProwlarr && s.kind === 'feed' && (
           <>
             <Field label="Torznab address" id={id('url')} name="url" defaultValue={s.url} required />
             <Field label="API key" id={id('key')} name="apiKey" type="password" autoComplete="off" placeholder={s.hasKey ? '••••••••••••' : ''} hint={s.hasKey ? 'Saved. Leave blank to keep it.' : undefined} />
           </>
         )}
       </div>
-      {s.fromProwlarr && <p className="m-0 text-[13px] text-dim">The address and key come from Prowlarr: {s.url}</p>}
+      {s.fromProwlarr && s.kind === 'feed' && <p className="m-0 text-[13px] text-dim">The address and key come from Prowlarr: {s.url}</p>}
 
       <details className="rounded-xl border border-line px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium text-soft">For experts</summary>
@@ -410,13 +460,19 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
         <Button type="submit" disabled={busy}>
           Save
         </Button>
+        {onPutBack && (
+          <Button type="button" variant="ghost" onClick={onPutBack}>
+            Put back to Prowlarr
+          </Button>
+        )}
         {onRemove && (
           <Button type="button" variant="danger" onClick={onRemove}>
             Remove
           </Button>
         )}
       </div>
-    </form>
+      </form>
+    </div>
   );
 }
 

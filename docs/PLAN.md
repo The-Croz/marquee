@@ -183,7 +183,7 @@ Milestone 3 is done in code. The real switch-over happens on Josh's server when 
 
 Later ideas from HolyArrs for M3 (ideas only): a History page per title and overall; "Downloader can change things" switch for a qBittorrent shared with Radarr during side-by-side; per-stage Health page.
 
-## Milestone 4: TV 🔨 (TV can switch over here)
+## Milestone 4: TV ✅ (TV and Prowlarr can switch over here)
 
 Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds the ones you're missing (whole seasons when that's better), upgrades until "good enough", and shows what's airing. Then Sonarr can stop, and once Sources live in Marquee, Prowlarr too.
 
@@ -203,9 +203,24 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
    - Demo mode: fake Sonarr at `http://sonarr:8989`, and Severance season 2 airs around today.
    - **Josh, on the LAN**: work down the TV checklist, turn Sonarr's monitoring off, then turn on the last step.
    - Not done: picking which episodes or seasons to watch inside a show (Marquee watches whole shows), and air *times* (TMDB gives dates only).
-2. ⬜ **Sources without Prowlarr**: add and manage sites in Marquee itself (pick from a list of known public and private sites, sign in with your tracker's key or cookie, search settings per site), not only Torznab feeds. "Bring over from Prowlarr" turns linked Sources into Marquee-managed ones, keeping names, priority and limits. Check how HolyArrs does built-in sites first.
-3. ⬜ **Built-in bot-check solving** (FlareSolverr inside Marquee or alongside it): Sources marked "Blocked by a bot check" or "Set aside by Prowlarr" for Cloudflare can be fixed with one switch, no separate container to set up.
-4. ⬜ Retire Prowlarr (needs 2 and 3).
+2. ✅ **Sources without Prowlarr** (`apps/server/src/sources/sites/`; design in `docs/superpowers/specs/2026-11-18-built-in-sources-design.md`)
+   - Marquee runs sites itself from Prowlarr's catalogue of site files (Cardigann YAML, format v12, about 585 sites): `https://indexers.prowlarr.com/master/12/package.zip` is downloaded on your server once a day and never shipped with Marquee. Sites dropped from the catalogue stay while a Source uses them.
+   - Your own files in `<data>/sites/*.yml` are added to the list and replace the catalogue's file with the same id.
+   - The engine (`cardigann.ts`, `template.ts`, `filters.ts`, `text.ts`) behaves like Prowlarr's: Go-style templates (`if`/`else`/`range`, `and`/`or`/`eq`/`ne`/`join`/`re_replace`, off checkboxes as `.False`), CSS selectors through cheerio, JSON paths with `..` parent fields, the usual filters (dates in Go or .NET layouts, "3 hours ago", sizes), sign-in by form, post, get or cookie with error and test checks, signing in again when the session runs out, download links found on the copy's page, magnets built from a bare info-hash. 442 of the 481 movie/TV sites can run; the rest need a captcha to sign in and say "Not supported yet" with why.
+   - Built in (Prowlarr has these in code, not files): **IPTorrents** (cookie and user agent) and **Knaben** (its JSON search service), ported from Prowlarr (GPL-3.0).
+   - Settings → Sources → **Add a site**: search the list, fill in the form the site asks for (plain labels, help as text, secrets never sent back and kept when left blank), pick another of its addresses if one stops working. Checked straight away.
+   - Downloads from sites carry the site's cookies and browser name, sent only to the site's own host.
+   - **Bring sites over** (on the Prowlarr card): each Prowlarr site in Marquee's list becomes a site Marquee runs, keeping name, priority, limits and settings (Prowlarr's dropdown numbers converted). Prowlarr hides passwords and cookies, so those sites say what to type. **Put back to Prowlarr** undoes it; syncing leaves brought-over sites alone; unlinking keeps them.
+   - New Source states: **Sign-in turned down** and **Not supported yet**.
+   - Tried by hand against the real sites (`scripts/try-site.ts`): YTS, The Pirate Bay, LimeTorrents and Knaben search fine; EZTV and 1337x answer with a Cloudflare check, which needs item 3.
+3. ✅ **Built-in bot-check solving** (`sources/sites/solver.ts`, `http.ts`)
+   - Marquee speaks FlareSolverr's protocol. FlareSolverr (MIT, v3.5.2, with its own Chrome, checksum-pinned) is inside the image at `/opt/flaresolverr`; Marquee starts it as its own user on 127.0.0.1 the first time a site needs it, only when **Solve bot checks** is on (off by default).
+   - For experts: any FlareSolverr-compatible solver's address instead (Byparr, a FlareSolverr container).
+   - The pass (cookies and browser name) is kept per Source and reused until a bot check comes back. A solver that fails, or gets the check again, says so.
+   - CI's container smoke test turns it on and checks it answers inside the image.
+4. ⬜ **Josh, on the LAN**: Settings → Sources → Bring sites over; type IPTorrents' cookie and user agent; turn on Solve bot checks and press Try now on EZTV and 1337x. When every Source shows Working and searches look right for a week, stop Prowlarr.
+
+Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
 
 ## Milestone 5: Family ⬜
 

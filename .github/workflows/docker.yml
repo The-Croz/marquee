@@ -60,6 +60,11 @@ jobs:
           # PID 1 is the app itself (the entrypoint execs into it): check its real and effective uid
           docker exec mq grep '^Uid:' /proc/1/status
           docker exec mq grep -qE '^Uid:[[:space:]]+99[[:space:]]+99[[:space:]]' /proc/1/status
+          # The bot-check solver inside the image starts (as Marquee's user) and answers
+          curl -fsS -c /tmp/jar -H 'Content-Type: application/json' -d '{"username":"ci","password":"ci password 12345","displayName":"CI"}' http://localhost:9797/api/auth/setup
+          curl -fsS -b /tmp/jar -X PUT -H 'Content-Type: application/json' -d '{"enabled":true}' http://localhost:9797/api/settings/sources/solver
+          curl -fsS -m 150 -b /tmp/jar -H 'Content-Type: application/json' -d '{}' http://localhost:9797/api/settings/sources/solver/test | tee /tmp/solver.json
+          grep -q '"ok":true' /tmp/solver.json
           docker logs mq
       - name: Publish
         if: github.event_name != 'pull_request'

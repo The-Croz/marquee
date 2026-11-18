@@ -89,5 +89,5 @@ export class FakeSites {
 }
 
 export function site(id: number, name: string, extra: Partial<ProwlarrSite> = {}): ProwlarrSite {
-  return { id, name, enabled: true, protocol: 'torrent', privacy: 'public', priority: 25, categories: [2000, 2040, 5000, 5040], ...extra };
+  return { id, name, enabled: true, protocol: 'torrent', privacy: 'public', priority: 25, categories: [2000, 2040, 5000, 5040], definitionName: null, settings: {}, ...extra };
 }

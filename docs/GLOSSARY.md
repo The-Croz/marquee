@@ -20,6 +20,10 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Newest copies** | What a Source has just added; Marquee reads them every 30 minutes to catch new episodes. | RSS |
 | **Watched** / **Not watched** | Whether Marquee looks for a title by itself. | Monitored / Unmonitored |
 | **Calendar** | Episodes of your shows by the day they air. | Calendar |
+| **Site** (searched by Marquee) | A Source Marquee searches itself from a site file, no Prowlarr. | Indexer (Cardigann definition) |
+| **List of sites** | The site files Marquee can run: Prowlarr's catalogue, updated daily, plus your own. | Indexer definitions |
+| **Bring sites over** | Turns Prowlarr's sites into sites Marquee searches itself. | — |
+| **Bot check** / **Solve bot checks** | A "checking your browser" page (Cloudflare) in front of a site, and the solver inside Marquee that gets past it. | FlareSolverr |
 
 ## Source health
 
@@ -31,7 +35,9 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Key turned down** | The API key wasn't accepted. |
 | **Asked us to slow down** | The site wants fewer calls. Marquee waits and tries again. |
 | **Set aside by Prowlarr** | Prowlarr stopped using the site for a while because it kept failing there. Test it in Prowlarr. |
-| **Blocked by a bot check** | Cloudflare or similar. Needs FlareSolverr in Prowlarr. |
+| **Sign-in turned down** | The site didn't accept the username and password, or the cookie. |
+| **Not supported yet** | Marquee can't run this site's file yet (usually a captcha at sign-in). |
+| **Blocked by a bot check** | Cloudflare or similar. Turn on Solve bot checks in Settings → Sources (for a site through Prowlarr, FlareSolverr there). |
 | **Not a Torznab feed** | The address answers, but not with a feed. |
 | **Paused** | You paused it. |
 
