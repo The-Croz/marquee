@@ -5,6 +5,7 @@ import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@m
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
+import { SearchBox } from './Search';
 
 const PHASE: Record<ScanStatusView['phase'], string> = {
   idle: 'Not scanned yet',
@@ -126,6 +127,11 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             </span>
           )}
         </div>
+        {user.role !== 'kid' && (
+          <div className="flex w-full max-w-[420px]">
+            <SearchBox kind={kind} />
+          </div>
+        )}
       </div>
 
       {user.role === 'admin' && <ScanPanel />}
@@ -172,7 +178,12 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
       {isLoading && <p className="text-muted">Loading…</p>}
       {data && items.length === 0 && (
         <Notice>
-          {q || filter !== 'all'
+          {q ? (
+            <>
+              Nothing in your library matches that.{' '}
+              {user.role !== 'kid' && <Link to={`/search?${new URLSearchParams({ q, kind })}`}>Look for “{q}” to add it →</Link>}
+            </>
+          ) : filter !== 'all'
             ? 'Nothing matches that.'
             : user.role === 'admin'
               ? `No ${title.toLowerCase()} yet. Add your TMDB key in Settings → Services, then scan your library.`

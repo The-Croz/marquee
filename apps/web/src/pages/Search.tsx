@@ -6,20 +6,25 @@ import { api, ApiFailure, queryClient } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Notice } from '../components/ui';
 
-export function SearchBox({ initial = '', autoFocus = false }: { initial?: string; autoFocus?: boolean }) {
+/**
+ * Searches TMDB for something to add. `kind` keeps the results to movies or
+ * shows (from the Movies and Shows pages); without it, both.
+ */
+export function SearchBox({ initial = '', autoFocus = false, kind }: { initial?: string; autoFocus?: boolean; kind?: 'movie' | 'series' }) {
   const navigate = useNavigate();
+  const label = kind === 'movie' ? 'Find a movie to add' : kind === 'series' ? 'Find a show to add' : 'Search movies and shows';
   return (
     <form
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
         const q = String(new FormData(e.currentTarget).get('q') ?? '').trim();
-        if (q) navigate(`/search?${new URLSearchParams({ q })}`);
+        if (q) navigate(`/search?${new URLSearchParams(kind ? { q, kind } : { q })}`);
       }}
       className="flex flex-[1_1_360px]"
     >
       <label htmlFor="search-q" className="sr-only">
-        Search movies and shows
+        {label}
       </label>
       <input
         id="search-q"
@@ -27,7 +32,7 @@ export function SearchBox({ initial = '', autoFocus = false }: { initial?: strin
         type="search"
         defaultValue={initial}
         autoFocus={autoFocus}
-        placeholder="Search movies and shows"
+        placeholder={kind ? `${label}…` : label}
         className="h-12 w-full rounded-xl border border-line bg-panel px-[18px] text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
       />
     </form>
@@ -38,11 +43,13 @@ export function SearchPage({ user }: { user: SessionUser }) {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const q = params.get('q') ?? '';
+  const kindParam = params.get('kind');
+  const kind = kindParam === 'movie' || kindParam === 'series' ? kindParam : undefined;
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<number | null>(null);
   const { data, isLoading, error: loadError } = useQuery({
-    queryKey: ['search', q],
-    queryFn: () => api<{ results: SearchResult[] }>(`/library/search?${new URLSearchParams({ q })}`),
+    queryKey: ['search', q, kind],
+    queryFn: () => api<{ results: SearchResult[] }>(`/library/search?${new URLSearchParams(kind ? { q, kind } : { q })}`),
     enabled: q.length > 0,
   });
 
@@ -62,9 +69,16 @@ export function SearchPage({ user }: { user: SessionUser }) {
   return (
     <>
       <div className="flex flex-wrap gap-4">
-        <SearchBox initial={q} autoFocus={!q} />
+        <SearchBox initial={q} autoFocus={!q} kind={kind} />
       </div>
       {q && <h1 className="m-0 text-2xl font-semibold">Results for “{q}”</h1>}
+      {!q && <h1 className="m-0 text-2xl font-semibold">{kind === 'series' ? 'Find a show to add' : kind === 'movie' ? 'Find a movie to add' : 'Find something to add'}</h1>}
+      {user.role === 'admin' && (
+        <p className="m-0 max-w-[720px] text-sm text-muted">
+          Search The Movie Database, press <strong className="text-soft">Add to library</strong>, then on its page press <strong className="text-soft">Find copies</strong> and{' '}
+          <strong className="text-soft">Download this</strong>. Marquee puts it in your library when it’s done.
+        </p>
+      )}
       {error && <Notice tone="error">{error}</Notice>}
       {loadError && <Notice tone="error">{loadError instanceof ApiFailure ? loadError.message : 'Search failed.'}</Notice>}
       {isLoading && <p className="text-muted">Searching…</p>}

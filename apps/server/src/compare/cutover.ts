@@ -61,8 +61,8 @@ export async function cutoverChecklist(deps: { db: Db; config: Config; clients: 
     state: imported.length ? 'done' : 'todo',
     detail: imported.length
       ? `${imported.length} ${imported.length === 1 ? 'movie' : 'movies'} downloaded and put in your library; the last was ${imported[0]!.title}.`
-      : 'Pick a movie, press “Download this” under Copies we found, and wait until the Downloads page says “In your library”.',
-    action: { label: 'Open Downloads', to: '/downloads' },
+      : 'Find a movie you don’t have yet and press Add to library. On its page press Find copies, then Download this, and wait until the Downloads page says “In your library”.',
+    action: imported.length ? { label: 'Open Downloads', to: '/downloads' } : { label: 'Find a movie to add', to: '/search?kind=movie' },
   });
 
   // 4. Plex and Jellyfin are told.
