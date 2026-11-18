@@ -1,0 +1,277 @@
+import { describe, expect, it } from 'vitest';
+import type { DiscoverPage, DiscoverTitle, NotificationInboxItem, RequestView } from '@marquee/shared';
+import { schema } from '../src/db/index.js';
+import { FakeQbit, fakeFetchTorrent } from './fakes/qbittorrent.js';
+import { FakeSites, release } from './fakes/sources.js';
+import { FakeTmdb } from './fakes/tmdb.js';
+import { call, makeApp, setupAdmin } from './helpers.js';
+
+const GB = 1024 ** 3;
+const DUNE = 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX';
+const BLUEY = 'Bluey.2018.S01E01.720p.WEB-DL.AAC2.0.H.264-GRP';
+
+async function setup() {
+  const sites = new FakeSites();
+  sites.feed('http://tpb.test/api', { releases: [release(DUNE, { size: 25 * GB }), release(BLUEY, { size: 1 * GB })] });
+  const qbit = new FakeQbit();
+  const pushed: { kind: string; title: string; body: string }[] = [];
+  const t = makeApp({
+    clients: {
+      torznab: sites.torznab,
+      qbittorrent: (u, n, p) => qbit.as(u, n, p),
+      fetchTorrent: fakeFetchTorrent(),
+      tmdb: () => new FakeTmdb(),
+      push: { send: async (ch, m) => void pushed.push({ kind: ch.kind, title: m.title, body: m.body }) },
+    },
+  });
+  const admin = await setupAdmin(t.app);
+  await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key' }, admin);
+  await call(t.app, 'POST', '/api/settings/sources', { name: 'TPB', url: 'http://tpb.test/api', apiKey: 'good' }, admin);
+  await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, admin);
+  const person = async (username: string, role: 'member' | 'kid') => {
+    await call(t.app, 'POST', '/api/users', { username, displayName: username[0]!.toUpperCase() + username.slice(1), role, password: `${username} password` }, admin);
+    return (await call(t.app, 'POST', '/api/auth/login', { username, password: `${username} password` })).cookie!;
+  };
+  const jessie = await person('jessie', 'member');
+  const kiddo = await person('kiddo', 'kid');
+  const sam = await person('sam', 'member');
+  const ask = (cookie: string, body: object) => call(t.app, 'POST', '/api/requests', body, cookie);
+  const inbox = async (cookie: string) => (await call(t.app, 'GET', '/api/notifications', undefined, cookie)).body as { items: NotificationInboxItem[]; unread: number };
+  return { ...t, admin, jessie, kiddo, sam, qbit, pushed, ask, inbox };
+}
+
+describe('Requests', () => {
+  it('an admin’s request goes straight through: added, wanted and searched at once', async () => {
+    const t = await setup();
+    const r = await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    expect(r.status).toBe(201);
+    const view = r.body as RequestView;
+    expect(view.state).toBe('downloading');
+    expect(view.href).toMatch(/^\/movies\/\d+$/);
+    const movie = t.db.select().from(schema.movies).all()[0]!;
+    expect(movie.monitored).toBe(true);
+    expect(t.db.select().from(schema.downloads).all().map((d) => d.title)).toEqual([DUNE]);
+  });
+
+  it('a member’s request waits, tells the admins, and nothing is downloaded', async () => {
+    const t = await setup();
+    const r = await t.ask(t.jessie, { kind: 'movie', tmdbId: 693134 });
+    expect((r.body as RequestView).state).toBe('pending');
+    expect(t.db.select().from(schema.movies).all()).toEqual([]);
+    expect(t.db.select().from(schema.downloads).all()).toEqual([]);
+    const adminInbox = await t.inbox(t.admin);
+    expect(adminInbox.items[0]).toMatchObject({ event: 'request_pending', body: 'Jessie asked for Dune: Part Two (2024).', link: '/requests' });
+    expect(((await call(t.app, 'GET', '/api/requests/summary', undefined, t.admin)).body as { pending: number }).pending).toBe(1);
+    expect(((await call(t.app, 'GET', '/api/requests/summary', undefined, t.jessie)).body as { pending: number }).pending).toBe(0);
+  });
+
+  it('approving adds it, picks the profile you choose, searches, and tells the person', async () => {
+    const t = await setup();
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 693134 })).body as RequestView;
+    const ok = await call(t.app, 'POST', `/api/requests/${asked.id}/approve`, { profile: 'everyday-hd' }, t.admin);
+    expect(ok.status).toBe(200);
+    expect((ok.body as RequestView).profile).toBe('Everyday HD');
+    expect(t.db.select().from(schema.movies).all()[0]).toMatchObject({ profile: 'everyday-hd', profileByHand: true, monitored: true });
+    expect((await t.inbox(t.jessie)).items[0]).toMatchObject({ event: 'request_approved' });
+    expect(((await call(t.app, 'POST', `/api/requests/${asked.id}/approve`, {}, t.admin)).body as { error: string }).error).toBe('already_decided');
+  });
+
+  it('declining carries a reason the person can read, and can be put back', async () => {
+    const t = await setup();
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 })).body as RequestView;
+    const no = await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, { reason: 'We have it on disc.' }, t.admin);
+    expect(no.body).toMatchObject({ state: 'declined', reason: 'We have it on disc.', stateText: 'Turned down: We have it on disc.' });
+    const mine = ((await call(t.app, 'GET', '/api/requests', undefined, t.jessie)).body as { items: RequestView[] }).items;
+    expect(mine[0]).toMatchObject({ state: 'declined', reason: 'We have it on disc.' });
+    expect((await t.inbox(t.jessie)).items[0]!.body).toBe('The Matrix was turned down: We have it on disc.');
+    const back = await call(t.app, 'POST', `/api/requests/${asked.id}/reopen`, {}, t.admin);
+    expect((back.body as RequestView).state).toBe('pending');
+  });
+
+  it('only admins decide, and people only see their own requests', async () => {
+    const t = await setup();
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 })).body as RequestView;
+    expect((await call(t.app, 'POST', `/api/requests/${asked.id}/approve`, {}, t.jessie)).status).toBe(403);
+    expect((await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, {}, t.kiddo)).status).toBe(403);
+    expect(((await call(t.app, 'GET', '/api/requests?scope=all', undefined, t.kiddo)).body as { items: unknown[] }).items).toEqual([]);
+    expect(((await call(t.app, 'GET', '/api/requests?scope=all', undefined, t.admin)).body as { items: unknown[] }).items).toHaveLength(1);
+  });
+
+  it('says "already here" for a title you have and "already asked for" for one someone asked for', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    const movie = t.db.select().from(schema.movies).all()[0]!;
+    t.db.insert(schema.mediaFiles).values({ path: '/m/dune.mkv', movieId: movie.id, size: GB, mtime: 0, addedAt: 0, seenAt: 0 }).run();
+    const here = await t.ask(t.jessie, { kind: 'movie', tmdbId: 693134 });
+    expect([here.status, (here.body as { error: string }).error]).toEqual([409, 'already_here']);
+    await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 });
+    const dup = await t.ask(t.sam, { kind: 'movie', tmdbId: 603 });
+    expect([dup.status, (dup.body as { error: string }).error]).toEqual([409, 'already_requested']);
+  });
+
+  it('kids can only ask for kid-safe titles', async () => {
+    const t = await setup();
+    const no = await t.ask(t.kiddo, { kind: 'movie', tmdbId: 693134 });
+    expect([no.status, (no.body as { error: string }).error]).toEqual([403, 'not_for_kids']);
+    const yes = await t.ask(t.kiddo, { kind: 'movie', tmdbId: 14160 });
+    expect(yes.status).toBe(201);
+    expect((yes.body as RequestView).state).toBe('pending');
+  });
+
+  it('a show can be asked for by season, only those seasons become wanted, and more can be added later', async () => {
+    const t = await setup();
+    const asked = (await t.ask(t.jessie, { kind: 'series', tmdbId: 95396, seasons: [2] })).body as RequestView;
+    expect(asked.seasons).toEqual([2]);
+    expect(((await t.ask(t.sam, { kind: 'series', tmdbId: 95396, seasons: [2] })).body as { error: string }).error).toBe('already_requested');
+    expect((await t.ask(t.jessie, { kind: 'series', tmdbId: 95396, seasons: [9] })).status).toBe(400);
+    await call(t.app, 'POST', `/api/requests/${asked.id}/approve`, {}, t.admin);
+    const show = t.db.select().from(schema.series).all()[0]!;
+    expect(show.monitored).toBe(true);
+    const eps = t.db.select().from(schema.episodes).all();
+    expect(eps.filter((e) => e.monitored).map((e) => e.season)).toEqual([2, 2]);
+    expect(eps.filter((e) => !e.monitored).map((e) => e.season)).toEqual([1, 1]);
+    // Season 1 can still be asked for.
+    expect((await t.ask(t.jessie, { kind: 'series', tmdbId: 95396, seasons: [1] })).status).toBe(201);
+  });
+
+  it('people can take back a waiting request; admins can remove any', async () => {
+    const t = await setup();
+    const a = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 })).body as RequestView;
+    const b = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 78 })).body as RequestView;
+    expect((await call(t.app, 'DELETE', `/api/requests/${a.id}`, undefined, t.kiddo)).status).toBe(403);
+    expect((await call(t.app, 'DELETE', `/api/requests/${a.id}`, undefined, t.jessie)).status).toBe(200);
+    await call(t.app, 'POST', `/api/requests/${b.id}/decline`, {}, t.admin);
+    expect((await call(t.app, 'DELETE', `/api/requests/${b.id}`, undefined, t.jessie)).status).toBe(409);
+    expect((await call(t.app, 'DELETE', `/api/requests/${b.id}`, undefined, t.admin)).status).toBe(200);
+  });
+
+  it('tells the person once when it reaches the library', async () => {
+    const t = await setup();
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 693134 })).body as RequestView;
+    await call(t.app, 'POST', `/api/requests/${asked.id}/approve`, {}, t.admin);
+    const { markReady } = await import('../src/requests/service.js');
+    const deps = { db: t.db, notify: { db: t.db, push: { send: async () => {} }, now: Date.now }, now: Date.now };
+    expect(markReady(deps)).toBe(0);
+    const movie = t.db.select().from(schema.movies).all()[0]!;
+    t.db.insert(schema.mediaFiles).values({ path: '/m/dune.mkv', movieId: movie.id, size: GB, mtime: 0, addedAt: 0, seenAt: 0 }).run();
+    expect(markReady(deps)).toBe(1);
+    expect(markReady(deps)).toBe(0);
+    const items = (await t.inbox(t.jessie)).items.map((i) => i.event);
+    expect(items).toContain('request_ready');
+    const list = ((await call(t.app, 'GET', '/api/requests', undefined, t.jessie)).body as { items: RequestView[] }).items;
+    expect(list[0]!.state).toBe('ready');
+  });
+
+  it('a person can turn an event off and then isn’t told', async () => {
+    const t = await setup();
+    await call(t.app, 'PUT', '/api/notifications/muted', { muted: ['request_declined'] }, t.jessie);
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 })).body as RequestView;
+    await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, { reason: 'No.' }, t.admin);
+    expect((await t.inbox(t.jessie)).items).toEqual([]);
+  });
+});
+
+describe('Push channels', () => {
+  it('sends admin events to the channels that have them on, records failures, and never sends secrets back', async () => {
+    const t = await setup();
+    const made = await call(t.app, 'POST', '/api/settings/notifications', { kind: 'pushover', name: 'My phone', appToken: 'apptoken', userKey: 'userkey', events: ['request_pending'] }, t.admin);
+    expect(made.status).toBe(201);
+    expect(JSON.stringify(made.body)).not.toMatch(/apptoken|userkey/);
+    await call(t.app, 'POST', '/api/settings/notifications', { kind: 'ntfy', name: 'ntfy', topic: 'marquee', events: ['imported'] }, t.admin);
+    await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 });
+    expect(t.pushed).toEqual([{ kind: 'pushover', title: 'New request', body: 'Jessie asked for The Matrix (1999).' }]);
+    const list = (await call(t.app, 'GET', '/api/settings/notifications', undefined, t.admin)).body as { items: { name: string; detail: string; lastOkAt: number | null }[] };
+    expect(list.items.map((i) => [i.name, i.detail, i.lastOkAt !== null])).toEqual([['My phone', 'Pushover', true], ['ntfy', 'https://ntfy.sh/marquee', false]]);
+  });
+
+  it('a channel that fails says why and the rest still work; Test says how it went', async () => {
+    const t = await setup();
+    const app = makeApp({ clients: { tmdb: () => new FakeTmdb(), push: { send: async () => { throw new Error('Pushover turned the token or user key down.'); } } } });
+    const admin = await setupAdmin(app.app);
+    const ch = (await call(app.app, 'POST', '/api/settings/notifications', { kind: 'pushover', name: 'p', appToken: 'a', userKey: 'u' }, admin)).body as { id: number };
+    const test = await call(app.app, 'POST', `/api/settings/notifications/${ch.id}/test`, {}, admin);
+    expect(test.body).toMatchObject({ ok: false, message: 'Pushover turned the token or user key down.' });
+    const list = (await call(app.app, 'GET', '/api/settings/notifications', undefined, admin)).body as { items: { lastError: string }[] };
+    expect(list.items[0]!.lastError).toMatch(/turned the token/);
+    expect((await call(t.app, 'GET', '/api/settings/notifications', undefined, t.jessie)).status).toBe(403);
+  });
+});
+
+describe('Discover', () => {
+  it('builds rows and a banner, marks what you have and what’s asked for, and hides services you don’t want', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    await t.ask(t.jessie, { kind: 'movie', tmdbId: 1022789 });
+    const page = (await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.jessie)).body as DiscoverPage;
+    expect(page.hero.length).toBeGreaterThan(0);
+    expect(page.hero.every((c) => c.backdropPath && c.overview)).toBe(true);
+    const trending = page.rows.find((r) => r.id === 'trending')!;
+    const byTitle = Object.fromEntries(trending.items.map((c) => [c.title, c.state]));
+    expect(byTitle['Dune: Part Two']).toBe('downloading');
+    expect(byTitle['Inside Out 2']).toBe('pending');
+    expect(byTitle['The Matrix']).toBe('none');
+    expect(page.services.map((s) => s.key)).toContain('netflix');
+    await call(t.app, 'PUT', '/api/discover/prefs', { hiddenServices: ['netflix', 'peacock'], trailers: false }, t.jessie);
+    const again = (await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.jessie)).body as DiscoverPage;
+    expect(again.services.map((s) => s.key)).not.toContain('netflix');
+    expect((await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.admin)).body.services.map((s: { key: string }) => s.key)).toContain('netflix');
+  });
+
+  it('a service tab shows what’s on that service', async () => {
+    const t = await setup();
+    const page = (await call(t.app, 'GET', '/api/discover?type=series&service=netflix', undefined, t.admin)).body as DiscoverPage;
+    const all = page.rows.flatMap((r) => r.items.map((c) => c.title));
+    expect(all).toContain('Stranger Things');
+    expect(all).not.toContain('Severance');
+    expect((await call(t.app, 'GET', '/api/discover?service=nope', undefined, t.admin)).status).toBe(400);
+  });
+
+  it('browsing a genre filters by it', async () => {
+    const t = await setup();
+    const page = (await call(t.app, 'GET', '/api/discover?type=movie&genre=Animation', undefined, t.admin)).body as DiscoverPage;
+    const titles = page.rows.flatMap((r) => r.items.map((c) => c.title));
+    expect(titles).toContain('Moana 2');
+    expect(titles).not.toContain('Gladiator II');
+  });
+
+  it('"Because you…" rows come from your library, requests and suggestions, and leave out what you already have', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 14160 }); // Up
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 1022789 }); // Inside Out 2
+    const page = (await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.admin)).body as DiscoverPage;
+    const because = page.rows.filter((r) => r.id.startsWith('because-have') || r.id === 'top-picks');
+    expect(because.length).toBeGreaterThan(0);
+    for (const r of because) for (const c of r.items) expect(['Up', 'Inside Out 2']).not.toContain(c.title);
+    expect(because.flatMap((r) => r.items.map((c) => c.title))).toContain('Moana 2');
+    expect(because.map((r) => r.title).join(' ')).toMatch(/Because you have/);
+  });
+
+  it('kids only see kid-safe titles everywhere', async () => {
+    const t = await setup();
+    const page = (await call(t.app, 'GET', '/api/discover', undefined, t.kiddo)).body as DiscoverPage;
+    const titles = new Set(page.rows.flatMap((r) => r.items.map((c) => c.title)).concat(page.hero.map((c) => c.title)));
+    expect(titles.size).toBeGreaterThan(0);
+    for (const bad of ['Dune: Part Two', 'Gladiator II', 'Severance', 'Stranger Things', 'The Bear', 'Anora']) expect(titles).not.toContain(bad);
+    expect([...titles].some((x) => ['Moana 2', 'Inside Out 2', 'Bluey', 'Up', 'Sesame Street', 'The Wild Robot'].includes(x))).toBe(true);
+    expect((await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.kiddo)).status).toBe(403);
+    expect((await call(t.app, 'GET', '/api/discover/title/movie/14160', undefined, t.kiddo)).status).toBe(200);
+  });
+
+  it('a title page has the trailer (unless turned off), providers, seasons with where they stand, and whether it can be asked for', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    const dune = (await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.jessie)).body as DiscoverTitle;
+    expect(dune).toMatchObject({ trailerKey: 'duneTrailer', providers: ['Max'], canRequest: false, note: 'Approved. Marquee is looking for it.' });
+    await call(t.app, 'PUT', '/api/discover/prefs', { hiddenServices: [], trailers: false }, t.jessie);
+    expect(((await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.jessie)).body as DiscoverTitle).trailerKey).toBeNull();
+    const sev = (await call(t.app, 'GET', '/api/discover/title/series/95396', undefined, t.jessie)).body as DiscoverTitle;
+    expect(sev.canRequest).toBe(true);
+    expect(sev.seasons.map((s) => [s.season, s.state])).toEqual([[1, 'none'], [2, 'none']]);
+    expect(sev.similar?.items.length).toBeGreaterThan(0);
+    await t.ask(t.jessie, { kind: 'series', tmdbId: 95396, seasons: [2] });
+    const after = (await call(t.app, 'GET', '/api/discover/title/series/95396', undefined, t.jessie)).body as DiscoverTitle;
+    expect(after.seasons.map((s) => [s.season, s.state])).toEqual([[1, 'none'], [2, 'pending']]);
+    expect(after.canRequest).toBe(true);
+    expect(after.request).toMatchObject({ seasons: [2], state: 'pending' });
+  });
+});

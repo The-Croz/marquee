@@ -15,6 +15,10 @@ import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { SwitchOverPage } from './pages/SwitchOver';
 import { CalendarPage } from './pages/Calendar';
+import { DiscoverPageView } from './pages/Discover';
+import { DiscoverTitlePage } from './pages/DiscoverTitle';
+import { RequestsPage } from './pages/Requests';
+import { DiscoverSettingsPage, NotificationSettingsPage } from './pages/NotificationSettings';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -45,14 +49,15 @@ const router = createBrowserRouter([
     element: <RequireUser render={(s) => <Shell user={s.user} version={s.version} />} />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: 'discover', element: <Placeholder title="Discover" milestone={5}>Browse trending and upcoming movies and shows and request them. Kid profiles only see kid-safe titles.</Placeholder> },
+      { path: 'discover', element: <DiscoverPageView /> },
+      { path: 'discover/:kind/:id', element: <DiscoverTitlePage /> },
       { path: 'movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
       { path: 'movies/:id', element: <MovieDetailPage /> },
       { path: 'shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
-      { path: 'requests', element: <Placeholder title="Requests" milestone={5}>Requests from the family, with approvals for kid profiles.</Placeholder> },
+      { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },
       { path: 'activity', element: <Placeholder title="Activity" milestone={6}>Who's watching now and watch history across Plex and Jellyfin.</Placeholder> },
       {
@@ -77,6 +82,8 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="account" replace /> },
           { path: 'account', element: <AccountPage /> },
+          { path: 'discover', element: <DiscoverSettingsPage /> },
+          { path: 'notifications', element: <NotificationSettingsPage /> },
           { path: 'users', element: <UsersPage /> },
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },

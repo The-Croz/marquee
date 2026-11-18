@@ -47,6 +47,7 @@ export function makeApp(opts: TestOptions = {}) {
     jellyfin: () => {
       throw new Error('no Jellyfin in this test');
     },
+    push: { send: async () => {} },
     siteFetch: () => {
       throw new Error('no sites in this test');
     },

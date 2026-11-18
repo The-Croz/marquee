@@ -5,6 +5,7 @@ import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@m
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
+import { refreshLibrary } from '../components/Wanted';
 import { SearchBox } from './Search';
 
 const PHASE: Record<ScanStatusView['phase'], string> = {
@@ -100,10 +101,15 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const q = params.get('q') ?? '';
   const filter = params.get('filter') ?? 'all';
   const sort = params.get('sort') ?? 'added';
+  const wantedFilter = params.get('wanted') ?? 'all';
+  const isAdmin = user.role === 'admin';
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
   const { data, isLoading } = useQuery({
-    queryKey: ['library', kind, q, filter, sort],
-    queryFn: () => api<{ items: LibraryCard[] }>(`${endpoint}?${new URLSearchParams({ q, filter, sort })}`),
+    queryKey: ['library', kind, q, filter, sort, wantedFilter],
+    queryFn: () => api<{ items: LibraryCard[] }>(`${endpoint}?${new URLSearchParams({ q, filter, sort, ...(wantedFilter !== 'all' ? { wanted: wantedFilter } : {}) })}`),
   });
   const set = (k: string, v: string) => {
     const next = new URLSearchParams(params);
@@ -114,6 +120,20 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const items = data?.items ?? [];
   const total = items.reduce((n, i) => n + i.sizeBytes, 0);
   const title = kind === 'movie' ? 'Movies' : 'Shows';
+  const wantedCount = items.filter((i) => i.wanted).length;
+
+  async function markPicked(wanted: boolean) {
+    setBulkError(null);
+    try {
+      await api(`${endpoint}/wanted`, { body: { ids: [...picked], wanted } });
+      await refreshLibrary();
+      setPicked(new Set());
+      setSelecting(false);
+    } catch (e) {
+      setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
+    }
+  }
+  const togglePick = (id: number) => setPicked((prev) => new Set(prev.has(id) ? [...prev].filter((x) => x !== id) : [...prev, id]));
 
   return (
     <>
@@ -124,6 +144,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <span className="text-sm text-muted">
               {items.length} {kind === 'movie' ? (items.length === 1 ? 'movie' : 'movies') : items.length === 1 ? 'show' : 'shows'}
               {total > 0 && ` · ${formatBytes(total)}`}
+              {isAdmin && ` · ${wantedCount} Wanted`}
             </span>
           )}
         </div>
@@ -173,7 +194,45 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           <option value="title">Title</option>
           <option value="year">Year</option>
         </select>
+        {isAdmin && (
+          <>
+            <label htmlFor="lib-wanted" className="sr-only">
+              Wanted
+            </label>
+            <select id="lib-wanted" value={wantedFilter} onChange={(e) => set('wanted', e.target.value)} className="h-11 rounded-xl border border-line bg-panel px-3 text-sm text-text">
+              <option value="all">Wanted and not</option>
+              <option value="yes">Wanted</option>
+              <option value="no">Not wanted</option>
+            </select>
+            <Button
+              type="button"
+              variant="ghost"
+              aria-pressed={selecting}
+              onClick={() => {
+                setSelecting(!selecting);
+                setPicked(new Set());
+              }}
+            >
+              {selecting ? 'Done' : 'Choose several'}
+            </Button>
+          </>
+        )}
       </div>
+      {selecting && (
+        <div role="region" aria-label="Wanted for the ones you picked" className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber/60 bg-amber/8 px-4 py-3">
+          <span className="text-sm text-soft">{picked.size} picked</span>
+          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => setPicked(new Set(items.map((i) => i.id)))}>
+            Pick all {items.length} shown
+          </Button>
+          <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(true)}>
+            Look for these
+          </Button>
+          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(false)}>
+            Stop looking for these
+          </Button>
+          {bulkError && <span className="text-sm text-warn">{bulkError}</span>}
+        </div>
+      )}
 
       {isLoading && <p className="text-muted">Loading…</p>}
       {data && items.length === 0 && (
@@ -192,8 +251,9 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
       )}
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-[18px] gap-y-6">
-        {items.map((i) => (
-          <Link key={i.id} to={`${endpoint}/${i.id}`} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+        {items.map((i) => {
+          const tile = (
+            <>
             <div className="relative">
               <Poster title={i.title} path={i.posterPath} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
               <span
@@ -204,13 +264,29 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               >
                 {i.badge}
               </span>
+              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-[11px] font-semibold text-amber-ink">Wanted</span>}
+              {selecting && (
+                <span aria-hidden="true" className={cx('absolute right-2 bottom-2 flex size-6 items-center justify-center rounded-full border-2 text-sm font-bold', picked.has(i.id) ? 'border-amber bg-amber text-amber-ink' : 'border-white/70 bg-ink/70')}>
+                  {picked.has(i.id) ? '✓' : ''}
+                </span>
+              )}
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="truncate text-sm font-semibold">{i.title}</span>
               <span className="text-xs text-muted">{i.year ?? '—'}</span>
             </div>
-          </Link>
-        ))}
+          </>
+          );
+          return selecting ? (
+            <button key={i.id} type="button" aria-pressed={picked.has(i.id)} onClick={() => togglePick(i.id)} className="group flex flex-col gap-2 text-left text-text">
+              {tile}
+            </button>
+          ) : (
+            <Link key={i.id} to={`${endpoint}/${i.id}`} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+              {tile}
+            </Link>
+          );
+        })}
       </div>
     </>
   );

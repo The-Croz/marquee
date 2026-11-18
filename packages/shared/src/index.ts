@@ -63,7 +63,7 @@ export interface HomeData {
     eta: string;
   } | null;
   stats: { label: string; value: string; note: string }[];
-  approvals: { id: number; title: string; who: string; plan: string; color: string }[];
+  approvals: { id: number; title: string; who: string; plan: string; posterPath: string | null }[];
   watching: { title: string; who: string; mode: string; percent: number }[];
   recent: { title: string; sub: string; color: string; posterPath?: string | null; href?: string }[];
   /** True once a library scan has found something; "recent" and library stats are then real. */
@@ -333,6 +333,8 @@ export interface LibraryCard {
   badge: string;
   sizeBytes: number;
   addedAt: number;
+  /** You want Marquee to look for it. */
+  wanted: boolean;
 }
 
 export interface MediaFileView {
@@ -369,6 +371,8 @@ export interface EpisodeView {
   title: string | null;
   airDate: string | null;
   aired: boolean;
+  /** Wanted (only counts while the show is wanted). */
+  wanted: boolean;
   file: MediaFileView | null;
 }
 
@@ -767,6 +771,10 @@ export interface WantedRunView {
   /** `href` is the movie or show page; `title` says which season or episode for TV. */
   sent: { href: string; title: string; copy: string }[];
   problems: string[];
+  /** A preview: what it would send. Nothing was sent. */
+  preview?: boolean;
+  /** Stopped early at the daily limit. */
+  capped?: boolean;
 }
 
 export interface CutoverView {
@@ -775,6 +783,11 @@ export interface CutoverView {
   /** Every step before "Marquee looks for wanted movies" is done. */
   ready: boolean;
   lookingForWanted: boolean;
+  /** How many movies (or shows) are marked Wanted. Nothing is until you say so. */
+  wantedTitles: number;
+  /** Copies Marquee may send by itself in 24 hours (0 = no limit), and how many it has sent in the last 24 hours. */
+  dailyLimit: number;
+  sentToday: number;
   /** The last few searches Marquee ran by itself, newest first. */
   runs: WantedRunView[];
 }
@@ -868,4 +881,145 @@ export interface SolverView {
   /** off · starting · ready · failed · missing (no solver here and no address given) */
   state: 'off' | 'starting' | 'ready' | 'failed' | 'missing';
   message: string;
+}
+
+
+// ---- Discover, requests and notifications (Milestone 5) ----
+
+/** Where a title stands for the person looking at it. */
+export type CardState = 'in_library' | 'downloading' | 'pending' | 'approved' | 'declined' | 'none';
+
+export interface DiscoverCard {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  backdropPath: string | null;
+  overview: string;
+  /** TMDB's 0–10 score; null when it has none yet. */
+  score: number | null;
+  genres: string[];
+  state: CardState;
+  /** The movie or show in your library, when it's there. */
+  libraryId: number | null;
+  /** "New", "Coming", "Trending"… */
+  badge: string | null;
+}
+
+export interface DiscoverRow {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  items: DiscoverCard[];
+}
+
+export interface ServiceChip {
+  key: string;
+  name: string;
+}
+
+export interface DiscoverPage {
+  type: 'all' | 'movie' | 'series';
+  /** "all" or a service key. */
+  service: string;
+  /** Services this person hasn't hidden. */
+  services: ServiceChip[];
+  hero: DiscoverCard[];
+  rows: DiscoverRow[];
+  /** Genres to browse, by name. */
+  genres: string[];
+  /** The genre being browsed, if any. */
+  genre: string | null;
+}
+
+export interface DiscoverTitle {
+  card: DiscoverCard;
+  tagline: string | null;
+  runtime: number | null;
+  certification: string | null;
+  genres: string[];
+  /** YouTube video key; null when there's no trailer or the person turned trailers off. */
+  trailerKey: string | null;
+  cast: { name: string; character: string | null }[];
+  providers: string[];
+  /** Shows: each season with where it stands. */
+  seasons: { season: number; episodeCount: number; state: CardState }[];
+  similar: DiscoverRow | null;
+  /** This person's own open request for it, if any. */
+  request: RequestView | null;
+  /** False when there's nothing left to ask for (already here, or already asked for). */
+  canRequest: boolean;
+  /** Plain words for why not. */
+  note: string | null;
+}
+
+export interface DiscoverPrefs {
+  hiddenServices: string[];
+  trailers: boolean;
+  /** Every service there is a chip for (sent back with the person's choices). */
+  all?: ServiceChip[];
+}
+
+export type RequestState = 'pending' | 'looking' | 'downloading' | 'ready' | 'declined';
+
+export interface RequestView {
+  id: number;
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  posterPath: string | null;
+  /** null = the whole show (or a movie). */
+  seasons: number[] | null;
+  requestedBy: { id: number; name: string } | null;
+  state: RequestState;
+  /** A plain sentence for the state. */
+  stateText: string;
+  /** The profile picked on approval (its name); null = chosen by the rules. */
+  profile: string | null;
+  reason: string | null;
+  decidedBy: string | null;
+  createdAt: number;
+  decidedAt: number | null;
+  /** The movie or show page, once it's in the library. */
+  href: string | null;
+}
+
+export interface NewRequest {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  /** Shows: which seasons; omit for the whole show. */
+  seasons?: number[];
+}
+
+export interface NotificationEventInfo {
+  key: string;
+  label: string;
+  description: string;
+  /** Who it's for: admins (channels and inbox), or the person who asked. */
+  audience: 'admins' | 'requester';
+}
+
+export interface NotificationChannelView {
+  id: number;
+  kind: 'pushover' | 'ntfy';
+  name: string;
+  enabled: boolean;
+  events: string[];
+  /** Non-secret part of the setup, e.g. the ntfy topic. */
+  detail: string;
+  lastOkAt: number | null;
+  /** What went wrong last time, in plain words. */
+  lastError: string | null;
+}
+
+export interface NotificationInboxItem {
+  id: number;
+  event: string;
+  title: string;
+  body: string;
+  link: string | null;
+  createdAt: number;
+  read: boolean;
 }

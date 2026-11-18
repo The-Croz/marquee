@@ -90,13 +90,18 @@ describe('request safety', () => {
 
 describe('home', () => {
   it('shows approvals to admins only, and hides adult items from kids', async () => {
-    const { app } = makeApp();
+    const { app, db } = makeApp();
     const admin = await setupAdmin(app);
     await call(app, 'POST', '/api/users', { username: 'kids', displayName: 'Kids', role: 'kid', password: 'bluey bluey bluey' }, admin);
     const kid = (await call(app, 'POST', '/api/auth/login', { username: 'kids', password: 'bluey bluey bluey' })).cookie;
 
+    const { schema } = await import('../src/db/index.js');
+    const kidId = db.select().from(schema.users).all().find((u) => u.username === 'kids')!.id;
+    db.insert(schema.requests).values({ kind: 'movie', tmdbId: 14160, title: 'Up', year: 2009, requestedBy: kidId, createdAt: Date.now() - 3 * 3_600_000 }).run();
+
     const adminHome = await call(app, 'GET', '/api/home', undefined, admin);
-    expect(adminHome.body.approvals.length).toBeGreaterThan(0);
+    expect(adminHome.body.approvals).toMatchObject([{ title: 'Up', who: 'Kids · asked 3 hours ago', plan: 'Movie' }]);
+    expect(adminHome.body.stats.find((s: { label: string }) => s.label === 'Waiting for your OK')).toMatchObject({ value: '1', note: 'Kids' });
     expect(adminHome.body.sample).toBe(true);
 
     const kidHome = await call(app, 'GET', '/api/home', undefined, kid);

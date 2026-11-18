@@ -12,6 +12,7 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Profile** | What you want for a title: which qualities, which rules and their points, sizes, and when it's good enough. | Quality profile |
 | **Good enough** | The quality where Marquee stops looking for a better copy. | Cutoff |
 | **Library folder** | Where finished movies or shows live, e.g. `/data/media/movies`. | Root folder |
+| **Wanted** | A movie or show you've told Marquee to look for by itself. Nothing is Wanted until you say so. Shows can leave out single seasons or episodes. | Monitored |
 | **Downloader** | The app that does the downloading (qBittorrent). | Download client |
 | **People sharing** | How many people have the whole copy and are sharing it. | Seeders |
 | **Stuck · nobody is sharing it** | A download that can't make progress. | stalledDL |

@@ -11,6 +11,8 @@ type Ctx = { status: AuthStatus & { user: SessionUser } };
 export function SettingsLayout({ status }: Ctx) {
   const tabs = [
     { to: '/settings/account', label: 'Account' },
+    { to: '/settings/discover', label: 'Discover' },
+    { to: '/settings/notifications', label: 'Notifications' },
     ...(status.user.role === 'admin'
       ? [
           { to: '/settings/users', label: 'Users' },

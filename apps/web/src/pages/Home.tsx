@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import type { HomeData } from '@marquee/shared';
-import { api, useAuthStatus } from '../api';
+import { api, queryClient, useAuthStatus } from '../api';
 import { Button, Card, Notice, Progress } from '../components/ui';
 import { Poster } from '../components/Poster';
 import { SearchBox } from './Search';
@@ -9,6 +9,10 @@ import { SearchBox } from './Search';
 export function HomePage() {
   const { data, error, isLoading } = useQuery({ queryKey: ['home'], queryFn: () => api<HomeData>('/home') });
   const { data: auth } = useAuthStatus();
+  async function approve(id: number) {
+    await api(`/requests/${id}/approve`, { body: {} }).catch(() => undefined);
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['home'] }), queryClient.invalidateQueries({ queryKey: ['requests'] })]);
+  }
   const isKid = auth?.user?.role === 'kid';
 
   if (isLoading) return <p className="text-muted">Loading…</p>;
@@ -86,16 +90,18 @@ export function HomePage() {
               </div>
               {data.approvals.map((r) => (
                 <div key={r.id} className="flex flex-wrap items-center gap-3.5 border-t border-line py-3">
-                  <div className="h-[68px] w-[46px] flex-none rounded-md" style={{ background: r.color }} />
+                  <Poster title={r.title} path={r.posterPath} size="w185" className="h-[68px] w-[46px] flex-none rounded-md" />
                   <div className="flex min-w-[160px] flex-1 flex-col gap-1">
                     <div className="text-[15px] font-semibold">{r.title}</div>
                     <div className="text-[13px] text-muted">{r.who}</div>
                     <div className="text-xs text-dim">{r.plan}</div>
                   </div>
-                  <Button className="h-10 px-4 text-sm">Approve</Button>
-                  <Button variant="ghost" className="h-10 px-3.5 text-sm">
-                    Decline
+                  <Button className="h-11 px-4 text-sm" onClick={() => approve(r.id)}>
+                    Approve
                   </Button>
+                  <Link to="/requests" className="inline-flex h-11 items-center rounded-xl border border-line-strong px-3.5 text-sm font-medium text-text no-underline hover:bg-raised hover:text-text">
+                    Look closer
+                  </Link>
                 </div>
               ))}
             </Card>

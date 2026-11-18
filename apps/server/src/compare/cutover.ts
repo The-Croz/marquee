@@ -1,12 +1,13 @@
-import { and, desc, eq, gte, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, sql } from 'drizzle-orm';
 import type { CutoverStep, CutoverView } from '@marquee/shared';
 import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
-import { comparisons, downloads } from '../db/schema.js';
+import { comparisons, downloads, movies, series } from '../db/schema.js';
 import type { Clients } from '../http.js';
 import { readMediaServer } from '../library/mediaServers.js';
 import { readServices } from '../library/services.js';
 import { checkDownloader, readDownloader } from '../downloads/service.js';
+import { dailyLimit, sentToday } from '../downloads/wantedLimits.js';
 import { lastWantedRuns, lookingForWanted } from '../downloads/wanted.js';
 import { lastWantedTvRuns, lookingForWantedTv } from '../downloads/wantedTv.js';
 
@@ -95,7 +96,7 @@ export async function cutoverChecklist(deps: { db: Db; config: Config; clients: 
     state: on ? 'done' : 'todo',
     detail: on
       ? 'Every 6 hours Marquee searches for movies you want that have no file, and once a day it checks the ones you have for a better copy. It sends a copy only when it beats your file.'
-      : 'Turn this on when the steps above are done. Marquee then searches for missing movies every 6 hours and checks for better copies once a day, a few movies at a time.',
+      : `Turn this on when the steps above are done. Marquee then searches for missing movies every 6 hours and checks for better copies once a day, a few movies at a time. It only looks for movies you’ve marked Wanted. ${wantedSentence(db, 'movie')}`,
     action: null,
   });
 
@@ -105,6 +106,7 @@ export async function cutoverChecklist(deps: { db: Db; config: Config; clients: 
     steps,
     ready: before.every((s) => s.state === 'done'),
     lookingForWanted: on,
+    ...wantedInfo(db, now, 'movie'),
     runs: lastWantedRuns(db),
   };
 }
@@ -166,7 +168,7 @@ async function mediaStep({ db, clients }: Deps, what: 'movies' | 'episodes'): Pr
 }
 
 async function tvChecklist(deps: Deps): Promise<CutoverView> {
-  const { db, config, clients } = deps;
+  const { db, config, clients, now } = deps;
   const steps: CutoverStep[] = [];
   const services = readServices(db, config);
   const sonarr = services.sonarrUrl && services.sonarrApiKey ? { url: services.sonarrUrl, key: services.sonarrApiKey } : null;
@@ -228,10 +230,29 @@ async function tvChecklist(deps: Deps): Promise<CutoverView> {
     state: on ? 'done' : 'todo',
     detail: on
       ? 'Every 30 minutes Marquee reads your Sources’ newest copies for new episodes. Every 6 hours it searches for episodes you’re missing (a whole season in one copy when most of it is missing), and once a day it checks finished seasons for a better copy. Specials are only searched when you ask.'
-      : 'Turn this on when the steps above are done. Marquee then catches new episodes as they come out, searches for missing ones every 6 hours, and checks for better copies once a day.',
+      : `Turn this on when the steps above are done. Marquee then catches new episodes as they come out, searches for missing ones every 6 hours, and checks for better copies once a day. It only looks for shows you’ve marked Wanted. ${wantedSentence(db, 'tv')}`,
     action: null,
   });
 
   const before = steps.filter((s) => s.key !== 'take_over');
-  return { kind: 'tv', steps, ready: before.every((s) => s.state === 'done'), lookingForWanted: on, runs: lastWantedTvRuns(db) };
+  return { kind: 'tv', steps, ready: before.every((s) => s.state === 'done'), lookingForWanted: on, ...wantedInfo(db, now, 'tv'), runs: lastWantedTvRuns(db) };
 }
+
+/** How many titles are Wanted, the daily limit, and how many copies went out in the last 24 hours. */
+function wantedInfo(db: Db, now: () => number, kind: 'movie' | 'tv') {
+  return { wantedTitles: wantedCount(db, kind), dailyLimit: dailyLimit(db), sentToday: sentToday(db, now()).length };
+}
+
+function wantedCount(db: Db, kind: 'movie' | 'tv'): number {
+  return kind === 'movie'
+    ? db.select({ n: sql<number>`count(*)` }).from(movies).where(eq(movies.monitored, true)).get()!.n
+    : db.select({ n: sql<number>`count(*)` }).from(series).where(eq(series.monitored, true)).get()!.n;
+}
+
+const wantedSentence = (db: Db, kind: 'movie' | 'tv') => {
+  const n = wantedCount(db, kind);
+  const noun = kind === 'movie' ? (n === 1 ? 'movie is' : 'movies are') : n === 1 ? 'show is' : 'shows are';
+  return n === 0
+    ? `Nothing is wanted yet, so it would do nothing. Mark ${kind === 'movie' ? 'movies on the Movies page' : 'shows on the Shows page'} as Wanted first.`
+    : `${n} ${noun} Wanted right now. “Preview” shows what it would send without sending anything.`;
+};

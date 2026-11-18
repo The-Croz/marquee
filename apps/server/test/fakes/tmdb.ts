@@ -1,5 +1,5 @@
-import type { TmdbApi, TmdbEpisode, TmdbMovie, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
-import { TmdbError } from '../../src/library/tmdb.js';
+import type { TmdbApi, TmdbCard, TmdbDiscoverQuery, TmdbEpisode, TmdbExtras, TmdbList, TmdbMovie, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
+import { GENRES, SERVICES, TmdbError } from '../../src/library/tmdb.js';
 import { normalizeTitle } from '../../src/library/parse.js';
 
 /** A tiny TMDB with a handful of real titles, for tests. */
@@ -17,6 +17,12 @@ export const MOVIES: M[] = [
   { tmdbId: 14160, imdbId: 'tt1049413', title: 'Up', year: 2009, certification: 'PG', posterPath: '/up.jpg', popularity: 80, genres: ['Animation', 'Family', 'Adventure'], companies: ['Pixar'], keywords: ['balloon', 'old man'] },
   { tmdbId: 78, imdbId: 'tt0083658', title: 'Blade Runner', year: 1982, certification: 'R', posterPath: '/br.jpg', popularity: 70 },
   { tmdbId: 335984, imdbId: 'tt1856101', title: 'Blade Runner 2049', year: 2017, certification: 'R', posterPath: '/br2049.jpg', popularity: 75 },
+  { tmdbId: 402431, imdbId: 'tt10638522', title: 'Wicked', year: 2024, certification: 'PG', posterPath: '/wicked.jpg', popularity: 280, genres: ['Drama', 'Fantasy', 'Romance'] },
+  { tmdbId: 558449, imdbId: 'tt9218128', title: 'Gladiator II', year: 2024, certification: 'R', posterPath: '/glad2.jpg', popularity: 270, genres: ['Action', 'Adventure'] },
+  { tmdbId: 1241982, imdbId: 'tt13622970', title: 'Moana 2', year: 2024, certification: 'PG', posterPath: '/moana2.jpg', popularity: 260, genres: ['Animation', 'Family', 'Adventure'] },
+  { tmdbId: 1184918, imdbId: 'tt29623480', title: 'The Wild Robot', year: 2024, certification: 'PG', posterPath: '/robot.jpg', popularity: 240, genres: ['Animation', 'Science Fiction', 'Family'] },
+  { tmdbId: 1064213, imdbId: 'tt28607951', title: 'Anora', year: 2024, certification: 'R', posterPath: '/anora.jpg', popularity: 120, genres: ['Drama', 'Comedy', 'Romance'] },
+  { tmdbId: 990001, imdbId: 'tt9990001', title: 'Frozen Three', year: 2027, certification: null, posterPath: '/frozen3.jpg', popularity: 190, genres: ['Animation', 'Family', 'Fantasy'] },
 ];
 
 export const SHOWS: S[] = [
@@ -56,6 +62,33 @@ export const SHOWS: S[] = [
     ],
   },
 ];
+
+SHOWS.push(
+  { tmdbId: 136315, tvdbId: 403294, imdbId: 'tt14452776', title: 'The Bear', year: 2022, certification: 'TV-MA', genres: ['Drama', 'Comedy'], posterPath: '/bear.jpg', popularity: 180, episodes: [{ season: 1, episode: 1, title: 'System', airDate: '2022-06-23', overview: null }] },
+  { tmdbId: 66732, tvdbId: 305288, imdbId: 'tt4574334', title: 'Stranger Things', year: 2016, certification: 'TV-14', genres: ['Sci-Fi & Fantasy', 'Mystery', 'Drama'], posterPath: '/st.jpg', popularity: 220, episodes: [{ season: 1, episode: 1, title: 'Chapter One', airDate: '2016-07-15', overview: null }, { season: 2, episode: 1, title: 'Chapter One', airDate: '2017-10-27', overview: null }] },
+  { tmdbId: 502, tvdbId: 75560, imdbId: 'tt0063951', title: 'Sesame Street', year: 1969, certification: 'TV-Y', genres: ['Kids', 'Family'], posterPath: '/sesame.jpg', popularity: 110, episodes: [{ season: 1, episode: 1, title: 'Episode 1', airDate: '1969-11-10', overview: null }] },
+);
+
+/** What Discover's fake knows about a title beyond the above: score, backdrop, which services stream it, a recommendation or two. */
+const DISC: Record<number, { score: number; providers?: string[]; recs?: number[]; date?: string; trailer?: string }> = {
+  603: { score: 8.2, providers: ['max'], recs: [78, 335984], trailer: 'matrixTrailer' },
+  693134: { score: 8.1, providers: ['max'], recs: [335984, 558449], trailer: 'duneTrailer' },
+  1022789: { score: 7.6, providers: ['disney'], recs: [14160, 1241982, 1184918] },
+  14160: { score: 8.0, providers: ['disney'], recs: [1022789, 1241982] },
+  78: { score: 7.9, providers: ['prime'] },
+  335984: { score: 7.5, providers: ['prime'], recs: [693134, 78] },
+  402431: { score: 7.4, providers: ['peacock'], recs: [1241982, 1064213] },
+  558449: { score: 6.8, providers: ['paramount'], recs: [693134] },
+  1241982: { score: 7.0, providers: ['disney'], recs: [1022789, 1184918, 14160] },
+  1184918: { score: 8.3, providers: ['peacock'], recs: [1022789, 14160] },
+  1064213: { score: 7.1, providers: ['hulu'] },
+  990001: { score: 0, providers: [], date: '2027-11-24' },
+  95396: { score: 8.4, providers: ['apple'], recs: [66732, 136315], trailer: 'sevTrailer' },
+  82728: { score: 8.6, providers: ['disney'], recs: [502] },
+  136315: { score: 8.3, providers: ['hulu'], recs: [95396] },
+  66732: { score: 8.6, providers: ['netflix'], recs: [95396] },
+  502: { score: 7.5, providers: ['max'], recs: [82728] },
+};
 
 const matches = (title: string, q: string) => normalizeTitle(title).includes(normalizeTitle(q));
 
@@ -103,5 +136,69 @@ export class FakeTmdb implements TmdbApi {
   async findMovie(ext: { imdbId: string }): Promise<number | null> {
     this.check(`findMovie:${ext.imdbId}`);
     return MOVIES.find((m) => m.imdbId === ext.imdbId)?.tmdbId ?? null;
+  }
+
+  // ---------------- Discover ----------------
+  private card(kind: 'movie' | 'series', id: number): TmdbCard {
+    const t = kind === 'movie' ? MOVIES.find((x) => x.tmdbId === id)! : SHOWS.find((x) => x.tmdbId === id)!;
+    const d = DISC[id] ?? { score: 7 };
+    const ids = (t.genres ?? ['Drama']).map((g) => GENRES[kind].find((x) => x.name === g)?.id).filter((x): x is number => !!x);
+    return {
+      tmdbId: id,
+      kind,
+      title: t.title,
+      year: t.year,
+      posterPath: t.posterPath,
+      backdropPath: `/back${id}.jpg`,
+      overview: `About ${t.title}.`,
+      score: d.score,
+      genreIds: ids,
+      date: d.date ?? `${t.year}-06-01`,
+      popularity: t.popularity,
+    };
+  }
+  private all(kind: 'movie' | 'series'): TmdbCard[] {
+    return (kind === 'movie' ? MOVIES : SHOWS).map((x) => this.card(kind, x.tmdbId));
+  }
+  async list(kind: 'movie' | 'series', list: TmdbList): Promise<TmdbCard[]> {
+    this.check(`list:${kind}:${list}`);
+    const all = this.all(kind);
+    const today = '2026-11-18';
+    if (list === 'top_rated') return all.sort((a, b) => b.score - a.score);
+    if (list === 'upcoming') return all.filter((c) => (c.date ?? '') > today);
+    if (list === 'now_playing' || list === 'airing_today' || list === 'on_the_air') return all.filter((c) => (c.date ?? '') <= today).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+    return all.filter((c) => (c.date ?? '') <= today).sort((a, b) => b.popularity - a.popularity);
+  }
+  async discover(kind: 'movie' | 'series', q: TmdbDiscoverQuery): Promise<TmdbCard[]> {
+    this.check(`discover:${kind}:${JSON.stringify(q)}`);
+    const key = q.provider ? SERVICES.find((x) => x.id === q.provider)?.key : undefined;
+    let out = this.all(kind).filter((c) => (!q.genre || c.genreIds.includes(q.genre)) && (!key || (DISC[c.tmdbId]?.providers ?? []).includes(key)));
+    if (q.from) out = out.filter((c) => (c.date ?? '') >= q.from!);
+    if (q.to) out = out.filter((c) => (c.date ?? '') <= q.to!);
+    const by = q.sort ?? 'popularity.desc';
+    return out.sort((a, b) => (by === 'vote_average.desc' ? b.score - a.score : by === 'date.desc' ? (b.date ?? '').localeCompare(a.date ?? '') : b.popularity - a.popularity));
+  }
+  async recommendations(kind: 'movie' | 'series', id: number): Promise<TmdbCard[]> {
+    this.check(`recommendations:${kind}:${id}`);
+    const pool = new Set((kind === 'movie' ? MOVIES : SHOWS).map((x) => x.tmdbId));
+    return (DISC[id]?.recs ?? []).filter((r) => pool.has(r)).map((r) => this.card(kind, r));
+  }
+  async extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras> {
+    this.check(`extras:${kind}:${id}`);
+    const t = kind === 'movie' ? MOVIES.find((x) => x.tmdbId === id) : SHOWS.find((x) => x.tmdbId === id);
+    if (!t) throw new TmdbError(404, 'not found');
+    const d = DISC[id];
+    const seasons = kind === 'series' ? [...new Set(SHOWS.find((x) => x.tmdbId === id)!.episodes.map((e) => e.season))].filter((n) => n > 0).map((n) => ({ season: n, episodeCount: SHOWS.find((x) => x.tmdbId === id)!.episodes.filter((e) => e.season === n).length })) : [];
+    return {
+      tagline: null,
+      runtime: kind === 'movie' ? 120 : 45,
+      certification: t.certification,
+      genres: t.genres ?? ['Drama'],
+      trailerKey: d?.trailer ?? null,
+      cast: [{ name: 'A. Actor', character: 'Lead' }],
+      providers: (d?.providers ?? []).map((k) => SERVICES.find((s) => s.key === k)!.name),
+      status: null,
+      seasons,
+    };
   }
 }

@@ -8,7 +8,7 @@ import { doneUpgrading, judgeFile, worstFile } from '../releases/upgrade.js';
 import type { FoundRelease } from '../sources/service.js';
 import type { SearchTarget } from './cache.js';
 import { bestPick, judgeCopies, prepareTitle, searchTitle } from './search.js';
-import { sendFromSearch } from './send.js';
+import { deliver } from './wantedLimits.js';
 import { readDownloader } from './service.js';
 import { lastRunAt, type WantedDeps, type WantedRun } from './wanted.js';
 
@@ -52,7 +52,8 @@ export function lastWantedTvRuns(db: Db): WantedRun[] {
   return JSON.parse(getSetting(db, LAST) || '[]') as WantedRun[];
 }
 
-function save(db: Db, run: WantedRun): WantedRun {
+function save({ db, preview, manual }: { db: Db; preview?: boolean; manual?: boolean }, run: WantedRun): WantedRun {
+  if (preview || manual) return run;
   setSetting(db, LAST, JSON.stringify([run, ...lastWantedTvRuns(db)].slice(0, 8)));
   return run;
 }
@@ -120,8 +121,8 @@ const newestAir = (eps: Episode[]) => eps.reduce((a, e) => (e.airDate && e.airDa
 const byWaiting = (a: Unit, b: Unit) => a.waited - b.waited || b.airDate.localeCompare(a.airDate) || a.show.id - b.show.id;
 
 /** Monitored shows' regular seasons (no specials), grouped as "series:season". */
-function watchedSeasons(db: Db): { shows: Map<number, Series>; seasons: Map<string, Episode[]> } {
-  const shows = new Map(db.select().from(series).where(eq(series.monitored, true)).all().map((s) => [s.id, s]));
+function watchedSeasons(db: Db, only?: number): { shows: Map<number, Series>; seasons: Map<string, Episode[]> } {
+  const shows = new Map(db.select().from(series).where(and(eq(series.monitored, true), only ? eq(series.id, only) : undefined)).all().map((s) => [s.id, s]));
   const seasons = new Map<string, Episode[]>();
   if (!shows.size) return { shows, seasons };
   const rows = db.select().from(episodes).where(and(inArray(episodes.seriesId, [...shows.keys()]), gt(episodes.season, 0))).all();
@@ -132,17 +133,19 @@ function watchedSeasons(db: Db): { shows: Map<number, Series>; seasons: Map<stri
   return { shows, seasons };
 }
 
-function missingUnits(db: Db, today: string, lib: Library): Unit[] {
-  const { shows, seasons } = watchedSeasons(db);
+function missingUnits(db: Db, today: string, lib: Library, only?: number): Unit[] {
+  const { shows, seasons } = watchedSeasons(db, only);
   const units: Unit[] = [];
   for (const eps of seasons.values()) {
     const show = shows.get(eps[0]!.seriesId)!;
     const season = eps[0]!.season;
-    const missing = eps.filter((e) => aired(e, today) && !lib.has(e) && !lib.isBusy(show.id, season, e.episode));
+    const missing = eps.filter((e) => e.monitored && aired(e, today) && !lib.has(e) && !lib.isBusy(show.id, season, e.episode));
     if (!missing.length) continue;
     const finished = eps.every((e) => aired(e, today));
+    // A whole-season copy would bring episodes you left out.
+    const allWanted = eps.every((e) => e.monitored);
     // Most of a finished season missing: one copy of the whole season is kinder to Sources and usually better.
-    if (finished && missing.length >= 2 && missing.length * 2 >= eps.length && !lib.isBusy(show.id, season)) {
+    if (finished && allWanted && missing.length >= 2 && missing.length * 2 >= eps.length && !lib.isBusy(show.id, season)) {
       units.push({ show, season, eps: missing, waited: waitedSince(missing), airDate: newestAir(missing) });
     } else {
       for (const e of missing) units.push({ show, season, episode: e.episode, eps: [e], waited: waitedSince([e]), airDate: e.airDate ?? '' });
@@ -153,12 +156,12 @@ function missingUnits(db: Db, today: string, lib: Library): Unit[] {
 
 function betterUnits(deps: WantedDeps, today: string, lib: Library): Unit[] {
   const { db, now } = deps;
-  const { shows, seasons } = watchedSeasons(db);
+  const { shows, seasons } = watchedSeasons(db, deps.only?.id);
   const units: Unit[] = [];
   for (const eps of seasons.values()) {
     const show = shows.get(eps[0]!.seriesId)!;
     const season = eps[0]!.season;
-    if (!eps.every((e) => aired(e, today)) || !eps.some((e) => lib.has(e)) || lib.isBusy(show.id, season)) continue;
+    if (!eps.every((e) => aired(e, today)) || !eps.every((e) => e.monitored) || !eps.some((e) => lib.has(e)) || lib.isBusy(show.id, season)) continue;
     // Skip seasons nothing could beat, so Sources aren't asked for nothing.
     const prep = prepareTitle(db, now, { kind: 'tv', seriesId: show.id, season });
     const yours = worstFile(prep.files.map((f) => judgeFile(prep.wanted, f, prep.profile)));
@@ -168,26 +171,28 @@ function betterUnits(deps: WantedDeps, today: string, lib: Library): Unit[] {
   return units.sort(byWaiting);
 }
 
-async function trySend(deps: WantedDeps, run: WantedRun, lib: Library, show: Series, search: Parameters<typeof sendFromSearch>[1], pick: number): Promise<void> {
-  const sent = await sendFromSearch({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent }, search, pick, null, false);
+async function trySend(deps: WantedDeps, run: WantedRun, lib: Library, show: Series, search: Parameters<typeof deliver>[2], pick: number): Promise<void> {
+  const copy = await deliver({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, search, pick);
+  if (copy === null) return;
   lib.sent(search.target);
-  run.sent.push({ href: `/shows/${show.id}`, title: label(show, search.target.season!, search.target.episode), copy: sent.download.title });
+  run.sent.push({ href: `/shows/${show.id}`, title: label(show, search.target.season!, search.target.episode), copy });
 }
 
 export async function lookForWantedTv(deps: WantedDeps, kind: 'missing' | 'better', limit = PER_RUN): Promise<WantedRun> {
   const { db, now } = deps;
-  const run: WantedRun = { at: now(), kind, searched: 0, sent: [], problems: [] };
+  const run: WantedRun = { at: now(), kind, searched: 0, sent: [], problems: [], ...(deps.preview ? { preview: true } : {}) };
   if (!readDownloader(db).url) {
     run.problems.push('qBittorrent isn’t connected, so nothing can be sent. Connect it in Settings → Downloader.');
-    return save(db, run);
+    return save(deps, run);
   }
   const today = isoDay(now());
   const lib = new Library(db);
-  const queue = kind === 'missing' ? missingUnits(db, today, lib) : betterUnits(deps, today, lib);
+  const queue = kind === 'missing' ? missingUnits(db, today, lib, deps.only?.id) : betterUnits(deps, today, lib);
   while (queue.length && run.searched < limit) {
+    if (run.capped) break;
     const u = queue.shift()!;
     const target: SearchTarget = { kind: 'tv', seriesId: u.show.id, season: u.season, ...(u.episode !== undefined ? { episode: u.episode } : {}) };
-    db.update(episodes).set({ lastSearchedAt: now() }).where(inArray(episodes.id, u.eps.map((e) => e.id))).run();
+    if (!deps.preview) db.update(episodes).set({ lastSearchedAt: now() }).where(inArray(episodes.id, u.eps.map((e) => e.id))).run();
     run.searched++;
     try {
       const found = await searchTitle({ db, sources: deps.sources, now }, target);
@@ -202,7 +207,7 @@ export async function lookForWantedTv(deps: WantedDeps, kind: 'missing' | 'bette
       run.problems.push(`${label(u.show, u.season, u.episode)}: ${(err as Error).message}`);
     }
   }
-  return save(db, run);
+  return save(deps, run);
 }
 
 /**
@@ -213,13 +218,13 @@ export async function lookForWantedTv(deps: WantedDeps, kind: 'missing' | 'bette
  */
 export async function catchNewEpisodes(deps: WantedDeps): Promise<WantedRun> {
   const { db, now } = deps;
-  const run: WantedRun = { at: now(), kind: 'new', searched: 0, sent: [], problems: [] };
+  const run: WantedRun = { at: now(), kind: 'new', searched: 0, sent: [], problems: [], ...(deps.preview ? { preview: true } : {}) };
   if (!readDownloader(db).url) {
     run.problems.push('qBittorrent isn’t connected, so nothing can be sent. Connect it in Settings → Downloader.');
-    return save(db, run);
+    return save(deps, run);
   }
   const shows = db.select().from(series).where(eq(series.monitored, true)).all();
-  if (!shows.length) return save(db, run);
+  if (!shows.length) return save(deps, run);
   const outcome = await deps.sources.recent('tv');
   for (const s of outcome.sources) if (s.status === 'failed' && s.message) run.problems.push(`${s.name}: ${s.message}`);
   run.searched = outcome.releases.length;
@@ -248,15 +253,22 @@ export async function catchNewEpisodes(deps: WantedDeps): Promise<WantedRun> {
     g.releases.push(r);
     groups.set(key, g);
   }
-  if (!groups.size) return save(db, run);
+  if (!groups.size) return save(deps, run);
 
   const lib = new Library(db, [...new Set([...groups.values()].map((g) => g.show.id))]);
   const today = isoDay(now());
   const known = new Set<string>();
+  /** Episodes you left out, and seasons with any left out (no whole-season copy for those). */
+  const skipped = new Set<string>();
+  const partial = new Set<string>();
   /** Seasons still airing: a whole-season copy of one would be partial, and would hold up the episodes still to come. */
   const airing = new Set<string>();
   for (const e of db.select().from(episodes).where(inArray(episodes.seriesId, [...new Set([...groups.values()].map((g) => g.show.id))])).all()) {
     known.add(`${e.seriesId}:${e.season}:${e.episode}`);
+    if (!e.monitored) {
+      skipped.add(`${e.seriesId}:${e.season}:${e.episode}`);
+      partial.add(`${e.seriesId}:${e.season}`);
+    }
     if (!aired(e, today)) airing.add(`${e.seriesId}:${e.season}`);
   }
   const ordered = [...groups.values()].sort((a, b) => Number(a.target.episode !== undefined) - Number(b.target.episode !== undefined));
@@ -266,6 +278,8 @@ export async function catchNewEpisodes(deps: WantedDeps): Promise<WantedRun> {
     // Only episodes TMDB knows about, so a mislabeled copy can't invent one.
     if (target.episode !== undefined && !known.has(`${show.id}:${target.season}:${target.episode}`)) continue;
     if (target.episode === undefined && airing.has(`${show.id}:${target.season}`)) continue;
+    if (target.episode !== undefined ? skipped.has(`${show.id}:${target.season}:${target.episode}`) : partial.has(`${show.id}:${target.season}`)) continue;
+    if (run.capped) break;
     try {
       const judged = judgeCopies(db, target, prepareTitle(db, now, target), g.releases);
       const pick = bestPick(judged.search, target.episode === undefined);
@@ -274,7 +288,7 @@ export async function catchNewEpisodes(deps: WantedDeps): Promise<WantedRun> {
       run.problems.push(`${label(show, target.season!, target.episode)}: ${(err as Error).message}`);
     }
   }
-  return save(db, run);
+  return save(deps, run);
 }
 
 /** Runs whichever TV job is due: new episodes first, then missing ones, then better copies. */

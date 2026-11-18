@@ -5,6 +5,7 @@ import type { MediaFileView, MovieDetail, SeasonView, ShowDetail } from '@marque
 import { api, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { TitleDownloads } from '../components/Downloads';
+import { WantedCheck, WantedSwitch } from '../components/Wanted';
 import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
 
@@ -103,6 +104,7 @@ export function MovieDetailPage() {
         ]}
       />
       {m.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{m.overview}</p>}
+      {isAdmin && <WantedSwitch kind="movie" id={m.id} wanted={m.monitored} />}
       <Card className="flex flex-col">
         <h2 className="m-0 mb-2 text-lg font-semibold">Files</h2>
         {m.files.length === 0 ? (
@@ -118,7 +120,7 @@ export function MovieDetailPage() {
   );
 }
 
-function SeasonBlock({ s, open, onToggle }: { s: SeasonView; open: boolean; onToggle: () => void }) {
+function SeasonBlock({ s, open, onToggle, showId, editable, showWanted }: { s: SeasonView; open: boolean; onToggle: () => void; showId: number; editable: boolean; showWanted: boolean }) {
   const label = s.season === 0 ? 'Specials' : `Season ${s.season}`;
   const done = s.aired > 0 && s.have >= s.aired;
   return (
@@ -132,6 +134,12 @@ function SeasonBlock({ s, open, onToggle }: { s: SeasonView; open: boolean; onTo
           {open ? '−' : '+'}
         </span>
       </button>
+      {editable && showWanted && open && (
+        <div className="flex items-center gap-3 px-6 pb-2">
+          <WantedCheck label={`${label}: wanted`} checked={s.episodes.every((e) => e.wanted)} path={`/shows/${showId}/seasons/${s.season}/wanted`} />
+          <span className="text-xs text-dim">Untick a season or an episode to leave it out.</span>
+        </div>
+      )}
       {open && (
         <div className="flex flex-col px-6 pb-4">
           {s.episodes.map((e) => (
@@ -139,6 +147,7 @@ function SeasonBlock({ s, open, onToggle }: { s: SeasonView; open: boolean; onTo
               <span className="w-10 text-sm font-semibold text-muted">{e.episode}</span>
               <span className="min-w-[160px] flex-1 text-[15px]">{e.title ?? `Episode ${e.episode}`}</span>
               <span className="text-xs text-dim">{e.airDate ?? 'No date'}</span>
+              {editable && showWanted && <WantedCheck label={`Episode ${e.episode}: wanted`} checked={e.wanted} path={`/shows/${showId}/seasons/${s.season}/episodes/${e.episode}/wanted`} />}
               <span
                 className={cx(
                   'w-[120px] text-right text-xs font-semibold',
@@ -180,9 +189,10 @@ export function ShowDetailPage() {
         ]}
       />
       {s.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{s.overview}</p>}
+      {isAdmin && <WantedSwitch kind="series" id={s.id} wanted={s.monitored} />}
       <div className="flex flex-col gap-3">
         {s.seasons.map((x) => (
-          <SeasonBlock key={x.season} s={x} open={open.has(x.season)} onToggle={() => toggle(x.season)} />
+          <SeasonBlock key={x.season} s={x} open={open.has(x.season)} onToggle={() => toggle(x.season)} showId={s.id} editable={isAdmin} showWanted={s.monitored} />
         ))}
       </div>
       {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}

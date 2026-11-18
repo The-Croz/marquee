@@ -86,9 +86,9 @@ export function calendar(db: Db, opts: { from: string; to: string; now: number; 
     } else if (busy.has(k) || busy.has(`${s.id}:${e.season}:*`)) {
       state = 'downloading';
       note = 'Downloading';
-    } else if (!s.monitored) {
+    } else if (!s.monitored || !e.monitored) {
       state = 'not_watched';
-      note = 'You don’t watch this show, so it won’t be downloaded';
+      note = s.monitored ? 'You left this episode out, so it won’t be downloaded' : 'This show isn’t Wanted, so it won’t be downloaded';
     } else if (e.season === 0) {
       state = e.airDate! <= today ? 'missing' : 'coming';
       note = 'A special: find it on the show’s page if you want it';

@@ -67,7 +67,7 @@ Six PRs, in order. Each lands with tests, a `PLAN.md` tick, and demo-mode fakes 
    - Presets seeded on first run (once; deleting one doesn't bring it back), each for movies and for TV, resettable to TRaSH's values (the name you gave it is kept):
      - **Cinema**: movies = TRaSH *UHD Bluray + WEB* plus *HD Bluray + WEB*'s rules, taking Blu-ray/WEB 2160p, then Blu-ray/WEB 1080p; TV = *WEB-2160p* with WEB 1080p fallback. Remuxes and full discs refused.
      - **Everyday HD**: movies = *HD Bluray + WEB* (Blu-ray 1080p, WEB 1080p, Blu-ray 720p); TV = *WEB-1080p* plus Blu-ray 1080p.
-     - **Kids & Cartoons**: 720p Blu-ray/WEB first, then a 1080p web copy only if it's at most 40 MB a minute (movies, about 3.6 GB for 90 minutes) or 50 MB a minute (TV). *HD* rules (so the same "never" rules: low-quality groups, full discs, upscales, x265 at HD). **Josh to confirm** this fallback.
+     - **Kids & Cartoons**: 720p Blu-ray/WEB first, then a 1080p web copy only if it's at most 40 MB a minute (movies, about 3.6 GB for 90 minutes) or 50 MB a minute (TV). *HD* rules (so the same "never" rules: low-quality groups, full discs, upscales, x265 at HD). Confirmed by Josh.
      - Each preset also carries TRaSH's opt-in rules, switched off, so they can be turned on from the screen.
    - API (admin): `GET/POST /api/settings/profiles` (new = copy of another, or of Everyday HD), `GET/PATCH/DELETE /api/settings/profiles/:id`, `POST …/:id/reset`, `PUT …/defaults` (new movies, new shows, kids' requests), `PUT /api/movies/:id/profile` and `/api/shows/:id/profile`. Delete is refused while a title uses it or it's a default, with the count and what to do. Edits are checked: every quality has one place, at least one is on, "good enough" is on, sizes in order, rules known. New titles from the scanner get the library's default.
    - `decide(wanted, copies, profile)`: merges the same torrent from several Sources by info-hash (keeps the most people sharing, lists every Source), then turns copies down with plain reasons: wrong title (or a Source ID for another title), wrong year (±1), a TV episode when looking for a movie, wrong season/episode, a season pack for a one-episode search, no episode in the name, sample, quality not in the profile, too small/too big for the runtime (TRaSH's MB-per-minute sizes; skipped when the runtime is unknown; season packs sized by episode count), nobody sharing, a "never" rule (-10000), points below the minimum.
@@ -219,15 +219,54 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
    - The pass (cookies and browser name) is kept per Source and reused until a bot check comes back. A solver that fails, or gets the check again, says so.
    - CI's container smoke test turns it on and checks it answers inside the image.
    - Kept up to date by `.github/workflows/flaresolverr.yml`: every Monday it checks for a new FlareSolverr release and opens a PR bumping the version and checksum, then runs the container test on it. Merge when green.
-4. ⬜ **Josh, on the LAN**: Settings → Sources → Bring sites over; type IPTorrents' cookie and user agent; turn on Solve bot checks and press Try now on EZTV and 1337x. When every Source shows Working and searches look right for a week, stop Prowlarr.
+4. ✅ **Josh, on the LAN**: all Sources are set up inside Marquee (sites brought over, IPTorrents, bot-check solving working, including the sites that need it). Working so far; Prowlarr stops after a week of good searches.
+
+5. ✅ **Wanted / not wanted** (`library/wanted.ts`, `downloads/wantedLimits.ts`)
+   - Migration 16: every existing movie and show becomes **Not wanted**, and episodes get their own Wanted flag (on by default, only counts while the show is Wanted). Titles added by the scanner start Not wanted.
+   - **Wanted** (the old "monitored" flag) is the only thing the wanted jobs look at. Movie and show pages (admin) have **Look for it / Stop looking for it**; shows also have a tick per season and per episode. Wanting a season or episode turns the show on. The TV jobs skip episodes you left out and never take a whole-season copy for a season with one left out.
+   - Movies and Shows lists: a **Wanted** badge, a Wanted filter, and **Choose several** to change many at once.
+   - Search: **Add and look for it** or **Just add** (new titles are Not wanted unless you choose the first).
+   - Switch-over pages: how many are Wanted (with a link to choose), a **daily limit** on copies sent by itself (10 unless changed, 0 = no limit, movies and TV together, the run stops and says so), and **Preview** buttons that search as usual but send nothing and aren't remembered. The "Turn on" text says plainly when nothing is Wanted.
+   - Calendar says "This show isn't Wanted" or "You left this episode out".
+   - **Josh:** mark what you want (Movies/Shows → Choose several), press Preview, then turn on looking.
 
 Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
 
-## Milestone 5: Family ⬜
+## Milestone 5: Family 🔨
 
-- ⬜ Discover (trending, upcoming, by genre) from TMDB; kid profiles only see kid-safe titles (certification + genre rules, admin overrides)
-- ⬜ Requests: members go straight through; kids need approval; notifications
-- ⬜ Retire Seerr
+Goal: the family can find something and ask for it, and Marquee tells the right people. Seerr retires. Ideas from HolyArrs's Explore and Requests pages (ideas only; it's AGPL).
+
+Decided with Josh (2026-11-18):
+- **Order:** Discover from charts and services first, then requests, then the personal rows get smarter after M6 brings watch history.
+- **Requests:** an admin's request is approved at once, then searched and downloaded. A member's or kid's request waits for an admin, as in Seerr. (This replaces the older "members go straight through" line: every non-admin request now needs approval.) A request is for a whole show or chosen seasons. Approving makes the title **Wanted** (see M4 item 5), with the profile the rules pick unless the admin swaps it while approving. Declines carry a reason the requester can see. A title already in the library says "already here". No weekly limit by default; an admin can set one per person, as in Seerr.
+- **Users** come from the Plex and Jellyfin user lists, not a Seerr import. Jellyfin sign-in and "pick people from the server's list" (Plex too, like HolyArrs) are added when they fit.
+- **Kids** see Discover filtered by age rating only (the same G/PG, TV-Y to TV-PG rule as the library); no per-title overrides.
+- **No "popular with the household" row.**
+
+1. ✅ **Discover** (`/discover`, `apps/server/src/discover/`)
+   - Rotating **hero banner** at the top (backdrop, title, rating, year, short blurb, Request button, trailer), then rows of cover art that show more on hover or focus (rating, year, genres, blurb, status, Request).
+   - Tabs: **All / Movies / Shows**, plus **service chips** for Netflix, Max, Disney+, Apple TV+, Prime Video, Hulu, Paramount+ and Peacock (US catalogue). Each person can hide the ones they don't want in their settings. Service data comes from TMDB's watch providers (JustWatch); the page carries the attribution TMDB asks for.
+   - Rows: Trending, Popular, Top rated, Upcoming, Now in cinemas, New this week on each service, Browse by genre, and for each person **Because you watched…**, **Because you asked for…**, **Because you have…** and **Top picks for you**. Rows only show when they have enough titles and each title shows once per page.
+   - Until M6, "Because you watched" falls back to the library and requests; with M6 it reads each person's Plex and Jellyfin history.
+   - **Trailers** play on hover (desktop) or in the hero and title page, through YouTube's no-cookie player; each person can turn trailers off. Respects reduced motion.
+   - Every card shows its state: in your library, downloading, requested, declined, not here yet.
+   - Kids get only age-appropriate rows and titles. A title with no US rating is hidden from kids.
+   - Demo mode gets a fake TMDB for all of this.
+2. ✅ **Requests** (`/requests`, `apps/server/src/requests/`)
+   - Request a movie, a whole show or chosen seasons from any card or title page. Admins' requests go through at once; others wait. Admin screen: approve (with a profile picker and season ticks), decline with a reason, approve all, remove, undo for a few seconds after declining. People see their own requests and a plain state for each: **Waiting for approval**, **Approved · looking for it**, **Downloading**, **Ready to watch**, **Declined** (with the reason).
+   - Settings → Requests: optional weekly limit per person or role (none by default), which profile approved titles get.
+   - Menu badge for how many wait, and Home's "Needs your OK" shows real waiting requests with an Approve button.
+   - Approving adds the title, marks it Wanted (only the asked seasons for a show), sets the profile if picked, and searches at once, without the daily limit (that limit is for the automatic jobs). Ongoing looking for new episodes still needs the switch-over's "look for wanted" turned on.
+   - Built and tested: ask (admins' go straight through), approve with a profile and seasons, turn down with a reason, undo, take back, remove, "already here", "already asked for", kids can only ask for kid-safe titles, "Ready to watch" told once.
+3. 🔨 **Notifications** (the layer everything funnels through, built to carry what Radarr, Sonarr, Seerr and Tautulli send)
+   - Channels: **Pushover** first, **ntfy** next, a web app inbox (bell) in this milestone, iPhone push in M7. Each channel has a Test button and says plainly when it can't send.
+   - Each person turns events on or off for themselves; admins choose which events go to the admin channels.
+   - Events in M5: request waiting (admins); request approved, declined, ready to watch (the requester); new episode of a show you requested; download started, finished, stuck or failed; imported into the library; upgraded; Source or downloader health problems; Marquee updated; new FlareSolverr/Source trouble.
+   - Events that wait for M6: someone started watching, a stream stopped, a user's first stream, and the other Tautulli-style ones.
+   - **Built:** Pushover and ntfy channels (Settings → Notifications, admin: add, pause, test, per-channel events, secrets never sent back), the bell inbox for everyone, and per-person muting. Events sent today: request waiting (admins); request approved, turned down, ready to watch (the person); download finished, stuck or replaced, couldn't be put in the library, and added to the library (admins).
+   - **Not yet:** Source and downloader health alerts, new-episode alerts for requested shows, upgraded, "Marquee updated", and a push address for each person (today pushes go to the admins' channels; other people get the bell). iPhone push is M7.
+4. ⬜ **Users from Plex and Jellyfin** (can land any time): pick people from each server's user list (Plex first, Jellyfin next), with Jellyfin sign-in when it fits.
+5. ⬜ **Retire Seerr**: with requests, Discover, notifications and people in place, a short checklist like the switch-over pages. No import from Seerr.
 
 ## Milestone 6: Stats ⬜
 

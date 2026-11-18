@@ -1,3 +1,4 @@
+import { listRequests } from '../requests/service.js';
 import fs from 'node:fs/promises';
 import { Hono } from 'hono';
 import { count, desc, inArray, isNotNull, sql } from 'drizzle-orm';
@@ -101,15 +102,9 @@ homeRoutes.get('/', async (c) => {
     stats: [
       { label: 'Watching now', value: '2', note: 'Plex 1 · Jellyfin 1' },
       { label: 'Added this week', value: '11', note: '3 movies · 8 episodes' },
-      ...(isAdmin ? [{ label: 'Waiting for your OK', value: '2', note: 'From the Kids profile' }] : []),
       { label: 'Free space', value: '18.4 TB', note: 'of 60 TB' },
     ],
-    approvals: isAdmin
-      ? [
-          { id: 1, title: 'Paw Patrol: The Mighty Movie', who: 'Kids · asked 2 hours ago', plan: 'Will use Kids & Cartoons · 720p', color: '#1F4E8C' },
-          { id: 2, title: 'Bluey — Season 3', who: 'Kids · asked yesterday', plan: 'Kids & Cartoons · 720p · 3 episodes missing', color: '#3B8FB8' },
-        ]
-      : [],
+    approvals: [],
     watching: isKid
       ? []
       : [
@@ -144,10 +139,33 @@ homeRoutes.get('/', async (c) => {
     data.libraryReady = true;
     data.recent = real.recent;
     // Keep the sample "Watching now" and approvals tiles until Milestones 5 and 6.
-    data.stats = [...real.stats, ...data.stats.filter((s) => s.label === 'Watching now' || s.label === 'Waiting for your OK')];
+    data.stats = [...real.stats, ...data.stats.filter((s) => s.label === 'Watching now')];
+  }
+  const { db, now } = c.get('deps');
+  // Real requests waiting for an admin.
+  if (isAdmin) {
+    const waiting = listRequests(db, requireUser(c), 'all', now()).filter((r) => r.state === 'pending');
+    data.approvals = waiting.slice(0, 3).map((r) => ({
+      id: r.id,
+      title: r.title,
+      who: `${r.requestedBy?.name ?? 'Someone'} · asked ${ago(now() - r.createdAt)}`,
+      plan: r.seasons ? (r.seasons.length === 1 ? `Season ${r.seasons[0]}` : `Seasons ${r.seasons.join(', ')}`) : r.kind === 'movie' ? 'Movie' : 'Whole show',
+      posterPath: r.posterPath,
+    }));
+    data.stats.splice(2, 0, { label: 'Waiting for your OK', value: String(waiting.length), note: waiting.length ? [...new Set(waiting.map((r) => r.requestedBy?.name ?? 'Someone'))].slice(0, 3).join(', ') : 'Nothing to approve' });
   }
   // Real airing dates once there are shows in the library.
-  const { db, now } = c.get('deps');
   if (db.select({ id: series.id }).from(series).limit(1).get()) data.upcoming = comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined);
   return c.json(data);
 });
+
+/** "2 hours ago", "yesterday". */
+function ago(ms: number): string {
+  const m = Math.round(ms / 60000);
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} minutes ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} ${h === 1 ? 'hour' : 'hours'} ago`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
