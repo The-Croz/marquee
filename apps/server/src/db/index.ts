@@ -329,6 +329,11 @@ const migrations: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  /* 16: wanted / not wanted. Nothing is wanted until you say so; episodes can be left out one by one. */ `
+  UPDATE movies SET monitored = 0;
+  UPDATE series SET monitored = 0;
+  ALTER TABLE episodes ADD COLUMN monitored INTEGER NOT NULL DEFAULT 1;
+  `,
 ];
 
 export function openDb(file: string): Db {

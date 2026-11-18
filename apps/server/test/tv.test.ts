@@ -283,7 +283,7 @@ describe('airing calendar', () => {
     const t = await setup();
     const home = (await call(t.app, 'GET', '/api/home', undefined, t.cookie)).body as HomeData;
     expect(home.upcoming).toEqual([
-      { day: 'Thu', title: 'Bluey · S1 E1', note: 'You don’t watch this show, so it won’t be downloaded', href: `/shows/${t.bluey.id}` },
+      { day: 'Thu', title: 'Bluey · S1 E1', note: 'This show isn’t Wanted, so it won’t be downloaded', href: `/shows/${t.bluey.id}` },
       { day: 'Tue', title: 'Severance · S2 E3', note: '4K Quality', href: `/shows/${t.sev.id}` },
     ]);
   });

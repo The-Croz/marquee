@@ -20,7 +20,7 @@ const STATE: Record<CalendarItem['state'], { label: string; tone: string }> = {
   downloading: { label: 'Downloading', tone: 'text-amber-hi' },
   missing: { label: 'Not here yet', tone: 'text-warn' },
   coming: { label: 'Coming', tone: 'text-soft' },
-  not_watched: { label: 'Not watched', tone: 'text-dim' },
+  not_watched: { label: 'Not wanted', tone: 'text-dim' },
 };
 
 function dayLabel(day: string, today: string): string {

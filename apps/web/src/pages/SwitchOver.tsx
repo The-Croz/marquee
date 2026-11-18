@@ -55,7 +55,7 @@ function RunLine({ r, kind }: { r: WantedRunView; kind: Kind }) {
   return (
     <li className="flex flex-col gap-0.5 text-sm">
       <span className="text-soft">
-        {what} {when(r.at)} · {r.kind === 'new' ? `looked at ${r.searched} ${r.searched === 1 ? 'copy' : 'copies'}` : `searched ${r.searched}`} · sent {r.sent.length}
+        {what} {when(r.at)} · {r.kind === 'new' ? `looked at ${r.searched} ${r.searched === 1 ? 'copy' : 'copies'}` : `searched ${r.searched}`} · sent {r.sent.length}{r.capped ? ' · stopped at the daily limit' : ''}
       </span>
       {r.sent.map((s) => (
         <span key={s.title + s.copy} className="text-teal-hi">
@@ -79,6 +79,8 @@ export function SwitchOverPage({ kind = 'movie' }: { kind?: Kind }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [preview, setPreview] = useState<WantedRunView | null>(null);
+  const [limit, setLimit] = useState<string | null>(null);
   const v = q.data;
 
   async function toggle(on: boolean) {
@@ -94,17 +96,31 @@ export function SwitchOverPage({ kind = 'movie' }: { kind?: Kind }) {
     }
   }
 
-  async function lookNow(look: LookKind) {
+  async function lookNow(look: LookKind, preview = false) {
     setBusy(true);
     setError(null);
     try {
-      await api<WantedRunView>(`${base}/look-now`, { body: { kind: look } });
+      const run = await api<WantedRunView>(`${base}/look-now`, { body: { kind: look, ...(preview ? { preview: true } : {}) } });
+      if (preview) setPreview(run);
       await queryClient.invalidateQueries({ queryKey: key });
       await queryClient.invalidateQueries({ queryKey: ['downloads'] });
     } catch (e) {
       setError(errMsg(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function saveLimit() {
+    setError(null);
+    try {
+      const n = Number(limit);
+      if (!Number.isInteger(n) || n < 0) throw new Error('Type a whole number, or 0 for no limit.');
+      await api(`/cutover/limit`, { method: 'PUT', body: { dailyLimit: n } });
+      setLimit(null);
+      await queryClient.invalidateQueries({ queryKey: ['cutover'] });
+    } catch (e) {
+      setError(errMsg(e));
     }
   }
 
@@ -162,6 +178,51 @@ export function SwitchOverPage({ kind = 'movie' }: { kind?: Kind }) {
                       )}
                       {s.key === 'take_over' && (
                         <div className="mt-1 flex flex-col gap-3">
+                          <p className="m-0 text-sm text-soft">
+                            <strong>{v.wantedTitles}</strong> {kind === 'movie' ? (v.wantedTitles === 1 ? 'movie is' : 'movies are') : v.wantedTitles === 1 ? 'show is' : 'shows are'} Wanted.{' '}
+                            <Link to={kind === 'movie' ? '/movies' : '/shows'}>Choose which →</Link>
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-soft">
+                            <label htmlFor="daily-limit">Most copies Marquee sends by itself in 24 hours:</label>
+                            <input
+                              id="daily-limit"
+                              inputMode="numeric"
+                              value={limit ?? String(v.dailyLimit)}
+                              onChange={(e) => setLimit(e.target.value)}
+                              className="h-11 w-20 rounded-xl border border-line bg-panel px-3 text-text"
+                            />
+                            {limit !== null && limit !== String(v.dailyLimit) && (
+                              <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={saveLimit}>
+                                Save
+                              </Button>
+                            )}
+                            <span className="text-dim">{v.dailyLimit === 0 ? 'No limit.' : `${v.sentToday} sent in the last 24 hours. 0 means no limit.`}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {looks.map((l) => (
+                              <Button key={`p${l}`} type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => lookNow(l, true)}>
+                                {l === 'missing' ? `Preview missing ${kind === 'movie' ? 'movies' : 'episodes'}` : l === 'better' ? 'Preview better copies' : 'Preview new episodes'}
+                              </Button>
+                            ))}
+                          </div>
+                          {preview && (
+                            <div role="region" aria-label="Preview" className="flex flex-col gap-1 rounded-xl border border-line px-4 py-3 text-sm">
+                              <strong>Preview: nothing was sent.</strong>
+                              <span className="text-soft">
+                                {preview.sent.length === 0 ? 'Nothing Wanted needs a copy right now.' : `It would send ${preview.sent.length} ${preview.sent.length === 1 ? 'copy' : 'copies'}:`}
+                              </span>
+                              {preview.sent.map((x) => (
+                                <span key={x.title + x.copy} className="text-teal-hi">
+                                  → <Link to={x.href}>{x.title}</Link> <span className="font-mono text-[12px] text-dim">{x.copy}</span>
+                                </span>
+                              ))}
+                              {preview.problems.map((p) => (
+                                <span key={p} className="text-warn">
+                                  {p}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {!v.lookingForWanted && !confirm && (
                             <Button type="button" className="self-start" disabled={busy} onClick={() => (v.ready ? toggle(true) : setConfirm(true))}>
                               Turn on

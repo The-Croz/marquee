@@ -120,6 +120,8 @@ export const episodes = sqliteTable('episodes', {
   overview: text('overview'),
   /** When Marquee last searched for it (or its season) by itself. */
   lastSearchedAt: integer('last_searched_at'),
+  /** Wanted. Only counts while the show itself is wanted. */
+  monitored: integer('monitored', { mode: 'boolean' }).notNull().default(true),
 }, (t) => [uniqueIndex('episodes_series_season_episode').on(t.seriesId, t.season, t.episode)]);
 
 export const mediaFiles = sqliteTable('media_files', {

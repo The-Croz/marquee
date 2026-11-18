@@ -53,11 +53,11 @@ export function SearchPage({ user }: { user: SessionUser }) {
     enabled: q.length > 0,
   });
 
-  async function add(r: SearchResult) {
+  async function add(r: SearchResult, wanted: boolean) {
     setAdding(r.tmdbId);
     setError(null);
     try {
-      const res = await api<{ id: number; kind: 'movie' | 'series' }>('/library/add', { body: { kind: r.kind, tmdbId: r.tmdbId } });
+      const res = await api<{ id: number; kind: 'movie' | 'series' }>('/library/add', { body: { kind: r.kind, tmdbId: r.tmdbId, wanted } });
       await queryClient.invalidateQueries({ queryKey: ['library'] });
       navigate(res.kind === 'movie' ? `/movies/${res.id}` : `/shows/${res.id}`);
     } catch (e) {
@@ -75,8 +75,8 @@ export function SearchPage({ user }: { user: SessionUser }) {
       {!q && <h1 className="m-0 text-2xl font-semibold">{kind === 'series' ? 'Find a show to add' : kind === 'movie' ? 'Find a movie to add' : 'Find something to add'}</h1>}
       {user.role === 'admin' && (
         <p className="m-0 max-w-[720px] text-sm text-muted">
-          Search The Movie Database, press <strong className="text-soft">Add to library</strong>, then on its page press <strong className="text-soft">Find copies</strong> and{' '}
-          <strong className="text-soft">Download this</strong>. Marquee puts it in your library when it’s done.
+          Search The Movie Database, press <strong className="text-soft">Add and look for it</strong> and Marquee finds a copy, downloads it and puts it in your library.{' '}
+          <strong className="text-soft">Just add</strong> keeps it as Not wanted, so you can pick a copy by hand from its page.
         </p>
       )}
       {error && <Notice tone="error">{error}</Notice>}
@@ -98,9 +98,14 @@ export function SearchPage({ user }: { user: SessionUser }) {
                 In your library →
               </Link>
             ) : user.role === 'admin' ? (
-              <Button variant="ghost" className="h-10 text-sm" onClick={() => add(r)} disabled={adding !== null}>
-                {adding === r.tmdbId ? 'Adding…' : 'Add to library'}
-              </Button>
+              <div className="flex flex-col gap-1.5">
+                <Button className="h-10 text-sm" onClick={() => add(r, true)} disabled={adding !== null}>
+                  {adding === r.tmdbId ? 'Adding…' : 'Add and look for it'}
+                </Button>
+                <Button variant="ghost" className="h-10 text-sm" onClick={() => add(r, false)} disabled={adding !== null}>
+                  Just add
+                </Button>
+              </div>
             ) : (
               <span className="text-xs text-dim">Requests arrive in Milestone 5</span>
             )}

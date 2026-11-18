@@ -294,7 +294,7 @@ export class LibraryScanner {
       // A second folder for the same movie keeps the first folder as "the" folder.
       return this.db.update(movies).set({ ...values, path: current.path ?? folder }).where(eq(movies.id, current.id)).returning().get();
     }
-    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'movie', factsFrom(d)), ...values }).returning().get();
+    return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, monitored: false, profile: chooseProfile(this.db, 'movie', factsFrom(d)), ...values }).returning().get();
   }
 
   // ---------------- Shows ----------------
@@ -375,7 +375,7 @@ export class LibraryScanner {
     const current = this.db.select().from(series).where(eq(series.tmdbId, tmdbId)).get();
     const row = current
       ? this.db.update(series).set({ ...values, path: current.path ?? folder }).where(eq(series.id, current.id)).returning().get()
-      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, profile: chooseProfile(this.db, 'tv', factsFrom(d)), ...values }).returning().get();
+      : this.db.insert(series).values({ tmdbId, path: folder, addedAt, monitored: false, profile: chooseProfile(this.db, 'tv', factsFrom(d)), ...values }).returning().get();
 
     for (const s of d.seasons) {
       if (s.episodeCount === 0) continue;

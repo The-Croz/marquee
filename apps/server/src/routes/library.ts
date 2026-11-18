@@ -13,6 +13,7 @@ import type {
   UnmatchedItem,
 } from '@marquee/shared';
 import { episodes, mediaFiles, movies, scanItems, series, type MediaFile, type User } from '../db/schema.js';
+import { setEpisodeWanted, setMoviesWanted, setSeasonWanted, setShowsWanted } from '../library/wanted.js';
 import { readServices } from '../library/services.js';
 import type { ScanSources } from '../library/scanner.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
@@ -137,19 +138,21 @@ libraryRoutes.get('/search', async (c) => {
   return c.json({ results });
 });
 
-/** Adds a title you don't have yet. It shows as "Missing" until Milestone 3 can download it. */
+/** Adds a title you don't have yet. It starts Not wanted unless `wanted` is true ("Add and look for it"). */
 libraryRoutes.post('/add', async (c) => {
   requireAdmin(c);
   const { db, scanner, now } = c.get('deps');
-  const input = z.object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive() }).parse(await c.req.json());
+  const input = z.object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), wanted: z.boolean().default(false) }).parse(await c.req.json());
   const { tmdb } = scanSources(c);
   if (input.kind === 'movie') {
     const existing = db.select().from(movies).where(eq(movies.tmdbId, input.tmdbId)).get();
     const row = existing ?? (await scanner.upsertMovie(tmdb, input.tmdbId, null, now()));
+    if (input.wanted) setMoviesWanted(db, [row.id], true);
     return c.json({ id: row.id, kind: 'movie' }, existing ? 200 : 201);
   }
   const existing = db.select().from(series).where(eq(series.tmdbId, input.tmdbId)).get();
   const row = existing ?? (await scanner.upsertSeries(tmdb, input.tmdbId, null, now()));
+  if (input.wanted) setShowsWanted(db, [row.id], true);
   return c.json({ id: row.id, kind: 'series' }, existing ? 200 : 201);
 });
 
@@ -159,6 +162,7 @@ const listQuery = z.object({
   q: z.string().trim().max(200).optional(),
   filter: z.enum(['all', 'have', 'missing']).default('all'),
   sort: z.enum(['added', 'title', 'year']).default('added'),
+  wanted: z.enum(['yes', 'no']).optional(),
 });
 
 export const movieRoutes = new Hono<Env>();
@@ -166,7 +170,7 @@ export const movieRoutes = new Hono<Env>();
 movieRoutes.get('/', (c) => {
   const user = requireUser(c);
   const { db } = c.get('deps');
-  const { q, filter, sort } = listQuery.parse(c.req.query());
+  const { q, filter, sort, wanted } = listQuery.parse(c.req.query());
   const rows = db
     .select()
     .from(movies)
@@ -174,6 +178,7 @@ movieRoutes.get('/', (c) => {
       and(
         isKid(user) ? inArray(movies.certification, KID_MOVIE_RATINGS) : undefined,
         q ? sql`lower(${movies.title}) like ${'%' + q.toLowerCase() + '%'}` : undefined,
+        wanted ? eq(movies.monitored, wanted === 'yes') : undefined,
       ),
     )
     .orderBy(sort === 'title' ? asc(movies.sortTitle) : sort === 'year' ? desc(movies.year) : desc(movies.addedAt))
@@ -200,6 +205,7 @@ movieRoutes.get('/', (c) => {
         badge: best ? qualityLabel(best) : 'Missing',
         sizeBytes: fs.reduce((n, f) => n + f.size, 0),
         addedAt: m.addedAt,
+        wanted: m.monitored,
       };
     })
     .filter((card) => filter === 'all' || (filter === 'have') === card.complete);
@@ -261,7 +267,7 @@ function episodeCounts(c: Ctx, seriesIds: number[]) {
 showRoutes.get('/', (c) => {
   const user = requireUser(c);
   const { db } = c.get('deps');
-  const { q, filter, sort } = listQuery.parse(c.req.query());
+  const { q, filter, sort, wanted } = listQuery.parse(c.req.query());
   const rows = db
     .select()
     .from(series)
@@ -269,6 +275,7 @@ showRoutes.get('/', (c) => {
       and(
         isKid(user) ? inArray(series.certification, KID_TV_RATINGS) : undefined,
         q ? sql`lower(${series.title}) like ${'%' + q.toLowerCase() + '%'}` : undefined,
+        wanted ? eq(series.monitored, wanted === 'yes') : undefined,
       ),
     )
     .orderBy(sort === 'title' ? asc(series.sortTitle) : sort === 'year' ? desc(series.year) : desc(series.addedAt))
@@ -299,6 +306,7 @@ showRoutes.get('/', (c) => {
         badge: n.aired === 0 ? 'Not aired yet' : n.have >= n.aired ? `All ${n.aired} episodes` : `${n.have} of ${n.aired} episodes`,
         sizeBytes: sizes.get(s.id) ?? 0,
         addedAt: s.addedAt,
+        wanted: s.monitored,
       };
     })
     .filter((card) => filter === 'all' || (filter === 'have') === card.complete);
@@ -318,7 +326,7 @@ showRoutes.get('/:id{[0-9]+}', (c) => {
   const seasons = new Map<number, SeasonView>();
   for (const e of eps) {
     const f = fileFor.get(`${e.season}:${e.episode}`);
-    const view: EpisodeView = { episode: e.episode, title: e.title, airDate: e.airDate, aired: !!(e.airDate && e.airDate <= t), file: f ? fileView(f) : null };
+    const view: EpisodeView = { episode: e.episode, title: e.title, airDate: e.airDate, aired: !!(e.airDate && e.airDate <= t), wanted: e.monitored, file: f ? fileView(f) : null };
     const sv = seasons.get(e.season) ?? { season: e.season, have: 0, aired: 0, total: 0, episodes: [] };
     sv.episodes.push(view);
     sv.total++;
@@ -365,3 +373,49 @@ async function setProfile(c: Ctx, kind: 'movie' | 'tv') {
 }
 movieRoutes.put('/:id{[0-9]+}/profile', (c) => setProfile(c, 'movie'));
 showRoutes.put('/:id{[0-9]+}/profile', (c) => setProfile(c, 'tv'));
+
+// ---------------- Wanted / not wanted (admin) ----------------
+
+const wantedBody = z.object({ wanted: z.boolean() });
+const bulkBody = z.object({ ids: z.array(z.number().int().positive()).min(1).max(2000), wanted: z.boolean() });
+
+movieRoutes.put('/:id{[0-9]+}/wanted', async (c) => {
+  requireAdmin(c);
+  const { wanted } = wantedBody.parse(await c.req.json());
+  const id = Number(c.req.param('id'));
+  if (!setMoviesWanted(c.get('deps').db, [id], wanted)) throw new HttpError(404, 'not_found', 'That movie isn’t in your library.');
+  return c.json({ ok: true, wanted });
+});
+
+movieRoutes.post('/wanted', async (c) => {
+  requireAdmin(c);
+  const { ids, wanted } = bulkBody.parse(await c.req.json());
+  return c.json({ ok: true, changed: setMoviesWanted(c.get('deps').db, ids, wanted) });
+});
+
+showRoutes.put('/:id{[0-9]+}/wanted', async (c) => {
+  requireAdmin(c);
+  const { wanted } = wantedBody.parse(await c.req.json());
+  if (!setShowsWanted(c.get('deps').db, [Number(c.req.param('id'))], wanted)) throw new HttpError(404, 'not_found', 'That show isn’t in your library.');
+  return c.json({ ok: true, wanted });
+});
+
+showRoutes.post('/wanted', async (c) => {
+  requireAdmin(c);
+  const { ids, wanted } = bulkBody.parse(await c.req.json());
+  return c.json({ ok: true, changed: setShowsWanted(c.get('deps').db, ids, wanted) });
+});
+
+showRoutes.put('/:id{[0-9]+}/seasons/:season{[0-9]+}/wanted', async (c) => {
+  requireAdmin(c);
+  const { wanted } = wantedBody.parse(await c.req.json());
+  setSeasonWanted(c.get('deps').db, Number(c.req.param('id')), Number(c.req.param('season')), wanted);
+  return c.json({ ok: true, wanted });
+});
+
+showRoutes.put('/:id{[0-9]+}/seasons/:season{[0-9]+}/episodes/:episode{[0-9]+}/wanted', async (c) => {
+  requireAdmin(c);
+  const { wanted } = wantedBody.parse(await c.req.json());
+  setEpisodeWanted(c.get('deps').db, Number(c.req.param('id')), Number(c.req.param('season')), Number(c.req.param('episode')), wanted);
+  return c.json({ ok: true, wanted });
+});

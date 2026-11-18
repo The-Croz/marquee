@@ -333,6 +333,8 @@ export interface LibraryCard {
   badge: string;
   sizeBytes: number;
   addedAt: number;
+  /** You want Marquee to look for it. */
+  wanted: boolean;
 }
 
 export interface MediaFileView {
@@ -369,6 +371,8 @@ export interface EpisodeView {
   title: string | null;
   airDate: string | null;
   aired: boolean;
+  /** Wanted (only counts while the show is wanted). */
+  wanted: boolean;
   file: MediaFileView | null;
 }
 
@@ -767,6 +771,10 @@ export interface WantedRunView {
   /** `href` is the movie or show page; `title` says which season or episode for TV. */
   sent: { href: string; title: string; copy: string }[];
   problems: string[];
+  /** A preview: what it would send. Nothing was sent. */
+  preview?: boolean;
+  /** Stopped early at the daily limit. */
+  capped?: boolean;
 }
 
 export interface CutoverView {
@@ -775,6 +783,11 @@ export interface CutoverView {
   /** Every step before "Marquee looks for wanted movies" is done. */
   ready: boolean;
   lookingForWanted: boolean;
+  /** How many movies (or shows) are marked Wanted. Nothing is until you say so. */
+  wantedTitles: number;
+  /** Copies Marquee may send by itself in 24 hours (0 = no limit), and how many it has sent in the last 24 hours. */
+  dailyLimit: number;
+  sentToday: number;
   /** The last few searches Marquee ran by itself, newest first. */
   runs: WantedRunView[];
 }

@@ -221,11 +221,14 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
    - Kept up to date by `.github/workflows/flaresolverr.yml`: every Monday it checks for a new FlareSolverr release and opens a PR bumping the version and checksum, then runs the container test on it. Merge when green.
 4. ✅ **Josh, on the LAN**: all Sources are set up inside Marquee (sites brought over, IPTorrents, bot-check solving working, including the sites that need it). Working so far; Prowlarr stops after a week of good searches.
 
-5. ⬜ **Wanted / not wanted** (blocks turning on "look for wanted movies/episodes")
-   - Josh switched over but has **not** turned on the automatic looking, because Marquee has no way to say which titles are wanted. Turning it on today would mean it goes after every monitored movie and show and grabs a ton of media. It must stay off until this is built.
-   - Needed: a plain per-title choice, **Wanted / Not wanted**, on movie and show pages and in bulk from the Movies and Shows lists. Shows get it per season and episode too (the "not done" item from TV PR 1). New titles default to **Not wanted** unless you pick otherwise (a request, or "Add and look for it"). Existing library titles start as **Not wanted** so nothing happens by surprise.
-   - The wanted jobs only touch wanted titles; the switch-over pages say how many titles are wanted and what the jobs would look for, with a "preview, send nothing" run before the switch can go on.
-   - Probably also a cap on how many copies get sent per day.
+5. ✅ **Wanted / not wanted** (`library/wanted.ts`, `downloads/wantedLimits.ts`)
+   - Migration 16: every existing movie and show becomes **Not wanted**, and episodes get their own Wanted flag (on by default, only counts while the show is Wanted). Titles added by the scanner start Not wanted.
+   - **Wanted** (the old "monitored" flag) is the only thing the wanted jobs look at. Movie and show pages (admin) have **Look for it / Stop looking for it**; shows also have a tick per season and per episode. Wanting a season or episode turns the show on. The TV jobs skip episodes you left out and never take a whole-season copy for a season with one left out.
+   - Movies and Shows lists: a **Wanted** badge, a Wanted filter, and **Choose several** to change many at once.
+   - Search: **Add and look for it** or **Just add** (new titles are Not wanted unless you choose the first).
+   - Switch-over pages: how many are Wanted (with a link to choose), a **daily limit** on copies sent by itself (10 unless changed, 0 = no limit, movies and TV together, the run stops and says so), and **Preview** buttons that search as usual but send nothing and aren't remembered. The "Turn on" text says plainly when nothing is Wanted.
+   - Calendar says "This show isn't Wanted" or "You left this episode out".
+   - **Josh:** mark what you want (Movies/Shows → Choose several), press Preview, then turn on looking.
 
 Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
 
