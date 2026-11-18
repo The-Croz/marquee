@@ -130,6 +130,14 @@ export interface DownloaderView {
   tryAnother: boolean;
   /** When qBittorrent sees the download folder under another name than Marquee does. */
   folderPairs: { from: string; to: string }[];
+  /** Keep sharing until this ratio (0 = no ratio limit)… */
+  seedRatio: number;
+  /** …or for this many days (0 = no time limit), whichever comes first. */
+  seedDays: number;
+  /** Private sites keep sharing with no limit unless their Source has its own rule. */
+  privateKeepSharing: boolean;
+  /** Remove a download from qBittorrent once it's in the library and has shared enough. */
+  removeWhenShared: boolean;
 }
 
 export interface DownloaderUpdate {
@@ -142,6 +150,10 @@ export interface DownloaderUpdate {
   giveUpHours?: number;
   tryAnother?: boolean;
   folderPairs?: { from: string; to: string }[];
+  seedRatio?: number;
+  seedDays?: number;
+  privateKeepSharing?: boolean;
+  removeWhenShared?: boolean;
 }
 
 export interface DownloaderHealth {
@@ -180,6 +192,9 @@ export interface SourceView {
   forTv: boolean;
   minSeeders: number;
   dailyLimit: number;
+  /** Its own seeding rule; null uses the default. 0 means no limit for that part. */
+  seedRatio: number | null;
+  seedDays: number | null;
   minGapMs: number;
   timeoutSeconds: number;
   fromProwlarr: boolean;
@@ -218,6 +233,8 @@ export interface SourceUpdate {
   forTv?: boolean;
   minSeeders?: number;
   dailyLimit?: number;
+  seedRatio?: number | null;
+  seedDays?: number | null;
   minGapMs?: number;
   timeoutSeconds?: number;
 }
@@ -538,6 +555,8 @@ export interface DownloadView {
   canControl: boolean;
   /** Finished and not in the library yet: "Try again" puts it there. */
   canImport: boolean;
+  /** In the library and still in qBittorrent: can be removed from qBittorrent (the library file stays). */
+  canRemoveShared: boolean;
   /** The library files it became. */
   importedPaths: string[] | null;
 }

@@ -98,6 +98,13 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
           ))}
         </ul>
       )}
+      {d.canRemoveShared && (
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('remove', { deleteFiles: true })}>
+            {busy ? 'Working…' : 'Remove from qBittorrent'}
+          </Button>
+        </div>
+      )}
       {d.canImport && (
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('import')}>

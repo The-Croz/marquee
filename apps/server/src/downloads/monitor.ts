@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { and, eq, inArray, isNull, or, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, or, lt } from 'drizzle-orm';
+import fs from 'node:fs/promises';
 import type { DownloadActionResult, DownloadsView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { downloads, neverPick, type Download } from '../db/schema.js';
@@ -12,6 +13,7 @@ import { DOWNLOADER_TEXT, readDownloader } from './service.js';
 import { FINISHED, RESTING, describeDownload } from './view.js';
 import type { SearchTarget } from './cache.js';
 import { ImportError, importDownload } from './importer.js';
+import { seedRule, sharedEnough, sharingProgress } from './seeding.js';
 
 /**
  * Follows Marquee's downloads in qBittorrent: progress, finished, gone,
@@ -89,6 +91,8 @@ export class DownloadMonitor {
           inArray(downloads.state, [...FOLLOWED]),
           // Finished but not in the library yet: try again every 15 minutes.
           and(eq(downloads.state, 'done'), eq(downloads.adopted, false), isNull(downloads.importedAt), or(isNull(downloads.importTriedAt), lt(downloads.importTriedAt, now() - IMPORT_RETRY_MS))),
+          // In the library and still sharing: watch the seeding rule.
+          and(eq(downloads.state, 'done'), eq(downloads.adopted, false), isNotNull(downloads.importedAt)),
         ),
       )
       .all();
@@ -104,7 +108,9 @@ export class DownloadMonitor {
       const t = found.get(row.infoHash);
       if (!t) {
         if (row.qbitState !== 'gone') db.update(downloads).set({ qbitState: 'gone', checkedAt: now() }).where(eq(downloads.id, row.id)).run();
-        if (row.state === 'done') {
+        if (row.state === 'done' && row.importedAt) {
+          db.update(downloads).set({ state: 'removed', message: 'Removed from qBittorrent. The library file stays.' }).where(eq(downloads.id, row.id)).run();
+        } else if (row.state === 'done') {
           db.update(downloads)
             .set({ importError: 'It was removed from qBittorrent before Marquee could put it in your library. Search again from the title’s page.', importTriedAt: now() })
             .where(eq(downloads.id, row.id))
@@ -113,8 +119,9 @@ export class DownloadMonitor {
         continue;
       }
       if (row.state === 'done') {
-        db.update(downloads).set({ savePath: t.savePath, qbitState: t.state, checkedAt: now() }).where(eq(downloads.id, row.id)).run();
-        await this.putInLibrary(row.id);
+        db.update(downloads).set({ savePath: t.savePath, qbitState: t.state, ratio: t.ratio, seedingSeconds: t.seedingSeconds, checkedAt: now() }).where(eq(downloads.id, row.id)).run();
+        if (!row.importedAt) await this.putInLibrary(row.id);
+        else await this.checkSharing(row.id, qbit);
         continue;
       }
       const moved = t.progress > row.progress + 0.0001;
@@ -227,6 +234,28 @@ export class DownloadMonitor {
     }
   }
 
+  /** Marks a download "done sharing" when it meets its rule, and removes it from qBittorrent if that's turned on. */
+  private async checkSharing(id: number, qbit: QbitApi): Promise<void> {
+    const { db, now } = this.deps;
+    const row = this.row(id);
+    const rule = seedRule(db, row);
+    if (!sharedEnough(rule, row.ratio ?? 0, row.seedingSeconds ?? 0)) return;
+    if (!row.sharedEnoughAt) db.update(downloads).set({ sharedEnoughAt: now() }).where(eq(downloads.id, id)).run();
+    if (!readDownloader(db).removeWhenShared) return;
+    const deleteFiles = await this.libraryFilesThere(row);
+    await qbit.remove(row.infoHash, deleteFiles);
+    const what = deleteFiles ? 'Removed from qBittorrent with the download’s files; the library file stays.' : 'Removed from qBittorrent. Its files were kept because Marquee couldn’t find the library file.';
+    db.update(downloads).set({ state: 'removed', message: `Done sharing (${sharingProgress(rule, row.ratio ?? 0, row.seedingSeconds ?? 0)}). ${what}` }).where(eq(downloads.id, id)).run();
+  }
+
+  /** Every library file this download became is still on disk, so deleting the download's own files is safe. */
+  private async libraryFilesThere(row: Download): Promise<boolean> {
+    const paths = row.importedPaths ? (JSON.parse(row.importedPaths) as string[]) : [];
+    if (!paths.length) return false;
+    const found = await Promise.all(paths.map((p) => fs.stat(p).then(() => true, () => false)));
+    return found.every(Boolean);
+  }
+
   /** Stops following a download; removes it from qBittorrent (and its files, if asked) when Marquee sent it. */
   async remove(id: number, deleteFiles: boolean): Promise<DownloadActionResult> {
     const row = this.row(id);
@@ -235,8 +264,15 @@ export class DownloadMonitor {
       return { message: 'Marquee stopped following it. It’s still in qBittorrent, for the app that sent it.', next: null };
     }
     const qbit = this.qbit();
+    if (row.importedAt) deleteFiles = deleteFiles && (await this.libraryFilesThere(row));
     if (qbit && row.qbitState !== 'gone') await this.call(() => qbit.remove(row.infoHash, deleteFiles));
-    const what = deleteFiles ? 'Removed from qBittorrent with its files.' : 'Removed from qBittorrent. Its files are still in the download folder.';
+    const what = row.importedAt
+      ? deleteFiles
+        ? 'Removed from qBittorrent with the download’s files. The library file stays.'
+        : 'Removed from qBittorrent. The download’s files are still in the download folder.'
+      : deleteFiles
+        ? 'Removed from qBittorrent with its files.'
+        : 'Removed from qBittorrent. Its files are still in the download folder.';
     this.deps.db.update(downloads).set({ state: 'removed', message: what }).where(eq(downloads.id, id)).run();
     return { message: what, next: null };
   }

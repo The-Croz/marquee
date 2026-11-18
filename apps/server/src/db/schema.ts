@@ -177,6 +177,10 @@ export const sources = sqliteTable('sources', {
   dailyLimit: integer('daily_limit').notNull().default(0),
   minGapMs: integer('min_gap_ms').notNull().default(2000),
   timeoutSeconds: integer('timeout_seconds').notNull().default(30),
+  /** Keep sharing until this ratio; null uses the default, 0 means no ratio limit. */
+  seedRatio: real('seed_ratio'),
+  /** Keep sharing for this many days; null uses the default, 0 means no time limit. */
+  seedDays: real('seed_days'),
   /** JSON TorznabCaps from the last successful check. */
   caps: text('caps'),
   prowlarrId: integer('prowlarr_id').unique(),
@@ -344,6 +348,11 @@ export const downloads = sqliteTable('downloads', {
   importTriedAt: integer('import_tried_at'),
   /** The library file is a copy, not a hardlink (different disks), so it takes twice the space. */
   importCopied: integer('import_copied', { mode: 'boolean' }).notNull().default(false),
+  /** Uploaded ÷ downloaded, and time spent sharing, from the last check. */
+  ratio: real('ratio'),
+  seedingSeconds: integer('seeding_seconds'),
+  /** When it met its seeding rule. */
+  sharedEnoughAt: integer('shared_enough_at'),
 });
 
 export type Download = typeof downloads.$inferSelect;

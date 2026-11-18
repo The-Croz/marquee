@@ -100,6 +100,6 @@ export function fakeFetchTorrent(log: string[] = []) {
 export function qbitTorrent(hash: string, extra: Partial<QbitTorrent> = {}): QbitTorrent {
   return {
     hash, name: hash, category: 'marquee', state: 'downloading', progress: 0, size: 10 * 1024 ** 3, savePath: '/data/torrents',
-    downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: `/data/torrents/${extra.name ?? hash}`, ...extra,
+    downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: `/data/torrents/${extra.name ?? hash}`, ratio: 0, seedingSeconds: 0, ...extra,
   };
 }

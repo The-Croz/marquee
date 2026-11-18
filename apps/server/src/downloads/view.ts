@@ -3,6 +3,7 @@ import type { DownloadStatus, DownloadView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { movies, series, type Download } from '../db/schema.js';
 import { readDownloader } from './service.js';
+import { seedRule, sharingProgress, type SeedRule } from './seeding.js';
 
 /**
  * A download as screens see it: qBittorrent's state turned into plain words,
@@ -36,16 +37,17 @@ const hours = (ms: number) => {
   return h === 1 ? '1 hour' : `${h} hours`;
 };
 
-export function downloadStatus(d: Download, settings: { stuckHours: number; giveUpHours: number; tryAnother: boolean }, now: number): DownloadStatus {
+export function downloadStatus(d: Download, settings: { stuckHours: number; giveUpHours: number; tryAnother: boolean }, now: number, rule: SeedRule = { ratio: 0, days: 0, from: '' }): DownloadStatus {
   const s = (label: string, tone: DownloadStatus['tone'], detail: string | null = null, nextTryAt: number | null = null): DownloadStatus => ({ label, tone, detail, nextTryAt });
   if (d.state === 'removed') return s('Removed', 'quiet', d.message);
   if (d.state === 'failed') return s('Replaced', 'quiet', d.message);
   if (d.state === 'done') {
     if (d.adopted) return s('Finished downloading', 'done', 'qBittorrent has the whole copy. The app that sent it puts it in your library.');
     if (d.importedAt) {
+      const [label, detail] = inLibrary(d, rule);
       return d.importCopied
-        ? s('In your library · copied', 'warn', 'The download folder and the library are on different disks, so this is a copy and takes twice the space. Put both under one share (like /data) so Marquee can hardlink instead.')
-        : s('In your library', 'done', 'Hardlinked, so it takes no extra space. qBittorrent keeps sharing the download.');
+        ? s(`${label} · copied`, 'warn', `${detail} It’s a copy, not a hardlink, because the download folder and the library are on different disks, so it takes twice the space. Put both under one share (like /data).`)
+        : s(label, 'done', detail);
     }
     if (d.importError) return s('Couldn’t put it in your library', 'bad', `${d.importError} Marquee tries again every 15 minutes, or press Try again.`);
     return s('Finished · putting it in your library', 'busy', null);
@@ -80,6 +82,14 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
   const rate = d.speed ? speed(d.speed) : null;
   const left = d.eta && d.eta < 8640000 ? `about ${duration(d.eta)} left` : null;
   return s(['Downloading', rate, left].filter(Boolean).join(' · '), 'good', `${Math.floor(d.progress * 100)}% done.`);
+}
+
+/** "In your library · sharing" and friends, with the seeding rule's progress. */
+function inLibrary(d: Download, rule: SeedRule): [string, string] {
+  const progress = sharingProgress(rule, d.ratio ?? 0, d.seedingSeconds ?? 0);
+  if (d.sharedEnoughAt) return ['In your library · done sharing', `Shared enough (${progress}). Remove it from qBittorrent whenever you like; the library file stays.`];
+  if (!progress) return ['In your library · sharing', `qBittorrent keeps sharing it until you remove it (${rule.from}).`];
+  return ['In your library · sharing', `Sharing until ${progress.replace(' · ', ' or ')}, whichever comes first (${rule.from}).`];
 }
 
 export function describeDownload(db: Db, d: Download, now: number): DownloadView {
@@ -117,9 +127,10 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
     message: d.message,
     titleName,
     titleLink,
-    status: downloadStatus(d, readDownloader(db), now),
+    status: downloadStatus(d, readDownloader(db), now, seedRule(db, d)),
     canControl: !d.adopted && (d.state === 'sent' || d.state === 'downloading'),
     canImport: !d.adopted && d.state === 'done' && !d.importedAt,
+    canRemoveShared: !d.adopted && d.state === 'done' && !!d.importedAt,
     importedPaths: d.importedPaths ? (JSON.parse(d.importedPaths) as string[]) : null,
   };
 }

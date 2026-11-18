@@ -20,6 +20,14 @@ export interface DownloaderSettings {
   tryAnother: boolean;
   /** When qBittorrent sees the download folder under another name than Marquee does. */
   folderPairs: FolderPair[];
+  /** Keep sharing until this ratio (0 = no ratio limit), unless a Source says otherwise. */
+  seedRatio: number;
+  /** …or for this many days (0 = no time limit), whichever comes first. */
+  seedDays: number;
+  /** Private sites keep sharing with no limit unless their Source has its own rule. */
+  privateKeepSharing: boolean;
+  /** Remove a download from qBittorrent once it's in the library and has shared enough. */
+  removeWhenShared: boolean;
 }
 
 export interface FolderPair {
@@ -38,7 +46,14 @@ const KEYS = {
   giveUpHours: 'downloader.give_up_hours',
   tryAnother: 'downloader.try_another',
   folderPairs: 'downloader.folder_pairs',
+  seedRatio: 'downloader.seed_ratio',
+  seedDays: 'downloader.seed_days',
+  privateKeepSharing: 'downloader.private_keep_sharing',
+  removeWhenShared: 'downloader.remove_when_shared',
 } as const;
+
+export const DEFAULT_SEED_RATIO = 2;
+export const DEFAULT_SEED_DAYS = 14;
 
 export const DEFAULT_STUCK_HOURS = 6;
 export const DEFAULT_GIVE_UP_HOURS = 24;
@@ -55,12 +70,23 @@ export function readDownloader(db: Db): DownloaderSettings {
     giveUpHours: Number(getSetting(db, KEYS.giveUpHours)) || DEFAULT_GIVE_UP_HOURS,
     tryAnother: getSetting(db, KEYS.tryAnother) !== '0',
     folderPairs: JSON.parse(getSetting(db, KEYS.folderPairs) || '[]') as FolderPair[],
+    seedRatio: numberOr(getSetting(db, KEYS.seedRatio), DEFAULT_SEED_RATIO),
+    seedDays: numberOr(getSetting(db, KEYS.seedDays), DEFAULT_SEED_DAYS),
+    privateKeepSharing: getSetting(db, KEYS.privateKeepSharing) !== '0',
+    removeWhenShared: getSetting(db, KEYS.removeWhenShared) === '1',
   };
+}
+
+/** A saved number, where 0 is a real choice ("no limit"), or the default when nothing is saved. */
+function numberOr(v: string | undefined, fallback: number): number {
+  if (v === undefined || v === '') return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 export function downloaderView(db: Db): DownloaderView {
   const s = readDownloader(db);
-  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother, folderPairs: s.folderPairs };
+  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother, folderPairs: s.folderPairs, seedRatio: s.seedRatio, seedDays: s.seedDays, privateKeepSharing: s.privateKeepSharing, removeWhenShared: s.removeWhenShared };
 }
 
 /**
@@ -70,7 +96,7 @@ export function downloaderView(db: Db): DownloaderView {
  */
 export function writeDownloader(
   db: Db,
-  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean; folderPairs?: FolderPair[] },
+  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean; folderPairs?: FolderPair[]; seedRatio?: number; seedDays?: number; privateKeepSharing?: boolean; removeWhenShared?: boolean },
 ): void {
   const saved = readDownloader(db);
   if (v.url !== undefined) {
@@ -84,6 +110,10 @@ export function writeDownloader(
   if (v.stuckHours !== undefined) setSetting(db, KEYS.stuckHours, String(v.stuckHours));
   if (v.giveUpHours !== undefined) setSetting(db, KEYS.giveUpHours, String(v.giveUpHours));
   if (v.folderPairs !== undefined) setSetting(db, KEYS.folderPairs, JSON.stringify(v.folderPairs.map((p) => ({ from: p.from.replace(/\/+$/, ''), to: p.to.replace(/\/+$/, '') }))));
+  if (v.seedRatio !== undefined) setSetting(db, KEYS.seedRatio, String(v.seedRatio));
+  if (v.seedDays !== undefined) setSetting(db, KEYS.seedDays, String(v.seedDays));
+  if (v.privateKeepSharing !== undefined) setSetting(db, KEYS.privateKeepSharing, v.privateKeepSharing ? '1' : '0');
+  if (v.removeWhenShared !== undefined) setSetting(db, KEYS.removeWhenShared, v.removeWhenShared ? '1' : '0');
   if (v.tryAnother !== undefined) setSetting(db, KEYS.tryAnother, v.tryAnother ? '1' : '0');
 }
 

@@ -138,7 +138,7 @@ export class SourceService {
       .get();
   }
 
-  update(id: number, patch: Partial<Pick<Source, 'name' | 'url' | 'apiKey' | 'enabled' | 'priority' | 'forMovies' | 'forTv' | 'minSeeders' | 'dailyLimit' | 'minGapMs' | 'timeoutSeconds'>>): void {
+  update(id: number, patch: Partial<Pick<Source, 'name' | 'url' | 'apiKey' | 'enabled' | 'priority' | 'forMovies' | 'forTv' | 'minSeeders' | 'dailyLimit' | 'minGapMs' | 'timeoutSeconds' | 'seedRatio' | 'seedDays'>>): void {
     const changes: Partial<Source> = { ...patch };
     // A new address or key deserves a fresh start rather than waiting out an old failure.
     if (patch.url !== undefined || patch.apiKey !== undefined || patch.enabled === true) Object.assign(changes, { failures: 0, retryAt: null });
@@ -416,6 +416,8 @@ function toView(s: Source, now: number, st?: { calls: number; failures: number; 
     forTv: s.forTv,
     minSeeders: s.minSeeders,
     dailyLimit: s.dailyLimit,
+    seedRatio: s.seedRatio,
+    seedDays: s.seedDays,
     minGapMs: s.minGapMs,
     timeoutSeconds: s.timeoutSeconds,
     fromProwlarr: s.prowlarrId !== null,

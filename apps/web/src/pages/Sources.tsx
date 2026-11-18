@@ -341,6 +341,9 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
       dailyLimit: n('dailyLimit'),
       minGapMs: Math.round(n('minGapSeconds') * 1000),
       timeoutSeconds: n('timeoutSeconds'),
+      // Blank means "use the default seeding rule".
+      seedRatio: String(d.get('seedRatio') ?? '').trim() === '' ? null : n('seedRatio'),
+      seedDays: String(d.get('seedDays') ?? '').trim() === '' ? null : n('seedDays'),
     };
     if (!s.fromProwlarr) {
       body.url = String(d.get('url') ?? '');
@@ -389,6 +392,17 @@ function SourceSettings({ source: s, onSaved, onRemove, setMessage }: { source: 
           <Field label="Most searches a day" id={id('limit')} name="dailyLimit" type="number" min={0} defaultValue={s.dailyLimit} hint="0 means no limit. Private sites often cap this." />
           <Field label="Gap between searches (seconds)" id={id('gap')} name="minGapSeconds" type="number" min={0} step={0.5} defaultValue={s.minGapMs / 1000} hint="Keeps Marquee from rushing the site." />
           <Field label="Give up after (seconds)" id={id('timeout')} name="timeoutSeconds" type="number" min={1} max={300} defaultValue={s.timeoutSeconds} hint="Slow sites are left out of that search." />
+          <Field
+            label="Keep sharing until ratio"
+            id={id('seedRatio')}
+            name="seedRatio"
+            type="number"
+            min={0}
+            step={0.1}
+            defaultValue={s.seedRatio ?? ''}
+            hint={`Blank uses the default${s.private ? ' (private sites: keep sharing)' : ''}. 0 means no ratio limit.`}
+          />
+          <Field label="…or for days" id={id('seedDays')} name="seedDays" type="number" min={0} step={1} defaultValue={s.seedDays ?? ''} hint="Whichever comes first. Blank uses the default; 0 means no time limit. Check your site’s rules." />
         </div>
       </details>
 

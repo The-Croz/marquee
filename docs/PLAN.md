@@ -154,9 +154,12 @@ Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real 
    - Problems say what to do: can't see the download (with qBittorrent's folder and the folder-pair fix), not allowed to write (PUID/PGID), read-only, disk full, no video, wrong episodes. Retried every 15 minutes, or **Try again** on the Downloads page.
    - Folder pairs ("qBittorrent's folder" / "Marquee's folder") in Settings → Downloader → For experts.
    - Not done here: importing finished downloads that Radarr or Sonarr sent (Marquee leaves those to them during the side-by-side), and emptying `.marquee-replaced` (no automatic deletion yet).
-5. ⬜ **Seeding rules**
-   - Per Source (defaults on Settings → Downloader): keep sharing until a ratio (default 2.0) or for some days (default 14), whichever first; private sites default to "until the site's minimum" (set by hand). Set on the torrent in qBittorrent when sent.
-   - When seeding is done, Marquee removes the torrent from qBittorrent but leaves the library hardlink, so the file stays. Off by default; the list shows "Done sharing · can be removed".
+5. ✅ **Seeding rules** (`apps/server/src/downloads/seeding.ts`)
+   - Migration 11: a seeding rule per Source (ratio, days; blank uses the default, 0 means no limit for that part), and each download's ratio, time sharing and when it shared enough.
+   - Default rule in Settings → Downloader → "Sharing after a download": ratio 2.0 or 14 days, whichever comes first. Private sites keep sharing until you remove them unless their Source has its own rule (their minimums vary and missing them can cost you the account).
+   - Marquee follows downloads in the library while they share: "In your library · sharing" with progress ("ratio 0.8 of 2.0 or 3 of 14 days"), then "In your library · done sharing".
+   - "Remove from qBittorrent once it has shared enough" (off by default) removes the torrent with the download's files, but only after checking every library file is still there (the library file is a hardlink, so it stays). Otherwise it keeps the files and says why. **Remove from qBittorrent** does the same by hand.
+   - Marquee doesn't set limits inside qBittorrent itself, so qBittorrent's own "when ratio is reached" setting can't remove anything behind Marquee's back.
 6. ⬜ **Tell Plex and Jellyfin**
    - After an import, ask Plex (`/library/sections/{id}/refresh?path=`) and Jellyfin (`/Library/Media/Updated`) to scan just that folder. Settings → Services gets Jellyfin (address, API key) next to Plex; which Plex library is Movies/TV is picked from a list.
    - Health card if a media server didn't answer, with retry.

@@ -211,7 +211,8 @@ describe('finished downloads go in the library by themselves', () => {
       const again = await call(t.app, 'POST', `/api/downloads/${t.id}/import`, {}, t.cookie);
       expect(again.body.message).toMatch(/^In your library: Dune - Part Two \(2024\) \[WEBDL-2160p\]\[DV HDR\]\.mkv\.$/);
       v = (await t.view()).items[0]!;
-      expect(v).toMatchObject({ canImport: false, status: { label: 'In your library', tone: 'done' } });
+      expect(v).toMatchObject({ canImport: false, canRemoveShared: true, status: { label: 'In your library · sharing', tone: 'done' } });
+      expect(v.status.detail).toBe('Sharing until ratio 0.0 of 2.0 or 0 of 14 days, whichever comes first (the default rule).');
       expect(v.importedPaths![0]).toContain('{tmdb-693134}');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
