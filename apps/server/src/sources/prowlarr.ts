@@ -37,8 +37,9 @@ export class ProwlarrClient implements ProwlarrApi {
         signal: AbortSignal.timeout(30_000),
       });
     } catch (err) {
+      if ((err as Error).name === 'TimeoutError') throw new ProwlarrError(`Prowlarr at ${this.baseUrl} didn't answer within 30 seconds. Check the address, and that Marquee's container can reach it.`);
       const cause = (err as { cause?: { code?: string } }).cause?.code;
-      throw new ProwlarrError(`Couldn't reach Prowlarr at ${this.baseUrl}${cause ? ` (${cause})` : ''}.`);
+      throw new ProwlarrError(`Couldn't reach Prowlarr at ${this.baseUrl}${cause ? ` (${cause})` : ''}. Check the address, and that Marquee's container can reach it.`);
     }
     if (res.status === 401) throw new ProwlarrError('Prowlarr turned down the API key. Copy it again from Prowlarr → Settings → General.');
     if (!res.ok) throw new ProwlarrError(`Prowlarr answered ${res.status}.`);
