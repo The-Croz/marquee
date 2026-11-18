@@ -117,6 +117,12 @@ export interface DownloaderView {
   /** Whether a password is saved. The password itself is never sent back. */
   hasPassword: boolean;
   category: string;
+  /** Hours without progress before a download counts as stuck. */
+  stuckHours: number;
+  /** Hours without progress before Marquee tries another copy by itself. */
+  giveUpHours: number;
+  /** Try another copy by itself (after giveUpHours, or when a download looks fake). */
+  tryAnother: boolean;
 }
 
 export interface DownloaderUpdate {
@@ -125,6 +131,9 @@ export interface DownloaderUpdate {
   /** Omit to keep the saved one; null clears it. */
   password?: string | null;
   category?: string;
+  stuckHours?: number;
+  giveUpHours?: number;
+  tryAnother?: boolean;
 }
 
 export interface DownloaderHealth {
@@ -511,6 +520,37 @@ export interface DownloadView {
   adopted: boolean;
   progress: number;
   message: string | null;
+  /** "Dune: Part Two (2024)" or "Severance · S02E03". */
+  titleName: string;
+  /** Where its page is, e.g. /movies/12. */
+  titleLink: string | null;
+  /** What's happening, in plain words. */
+  status: DownloadStatus;
+  /** Marquee can pause, remove or replace it (not for downloads it adopted from another app). */
+  canControl: boolean;
+}
+
+export interface DownloadStatus {
+  /** e.g. "Downloading · 4.2 MB/s · about 12 min left", "Stuck · nobody is sharing it". */
+  label: string;
+  /** What it means and what happens next. */
+  detail: string | null;
+  tone: 'good' | 'busy' | 'warn' | 'bad' | 'done' | 'quiet';
+  /** When Marquee will try another copy by itself, if it will. */
+  nextTryAt: number | null;
+}
+
+export interface DownloadsView {
+  items: DownloadView[];
+  /** qBittorrent couldn't be checked: its health label and what to do. Null when it answered. */
+  problem: { label: string; fix: string | null } | null;
+  checkedAt: number | null;
+}
+
+export interface DownloadActionResult {
+  message: string;
+  /** The new download when "Try another copy" sent one. */
+  next: DownloadView | null;
 }
 
 export interface SendRequest {

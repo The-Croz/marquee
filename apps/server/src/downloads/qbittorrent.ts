@@ -46,6 +46,20 @@ export interface QbitTorrent {
   progress: number;
   size: number;
   savePath: string;
+  /** Bytes a second. */
+  downloadSpeed: number;
+  /** Seconds left; qBittorrent says 8640000 for "unknown". */
+  eta: number;
+  /** People sharing the whole copy that we're connected to, and how many the trackers know of. */
+  seedsConnected: number;
+  seedsKnown: number;
+  /** Where the download is, as qBittorrent sees it. */
+  contentPath: string;
+}
+
+export interface QbitFile {
+  name: string;
+  size: number;
 }
 
 /** What to add: the .torrent file's bytes, or a magnet link. */
@@ -59,6 +73,12 @@ export interface QbitApi {
   /** Makes a category if it doesn't exist yet. */
   ensureCategory(name: string): Promise<void>;
   add(payload: TorrentPayload, opts: { category: string; tags: string[] }): Promise<void>;
+  /** The files inside a torrent (empty until it has fetched its file list). */
+  files(hash: string): Promise<QbitFile[]>;
+  pause(hash: string): Promise<void>;
+  resume(hash: string): Promise<void>;
+  /** Removes a torrent from qBittorrent, and its files when asked. */
+  remove(hash: string, deleteFiles: boolean): Promise<void>;
 }
 
 export class QbitClient implements QbitApi {
@@ -141,9 +161,56 @@ export class QbitClient implements QbitApi {
 
   async torrents(hashes: string[]): Promise<QbitTorrent[]> {
     if (hashes.length === 0) return [];
-    type T = { hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string };
+    type T = {
+      hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string;
+      dlspeed?: number; eta?: number; num_seeds?: number; num_complete?: number; content_path?: string;
+    };
     const rows = await this.json<T[]>(`/torrents/info?hashes=${hashes.map((h) => h.toLowerCase()).join('|')}`);
-    return rows.map((r) => ({ hash: r.hash.toLowerCase(), name: r.name, category: r.category, state: r.state, progress: r.progress, size: r.size, savePath: r.save_path }));
+    return rows.map((r) => ({
+      hash: r.hash.toLowerCase(),
+      name: r.name,
+      category: r.category,
+      state: r.state,
+      progress: r.progress,
+      size: r.size,
+      savePath: r.save_path,
+      downloadSpeed: r.dlspeed ?? 0,
+      eta: r.eta ?? 8640000,
+      seedsConnected: r.num_seeds ?? 0,
+      seedsKnown: Math.max(r.num_complete ?? 0, 0),
+      contentPath: r.content_path ?? r.save_path,
+    }));
+  }
+
+  async files(hash: string): Promise<QbitFile[]> {
+    const rows = await this.json<{ name: string; size: number }[]>(`/torrents/files?hash=${hash.toLowerCase()}`);
+    return rows.map((f) => ({ name: f.name, size: f.size }));
+  }
+
+  /** qBittorrent 5 renamed pause/resume to stop/start; try the new name first. */
+  private async either(newer: string, older: string, hash: string): Promise<void> {
+    const body = () => new URLSearchParams({ hashes: hash.toLowerCase() });
+    let res: Response;
+    try {
+      res = await this.post(newer, body());
+    } catch (err) {
+      if (!(err instanceof QbitError && err.kind === 'not_qbittorrent')) throw err;
+      res = await this.post(older, body());
+    }
+    if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status}.`);
+  }
+
+  pause(hash: string): Promise<void> {
+    return this.either('/torrents/stop', '/torrents/pause', hash);
+  }
+
+  resume(hash: string): Promise<void> {
+    return this.either('/torrents/start', '/torrents/resume', hash);
+  }
+
+  async remove(hash: string, deleteFiles: boolean): Promise<void> {
+    const res = await this.post('/torrents/delete', new URLSearchParams({ hashes: hash.toLowerCase(), deleteFiles: String(deleteFiles) }));
+    if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status} when removing the torrent.`);
   }
 
   async ensureCategory(name: string): Promise<void> {

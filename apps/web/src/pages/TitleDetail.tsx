@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { MediaFileView, MovieDetail, SeasonView, ShowDetail } from '@marquee/shared';
 import { api, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
+import { TitleDownloads } from '../components/Downloads';
 import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
 
@@ -105,12 +106,13 @@ export function MovieDetailPage() {
       <Card className="flex flex-col">
         <h2 className="m-0 mb-2 text-lg font-semibold">Files</h2>
         {m.files.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Nothing on disk yet. Downloading arrives in Milestone 3.</p>
+          <p className="m-0 text-sm text-muted">Nothing on disk yet.</p>
         ) : (
           m.files.map((f) => <FileRow key={f.id} f={f} />)
         )}
         {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
       </Card>
+      {isAdmin && <TitleDownloads movieId={m.id} />}
       {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} byHand={m.profileByHand} />}
     </>
   );
@@ -184,6 +186,7 @@ export function ShowDetailPage() {
         ))}
       </div>
       {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
+      {isAdmin && <TitleDownloads seriesId={s.id} />}
       {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} byHand={s.profileByHand} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
     </>
   );

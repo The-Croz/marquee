@@ -134,12 +134,17 @@ Seven PRs, in order, like M2: each with tests (fake qBittorrent, never the real 
    - **Better than yours?** Your file's name is judged by the same profile, then compared by quality group first and points second. It respects "keep looking for better" and "good enough". A season counts as good as its worst episode. Shown on each copy Marquee would take ("Better than your 1080p web download.").
    - Duplicate guard: if qBittorrent already has the torrent (say Radarr sent it), Marquee adopts it and follows it in its existing category. A second download for a movie, or for an episode that already has one on the way, is refused, saying which.
    - `POST /api/downloads`, `GET /api/downloads` (admin). Members' "Download this" waits for requests in M5.
-3. ⬜ **Downloads page** (the queue, from the mockup)
-   - Follows Marquee's category only, every 10 s while the page is open and every minute otherwise.
-   - Plain states: *Waiting its turn*, *Downloading · 4.2 MB/s · about 12 min left*, *Getting ready* (fetching the file list), *Checking files*, *Paused*, *Stuck · nobody is sharing it*, *Stuck · no progress for 2 hours*, *Downloader full* (disk), *Finished · putting it in your library*, *Gone from qBittorrent*. Each says what Marquee will do next and when.
-   - **Try another copy**: turns this copy down for the title ("Never pick", with the reason), removes it from qBittorrent with its files, and sends the next best. Done by itself after a stuck time (default 6 hours stuck, 24 hours to give up; "For experts", per profile kind). Fake-looking downloads (programs like `.exe`, only archives, a password note) fail as soon as the file list arrives.
-   - Pause, Resume, Remove (with "also delete its files?", default yes for unfinished).
-   - Title pages show their download.
+3. ✅ **Downloads page** (`apps/server/src/downloads/monitor.ts`, `view.ts`, `search.ts`; page at `/downloads`)
+   - Migration 9: what qBittorrent last said about each download (state, speed, time left, people sharing, when it finished) and `never_pick` (copies turned down for a title, with the reason).
+   - Checks qBittorrent every minute in the background, and when the page asks if the last check is over 10 s old (the page refreshes every 10 s). Follows downloads by info-hash.
+   - Plain states (see `GLOSSARY.md`), each with what it means and what happens next. qBittorrent's own words never reach the screen.
+   - **Stuck**: no progress for 6 hours (paused, queued and checking time doesn't count). After 24 hours Marquee **tries another copy** by itself: it adds the copy to "Never pick" for that title, removes it from qBittorrent with its files, searches again and sends the best copy left (one better than your file). If none suits, it says so. Both times and the switch are in Settings → Downloader.
+   - **Fakes**: as soon as the file list arrives, a program (`.exe`, `.scr`, `.lnk`…, including `movie.mkv.exe`) or only archives with no video gets the copy replaced the same way.
+   - Buttons: Pause/Resume (qBittorrent 5's stop/start, falling back to 4's pause/resume), Try another copy, Remove (with or without its files).
+   - Downloads Marquee adopted from another app (Radarr) are only watched: never paused, removed or replaced; Remove just stops following them.
+   - Movie and show pages list their downloads above "Copies we found".
+   - "Copies we found" and "Try another copy" share one search (`downloads/search.ts`), and searches skip "Never pick" copies.
+   - Gone from qBittorrent is not replaced by itself (you might have removed it on purpose); Try another copy does it.
 4. ⬜ **Put it in the library** (import)
    - When a download finishes: pick the video file(s) (skip samples and extras), check it's the right title and episode, hardlink from `/data/torrents/…` into `/data/media/movies/…` or `/data/media/tv/…`, falling back to a copy only if the two folders are on different disks (and say so on the Health card, since that doubles space).
    - Clean names, editable as patterns in Settings → Library with a live example: movies `{Title} ({Year}) {tmdb-ID}/{Title} ({Year}) {Quality}.ext`, TV `{Show} ({Year}) {tvdb-ID}/Season {00}/{Show} - S01E02 - {Episode Title} {Quality}.ext`, which Plex and Jellyfin both match.

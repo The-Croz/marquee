@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { QbitError, type QbitApi, type QbitStatus, type QbitTorrent, type TorrentPayload } from '../../src/downloads/qbittorrent.js';
+import { QbitError, type QbitApi, type QbitFile, type QbitStatus, type QbitTorrent, type TorrentPayload } from '../../src/downloads/qbittorrent.js';
 import { magnetInfoHash, torrentInfoHash, type FetchedTorrent } from '../../src/downloads/torrent.js';
 
 /**
@@ -19,6 +19,10 @@ export class FakeQbit {
     categories: { radarr: '/data/torrents/movies', 'tv-sonarr': '/data/torrents/tv' },
   };
   list: QbitTorrent[] = [];
+  /** File lists by hash; a torrent with none here has a single .mkv named after it. */
+  fileLists = new Map<string, QbitFile[]>();
+  /** Each pause, resume and remove, in order. */
+  actions: string[] = [];
   /** What was added, with its category and tags. */
   added: { hash: string; payload: TorrentPayload; category: string; tags: string[] }[] = [];
   /** Set to make every call fail this way. */
@@ -54,7 +58,30 @@ export class FakeQbit {
         if (!(opts.category in this.state.categories)) throw new QbitError('error', 'no such category');
         const hash = payload.kind === 'magnet' ? magnetInfoHash(payload.uri)! : torrentInfoHash(payload.bytes)!;
         this.added.push({ hash, payload, ...opts });
-        this.list.push({ hash, name: `torrent ${hash.slice(0, 6)}`, category: opts.category, state: 'metaDL', progress: 0, size: 0, savePath: this.state.savePath });
+        this.list.push(qbitTorrent(hash, { name: `torrent ${hash.slice(0, 6)}`, category: opts.category, state: 'metaDL', savePath: this.state.savePath }));
+      },
+      files: async (hash) => {
+        gate();
+        const t = this.list.find((x) => x.hash === hash);
+        if (!t) throw new QbitError('not_qbittorrent', 'no such torrent');
+        return this.fileLists.get(hash) ?? (t.state === 'metaDL' ? [] : [{ name: `${t.name}/${t.name}.mkv`, size: t.size }]);
+      },
+      pause: async (hash) => {
+        gate();
+        this.actions.push(`pause ${hash}`);
+        const t = this.list.find((x) => x.hash === hash);
+        if (t) t.state = t.progress >= 1 ? 'stoppedUP' : 'stoppedDL';
+      },
+      resume: async (hash) => {
+        gate();
+        this.actions.push(`resume ${hash}`);
+        const t = this.list.find((x) => x.hash === hash);
+        if (t) t.state = t.progress >= 1 ? 'stalledUP' : 'downloading';
+      },
+      remove: async (hash, deleteFiles) => {
+        gate();
+        this.actions.push(`remove ${hash}${deleteFiles ? ' with files' : ''}`);
+        this.list = this.list.filter((x) => x.hash !== hash);
       },
     };
   }
@@ -66,5 +93,13 @@ export function fakeFetchTorrent(log: string[] = []) {
     log.push(url);
     const infoHash = createHash('sha1').update(url).digest('hex');
     return { infoHash, payload: { kind: 'magnet', uri: `magnet:?xt=urn:btih:${infoHash}&dn=demo` } };
+  };
+}
+
+/** A torrent as qBittorrent lists it, with sensible defaults. */
+export function qbitTorrent(hash: string, extra: Partial<QbitTorrent> = {}): QbitTorrent {
+  return {
+    hash, name: hash, category: 'marquee', state: 'downloading', progress: 0, size: 10 * 1024 ** 3, savePath: '/data/torrents',
+    downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: `/data/torrents/${extra.name ?? hash}`, ...extra,
   };
 }

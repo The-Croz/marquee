@@ -12,6 +12,12 @@ export interface DownloaderSettings {
   username: string;
   password: string | null;
   category: string;
+  /** Hours without progress before a download counts as stuck. */
+  stuckHours: number;
+  /** Hours without progress before Marquee tries another copy by itself. */
+  giveUpHours: number;
+  /** Try another copy by itself after giveUpHours, or after spotting a fake. */
+  tryAnother: boolean;
 }
 
 const KEYS = {
@@ -19,7 +25,13 @@ const KEYS = {
   username: 'downloader.username',
   password: 'downloader.password',
   category: 'downloader.category',
+  stuckHours: 'downloader.stuck_hours',
+  giveUpHours: 'downloader.give_up_hours',
+  tryAnother: 'downloader.try_another',
 } as const;
+
+export const DEFAULT_STUCK_HOURS = 6;
+export const DEFAULT_GIVE_UP_HOURS = 24;
 
 export const DEFAULT_CATEGORY = 'marquee';
 
@@ -29,12 +41,15 @@ export function readDownloader(db: Db): DownloaderSettings {
     username: getSetting(db, KEYS.username) ?? '',
     password: getSetting(db, KEYS.password) || null,
     category: getSetting(db, KEYS.category) || DEFAULT_CATEGORY,
+    stuckHours: Number(getSetting(db, KEYS.stuckHours)) || DEFAULT_STUCK_HOURS,
+    giveUpHours: Number(getSetting(db, KEYS.giveUpHours)) || DEFAULT_GIVE_UP_HOURS,
+    tryAnother: getSetting(db, KEYS.tryAnother) !== '0',
   };
 }
 
 export function downloaderView(db: Db): DownloaderView {
   const s = readDownloader(db);
-  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category };
+  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother };
 }
 
 /**
@@ -42,7 +57,10 @@ export function downloaderView(db: Db): DownloaderView {
  * A saved password belongs to its address: changing the address without typing
  * a password forgets the old one, so it's never sent somewhere new.
  */
-export function writeDownloader(db: Db, v: { url?: string | null; username?: string; password?: string | null; category?: string }): void {
+export function writeDownloader(
+  db: Db,
+  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean },
+): void {
   const saved = readDownloader(db);
   if (v.url !== undefined) {
     const url = v.url?.trim() || '';
@@ -52,6 +70,9 @@ export function writeDownloader(db: Db, v: { url?: string | null; username?: str
   if (v.username !== undefined) setSetting(db, KEYS.username, v.username.trim());
   if (v.password !== undefined) setSetting(db, KEYS.password, v.password ?? '');
   if (v.category !== undefined) setSetting(db, KEYS.category, v.category.trim() || DEFAULT_CATEGORY);
+  if (v.stuckHours !== undefined) setSetting(db, KEYS.stuckHours, String(v.stuckHours));
+  if (v.giveUpHours !== undefined) setSetting(db, KEYS.giveUpHours, String(v.giveUpHours));
+  if (v.tryAnother !== undefined) setSetting(db, KEYS.tryAnother, v.tryAnother ? '1' : '0');
 }
 
 /** The label and what to do for each state. Screens show these as-is. */

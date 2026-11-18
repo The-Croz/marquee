@@ -98,9 +98,30 @@ const qbit = new FakeQbit();
 setSetting(db, 'downloader.url', 'http://qbittorrent:8080');
 setSetting(db, 'downloader.username', 'admin');
 setSetting(db, 'downloader.password', 'adminadmin');
+const qbitTvHashes = new Set<string>();
+// Make the fake qBittorrent's downloads move along. TV episodes get stuck with nobody sharing, to show that state.
+setInterval(() => {
+  for (const t of qbit.list) {
+    if (t.state === 'stoppedDL' || t.progress >= 1) continue;
+    if (t.state === 'metaDL') {
+      t.state = 'downloading';
+      continue;
+    }
+    if (qbitTvHashes.has(t.hash)) {
+      Object.assign(t, { state: 'stalledDL', downloadSpeed: 0, seedsConnected: 0, seedsKnown: 0 });
+      continue;
+    }
+    t.progress = Math.min(1, t.progress + 0.02);
+    Object.assign(t, { downloadSpeed: 6.5 * 1024 ** 2, eta: Math.round(((1 - t.progress) / 0.02) * 3), seedsConnected: 40, state: t.progress >= 1 ? 'stalledUP' : 'downloading' });
+  }
+}, 3000).unref();
 const clients = {
   qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
-  fetchTorrent: fakeFetchTorrent(),
+  fetchTorrent: async (url: string) => {
+    const t = await fakeFetchTorrent()(url);
+    if (/S\d\dE\d\d/i.test(decodeURIComponent(url))) qbitTvHashes.add(t.infoHash);
+    return t;
+  },
   tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,

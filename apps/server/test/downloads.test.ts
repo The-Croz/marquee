@@ -4,7 +4,7 @@ import type { CopiesResult, SendResult } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { QbitClient, QbitError } from '../src/downloads/qbittorrent.js';
 import { TorrentFetchError, fetchTorrent, magnetInfoHash, torrentInfoHash } from '../src/downloads/torrent.js';
-import { FakeQbit, fakeFetchTorrent } from './fakes/qbittorrent.js';
+import { FakeQbit, fakeFetchTorrent, qbitTorrent } from './fakes/qbittorrent.js';
 import { FakeSites, release } from './fakes/sources.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
@@ -85,7 +85,7 @@ describe('qBittorrent client: adding', () => {
       return new Response('', { status: 404 });
     }) as typeof fetch;
     const q = new QbitClient('http://q:8080', 'admin', 'pw', f);
-    expect(await q.torrents(['ABC'])).toEqual([{ hash: 'abc', name: 'x', category: 'radarr', state: 'uploading', progress: 1, size: 5, savePath: '/data/torrents/movies' }]);
+    expect(await q.torrents(['ABC'])).toEqual([{ hash: 'abc', name: 'x', category: 'radarr', state: 'uploading', progress: 1, size: 5, savePath: '/data/torrents/movies', downloadSpeed: 0, eta: 8640000, seedsConnected: 0, seedsKnown: 0, contentPath: '/data/torrents/movies' }]);
     expect(seen[0]!.path).toBe('/api/v2/torrents/info?hashes=abc');
     await q.ensureCategory('marquee');
     await q.ensureCategory('marquee');
@@ -152,7 +152,8 @@ describe('Download this', () => {
     expect(t.qbit.state.categories).toHaveProperty('marquee');
     expect(JSON.stringify(body)).not.toMatch(/apikey|SECRET/);
     const list = await call(t.app, 'GET', '/api/downloads', undefined, t.cookie);
-    expect(list.body).toHaveLength(1);
+    expect(list.body.items).toHaveLength(1);
+    expect(list.body.items[0]).toMatchObject({ titleName: 'Dune: Part Two (2024)', titleLink: `/movies/${t.movie.id}`, canControl: true });
   });
 
   it('asks first before sending a copy Marquee would turn down', async () => {
@@ -185,7 +186,7 @@ describe('Download this', () => {
     const t = await setup();
     const s = await t.search();
     const hash = (await fakeFetchTorrent()(`http://prowlarr:9696/1/download?apikey=SECRET&file=${encodeURIComponent(BEST)}`)).infoHash;
-    t.qbit.list.push({ hash, name: BEST, category: 'radarr', state: 'downloading', progress: 0.4, size: 25 * GB, savePath: '/data/torrents/movies' });
+    t.qbit.list.push(qbitTorrent(hash, { name: BEST, category: 'radarr', progress: 0.4, size: 25 * GB, savePath: '/data/torrents/movies' }));
     const res = await t.send({ searchId: s.searchId, copyId: '0' });
     expect(res.status).toBe(201);
     expect(res.body.message).toMatch(/already had this copy \(in the “radarr” category\)/);
