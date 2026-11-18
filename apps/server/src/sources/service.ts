@@ -216,7 +216,7 @@ export class SourceService {
   }
 
   /** Why a source won't be asked right now, or null if it can be. */
-  private skipReason(s: Source, kind: 'movie' | 'tv'): string | null {
+  private skipReason(s: Source, kind: 'movie' | 'tv', share = 1): string | null {
     if (!s.enabled) return 'Paused.';
     if (kind === 'movie' ? !s.forMovies : !s.forTv) return kind === 'movie' ? 'Not used for movies.' : 'Not used for TV.';
     if (s.retryAt && s.retryAt > this.now()) return `${STATE_TEXT[s.state].label}. Trying again ${relativeTime(s.retryAt - this.now())}.`;
@@ -228,16 +228,32 @@ export class SourceService {
           .where(and(eq(schema.sourceCalls.sourceId, s.id), eq(schema.sourceCalls.kind, 'search'), gte(schema.sourceCalls.at, this.now() - DAY)))
           .get()?.n ?? 0;
       if (used >= s.dailyLimit) return `Reached its limit of ${s.dailyLimit} searches a day.`;
+      if (used >= Math.floor(s.dailyLimit * share)) return `Used ${used} of its ${s.dailyLimit} searches today; the rest are kept for searching titles.`;
     }
     return null;
   }
 
   /** Searches every usable source at once. Failures are recorded, never thrown. */
-  async search(query: Exclude<SearchQuery, { kind: 'recent' }>): Promise<SearchOutcome> {
+  search(query: Exclude<SearchQuery, { kind: 'recent' }>): Promise<SearchOutcome> {
+    return this.askAll(query.kind, 1, query);
+  }
+
+  /**
+   * Asks every usable Source for its newest copies of this kind, to catch new
+   * episodes as they come out (older apps call this RSS). Each call counts
+   * toward a Source's daily limit, so a Source with a limit is only asked
+   * while it has used under half of it: searching for titles keeps the rest.
+   */
+  recent(kind: 'movie' | 'tv'): Promise<SearchOutcome> {
+    return this.askAll(kind, 0.5, { kind: 'recent', for: kind });
+  }
+
+  /** `share`: the part of a Source's daily limit this kind of call may use. */
+  private async askAll(kind: 'movie' | 'tv', share: number, query: SearchQuery): Promise<SearchOutcome> {
     const all = this.db.select().from(schema.sources).orderBy(schema.sources.priority, schema.sources.name).all();
     const outcomes = await Promise.all(
       all.map(async (s): Promise<{ outcome: SourceOutcome; releases: FoundRelease[] }> => {
-        const skip = this.skipReason(s, query.kind);
+        const skip = this.skipReason(s, kind, share);
         if (skip) return { outcome: { sourceId: s.id, name: s.name, status: 'skipped', results: 0, ms: 0, message: skip }, releases: [] };
         const started = this.now();
         try {

@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
+import type { WantedRunView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { getSetting, setSetting } from '../db/index.js';
 import { downloads, mediaFiles, movies } from '../db/schema.js';
@@ -28,14 +29,7 @@ export const PER_RUN = 10;
 const KEY = 'movies.look_for_wanted';
 const LAST = 'movies.wanted_last_run';
 
-export interface WantedRun {
-  at: number;
-  kind: 'missing' | 'better';
-  searched: number;
-  sent: { movieId: number; title: string; copy: string }[];
-  /** Movies that couldn't be searched, with why. */
-  problems: string[];
-}
+export type WantedRun = WantedRunView;
 
 export function lookingForWanted(db: Db): boolean {
   return getSetting(db, KEY) === '1';
@@ -97,7 +91,7 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
       const pick = bestPick(found.search);
       if (pick === null) continue;
       const sent = await sendFromSearch({ db, now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent }, found.search, pick, null, false);
-      run.sent.push({ movieId: m.id, title: m.year ? `${m.title} (${m.year})` : m.title, copy: sent.download.title });
+      run.sent.push({ href: `/movies/${m.id}`, title: m.year ? `${m.title} (${m.year})` : m.title, copy: sent.download.title });
     } catch (err) {
       run.problems.push(`${m.title}: ${(err as Error).message}`);
     }
@@ -111,12 +105,14 @@ function save(db: Db, run: WantedRun): WantedRun {
   return run;
 }
 
+/** When each kind of run last happened (0 if never). */
+export const lastRunAt = (runs: WantedRun[]) => (k: WantedRun['kind']) => runs.find((r) => r.kind === k)?.at ?? 0;
+
 /** Runs whichever search is due. Called every few minutes in the background. */
 export async function wantedTick(deps: WantedDeps): Promise<WantedRun | null> {
   const { db, now } = deps;
   if (!lookingForWanted(db)) return null;
-  const runs = lastWantedRuns(db);
-  const last = (k: WantedRun['kind']) => runs.find((r) => r.kind === k)?.at ?? 0;
+  const last = lastRunAt(lastWantedRuns(db));
   if (now() - last('missing') >= MISSING_EVERY) return lookForWanted(deps, 'missing');
   if (now() - last('better') >= BETTER_EVERY) return lookForWanted(deps, 'better');
   return null;

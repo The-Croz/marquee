@@ -96,7 +96,7 @@ describe('Marquee looks for wanted movies', () => {
     t.db.insert(schema.downloads).values({ kind: 'movie', movieId: t.up.id, title: UP_1080, infoHash: 'busy', addedAt: 0, state: 'downloading' }).run();
     const run = await lookForWanted(t.deps(), 'missing');
     expect(run).toMatchObject({ kind: 'missing', searched: 1, problems: [] });
-    expect(run.sent).toEqual([{ movieId: t.dune.id, title: 'Dune: Part Two (2024)', copy: DUNE_4K }]);
+    expect(run.sent).toEqual([{ href: `/movies/${t.dune.id}`, title: 'Dune: Part Two (2024)', copy: DUNE_4K }]);
     expect(t.qbit.added).toHaveLength(1);
     // Dune now has a download on the way, so the next run skips it.
     expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(0);

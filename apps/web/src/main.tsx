@@ -14,6 +14,7 @@ import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { SwitchOverPage } from './pages/SwitchOver';
+import { CalendarPage } from './pages/Calendar';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -67,7 +68,9 @@ const router = createBrowserRouter([
         ),
       },
       { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
-      { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage /></AdminOnly>} /> },
+      { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="movie" /></AdminOnly>} /> },
+      { path: 'switch-over/tv', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="tv" kind="tv" /></AdminOnly>} /> },
+      { path: 'calendar', element: <CalendarPage /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,

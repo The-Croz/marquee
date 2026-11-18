@@ -68,7 +68,8 @@ export interface HomeData {
   recent: { title: string; sub: string; color: string; posterPath?: string | null; href?: string }[];
   /** True once a library scan has found something; "recent" and library stats are then real. */
   libraryReady: boolean;
-  upcoming: { day: string; title: string; note: string }[];
+  /** `href` is the show's page (real data only). */
+  upcoming: { day: string; title: string; note: string; href?: string }[];
 }
 
 // ---- Settings → Services ----
@@ -740,7 +741,7 @@ export interface ProfileChangeView {
 // ---------------------------------------------------------------- switching movies over from Radarr
 
 export interface CutoverStep {
-  key: 'agree' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'take_over';
+  key: 'agree' | 'movies_first' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'sonarr_queue' | 'sonarr_off' | 'take_over';
   title: string;
   /** done: checked and fine · todo: needs doing · warn: works but worth a look · unknown: Marquee can't check */
   state: 'done' | 'todo' | 'warn' | 'unknown';
@@ -751,17 +752,45 @@ export interface CutoverStep {
 
 export interface WantedRunView {
   at: number;
-  kind: 'missing' | 'better';
+  /** missing: titles with no file · better: titles you have · new: new episodes from the Sources' newest copies */
+  kind: 'missing' | 'better' | 'new';
+  /** Searches made (for "new": copies looked at). */
   searched: number;
-  sent: { movieId: number; title: string; copy: string }[];
+  /** `href` is the movie or show page; `title` says which season or episode for TV. */
+  sent: { href: string; title: string; copy: string }[];
   problems: string[];
 }
 
 export interface CutoverView {
+  kind: 'movie' | 'tv';
   steps: CutoverStep[];
   /** Every step before "Marquee looks for wanted movies" is done. */
   ready: boolean;
   lookingForWanted: boolean;
   /** The last few searches Marquee ran by itself, newest first. */
   runs: WantedRunView[];
+}
+
+// ---- Calendar ----
+
+export interface CalendarItem {
+  seriesId: number;
+  show: string;
+  posterPath: string | null;
+  season: number;
+  episode: number;
+  title: string | null;
+  /** "2026-11-18" */
+  airDate: string;
+  /** have: in your library · downloading · missing: aired, not here · coming: not aired yet · not_watched: the show isn't watched */
+  state: 'have' | 'downloading' | 'missing' | 'coming' | 'not_watched';
+  /** What happens next, in plain words. */
+  note: string;
+}
+
+export interface CalendarView {
+  from: string;
+  to: string;
+  today: string;
+  items: CalendarItem[];
 }

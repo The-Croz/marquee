@@ -46,8 +46,8 @@ export interface Release {
 export type SearchQuery =
   | { kind: 'movie'; title: string; year: number | null; tmdbId?: number | null; imdbId?: string | null }
   | { kind: 'tv'; title: string; tvdbId?: number | null; tmdbId?: number | null; imdbId?: string | null; season?: number; episode?: number }
-  /** Newest copies with no search terms, used to check a feed works. */
-  | { kind: 'recent' };
+  /** Newest copies with no search terms: to check a feed works, or (with `for`) to catch new episodes as they come out. */
+  | { kind: 'recent'; for?: 'movie' | 'tv' };
 
 /** Why a call failed, in a form the UI can turn into a plain sentence and a fix. */
 export type TorznabProblem = 'unreachable' | 'key_refused' | 'slowed_down' | 'set_aside' | 'blocked' | 'not_a_feed' | 'error';
@@ -197,8 +197,10 @@ export class TorznabClient implements TorznabApi {
  * left to the name checks.
  */
 function rightKind(r: Release, query: SearchQuery): boolean {
-  if (query.kind === 'recent' || r.categories.length === 0) return true;
-  const base = query.kind === 'movie' ? MOVIE_CATEGORY : TV_CATEGORY;
+  if (r.categories.length === 0) return true;
+  const kind = query.kind === 'recent' ? query.for : query.kind;
+  if (!kind) return true;
+  const base = kind === 'movie' ? MOVIE_CATEGORY : TV_CATEGORY;
   return r.categories.some((c) => Math.floor(c / 1000) * 1000 === base);
 }
 
@@ -209,7 +211,7 @@ function rightKind(r: Release, query: SearchQuery): boolean {
  * by category on our side instead (see `rightKind`).
  */
 export function searchParams(query: SearchQuery, caps: TorznabCaps | null): Record<string, string> {
-  if (query.kind === 'recent') return { t: 'search' };
+  if (query.kind === 'recent') return { t: query.for === 'tv' && caps?.tvSearch.available ? 'tvsearch' : query.for === 'movie' && caps?.movieSearch.available ? 'movie' : 'search' };
 
   if (query.kind === 'movie') {
     const m = caps?.movieSearch;

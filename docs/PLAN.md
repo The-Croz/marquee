@@ -183,14 +183,29 @@ Milestone 3 is done in code. The real switch-over happens on Josh's server when 
 
 Later ideas from HolyArrs for M3 (ideas only): a History page per title and overall; "Downloader can change things" switch for a qBittorrent shared with Radarr during side-by-side; per-stage Health page.
 
-## Milestone 4: TV ⬜ (TV can switch over here)
+## Milestone 4: TV 🔨 (TV can switch over here)
 
-- ⬜ Airing calendar from TMDB; RSS polling of indexers for new episodes
-- ⬜ Season packs vs single episodes; specials; upgrades until the profile's cutoff
-- ⬜ "Coming up this week" on Home
-- ⬜ Cutover checklist for TV; retire Sonarr, then Prowlarr (needs the two items below)
-- ⬜ **Sources without Prowlarr**: add and manage sites in Marquee itself (pick from a list of known public and private sites, sign in with your tracker's key or cookie, search settings per site), not only Torznab feeds. "Bring over from Prowlarr" turns linked Sources into Marquee-managed ones, keeping names, priority and limits. Check how HolyArrs does built-in sites first.
-- ⬜ **Built-in bot-check solving** (FlareSolverr inside Marquee or alongside it): Sources marked "Blocked by a bot check" or "Set aside by Prowlarr" for Cloudflare can be fixed with one switch, no separate container to set up.
+Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds the ones you're missing (whole seasons when that's better), upgrades until "good enough", and shows what's airing. Then Sonarr can stop, and once Sources live in Marquee, Prowlarr too.
+
+1. ✅ **Switch TV over** (page at `/switch-over/tv`; `apps/server/src/downloads/wantedTv.ts`, `library/airing.ts`, `compare/cutover.ts`)
+   - Migration 14: when Marquee last searched each episode, and an index on air dates.
+   - **Marquee looks for wanted episodes** (a switch at the end of the TV checklist, off by default, separate from movies):
+     - Every 30 minutes it reads each Source's **newest copies** for TV (older apps call this RSS; Torznab `t=tvsearch` with no terms) and sends any that are a missing episode of a show you watch, or better than yours. Copies are matched to shows by TVDB ID, else by name. Episodes TMDB doesn't list are ignored, and a whole-season copy only counts once the season has finished airing.
+     - Every 6 hours it searches for aired episodes you don't have. When at least half of a finished season is missing it looks for the **whole season** in one copy first, then falls back to single episodes. Newest air dates first among the longest-waiting; 10 searches per run.
+     - Once a day it checks finished seasons you have for a better whole-season copy, skipping seasons already "good enough" (or whose profile doesn't look for better copies), so Sources aren't asked for nothing.
+     - **Specials** (season 0) are only searched when you ask, from the show's page.
+     - Anything with a download on the way is left alone; a whole-season copy is never sent while an episode of that season is downloading.
+   - Newest copies count toward a Source's daily limit, so a Source with a limit is only read while it has used under half of it; searches for titles keep the rest.
+   - TV checklist: movies switched over first (instead of "picks what Radarr would": comparison mode only reads Radarr), qBittorrent connected, an episode went all the way into the library, Plex/Jellyfin connected, Sonarr's queue empty, Sonarr watches no shows (with the exact clicks), then the switch. Look-now buttons for each job and the last runs.
+   - **Calendar** page (`/calendar`, everyone; kids see kids' shows only): episodes by day, each "In your library", "Downloading", "Not here yet", "Coming" or "Not watched", with what happens next. `GET /api/calendar?from=&days=`.
+   - Shows still on the air are re-read from TMDB twice a day (up to 20 an hour), so new episodes and moved dates show up without a scan.
+   - **Coming up this week** on Home is real once there are shows in the library, and links to each show and the calendar.
+   - Demo mode: fake Sonarr at `http://sonarr:8989`, and Severance season 2 airs around today.
+   - **Josh, on the LAN**: work down the TV checklist, turn Sonarr's monitoring off, then turn on the last step.
+   - Not done: picking which episodes or seasons to watch inside a show (Marquee watches whole shows), and air *times* (TMDB gives dates only).
+2. ⬜ **Sources without Prowlarr**: add and manage sites in Marquee itself (pick from a list of known public and private sites, sign in with your tracker's key or cookie, search settings per site), not only Torznab feeds. "Bring over from Prowlarr" turns linked Sources into Marquee-managed ones, keeping names, priority and limits. Check how HolyArrs does built-in sites first.
+3. ⬜ **Built-in bot-check solving** (FlareSolverr inside Marquee or alongside it): Sources marked "Blocked by a bot check" or "Set aside by Prowlarr" for Cloudflare can be fixed with one switch, no separate container to set up.
+4. ⬜ Retire Prowlarr (needs 2 and 3).
 
 ## Milestone 5: Family ⬜
 

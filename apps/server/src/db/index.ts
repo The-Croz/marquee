@@ -312,6 +312,10 @@ const migrations: string[] = [
   /* 13: Marquee looks for wanted movies itself */ `
   ALTER TABLE movies ADD COLUMN last_searched_at INTEGER;
   `,
+  /* 14: Marquee looks for wanted episodes itself */ `
+  ALTER TABLE episodes ADD COLUMN last_searched_at INTEGER;
+  CREATE INDEX episodes_air_date ON episodes (air_date);
+  `,
 ];
 
 export function openDb(file: string): Db {

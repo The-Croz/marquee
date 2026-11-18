@@ -6,7 +6,7 @@ import { HttpError } from '../http.js';
 import { decide, type Decision, type Wanted } from '../releases/decide.js';
 import { ProfileService, type FullProfile } from '../releases/profiles.js';
 import { compareToYours, judgeFile, worstFile, type YourFile } from '../releases/upgrade.js';
-import type { SourceService } from '../sources/service.js';
+import type { FoundRelease, SourceService } from '../sources/service.js';
 import type { SearchQuery } from '../sources/torznab.js';
 import type { CachedSearch, SearchTarget } from './cache.js';
 
@@ -24,8 +24,16 @@ export interface TitleSearch {
   sources: SourceSearchOutcome[];
 }
 
-export async function searchTitle(deps: { db: Db; sources: SourceService; now: () => number }, target: SearchTarget): Promise<TitleSearch> {
-  const { db, sources, now } = deps;
+export interface PreparedTitle {
+  wanted: Wanted;
+  query: Exclude<SearchQuery, { kind: 'recent' }>;
+  profile: FullProfile;
+  /** Your files for this movie, season or episode. */
+  files: string[];
+}
+
+/** What Marquee needs to judge copies for a title: what it is, its profile and your files. */
+export function prepareTitle(db: Db, now: () => number, target: SearchTarget): PreparedTitle {
   let wanted: Wanted;
   let query: Exclude<SearchQuery, { kind: 'recent' }>;
   let profileKey: string;
@@ -56,15 +64,26 @@ export async function searchTitle(deps: { db: Db; sources: SourceService; now: (
       .filter((f) => episode === undefined || (JSON.parse(f.episodes ?? '[]') as number[]).includes(episode))
       .map((f) => f.path);
   }
-
   const profile = new ProfileService(db, now).forTitle(wanted.kind, profileKey);
-  if (!sources.view().sources.some((s) => s.enabled)) throw new HttpError(409, 'no_sources', 'There are no Sources to search yet. Add some in Settings → Sources.');
-  const outcome = await sources.search(query);
-  const decisions = markNeverPick(db, target, decide(wanted, outcome.releases, profile));
+  return { wanted, query, profile, files };
+}
+
+/** Judges copies for a prepared title: its profile, your file and "Never pick". */
+export function judgeCopies(db: Db, target: SearchTarget, prep: PreparedTitle, releases: FoundRelease[]): Pick<TitleSearch, 'search' | 'yours'> {
+  const { wanted, profile, files } = prep;
+  const decisions = markNeverPick(db, target, decide(wanted, releases, profile));
   const yours = worstFile(files.map((f) => judgeFile(wanted, f, profile)));
   // Only copies Marquee would take are compared with your file; the rest already say why not.
   const vsYours = decisions.map((d) => (d.accepted ? compareToYours(d, yours, profile) : null));
-  return { search: { wanted, target, profileKey: profile.key, decisions, vsYours }, profile, yours, sources: outcome.sources };
+  return { search: { wanted, target, profileKey: profile.key, decisions, vsYours }, yours };
+}
+
+export async function searchTitle(deps: { db: Db; sources: SourceService; now: () => number }, target: SearchTarget): Promise<TitleSearch> {
+  const { db, sources, now } = deps;
+  const prep = prepareTitle(db, now, target);
+  if (!sources.view().sources.some((s) => s.enabled)) throw new HttpError(409, 'no_sources', 'There are no Sources to search yet. Add some in Settings → Sources.');
+  const outcome = await sources.search(prep.query);
+  return { ...judgeCopies(db, target, prep, outcome.releases), profile: prep.profile, sources: outcome.sources };
 }
 
 /** Turns down copies you said never to pick for this title, keeping accepted copies first. */
@@ -86,8 +105,11 @@ function markNeverPick(db: Db, target: SearchTarget, decisions: Decision[]): Dec
   return [...decisions].sort((a, b) => Number(b.accepted) - Number(a.accepted));
 }
 
-/** The best copy a search found that Marquee would take and that's better than your file. */
-export function bestPick(search: Omit<CachedSearch, 'at'>): number | null {
-  const i = search.decisions.findIndex((d, n) => d.accepted && (search.vsYours[n]?.better ?? true));
+/**
+ * The best copy a search found that Marquee would take and that's better than
+ * your file. `packsOnly` keeps to whole-season copies.
+ */
+export function bestPick(search: Omit<CachedSearch, 'at'>, packsOnly = false): number | null {
+  const i = search.decisions.findIndex((d, n) => d.accepted && (search.vsYours[n]?.better ?? true) && (!packsOnly || d.parsed.fullSeason));
   return i >= 0 ? i : null;
 }

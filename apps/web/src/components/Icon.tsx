@@ -48,6 +48,7 @@ const paths = {
   ),
   logout: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />,
   check: <path d="m5 12 5 5 9-10" />,
+  calendar: <path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5" />,
   compare: <path d="M4 8h13l-3-3M20 16H7l3 3" />,
   switch: <path d="M5 12l4 4 10-10" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,

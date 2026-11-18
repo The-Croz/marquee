@@ -18,6 +18,8 @@ import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
+import { wantedTvTick } from './downloads/wantedTv.js';
+import { refreshAiring } from './library/airing.js';
 import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
 
 const config = loadConfig();
@@ -37,6 +39,7 @@ const clients = {
 };
 const sources = new SourceService(db, clients);
 
+const appScanner = new LibraryScanner(db);
 const app = createApp({
   db,
   config,
@@ -44,7 +47,7 @@ const app = createApp({
   plex: () => new PlexClient(clientId),
   loginLimiter: new RateLimiter(10, 15 * 60 * 1000),
   clients,
-  scanner: new LibraryScanner(db),
+  scanner: appScanner,
   sources,
   now: Date.now,
 });
@@ -84,13 +87,30 @@ setInterval(() => {
   );
 }, 60 * 1000).unref();
 
-// Once switched over: look for missing movies every 6 hours and better copies once a day.
-setInterval(() => {
-  wantedTick({ db, clients, sources, now: Date.now }).then(
-    (r) => r && console.log(`[wanted] ${r.kind}: searched ${r.searched}, sent ${r.sent.length}`),
-    (err) => console.error('[wanted] failed:', (err as Error).message),
-  );
+// Once switched over: look for missing movies every 6 hours and better copies once a day;
+// for TV also read the Sources' newest copies every 30 minutes. Runs one at a time.
+let wantedBusy = false;
+setInterval(async () => {
+  if (wantedBusy) return;
+  wantedBusy = true;
+  try {
+    for (const [name, tick] of [['movies', wantedTick], ['tv', wantedTvTick]] as const) {
+      const r = await tick({ db, clients, sources, now: Date.now }).catch((err: Error) => console.error(`[wanted ${name}] failed:`, err.message));
+      if (r) console.log(`[wanted ${name}] ${r.kind}: searched ${r.searched}, sent ${r.sent.length}`);
+    }
+  } finally {
+    wantedBusy = false;
+  }
 }, 5 * 60 * 1000).unref();
+
+// Keep air dates fresh for shows still on the air (new episodes, moved dates).
+const airing = () =>
+  refreshAiring({ db, config, clients, scanner: appScanner, now: Date.now }).then(
+    (r) => r.refreshed && console.log(`[airing] refreshed ${r.refreshed} shows`),
+    (err) => console.error('[airing] failed:', (err as Error).message),
+  );
+setTimeout(airing, 60 * 1000).unref();
+setInterval(airing, 60 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);

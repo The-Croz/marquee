@@ -16,6 +16,10 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **People sharing** | How many people have the whole copy and are sharing it. | Seeders |
 | **Stuck · nobody is sharing it** | A download that can't make progress. | stalledDL |
 | **Never pick** | A copy Marquee refuses, with the reason. | Rejected / blocklisted |
+| **Whole season** | One copy with every episode of a season. | Season pack |
+| **Newest copies** | What a Source has just added; Marquee reads them every 30 minutes to catch new episodes. | RSS |
+| **Watched** / **Not watched** | Whether Marquee looks for a title by itself. | Monitored / Unmonitored |
+| **Calendar** | Episodes of your shows by the day they air. | Calendar |
 
 ## Source health
 

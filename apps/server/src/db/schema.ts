@@ -118,6 +118,8 @@ export const episodes = sqliteTable('episodes', {
   title: text('title'),
   airDate: text('air_date'),
   overview: text('overview'),
+  /** When Marquee last searched for it (or its season) by itself. */
+  lastSearchedAt: integer('last_searched_at'),
 }, (t) => [uniqueIndex('episodes_series_season_episode').on(t.seriesId, t.season, t.episode)]);
 
 export const mediaFiles = sqliteTable('media_files', {
@@ -379,6 +381,7 @@ export const neverPick = sqliteTable('never_pick', {
 export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Series = typeof series.$inferSelect;
+export type Episode = typeof episodes.$inferSelect;
 export type MediaFile = typeof mediaFiles.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Source = typeof sources.$inferSelect;

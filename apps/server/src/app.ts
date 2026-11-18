@@ -19,6 +19,7 @@ import { compareRoutes } from './routes/compare.js';
 import { downloaderRoutes } from './routes/downloader.js';
 import { downloadRoutes } from './routes/downloads.js';
 import { cutoverRoutes } from './routes/cutover.js';
+import { calendarRoutes } from './routes/calendar.js';
 import { CopyCache } from './downloads/cache.js';
 import { seedProfiles } from './releases/profiles.js';
 import { seedChoices } from './releases/choose.js';
@@ -71,6 +72,7 @@ export function createApp(given: Omit<Deps, 'copies'> & { copies?: CopyCache }) 
   app.route('/api/settings/downloader', downloaderRoutes);
   app.route('/api/downloads', downloadRoutes);
   app.route('/api/cutover', cutoverRoutes);
+  app.route('/api/calendar', calendarRoutes);
   app.route('/api/compare', compareRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);

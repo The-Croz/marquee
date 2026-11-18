@@ -6,6 +6,8 @@
  * Settings → Sources: link Prowlarr at http://prowlarr:9696 with the key prowlarr-key.
  * Settings → Downloader: a fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin).
  * Settings → Services: fake Plex at http://plex:32400 (token plex-token), Jellyfin at http://jellyfin:8096 (key jellyfin-key).
+ * Radarr (http://radarr:7878) and Sonarr (http://sonarr:8989) are fakes too, already filled in.
+ * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -53,6 +55,22 @@ setSetting(db, 'services.tmdb_api_key', 'good-key');
 setSetting(db, 'library.movies_root', path.join(root, 'movies'));
 setSetting(db, 'library.tv_root', path.join(root, 'tv'));
 const tmdb = new FakeTmdb();
+// Move Severance season 2 and a new Bluey episode around today, so the calendar has something on it.
+const dayOffset = (d: number) => new Date(Date.now() + d * 86400_000).toISOString().slice(0, 10);
+const tmdbSeason = tmdb.season.bind(tmdb);
+tmdb.season = async (showId, season) => {
+  const eps = await tmdbSeason(showId, season);
+  if (showId === 95396 && season === 2) {
+    return [
+      { ...eps[0]!, airDate: dayOffset(-8) },
+      { season: 2, episode: 2, title: 'Goodbye, Mrs. Selvig', airDate: dayOffset(-1), overview: null },
+      { season: 2, episode: 3, title: 'Who Is Alive?', airDate: dayOffset(2), overview: null },
+      { season: 2, episode: 4, title: 'Woe’s Hollow', airDate: dayOffset(9), overview: null },
+    ];
+  }
+  if (showId === 82728 && season === 1) return [...eps, { season: 1, episode: 4, title: 'Daddy Robot', airDate: dayOffset(1), overview: null }];
+  return eps;
+};
 
 // A fake Prowlarr at http://prowlarr:9696 (key "prowlarr-key") with a few sites, one of them failing.
 const sites = new FakeSites();
@@ -100,6 +118,14 @@ radarr.movies = [
 ];
 setSetting(db, 'services.radarr_url', 'http://radarr:7878');
 setSetting(db, 'services.radarr_api_key', 'radarr-key');
+// A fake Sonarr at http://sonarr:8989, still watching both shows, for the TV switch-over checklist.
+const sonarr = new FakeRadarr();
+sonarr.movies = [
+  { title: 'Severance', monitored: true },
+  { title: 'Bluey', monitored: true },
+];
+setSetting(db, 'services.sonarr_url', 'http://sonarr:8989');
+setSetting(db, 'services.sonarr_api_key', 'sonarr-key');
 // A fake qBittorrent at http://qbittorrent:8080 (admin / adminadmin), behind a VPN that's up.
 const qbit = new FakeQbit();
 setSetting(db, 'downloader.url', 'http://qbittorrent:8080');
@@ -157,7 +183,7 @@ const clients = {
     if (/S\d\dE\d\d/i.test(decodeURIComponent(url))) qbitTvHashes.add(t.infoHash);
     return t;
   },
-  tmdb: () => tmdb, arr: () => radarr, radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
+  tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr };
 const app = createApp({
   db,
   config,
