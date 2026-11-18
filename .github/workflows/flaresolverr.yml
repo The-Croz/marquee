@@ -1,0 +1,72 @@
+name: Update FlareSolverr
+
+# Once a week, checks for a new FlareSolverr release (the bot-check solver
+# inside Marquee's image). If there is one, opens a PR that bumps the version
+# and checksum in the Dockerfile, then runs the image build and smoke test on
+# it, which starts the new solver and checks it answers. Merge when green.
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look for a newer release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(sed -n 's/^ARG FLARESOLVERR_VERSION=//p' Dockerfile)
+          latest=$(gh api repos/FlareSolverr/FlareSolverr/releases/latest --jq .tag_name)
+          echo "current=$current latest=$latest"
+          if [ -z "$latest" ] || [ "$latest" = "$current" ]; then
+            echo "Up to date."
+            exit 0
+          fi
+          branch="flaresolverr-$latest"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "A PR for $latest is already open."
+            exit 0
+          fi
+          # Work out the checksum ourselves from the release file.
+          curl -fsSL -o /tmp/fs.tar.gz "https://github.com/FlareSolverr/FlareSolverr/releases/download/$latest/flaresolverr_linux_x64.tar.gz"
+          sha=$(sha256sum /tmp/fs.tar.gz | cut -d' ' -f1)
+          # Cross-check with the checksum GitHub publishes for the file, when it has one.
+          published=$(gh api "repos/FlareSolverr/FlareSolverr/releases/tags/$latest" --jq '.assets[] | select(.name=="flaresolverr_linux_x64.tar.gz") | .digest' | sed 's/^sha256://')
+          if [ -n "$published" ] && [ "$published" != "$sha" ]; then
+            echo "::error::Checksum mismatch for $latest: downloaded $sha, GitHub says $published"
+            exit 1
+          fi
+          sed -i "s/^ARG FLARESOLVERR_VERSION=.*/ARG FLARESOLVERR_VERSION=$latest/; s/^ARG FLARESOLVERR_SHA256=.*/ARG FLARESOLVERR_SHA256=$sha/" Dockerfile
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+      - name: Open a PR and test it
+        if: steps.check.outputs.branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+          LATEST: ${{ steps.check.outputs.latest }}
+          CURRENT: ${{ steps.check.outputs.current }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git commit -am "Update the bundled bot-check solver to FlareSolverr $LATEST"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "Update the bundled bot-check solver to FlareSolverr $LATEST" \
+            --body "FlareSolverr $LATEST is out (Marquee has $CURRENT). This bumps the version and checksum in the Dockerfile.
+
+          The **Docker image** check builds the image and turns the solver on to check it starts and answers. Merge when it's green, then update Marquee on the server. Release notes: https://github.com/FlareSolverr/FlareSolverr/releases/tag/$LATEST"
+          # PRs opened with this workflow's token don't start CI by themselves; start it on the branch.
+          gh workflow run docker.yml --ref "$BRANCH"
+          gh workflow run ci.yml --ref "$BRANCH"

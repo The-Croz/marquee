@@ -218,6 +218,7 @@ Goal: Marquee does Sonarr's job: it catches new episodes as they come out, finds
    - For experts: any FlareSolverr-compatible solver's address instead (Byparr, a FlareSolverr container).
    - The pass (cookies and browser name) is kept per Source and reused until a bot check comes back. A solver that fails, or gets the check again, says so.
    - CI's container smoke test turns it on and checks it answers inside the image.
+   - Kept up to date by `.github/workflows/flaresolverr.yml`: every Monday it checks for a new FlareSolverr release and opens a PR bumping the version and checksum, then runs the container test on it. Merge when green.
 4. ⬜ **Josh, on the LAN**: Settings → Sources → Bring sites over; type IPTorrents' cookie and user agent; turn on Solve bot checks and press Try now on EZTV and 1337x. When every Source shows Working and searches look right for a week, stop Prowlarr.
 
 Later ideas: captcha sign-ins, proxies per site, a downloader per site, paging past the first page of results.
