@@ -5,6 +5,7 @@ import type { SearchResult, UnmatchedItem } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Card, Notice } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 type Candidate = { tmdbId: number; title: string; year: number | null; posterPath: string | null };
 
@@ -49,7 +50,7 @@ function ItemCard({ item, onDone }: { item: UnmatchedItem; onDone: (msg: string)
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-[220px] flex-1">
           <div className="text-xs font-semibold tracking-wider text-amber uppercase">{item.kind === 'movie' ? 'Movie folder' : 'Show folder'}</div>
-          <div className="mt-1 text-[17px] font-semibold break-words">{item.folder}</div>
+          <div className="mt-1 text-heading font-semibold break-words">{item.folder}</div>
           <div className="mt-1 text-sm text-muted">{item.reason}</div>
         </div>
         <Button variant="ghost" className="h-10 px-4 text-sm" onClick={ignore} disabled={busy}>
@@ -65,7 +66,7 @@ function ItemCard({ item, onDone }: { item: UnmatchedItem; onDone: (msg: string)
           id={`q-${item.id}`}
           name="q"
           defaultValue={[item.parsedTitle, item.parsedYear].filter(Boolean).join(' ')}
-          className="h-11 flex-[1_1_240px] rounded-xl border border-line-strong bg-ink px-4 text-[15px] text-text focus:border-amber focus:outline-none"
+          className="h-11 flex-[1_1_240px] rounded-xl border border-line-strong bg-ink px-4 text-body text-text focus:border-amber focus:outline-none"
         />
         <Button type="submit" variant="ghost" className="h-11">
           Search TMDB
@@ -87,7 +88,7 @@ function ItemCard({ item, onDone }: { item: UnmatchedItem; onDone: (msg: string)
               aria-label={`Match to ${c.title} ${c.year ?? ''}`}
             >
               <Poster title={c.title} path={c.posterPath} size="w185" />
-              <span className="text-[13px] leading-tight font-semibold">{c.title}</span>
+              <span className="text-label leading-tight font-semibold">{c.title}</span>
               <span className="text-xs text-muted">{c.year ?? '—'}</span>
             </button>
           ))}
@@ -107,15 +108,11 @@ export function UnmatchedPage() {
   };
   return (
     <>
-      <Link to="/movies" className="text-sm no-underline">
-        ← Library
-      </Link>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Needs a match</h1>
-        <p className="m-0 max-w-[680px] text-[15px] text-muted">
-          Marquee couldn't be sure which title these folders are. Pick the right one and it will remember. Nothing on disk is renamed or moved.
-        </p>
-      </div>
+      <PageHeader
+        title="Needs a match"
+        back={{ to: '/movies', label: 'Library' }}
+        info="Marquee couldn’t be sure which title these folders are. Pick the right one and it remembers. Nothing on disk is renamed or moved."
+      />
       {message && <Notice tone="success">{message}</Notice>}
       {data && data.items.length === 0 && <Notice>Everything is matched.</Notice>}
       <div className="flex max-w-[960px] flex-col gap-4">

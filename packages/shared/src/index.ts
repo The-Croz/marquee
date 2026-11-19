@@ -53,26 +53,74 @@ export interface UserSummary extends SessionUser {
 
 // ---- Home screen (sample data until Milestones 1-6 land) ----
 
+/** Home: what's happening, what needs you, what's new and what's next. Everything here is real. */
 export interface HomeData {
-  sample: boolean;
-  nowDownloading: {
-    title: string;
-    requestedBy: string;
-    quality: string;
-    profile: string;
-    size: string;
-    percent: number;
-    speed: string;
-    eta: string;
-  } | null;
-  stats: { label: string; value: string; note: string }[];
-  approvals: { id: number; title: string; who: string; plan: string; posterPath: string | null }[];
-  watching: { title: string; who: string; mode: string; percent: number }[];
-  recent: { title: string; sub: string; color: string; posterPath?: string | null; href?: string }[];
-  /** True once a library scan has found something; "recent" and library stats are then real. */
-  libraryReady: boolean;
-  /** `href` is the show's page (real data only). */
+  /** Admins: what needs a person, most urgent first. Empty when all is well. */
+  needsYou: HomeAttention[];
+  /** Admins: who is watching right now, from Plex and Jellyfin. */
+  watching: NowPlayingView[];
+  /** Admins: downloads on their way, closest to done first. */
+  onItsWay: HomeDownload[];
+  /** Members and kids: their own requests that aren't in the library yet. */
+  myRequests: RequestView[];
+  /** The newest titles in the library (kids: only ones for them). */
+  recent: HomeTitle[];
+  /** Episodes airing in the next 7 days. `href` is the show's page. */
   upcoming: { day: string; title: string; note: string; href?: string }[];
+  /** One quiet line of library numbers. `to` is where each one leads. */
+  stats: { label: string; value: string; to?: string }[];
+  /** The big picture at the top: what's playing, what's ready for you, or what just arrived. Null when there's nothing. */
+  hero: HomeHero | null;
+}
+
+export interface HomeHero {
+  kind: 'watching' | 'ready' | 'arrived';
+  /** "Now showing · Living room TV", "Ready to watch · you asked", "Just arrived · 2 hours ago" */
+  eyebrow: string;
+  title: string;
+  chips: string[];
+  href: string | null;
+  backdropPath: string | null;
+  posterPath: string | null;
+  /** 0–100, while playing. */
+  progress: number | null;
+  /** "1 h 01 of 2 h 46" style line, or who's watching. */
+  note: string | null;
+}
+
+export interface HomeAttention {
+  key: string;
+  /** problem: something broke · attention: someone is waiting on you */
+  tone: 'problem' | 'attention';
+  title: string;
+  /** What it means, or when it tries again by itself. */
+  detail: string | null;
+  posterPath?: string | null;
+  /** Where to fix it. */
+  to: string;
+  action: string;
+  /** A request that can be approved right here. */
+  approveId?: number;
+}
+
+export interface HomeDownload {
+  id: number;
+  title: string;
+  href: string | null;
+  posterPath: string | null;
+  /** 0–100 */
+  percent: number;
+  /** "Downloading · 4.2 MB/s · about 12 min left" */
+  label: string;
+}
+
+export interface HomeTitle {
+  title: string;
+  /** "Movie · 4K" or "S2 E7 · 1080p" */
+  sub: string;
+  posterPath: string | null;
+  href: string;
+  addedAt: number;
 }
 
 // ---- Settings → Services ----
@@ -645,47 +693,6 @@ export interface SendResult {
   message: string;
 }
 
-// ---------------------------------------------------------------- comparison mode (against Radarr)
-
-export type CompareVerdict = 'same' | 'same_quality' | 'higher' | 'lower' | 'nothing';
-
-export interface ComparisonView {
-  id: number;
-  /** Marquee's movie, if it's in the library. */
-  movieId: number | null;
-  title: string;
-  grabbedAt: number;
-  status: 'waiting' | 'done' | 'failed';
-  /** own_search: Marquee searched its own Sources. same_list: Marquee judged the copies Radarr itself saw. */
-  mode: 'own_search' | 'same_list' | null;
-  profileName: string | null;
-  verdict: CompareVerdict | null;
-  /** One plain sentence on what happened. */
-  summary: string;
-  /** What Radarr downloaded. */
-  radarrTitle: string;
-  radarrQuality: string;
-  radarrScore: number;
-  /** Radarr's download as Marquee judges it (null until compared). */
-  radarrCopy: CopyView | null;
-  /** What Marquee would have picked. */
-  marqueeCopy: CopyView | null;
-  message: string | null;
-  checkedAt: number | null;
-}
-
-export interface CompareView {
-  enabled: boolean;
-  radarrConnected: boolean;
-  lastRun: number | null;
-  waiting: number;
-  total: number;
-  counts: Record<CompareVerdict, number>;
-  /** Share of compared downloads where both picked the same quality or copy, 0–100; null before any. */
-  agreement: number | null;
-  items: ComparisonView[];
-}
-
 // ---------------------------------------------------------------- which profile a title gets
 
 export type ConditionField = 'genre' | 'rating' | 'year' | 'company' | 'language' | 'keyword';
@@ -753,17 +760,7 @@ export interface ProfileChangeView {
   rule: number | null;
 }
 
-// ---------------------------------------------------------------- switching movies over from Radarr
-
-export interface CutoverStep {
-  key: 'agree' | 'movies_first' | 'downloader' | 'import' | 'media' | 'radarr_queue' | 'radarr_off' | 'sonarr_queue' | 'sonarr_off' | 'take_over';
-  title: string;
-  /** done: checked and fine · todo: needs doing · warn: works but worth a look · unknown: Marquee can't check */
-  state: 'done' | 'todo' | 'warn' | 'unknown';
-  /** What Marquee found, and what to do. */
-  detail: string;
-  action: { label: string; to: string } | null;
-}
+// ---------------------------------------------------------------- automatic searching
 
 export interface WantedRunView {
   at: number;
@@ -780,17 +777,19 @@ export interface WantedRunView {
   capped?: boolean;
 }
 
-export interface CutoverView {
-  kind: 'movie' | 'tv';
-  steps: CutoverStep[];
-  /** Every step before "Marquee looks for wanted movies" is done. */
-  ready: boolean;
-  lookingForWanted: boolean;
-  /** How many movies (or shows) are marked Wanted. Nothing is until you say so. */
-  wantedTitles: number;
+/** Settings → Automatic searching: Marquee looking for Wanted movies and episodes by itself. */
+export interface AutomationView {
+  movies: AutomationKind;
+  tv: AutomationKind;
   /** Copies Marquee may send by itself in 24 hours (0 = no limit), and how many it has sent in the last 24 hours. */
   dailyLimit: number;
   sentToday: number;
+}
+
+export interface AutomationKind {
+  on: boolean;
+  /** How many movies (or shows) are marked Wanted. */
+  wanted: number;
   /** The last few searches Marquee ran by itself, newest first. */
   runs: WantedRunView[];
 }
@@ -1109,21 +1108,6 @@ export interface ServerPerson {
   marqueeUser: string | null;
   /** An existing Marquee account with the same name, to link instead of making a new one. */
   suggest: number | null;
-}
-
-/** One step of the "Retire Seerr" checklist. Same states as the switch-over steps. */
-export interface RetireStep {
-  key: string;
-  title: string;
-  state: CutoverStep['state'];
-  detail: string;
-  action: { label: string; to: string } | null;
-}
-
-export interface RetireView {
-  steps: RetireStep[];
-  /** Every step Marquee can check is done. The last steps are yours to do. */
-  ready: boolean;
 }
 
 // ---- Activity (Plex and Jellyfin watching) ----

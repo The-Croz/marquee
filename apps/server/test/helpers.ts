@@ -33,9 +33,6 @@ export function makeApp(opts: TestOptions = {}) {
     prowlarr: () => {
       throw new Error('no Prowlarr in this test');
     },
-    radarrHistory: () => {
-      throw new Error('no Radarr history in this test');
-    },
     qbittorrent: () => {
       throw new Error('no qBittorrent in this test');
     },

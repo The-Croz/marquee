@@ -5,6 +5,7 @@ import type { PersonView } from '@marquee/shared';
 import { api, ApiFailure } from '../api';
 import { Button, Card, Notice } from '../components/ui';
 import { Name, SERVER, when } from './Activity';
+import { PageHeader } from '../components/Page';
 
 const RES: Record<string, string> = { '4k': '4K', '1080': '1080p', '720': '720p', '480': '480p', sd: 'SD' };
 
@@ -15,19 +16,19 @@ export function PersonPage() {
   const p = q.data;
   return (
     <div className="flex max-w-[1000px] flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Link to="/activity" className="flex min-h-11 items-center self-start text-sm">
-          ← Activity
-        </Link>
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">{p?.name ?? name}</h1>
-        {p && (
-          <p className="m-0 text-[15px] text-muted">
-            {p.plays} watched{p.hours > 0 && ` · ${p.hours} hours since Marquee started watching`}
-            {p.last && ` · last ${when(p.last)}`}
-            {p.devices.length > 0 && ` · ${p.devices.join(', ')}`}
-          </p>
-        )}
-      </div>
+      <PageHeader
+        title={p?.name ?? name ?? ''}
+        back={{ to: '/activity', label: 'Watching' }}
+        meta={
+          p && (
+            <>
+              {p.plays} watched{p.hours > 0 && ` · ${p.hours} hours`}
+              {p.last && ` · last ${when(p.last)}`}
+              {p.devices.length > 0 && ` · ${p.devices.join(', ')}`}
+            </>
+          )
+        }
+      />
       {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Something went wrong.'}</Notice>}
       {p && <PersonBody p={p} />}
     </div>
@@ -42,7 +43,7 @@ function PersonBody({ p, more }: { p: PersonView; more?: React.ReactNode }) {
             <h2 className="m-0 text-lg font-semibold">Watches most</h2>
             <ol className="m-0 flex list-none flex-col gap-1 p-0">
               {p.top.map((t) => (
-                <li key={t.name} className="flex justify-between gap-3 text-[15px]">
+                <li key={t.name} className="flex justify-between gap-3 text-body">
                   <span className="truncate">{t.name}</span>
                   <span className="text-muted">{t.plays}</span>
                 </li>
@@ -53,7 +54,7 @@ function PersonBody({ p, more }: { p: PersonView; more?: React.ReactNode }) {
             <Card className="flex flex-col gap-1">
               <h2 className="m-0 mb-2 text-lg font-semibold">Recent streams</h2>
               {p.streams.map((s) => (
-                <div key={s.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-[15px]">
+                <div key={s.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-body">
                   <span>
                     {s.title}
                     {s.subtitle && <span className="text-soft"> · {s.subtitle}</span>}
@@ -70,7 +71,7 @@ function PersonBody({ p, more }: { p: PersonView; more?: React.ReactNode }) {
           <Card className="flex flex-col gap-1">
             <h2 className="m-0 mb-2 text-lg font-semibold">History</h2>
             {p.recent.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-[15px]">
+              <div key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-body">
                 <span>
                   <Name href={r.href}>{r.title}</Name>
                   {r.subtitle && <span className="text-soft"> · {r.subtitle}</span>}
@@ -93,16 +94,11 @@ export function MyHistoryPage() {
   const p = q.data;
   return (
     <div className="flex max-w-[1000px] flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">My history</h1>
-        <p className="m-0 text-[15px] text-muted">
-          {p
-            ? p.plays
-              ? `${p.plays} watched${p.hours > 0 ? ` · ${p.hours} hours since Marquee started watching` : ''}${p.last ? ` · last ${when(p.last)}` : ''}`
-              : 'What you watch on Plex and Jellyfin shows up here.'
-            : 'Loading…'}
-        </p>
-      </div>
+      <PageHeader
+        title="My history"
+        meta={p && p.plays > 0 ? `${p.plays} watched${p.hours > 0 ? ` · ${p.hours} hours` : ''}${p.last ? ` · last ${when(p.last)}` : ''}` : undefined}
+        info="What you watch on Plex and Jellyfin, copied every 15 minutes. Only you and admins see it."
+      />
       {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Something went wrong.'}</Notice>}
       {p && p.plays === 0 && (
         <Notice>Nothing yet. Marquee copies what you’ve watched from Plex and Jellyfin every 15 minutes. If you watch there under a different name, ask an admin to link your account in Settings → Users.</Notice>

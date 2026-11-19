@@ -3,6 +3,7 @@
 Status key: ✅ done · 🔨 in progress · ⬜ not started
 
 Mockups (web + iPhone): https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT
+UI audit and proposal (Nov 2026): https://claude.ai/artifact/VqXFR6MSiZtBvCFA1jgcC7 · `docs/design/ui-audit-2026-11.md`
 
 ## Milestone 0: Foundation ✅
 
@@ -288,6 +289,20 @@ Not done, on purpose:
 - ✅ **My history** (`/history`, everyone but admins in the menu; `GET /api/activity/mine`): what you watch most, recent streams and everything you watched, only your own. Admins see everyone's on Activity.
 - ⬜ Tautulli's old history isn't imported; IP addresses and locations and newsletters are left out for privacy and upkeep.
 - ⬜ Rules to stop streams automatically (limits per person); only stopping by hand.
+
+## UI overhaul 🔨 (before the iPhone app)
+
+From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the iPhone app copies the result.
+
+1. ✅ **Clear out**
+   - Compare, the four switch-over checklists (Movies, TV, Seerr, Tautulli), their routes (`/api/compare`, `/api/cutover`, `/api/retire-*`), the hourly comparison job and the Radarr history client are gone. The `comparisons` table stays (migrations are append-only).
+   - Their live controls moved to **Settings → Automatic searching** (`/api/automation`): the "look for wanted" switches, the daily limit, Look now with a "Preview only" switch, and recent runs.
+   - **Home is real**: `/api/home` returns a hero (Now showing → Ready to watch → Just arrived), Needs you (requests to approve, stuck or failed downloads, qBittorrent, failing Sources, Plex/Jellyfin problems, folders to match; problems first), On its way, your own requests (members and kids), Just arrived, This week and a footer of numbers. No sample data anywhere.
+   - Discover's carousel dots no longer cover the Trailer button on phones.
+2. 🔨 Tokens and shared components: type scale (caption → display), three radii, status ink colours, no raw hex or arbitrary sizes left. `components/Page.tsx`: PageHeader (Inter title, ⓘ for how-it-works, sets the tab title), InfoTip, StatusDot, Tabs, EmptyState; `Switch` in ui.tsx; `Bulbs`. Every page heading now uses PageHeader. Still to do: Sheet, Toast with Undo, Menu, command bar.
+3. 🔨 Navigation done: grouped sidebar (main · Activity · Manage), phone tab bar of five, avatar menu with Sign out (no bare icon); checked in the demo at desktop and 375px. Still to do: Library page with a Movies/Shows switch, grouped Settings home, Quality inside Settings, explainers cut on the Settings pages.
+4. ⬜ Home for members and kids, Get set up checklist, poster colour at import.
+5. ⬜ Art and motion: backdrop heroes, tinted rows, poster → title transition, sign-in poster wall; title page and Downloads rebuilt.
 
 ## Milestone 7: iPhone app ⬜
 

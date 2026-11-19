@@ -16,7 +16,7 @@ import { deliver } from './wantedLimits.js';
  * looking for better" are respected). A few movies per run, longest-waiting
  * first, so Sources aren't hammered; each search counts toward their limits.
  *
- * Off until you turn it on at the end of the switch-over checklist.
+ * Off until you turn it on in Settings → Automatic searching.
  */
 
 const HOUR = 3_600_000;

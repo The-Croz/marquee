@@ -36,7 +36,7 @@ function SourcesAdmin() {
 
   return (
     <div className="flex max-w-[960px] flex-col gap-6">
-      <p className="m-0 max-w-[680px] text-[15px] text-muted">
+      <p className="m-0 max-w-[680px] text-body text-muted">
         Sources are the sites Marquee searches for copies of a movie or show. Older apps call them indexers. Marquee searches them itself, or through Prowlarr if you still use it. It only reads
         from them: nothing is downloaded until you say so.
       </p>
@@ -136,7 +136,7 @@ function ProwlarrCard({ prowlarr, feeds, setMessage }: { prowlarr: SourcesView['
               : 'Already use Prowlarr? Link it and every one of its torrent sites with movies or TV becomes a Source. Marquee only reads from Prowlarr.'}
           </p>
           {prowlarr.linked && prowlarr.syncedAt && (
-            <p className="m-0 mt-2 text-[13px] text-dim">
+            <p className="m-0 mt-2 text-label text-dim">
               Last synced {ago(prowlarr.syncedAt)}
               {prowlarr.syncMessage && ` · ${prowlarr.syncMessage}`}
             </p>
@@ -216,7 +216,7 @@ function ProwlarrCard({ prowlarr, feeds, setMessage }: { prowlarr: SourcesView['
       )}
 
       {prowlarr.linked && feeds > 0 && !brought && (
-        <p className="m-0 max-w-[640px] text-[13px] text-dim">
+        <p className="m-0 max-w-[640px] text-label text-dim">
           “Bring sites over” moves each Prowlarr site Marquee knows into Marquee itself, keeping its name, priority and limits, so you can stop using Prowlarr. Each one can be put back.
         </p>
       )}
@@ -304,14 +304,14 @@ function SourceRow({ source: s, setMessage }: { source: SourceView; setMessage: 
     <div className="flex flex-col gap-3 border-t border-line py-4">
       <div className="flex flex-wrap items-center gap-4">
         <div className="min-w-[220px] flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+          <div className="flex flex-wrap items-center gap-2 text-body font-semibold">
             {s.name}
             {s.private && <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-soft">Private</span>}
             {s.kind === 'site' && <span className="rounded-full border border-teal px-2 py-0.5 text-xs font-medium text-teal-hi">Searched by Marquee</span>}
             {s.kind === 'site' && s.siteName && s.siteName !== s.name && <span className="text-xs font-normal text-dim">{s.siteName}</span>}
             {s.fromProwlarr && s.kind === 'feed' && <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-dim">From Prowlarr</span>}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-label text-muted">
             <span className="inline-flex items-center gap-1.5">
               <span aria-hidden="true" className={cx('size-2 rounded-full', STATE_COLOR[s.state])} />
               <span className={cx(failing ? 'text-warn' : s.state === 'working' ? 'text-teal-hi' : 'text-soft')}>{s.stateLabel}</span>
@@ -353,7 +353,7 @@ function SourceRow({ source: s, setMessage }: { source: SourceView; setMessage: 
           {check.message}
         </p>
       )}
-      {!check && s.state === 'working' && s.searchesById && <p className="m-0 text-[13px] text-dim">{s.searchesById}</p>}
+      {!check && s.state === 'working' && s.searchesById && <p className="m-0 text-label text-dim">{s.searchesById}</p>}
 
       {open && <SourceSettings source={s} onSaved={() => setOpen(false)} onRemove={s.fromProwlarr ? null : onRemove} onPutBack={s.canPutBack ? onPutBack : null} setMessage={setMessage} />}
     </div>
@@ -432,7 +432,7 @@ function SourceSettings({
           </>
         )}
       </div>
-      {s.fromProwlarr && s.kind === 'feed' && <p className="m-0 text-[13px] text-dim">The address and key come from Prowlarr: {s.url}</p>}
+      {s.fromProwlarr && s.kind === 'feed' && <p className="m-0 text-label text-dim">The address and key come from Prowlarr: {s.url}</p>}
 
       <details className="rounded-xl border border-line px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium text-soft">For experts</summary>
@@ -478,7 +478,7 @@ function SourceSettings({
 
 function Check({ id, name, label, defaultChecked }: { id: string; name: string; label: string; defaultChecked: boolean }) {
   return (
-    <label htmlFor={id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[15px]">
+    <label htmlFor={id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-body">
       <input id={id} name={name} type="checkbox" defaultChecked={defaultChecked} className="size-5 accent-amber" />
       {label}
     </label>

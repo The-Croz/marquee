@@ -65,22 +65,22 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
   }
 
   return (
-    <li className={cx('flex flex-col gap-3 rounded-[14px] border px-5 py-4', active ? 'border-line-strong bg-raised' : 'border-line')}>
+    <li className={cx('flex flex-col gap-3 rounded-2xl border px-5 py-4', active ? 'border-line-strong bg-raised' : 'border-line')}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {showTitle &&
             (d.titleLink ? (
-              <Link to={d.titleLink} className="text-[17px] font-semibold text-text no-underline hover:text-amber">
+              <Link to={d.titleLink} className="text-heading font-semibold text-text no-underline hover:text-amber">
                 {d.titleName}
               </Link>
             ) : (
-              <span className="text-[17px] font-semibold">{d.titleName}</span>
+              <span className="text-heading font-semibold">{d.titleName}</span>
             ))}
           <span className={cx('font-medium', TONE[d.status.tone])}>{d.status.label}</span>
           {d.status.detail && <span className="text-sm text-soft">{d.status.detail}</span>}
           {d.status.nextTryAt && <span className="text-sm text-muted">Marquee tries another copy {at(d.status.nextTryAt)} if it’s still stuck.</span>}
-          <span className="font-mono text-[12px] break-all text-dim">{d.title}</span>
-          <span className="text-[13px] text-muted">
+          <span className="font-mono text-caption break-all text-dim">{d.title}</span>
+          <span className="text-label text-muted">
             {[d.size !== null ? formatBytes(d.size) : null, d.sourceName, d.adopted ? 'Sent by another app' : null].filter(Boolean).join(' · ')}
           </span>
         </div>
@@ -92,7 +92,7 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
         </div>
       )}
       {d.importedPaths && d.importedPaths.length > 0 && (
-        <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-[12px] break-all text-muted">
+        <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-caption break-all text-muted">
           {d.importedPaths.map((p) => (
             <li key={p}>→ {p}</li>
           ))}

@@ -33,7 +33,7 @@ export function SearchBox({ initial = '', autoFocus = false, kind }: { initial?:
         defaultValue={initial}
         autoFocus={autoFocus}
         placeholder={kind ? `${label}…` : label}
-        className="h-12 w-full rounded-xl border border-line bg-panel px-[18px] text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
+        className="h-12 w-full rounded-xl border border-line bg-panel px-[18px] text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
       />
     </form>
   );

@@ -27,7 +27,7 @@ export function AuthLayout({ children, title, subtitle }: { children: React.Reac
           <h1 className="m-0 text-xl font-semibold">{title}</h1>
           <p className="m-0 text-sm text-muted">{subtitle}</p>
         </div>
-        <div className="flex flex-col gap-5 rounded-[20px] border border-line bg-panel p-7">{children}</div>
+        <div className="flex flex-col gap-5 rounded-2xl border border-line bg-panel p-7">{children}</div>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ export function LoginPage() {
             {oidc?.enabled && (
               <a
                 href="/api/auth/oidc/start"
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-line-strong text-[15px] font-medium text-text no-underline hover:bg-raised hover:text-text"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-line-strong text-body font-medium text-text no-underline hover:bg-raised hover:text-text"
               >
                 Continue with {oidc.name}
               </a>

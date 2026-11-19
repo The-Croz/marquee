@@ -20,18 +20,18 @@ export const STATE_LABEL: Record<CardState, string | null> = {
 };
 
 const STATE_TONE: Record<CardState, string> = {
-  in_library: 'bg-teal/90 text-[#04201d]',
-  downloading: 'bg-blue/90 text-[#071a33]',
-  approved: 'bg-blue/90 text-[#071a33]',
+  in_library: 'bg-teal/90 text-teal-ink',
+  downloading: 'bg-blue/90 text-blue-ink',
+  approved: 'bg-blue/90 text-blue-ink',
   pending: 'bg-amber text-amber-ink',
-  declined: 'bg-warn/90 text-[#2A1406]',
+  declined: 'bg-warn/90 text-warn-ink',
   none: '',
 };
 
 export function StateBadge({ state, className }: { state: CardState; className?: string }) {
   const label = STATE_LABEL[state];
   if (!label) return null;
-  return <span className={cx('rounded-md px-2 py-0.5 text-[11px] font-semibold', STATE_TONE[state], className)}>{label}</span>;
+  return <span className={cx('rounded-md px-2 py-0.5 text-caption font-semibold', STATE_TONE[state], className)}>{label}</span>;
 }
 
 /** Asks for a title (a whole show for a show). Shows what happened in plain words. */
@@ -100,7 +100,7 @@ function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard
         <Link to={cardHref(card)} aria-label={`Open ${card.title}`} className="absolute inset-0" />
       </div>
       <div className="flex flex-col gap-2 p-4">
-        <Link to={cardHref(card)} className="font-display text-[22px] leading-tight text-text no-underline hover:text-amber">
+        <Link to={cardHref(card)} className="font-display text-2xl leading-tight text-text no-underline hover:text-amber">
           {card.title}
         </Link>
         <div className="flex flex-wrap items-center gap-2 text-xs text-soft">
@@ -108,7 +108,7 @@ function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard
           {card.year && <span>{card.year}</span>}
           {card.genres.length > 0 && <span>{card.genres.slice(0, 3).join(' · ')}</span>}
         </div>
-        <p className="m-0 line-clamp-3 text-[13px] leading-snug text-muted">{card.overview}</p>
+        <p className="m-0 line-clamp-3 text-label leading-snug text-muted">{card.overview}</p>
         <div className="flex flex-wrap items-center gap-2">
           {canAsk ? (
             <button type="button" onClick={() => ask(card)} disabled={busy !== null} className="h-11 rounded-lg bg-amber px-4 text-sm font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60">
@@ -175,9 +175,9 @@ export function TitleCard({ card, trailers = true, className }: { card: Discover
         <div className="relative">
           <Poster title={card.title} path={card.posterPath} className="transition duration-200 group-hover:ring-2 group-hover:ring-amber group-focus-within:ring-2 group-focus-within:ring-amber" />
           <StateBadge state={card.state} className="absolute top-2 left-2" />
-          {card.badge && card.state === 'none' && <span className="absolute top-2 left-2 rounded-md bg-ink/85 px-2 py-0.5 text-[11px] font-semibold text-amber-hi">{card.badge}</span>}
+          {card.badge && card.state === 'none' && <span className="absolute top-2 left-2 rounded-md bg-ink/85 px-2 py-0.5 text-caption font-semibold text-amber-hi">{card.badge}</span>}
           {card.score !== null && (
-            <span className="absolute right-2 bottom-2 rounded-md bg-ink/85 px-1.5 py-0.5 text-[11px] font-semibold text-soft group-hover:opacity-0 group-focus-within:opacity-0">★ {card.score.toFixed(1)}</span>
+            <span className="absolute right-2 bottom-2 rounded-md bg-ink/85 px-1.5 py-0.5 text-caption font-semibold text-soft group-hover:opacity-0 group-focus-within:opacity-0">★ {card.score.toFixed(1)}</span>
           )}
         </div>
         <div className="flex flex-col gap-0.5">
@@ -189,26 +189,26 @@ export function TitleCard({ card, trailers = true, className }: { card: Discover
       {/* A little about it over the cover, on hover or keyboard focus. The whole cover is still a link. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 aspect-[2/3] overflow-hidden rounded-xl opacity-0 transition duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
         <Link to={cardHref(card)} tabIndex={-1} aria-hidden="true" className="pointer-events-auto absolute inset-0 flex flex-col justify-end gap-1.5 bg-gradient-to-t from-ink via-ink/85 to-transparent p-3 text-text no-underline hover:text-text">
-          <span className="font-display text-[19px] leading-[1.05]">{card.title}</span>
-          <span className="text-[11px] text-soft">
+          <span className="font-display text-xl leading-[1.05]">{card.title}</span>
+          <span className="text-caption text-soft">
             {card.score !== null && `★ ${card.score.toFixed(1)} · `}
             {card.genres.slice(0, 2).join(', ')}
           </span>
-          <p className="m-0 line-clamp-4 text-[11px] leading-snug text-soft">{card.overview}</p>
+          <p className="m-0 line-clamp-4 text-caption leading-snug text-soft">{card.overview}</p>
         </Link>
         {canAsk ? (
           <button
             type="button"
             onClick={() => ask(card)}
             disabled={busy !== null}
-            className="pointer-events-auto absolute right-3 bottom-3 left-3 z-10 flex h-11 items-center justify-center rounded-lg bg-amber px-3 text-[13px] font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60"
+            className="pointer-events-auto absolute right-3 bottom-3 left-3 z-10 flex h-11 items-center justify-center rounded-lg bg-amber px-3 text-label font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60"
           >
             {busy === card.tmdbId ? 'Asking…' : 'Request'}
           </button>
         ) : (
           <StateBadge state={card.state} className="absolute top-2 left-2" />
         )}
-        {message && <span className="absolute right-3 bottom-16 left-3 text-[11px] text-warn">{message}</span>}
+        {message && <span className="absolute right-3 bottom-16 left-3 text-caption text-warn">{message}</span>}
       </div>
 
       {pos && key && <Preview card={card} videoKey={key} pos={pos} onEnter={() => clearTimeout(closer.current)} onLeave={leave} />}
@@ -224,7 +224,7 @@ export function Row({ row, trailers }: { row: DiscoverRow; trailers: boolean }) 
     <section aria-labelledby={`row-${row.id}`} className="flex flex-col gap-3">
       <div className="flex items-end justify-between gap-3">
         <div className="flex flex-col">
-          <h2 id={`row-${row.id}`} className="m-0 text-[20px] font-semibold">
+          <h2 id={`row-${row.id}`} className="m-0 text-xl font-semibold">
             {row.title}
           </h2>
           {row.subtitle && <span className="text-sm text-muted">{row.subtitle}</span>}
@@ -272,7 +272,7 @@ export function Hero({ items }: { items: DiscoverCard[] }) {
     <section
       aria-roledescription="carousel"
       aria-label="Featured"
-      className="relative overflow-hidden rounded-[22px] bg-raised"
+      className="relative overflow-hidden rounded-2xl bg-raised"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -286,33 +286,33 @@ export function Hero({ items }: { items: DiscoverCard[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/20 to-transparent" />
       <div aria-live={paused ? 'polite' : 'off'} className="relative flex min-h-[340px] flex-col justify-end gap-3 px-6 pt-24 pb-9 sm:min-h-[420px] sm:px-10 lg:min-h-[460px]">
-        <div className="flex flex-wrap items-center gap-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2 text-label">
           <span className="rounded-full bg-white/10 px-2.5 py-1 text-soft">{c.kind === 'movie' ? 'Movie' : 'Show'}</span>
           {c.year && <span className="text-soft">{c.year}</span>}
           {c.score !== null && <span className="font-semibold text-amber-hi">★ {c.score.toFixed(1)}</span>}
           {c.genres.length > 0 && <span className="text-soft">{c.genres.join(' · ')}</span>}
           {c.badge && <span className="rounded-full bg-amber/20 px-2.5 py-1 font-semibold text-amber-hi">{c.badge}</span>}
         </div>
-        <h2 className="m-0 max-w-[760px] font-display text-[44px] leading-[0.95] font-normal sm:text-[68px]">{c.title}</h2>
-        <p className="m-0 line-clamp-3 max-w-[640px] text-[16px] leading-relaxed text-soft">{c.overview}</p>
+        <h2 className="m-0 max-w-[760px] font-display text-[44px] leading-[0.95] font-normal sm:text-display-lg">{c.title}</h2>
+        <p className="m-0 line-clamp-3 max-w-[640px] text-base leading-relaxed text-soft">{c.overview}</p>
         <div className="mt-1 flex flex-wrap items-center gap-3">
           {canAsk ? (
             <Button type="button" onClick={() => ask(c)} disabled={busy !== null}>
               {busy === c.tmdbId ? 'Asking…' : 'Request'}
             </Button>
           ) : (
-            <StateBadge state={c.state} className="px-3 py-2 text-[13px]" />
+            <StateBadge state={c.state} className="px-3 py-2 text-label" />
           )}
-          <Link to={cardHref(c)} className="inline-flex h-11 items-center rounded-xl border border-line-strong px-5 text-[15px] font-medium text-text no-underline hover:bg-white/10 hover:text-text">
+          <Link to={cardHref(c)} className="inline-flex h-11 items-center rounded-xl border border-line-strong px-5 text-body font-medium text-text no-underline hover:bg-white/10 hover:text-text">
             More info
           </Link>
-          <Link to={`/discover/${c.kind}/${c.tmdbId}?trailer=1`} className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-[15px] font-medium text-soft no-underline hover:text-text">
+          <Link to={`/discover/${c.kind}/${c.tmdbId}?trailer=1`} className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-body font-medium text-soft no-underline hover:text-text">
             <span aria-hidden="true">▶</span> Trailer
           </Link>
           {message && <span className="text-sm text-warn">{message}</span>}
         </div>
         {items.length > 1 && (
-          <div className="absolute right-6 bottom-9 flex items-center gap-1 sm:right-10" role="group" aria-label="Choose a featured title">
+          <div className="-ml-3 flex flex-wrap items-center gap-1 sm:absolute sm:right-10 sm:bottom-9 sm:ml-0" role="group" aria-label="Choose a featured title">
             {items.map((x, n) => (
               <button key={x.tmdbId} type="button" aria-label={`${x.title}${n === i ? ', showing now' : ''}`} aria-current={n === i} onClick={() => setI(n)} className="flex size-11 items-center justify-center">
                 <span className={cx('block h-1.5 rounded-full transition-all', n === i ? 'w-6 bg-amber' : 'w-1.5 bg-white/40')} />

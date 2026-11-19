@@ -5,11 +5,12 @@ import type { DiscoverTitle, ProfilesView, RequestState, RequestView, SessionUse
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Card, Notice, cx } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong. Try again.');
 const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['requests'] }), queryClient.invalidateQueries({ queryKey: ['discover'] }), queryClient.invalidateQueries({ queryKey: ['library'] })]);
 
-const STATE: Record<RequestState, { label: string; tone: string }> = {
+export const STATE: Record<RequestState, { label: string; tone: string }> = {
   pending: { label: 'Waiting for approval', tone: 'bg-amber/16 text-amber-hi' },
   unreleased: { label: 'Approved · not out yet', tone: 'bg-blue/18 text-blue-hi' },
   looking: { label: 'Approved · looking for it', tone: 'bg-blue/18 text-blue-hi' },
@@ -119,10 +120,10 @@ function DeclinePanel({ r, onDone }: { r: RequestView; onDone: (undo: boolean) =
       <label htmlFor={`reason-${r.id}`} className="text-sm text-soft">
         Why? {r.requestedBy?.name ?? 'They'} will see this.
       </label>
-      <input id={`reason-${r.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-[15px] text-text focus:border-amber focus:outline-none" />
+      <input id={`reason-${r.id}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-body text-text focus:border-amber focus:outline-none" />
       <div className="flex flex-wrap gap-2">
         {QUICK.map((q) => (
-          <button key={q} type="button" onClick={() => setReason(q)} className="min-h-11 rounded-full border border-line-strong px-3.5 text-[13px] text-soft hover:text-text">
+          <button key={q} type="button" onClick={() => setReason(q)} className="min-h-11 rounded-full border border-line-strong px-3.5 text-label text-soft hover:text-text">
             {q}
           </button>
         ))}
@@ -161,7 +162,7 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
           <Poster title={r.title} path={r.posterPath} className="w-[64px] flex-none rounded-lg" size="w185" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-baseline gap-x-3">
-              <h3 className="m-0 text-[17px] font-semibold">
+              <h3 className="m-0 text-heading font-semibold">
                 <Link to={`/discover/${r.kind}/${r.tmdbId}`} className="text-text no-underline hover:text-amber">
                   {r.title}
                 </Link>{' '}
@@ -169,7 +170,7 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
               </h3>
               <span className="text-xs text-dim">{r.kind === 'movie' ? 'Movie' : 'Show'}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+            <div className="flex flex-wrap items-center gap-2 text-label">
               <span className={cx('rounded-full px-2.5 py-1 font-semibold', st.tone)}>{st.label}</span>
               {seasonsText(r.seasons) && <span className="text-soft">{seasonsText(r.seasons)}</span>}
               {r.profile && <span className="text-soft">{r.profile}</span>}
@@ -259,12 +260,10 @@ export function RequestsPage({ user }: { user: SessionUser }) {
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Requests</h1>
-        <p className="m-0 max-w-[640px] text-sm text-muted">
-          {admin ? 'Approve what the family asks for. Yours go straight through.' : 'Ask for a movie or show from Discover. An admin approves it, and you’ll hear when it’s ready.'}
-        </p>
-      </div>
+      <PageHeader
+        title="Requests"
+        info={admin ? 'Approve what the family asks for. Your own requests go straight through.' : 'Ask for a movie or show from Discover. An admin approves it, and you’ll hear when it’s ready.'}
+      />
       <nav aria-label="Requests" className="flex flex-wrap gap-2">
         {tabs.map(([v, label]) => (
           <button

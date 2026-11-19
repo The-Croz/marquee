@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { ApiFailure } from '../api';
 import { DownloadList, useDownloads } from '../components/Downloads';
 import { Notice } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 /** Downloads: what Marquee sent to qBittorrent, in plain words, with one-tap fixes. */
 export function DownloadsPage() {
@@ -12,13 +13,15 @@ export function DownloadsPage() {
   const earlier = v?.items.filter((d) => !current(d)).slice(0, 30) ?? [];
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Downloads</h1>
-        <p className="m-0 max-w-[720px] text-[15px] leading-relaxed text-muted">
-          What Marquee sent to qBittorrent. It checks every minute, and when a download is stuck for too long or turns out to be fake, it tries another copy by itself. Change the times in{' '}
-          <Link to="/settings/downloader">Settings → Downloader</Link>.
-        </p>
-      </div>
+      <PageHeader
+        title="Downloads"
+        info={
+          <>
+            Marquee checks qBittorrent every minute. When a download is stuck too long or turns out to be fake, it tries another copy by itself. Change the times in{' '}
+            <Link to="/settings/downloader">Settings → Downloader</Link>.
+          </>
+        }
+      />
       {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Something went wrong.'}</Notice>}
       {v && (
         <>

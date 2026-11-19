@@ -30,7 +30,7 @@ function sharing(c: CopyView): string {
 function Why({ c, profile }: { c: CopyView; profile: string }) {
   return (
     <div className="flex flex-col gap-2 border-t border-line-strong pt-3">
-      <div className="text-[13px] font-semibold text-soft">Why it ranks here</div>
+      <div className="text-label font-semibold text-soft">Why it ranks here</div>
       {c.rules.length === 0 && <p className="m-0 text-sm text-muted">No rules in {profile} match this copy, so it scores 0 points.</p>}
       <ul className="m-0 grid list-none grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1.5 p-0 text-sm">
         {c.rules.map((r) => (
@@ -107,7 +107,7 @@ function SendButton({ c, searchId, best }: { c: CopyView; searchId: string; best
 function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; profile: string; searchId: string }) {
   const [open, setOpen] = useState(best);
   return (
-    <li className={cx('flex flex-col gap-3 rounded-[14px] border px-5 py-4', best ? 'border-amber bg-raised' : c.accepted ? 'border-line-strong' : 'border-line')}>
+    <li className={cx('flex flex-col gap-3 rounded-2xl border px-5 py-4', best ? 'border-amber bg-raised' : c.accepted ? 'border-line-strong' : 'border-line')}>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           {c.accepted && (
@@ -120,7 +120,7 @@ function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; p
               ))}
             </div>
           )}
-          <div className={cx('font-mono text-[13px] break-all', c.accepted ? 'text-soft' : 'text-muted')}>
+          <div className={cx('font-mono text-label break-all', c.accepted ? 'text-soft' : 'text-muted')}>
             {c.infoUrl ? (
               <a href={c.infoUrl} target="_blank" rel="noreferrer noopener" className="text-inherit">
                 {c.title}
@@ -129,7 +129,7 @@ function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; p
               c.title
             )}
           </div>
-          <div className="text-[13px] text-muted">
+          <div className="text-label text-muted">
             {[c.sizeBytes !== null ? formatBytes(c.sizeBytes) : 'Size unknown', sharing(c), c.sources.map((s) => s.name).join(' and ')].join(' · ')}
           </div>
           {!c.accepted &&
@@ -142,9 +142,9 @@ function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; p
           <SendButton c={c} searchId={searchId} best={best} />
         </div>
         <div className="flex flex-none flex-col items-end">
-          <div className={cx('font-bold', best ? 'text-[28px] text-amber' : 'text-[20px]', !c.accepted && 'text-muted')}>{points(c.score)}</div>
+          <div className={cx('font-bold', best ? 'text-title text-amber' : 'text-xl', !c.accepted && 'text-muted')}>{points(c.score)}</div>
           <div className="text-xs text-muted">points</div>
-          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="h-11 text-[13px] font-medium text-amber">
+          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="h-11 text-label font-medium text-amber">
             {open ? 'Hide why' : 'Why?'}
           </button>
         </div>
@@ -197,16 +197,16 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-xl font-semibold">Copies we found</h2>
-          <p className="m-0 text-[13px] text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads until you press “Download this”.</p>
+          <p className="m-0 text-label text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads until you press “Download this”.</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-[13px] text-muted">
+          <label className="flex flex-col gap-1 text-label text-muted">
             Profile
             <select
               value={profile}
               disabled={change.isPending || !mine.length}
               onChange={(e) => change.mutate(e.target.value)}
-              className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text"
+              className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text"
             >
               {!mine.some((p) => p.key === profile) && <option value={profile}>{profile}</option>}
               {byHand && <option value={RULES}>Let the rules pick</option>}
@@ -220,7 +220,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
           </label>
           {kind === 'tv' && seasons && (
             <>
-              <label className="flex flex-col gap-1 text-[13px] text-muted">
+              <label className="flex flex-col gap-1 text-label text-muted">
                 Season
                 <select
                   value={season}
@@ -228,7 +228,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
                     setSeason(Number(e.target.value));
                     setEpisode('all');
                   }}
-                  className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm text-text"
+                  className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text"
                 >
                   {seasons.map((s) => (
                     <option key={s.season} value={s.season}>
@@ -237,12 +237,12 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-[13px] text-muted">
+              <label className="flex flex-col gap-1 text-label text-muted">
                 Episode
                 <select
                   value={episode}
                   onChange={(e) => setEpisode(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm text-text"
+                  className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text"
                 >
                   <option value="all">Whole season</option>
                   {episodes.map((n) => (
@@ -263,7 +263,7 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
       {search.error && <Notice tone="error">{errMsg(search.error)}</Notice>}
       {r && (
         <>
-          <p className="m-0 text-[13px] text-muted">
+          <p className="m-0 text-label text-muted">
             {r.copies.length} {r.copies.length === 1 ? 'copy' : 'copies'} from {r.sources.filter((s) => s.status === 'searched').length} Sources in {(r.ms / 1000).toFixed(1)} s · {accepted.length}{' '}
             {r.profile.name} would take
             {r.yours && <> · you have {r.yours.qualityLabel}</>}

@@ -87,7 +87,7 @@ function Values({
           type="button"
           aria-label={`Remove ${nameOf(p)}`}
           onClick={() => onChange(picked.filter((x) => x !== p))}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong bg-ink px-3 text-[13px] text-text hover:border-warn"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line-strong bg-ink px-3 text-label text-text hover:border-warn"
         >
           {nameOf(p)} <span aria-hidden="true" className="text-dim">×</span>
         </button>
@@ -97,7 +97,7 @@ function Values({
           aria-label={`Add a ${fieldLabel(c.field, kind).toLowerCase()}`}
           value=""
           onChange={(e) => e.target.value && add(e.target.value)}
-          className="h-9 rounded-full border border-dashed border-line-strong bg-transparent px-2.5 text-[13px] text-muted"
+          className="h-9 rounded-full border border-dashed border-line-strong bg-transparent px-2.5 text-label text-muted"
         >
           <option value="">+ add</option>
           {choices
@@ -123,7 +123,7 @@ function Values({
               }
             }}
             onBlur={() => typed && add(typed)}
-            className="h-9 w-[190px] rounded-full border border-dashed border-line-strong bg-transparent px-3 text-[13px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
+            className="h-9 w-[190px] rounded-full border border-dashed border-line-strong bg-transparent px-3 text-label text-text placeholder:text-dim focus:border-amber focus:outline-none"
           />
           <datalist id={listId}>
             {suggestions.slice(0, 200).map((s) => (
@@ -144,7 +144,7 @@ function ConditionRow({ c, kind, data, onChange, onRemove }: { c: ConditionView;
         aria-label="What to check"
         value={c.field}
         onChange={(e) => onChange(blank(e.target.value as ConditionField))}
-        className="h-9 rounded-[10px] border border-line-strong bg-ink px-2 text-sm text-text"
+        className="h-9 rounded-lg border border-line-strong bg-ink px-2 text-sm text-text"
       >
         {FIELDS.map((f) => (
           <option key={f.field} value={f.field}>
@@ -162,7 +162,7 @@ function ConditionRow({ c, kind, data, onChange, onRemove }: { c: ConditionView;
             placeholder="any"
             value={c.min ?? ''}
             onChange={(e) => onChange({ ...c, min: year(e.target.value) })}
-            className="h-9 w-[90px] rounded-[10px] border border-line-strong bg-ink px-2 text-right text-sm text-text placeholder:text-dim"
+            className="h-9 w-[90px] rounded-lg border border-line-strong bg-ink px-2 text-right text-sm text-text placeholder:text-dim"
           />
           to
           <input
@@ -172,7 +172,7 @@ function ConditionRow({ c, kind, data, onChange, onRemove }: { c: ConditionView;
             placeholder="any"
             value={c.max ?? ''}
             onChange={(e) => onChange({ ...c, max: year(e.target.value) })}
-            className="h-9 w-[90px] rounded-[10px] border border-line-strong bg-ink px-2 text-right text-sm text-text placeholder:text-dim"
+            className="h-9 w-[90px] rounded-lg border border-line-strong bg-ink px-2 text-right text-sm text-text placeholder:text-dim"
           />
         </div>
       ) : (
@@ -181,7 +181,7 @@ function ConditionRow({ c, kind, data, onChange, onRemove }: { c: ConditionView;
             aria-label="How to compare"
             value={c.op}
             onChange={(e) => onChange({ ...c, op: e.target.value as ConditionOp })}
-            className="h-9 rounded-[10px] border border-line-strong bg-ink px-2 text-sm text-text"
+            className="h-9 rounded-lg border border-line-strong bg-ink px-2 text-sm text-text"
           >
             {opsFor(c.field).map((o) => (
               <option key={o} value={o}>
@@ -281,8 +281,8 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[17px] font-semibold">Which profile a new {what} gets</h2>
-        <p className="m-0 text-[13px] text-muted">
+        <h2 className="m-0 text-heading font-semibold">Which profile a new {what} gets</h2>
+        <p className="m-0 text-label text-muted">
           Picked by what kind of {what} it is, from TMDB. Checked from the top: the first rule whose conditions all fit wins. A profile you pick on a {what}’s page always stays.
         </p>
       </div>
@@ -325,7 +325,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
                     aria-label="Add a condition"
                     value=""
                     onChange={(e) => e.target.value && setRule(i, { ...r, conditions: [...r.conditions, blank(e.target.value as ConditionField)] })}
-                    className="h-11 rounded-[10px] border border-dashed border-line-strong bg-transparent px-3 text-sm text-amber"
+                    className="h-11 rounded-lg border border-dashed border-line-strong bg-transparent px-3 text-sm text-amber"
                   >
                     <option value="">+ Add a condition</option>
                     {FIELDS.map((f) => (
@@ -336,7 +336,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
                   </select>
                   <label className="flex items-center gap-2 text-sm text-soft">
                     then use
-                    <select value={r.profile} onChange={(e) => setRule(i, { ...r, profile: e.target.value })} className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text">
+                    <select value={r.profile} onChange={(e) => setRule(i, { ...r, profile: e.target.value })} className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text">
                       {profiles.map((p) => (
                         <option key={p.key} value={p.key}>
                           {p.name}
@@ -368,7 +368,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
             value={view.defaults[kind]}
             disabled={setDefault.isPending}
             onChange={(e) => setDefault.mutate(e.target.value)}
-            className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text"
+            className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm font-semibold text-text"
           >
             {profiles.map((p) => (
               <option key={p.key} value={p.key}>
@@ -405,7 +405,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
           Sort my library by these rules…
         </Button>
       </div>
-      {dirty && <p className="m-0 text-[13px] text-amber-hi">Not saved yet. The counts already show what these rules would do.</p>}
+      {dirty && <p className="m-0 text-label text-amber-hi">Not saved yet. The counts already show what these rules would do.</p>}
       {save.error && <Notice tone="error">{errMsg(save.error)}</Notice>}
       {setDefault.error && <Notice tone="error">{errMsg(setDefault.error)}</Notice>}
       {(preview.error || apply.error) && <Notice tone="error">{errMsg(preview.error ?? apply.error)}</Notice>}
@@ -454,7 +454,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
             value={tryQuery}
             onChange={(e) => setTryQuery(e.target.value)}
             placeholder={kind === 'movie' ? 'Inside Out 2' : 'Bluey'}
-            className="h-11 w-[260px] rounded-[10px] border border-line-strong bg-raised px-3 text-sm text-text placeholder:text-dim focus:border-amber focus:outline-none"
+            className="h-11 w-[260px] rounded-lg border border-line-strong bg-raised px-3 text-sm text-text placeholder:text-dim focus:border-amber focus:outline-none"
           />
         </label>
         {tryQuery.trim() && check.data && check.data.titles.length === 0 && <p className="m-0 text-sm text-muted">No {what} in your library matches that name.</p>}
@@ -476,7 +476,7 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
             return (
               <li key={t.id} className="flex flex-col gap-1 rounded-xl border border-line bg-ink px-4 py-3">
                 <div className="flex flex-wrap items-baseline gap-x-3">
-                  <span className="text-[15px] font-semibold">
+                  <span className="text-body font-semibold">
                     {t.title} {t.year && <span className="font-normal text-dim">({t.year})</span>}
                   </span>
                   <span className="text-sm">
@@ -484,9 +484,9 @@ export function ProfileChoices({ kind, view }: { kind: ProfileKind; view: Profil
                   </span>
                   {t.byHand && <span className="text-xs text-dim">(you picked a profile for this one, so it stays as it is)</span>}
                 </div>
-                <div className="text-[13px] text-muted">{facts.length ? facts.join(' · ') : 'TMDB hasn’t told Marquee about this one yet. Scan your library to fill it in.'}</div>
+                <div className="text-label text-muted">{facts.length ? facts.join(' · ') : 'TMDB hasn’t told Marquee about this one yet. Scan your library to fill it in.'}</div>
                 {misses.length > 0 && (
-                  <ul className="m-0 list-none p-0 text-[13px] text-dim">
+                  <ul className="m-0 list-none p-0 text-label text-dim">
                     {misses.slice(0, 4).map((m) => (
                       <li key={m.i}>
                         Not rule {m.i + 1}: “{m.failed.map((c) => describe(c, kind, names)).join('”, “')}” doesn’t fit.

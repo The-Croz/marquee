@@ -24,6 +24,36 @@
   --color-teal: #4fd1c5;
   --color-teal-hi: #8fe5dc;
   --color-warn: #ff9e6b;
+  /* Text on a solid status colour, and the cream used on placeholder posters. */
+  --color-teal-ink: #04201d;
+  --color-blue-ink: #071a33;
+  --color-warn-ink: #2a1406;
+  --color-cream: #f7f3ea;
+
+  /* Type scale. The serif (display) is for film and show titles only. */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.4;
+  --text-label: 13px;
+  --text-label--line-height: 1.45;
+  --text-body: 15px;
+  --text-body--line-height: 1.55;
+  --text-heading: 17px;
+  --text-heading--line-height: 1.35;
+  --text-title: 28px;
+  --text-title--line-height: 1.15;
+  --text-display: 56px;
+  --text-display--line-height: 0.95;
+  --text-display-lg: 72px;
+  --text-display-lg--line-height: 0.92;
+
+  /* Three radii: inputs and chips, buttons and rows, posters, panels and sheets. */
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 12px;
+  --radius-2xl: 20px;
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-display: 'Instrument Serif', Georgia, serif;
@@ -46,5 +76,25 @@
   }
   a:hover {
     color: var(--color-amber-hi);
+  }
+}
+
+/* Marquee bulbs: lit bulbs glow; a chasing row dims each in turn. */
+.bulb-on {
+  box-shadow: 0 0 8px var(--color-amber);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bulbs-chase .bulb-on {
+    animation: bulb-chase 2.4s steps(1) infinite;
+  }
+}
+@keyframes bulb-chase {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  71%,
+  100% {
+    opacity: 0.35;
   }
 }

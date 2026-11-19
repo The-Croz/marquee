@@ -22,7 +22,7 @@ export function Poster({ title, path, className, size = 'w342' }: { title: strin
     <div className={cx('relative aspect-[2/3] overflow-hidden rounded-xl', className)} style={{ background: colorFor(title) }}>
       {/* The title sits underneath, so it shows while the image loads or if it fails. */}
       <div className="absolute inset-0 flex items-end p-3">
-        <span className="font-display text-[20px] leading-[1.05] text-[#F7F3EA]">{title}</span>
+        <span className="font-display text-xl leading-[1.05] text-cream">{title}</span>
       </div>
       {src && !failed && <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} className="absolute inset-0 size-full object-cover" />}
     </div>

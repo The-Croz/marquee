@@ -6,6 +6,7 @@ import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { ServerPeople } from '../components/ServerPeople';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
@@ -20,6 +21,7 @@ export function SettingsLayout({ status }: Ctx) {
           { to: '/settings/services', label: 'Services' },
           { to: '/settings/sources', label: 'Sources' },
           { to: '/settings/downloader', label: 'Downloader' },
+          { to: '/settings/automation', label: 'Automatic searching' },
           { to: '/settings/watched-sync', label: 'Watched sync' },
         ]
       : []),
@@ -27,7 +29,7 @@ export function SettingsLayout({ status }: Ctx) {
   ];
   return (
     <>
-      <h1 className="m-0 font-display text-[56px] leading-none font-normal">Settings</h1>
+      <PageHeader title="Settings" />
       <nav aria-label="Settings" className="flex flex-wrap gap-2">
         {tabs.map((t) => (
           <NavLink
@@ -164,7 +166,7 @@ function LinkRow({ name, linked, onLink, onUnlink }: { name: string; linked: boo
   return (
     <div className="flex flex-wrap items-center gap-4 border-t border-line py-3.5">
       <div className="flex-1">
-        <div className="text-[15px] font-medium">{name}</div>
+        <div className="text-body font-medium">{name}</div>
         <div className={cx('text-sm', linked ? 'text-teal-hi' : 'text-dim')}>{linked ? 'Linked' : 'Not linked'}</div>
       </div>
       {linked ? (
@@ -253,10 +255,10 @@ function UsersAdmin({ status }: Ctx) {
               {u.displayName.slice(0, 1).toUpperCase()}
             </span>
             <div className="min-w-[180px] flex-1">
-              <div className="text-[15px] font-semibold">
+              <div className="text-body font-semibold">
                 {u.displayName} {u.id === status.user.id && <span className="text-sm font-normal text-dim">(you)</span>}
               </div>
-              <div className="text-[13px] text-muted">
+              <div className="text-label text-muted">
                 {u.username}
                 {u.plexUsername && ` · Plex: ${u.plexUsername}`}
                 {u.jellyfinUsername && ` · Jellyfin: ${u.jellyfinUsername}`}
@@ -313,7 +315,7 @@ function UsersAdmin({ status }: Ctx) {
             <label htmlFor="new-role" className="text-sm font-medium text-soft">
               Role
             </label>
-            <select id="new-role" name="role" defaultValue="member" className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-[15px] text-text">
+            <select id="new-role" name="role" defaultValue="member" className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-body text-text">
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
@@ -469,9 +471,9 @@ function NamePattern({ kind, saved, fallback }: { kind: 'movie' | 'tv'; saved: s
         onChange={(e) => setValue(e.target.value)}
         spellCheck={false}
         aria-describedby={`${id}-preview`}
-        className="h-11 rounded-xl border border-line-strong bg-ink px-3.5 font-mono text-[13px] text-text"
+        className="h-11 rounded-xl border border-line-strong bg-ink px-3.5 font-mono text-label text-text"
       />
-      <p id={`${id}-preview`} role="status" className={cx('m-0 font-mono text-[12px] break-all', preview?.problem ? 'text-warn' : 'text-muted')}>
+      <p id={`${id}-preview`} role="status" className={cx('m-0 font-mono text-caption break-all', preview?.problem ? 'text-warn' : 'text-muted')}>
         {preview?.problem ?? (preview?.example ? `e.g. ${preview.example}` : ' ')}
       </p>
       {value !== fallback && (
@@ -653,7 +655,7 @@ export function AboutPage() {
         <h2 className="m-0 text-lg font-semibold">About Marquee</h2>
         <p className="m-0 text-sm text-muted">Movies and shows for your household, from one app.</p>
       </div>
-      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[15px]">
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-body">
         <dt className="text-dim">Version</dt>
         <dd className="m-0 font-mono text-soft">{status.version}</dd>
         <dt className="text-dim">License</dt>

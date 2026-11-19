@@ -89,7 +89,7 @@ export function WatchSyncPage() {
                 {plan.people.map((p) => (
                   <li key={p.userId} className="flex flex-col gap-1 border-t border-line py-3 first:border-0">
                     <span className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-[15px] font-semibold">{p.name}</span>
+                      <span className="text-body font-semibold">{p.name}</span>
                       {p.state === 'linked' && (
                         <span className="text-sm text-muted">
                           {p.toJellyfin + p.toPlex === 0 ? 'Already the same' : `${ticks(p.toJellyfin)} on Jellyfin · ${ticks(p.toPlex)} on Plex`}
@@ -114,7 +114,7 @@ export function WatchSyncPage() {
         {s.runs.length === 0 && <p className="m-0 text-sm text-muted">Nothing synced yet. Syncs that add ticks show here, with a way to undo them.</p>}
         {s.runs.map((r) => (
           <details key={r.at} className="border-t border-line first-of-type:border-0">
-            <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-[15px]">
+            <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-body">
               <span>
                 {when(r.at)} · {ticks(r.ticks)}
                 {r.undone > 0 && <span className="text-dim"> · {r.undone === r.ticks ? 'undone' : `${r.undone} undone`}</span>}

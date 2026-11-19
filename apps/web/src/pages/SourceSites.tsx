@@ -59,14 +59,14 @@ export function SiteFields({ fields, values, prefix }: { fields: SiteField[]; va
         const current = typeof v === 'object' && v !== null && !Array.isArray(v) ? null : (v ?? f.default ?? null);
         if (f.type === 'info')
           return (
-            <p key={id} className="m-0 self-end rounded-xl bg-raised px-3 py-2 text-[13px] text-muted [grid-column:1/-1]">
+            <p key={id} className="m-0 self-end rounded-xl bg-raised px-3 py-2 text-label text-muted [grid-column:1/-1]">
               {f.label && <span className="font-medium text-soft">{f.label}: </span>}
               {f.text}
             </p>
           );
         if (f.type === 'checkbox')
           return (
-            <label key={id} htmlFor={id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 self-end text-[15px]">
+            <label key={id} htmlFor={id} className="inline-flex min-h-11 cursor-pointer items-center gap-2 self-end text-body">
               <input id={id} name={id} type="checkbox" defaultChecked={current === true || current === 'true'} className="size-5 accent-amber" />
               {f.label}
             </label>
@@ -77,7 +77,7 @@ export function SiteFields({ fields, values, prefix }: { fields: SiteField[]; va
               <label htmlFor={id} className="text-sm font-medium text-soft">
                 {f.label}
               </label>
-              <select id={id} name={id} defaultValue={typeof current === 'string' ? current : undefined} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-[15px]">
+              <select id={id} name={id} defaultValue={typeof current === 'string' ? current : undefined} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-body">
                 {f.options?.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -91,7 +91,7 @@ export function SiteFields({ fields, values, prefix }: { fields: SiteField[]; va
             <fieldset key={id} className="m-0 flex flex-col gap-1 border-0 p-0">
               <legend className="mb-2 text-sm font-medium text-soft">{f.label}</legend>
               {f.options?.map((o) => (
-                <label key={o.value} className="inline-flex min-h-11 items-center gap-2 text-[15px]">
+                <label key={o.value} className="inline-flex min-h-11 items-center gap-2 text-body">
                   <input type="checkbox" name={id} value={o.value} defaultChecked={Array.isArray(current) && current.includes(o.value)} className="size-5 accent-amber" />
                   {o.label}
                 </label>
@@ -154,20 +154,20 @@ export function SiteSettingsEditor({ source: s, setMessage }: { source: SourceVi
 
   return (
     <form onSubmit={save} className="flex flex-col gap-4 rounded-xl border border-line px-4 py-4">
-      <h3 className="m-0 text-[15px] font-semibold">{form.name}: address and sign-in</h3>
+      <h3 className="m-0 text-body font-semibold">{form.name}: address and sign-in</h3>
       {form.links.length > 1 && (
         <div className="flex max-w-[420px] flex-col gap-2">
           <label htmlFor={`${prefix}address`} className="text-sm font-medium text-soft">
             Address
           </label>
-          <select id={`${prefix}address`} name={`${prefix}address`} defaultValue={s.url} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-[15px]">
+          <select id={`${prefix}address`} name={`${prefix}address`} defaultValue={s.url} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-body">
             {form.links.map((l) => (
               <option key={l} value={l}>
                 {l}
               </option>
             ))}
           </select>
-          <p className="m-0 text-[13px] text-dim">If the site stops answering, another of its addresses often still works.</p>
+          <p className="m-0 text-label text-dim">If the site stops answering, another of its addresses often still works.</p>
         </div>
       )}
       <SiteFields fields={form.fields} values={s.siteSettings} prefix={prefix} />
@@ -244,14 +244,14 @@ export function AddSiteCard({ setMessage }: { setMessage: (m: Msg) => void }) {
                   disabled={!!s.unsupported}
                   className="flex min-h-11 w-full flex-col items-start gap-0.5 bg-transparent px-1 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="flex flex-wrap items-center gap-2 text-[15px] font-semibold text-text">
+                  <span className="flex flex-wrap items-center gap-2 text-body font-semibold text-text">
                     {s.name}
                     <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs font-medium text-soft">{KIND_LABEL[s.type]}</span>
                     {s.origin === 'builtin' && <span className="rounded-full border border-teal px-2 py-0.5 text-xs font-medium text-teal-hi">Built in</span>}
                     {s.origin === 'custom' && <span className="rounded-full border border-amber px-2 py-0.5 text-xs font-medium text-amber-hi">Your file</span>}
                     <span className="text-xs font-normal text-dim">{s.movies && s.tv ? 'Movies and TV' : s.movies ? 'Movies' : 'TV'}</span>
                   </span>
-                  <span className="text-[13px] text-muted">{s.unsupported ? `Not supported yet: ${s.unsupported}` : s.description}</span>
+                  <span className="text-label text-muted">{s.unsupported ? `Not supported yet: ${s.unsupported}` : s.description}</span>
                 </button>
               </li>
             ))}
@@ -264,7 +264,7 @@ export function AddSiteCard({ setMessage }: { setMessage: (m: Msg) => void }) {
         </>
       )}
       {cat && (
-        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3 text-[13px] text-dim">
+        <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3 text-label text-dim">
           <span>
             {cat.count} sites
             {cat.refreshedAt ? ` · list updated ${ago(cat.refreshedAt)}` : ' · list not downloaded yet'}. Your own site files go in <code className="font-mono break-all">{cat.customFolder}</code>.
@@ -325,7 +325,7 @@ function AddSiteForm({ siteId, onDone, setMessage }: { siteId: string; onDone: (
   return (
     <form onSubmit={add} className="flex flex-col gap-4">
       <div>
-        <h3 className="m-0 text-[17px] font-semibold">{form.name}</h3>
+        <h3 className="m-0 text-heading font-semibold">{form.name}</h3>
         {form.description && <p className="m-0 mt-1 text-sm text-muted">{form.description}</p>}
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
@@ -335,7 +335,7 @@ function AddSiteForm({ siteId, onDone, setMessage }: { siteId: string; onDone: (
             <label htmlFor={`${prefix}address`} className="text-sm font-medium text-soft">
               Address
             </label>
-            <select id={`${prefix}address`} name={`${prefix}address`} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-[15px]">
+            <select id={`${prefix}address`} name={`${prefix}address`} className="h-11 rounded-xl border border-line-strong bg-ink px-3 text-body">
               {form.links.map((l) => (
                 <option key={l} value={l}>
                   {l}
@@ -346,7 +346,7 @@ function AddSiteForm({ siteId, onDone, setMessage }: { siteId: string; onDone: (
         )}
       </div>
       <SiteFields fields={form.fields} values={null} prefix={prefix} />
-      <p className="m-0 text-[13px] text-dim">Passwords and cookies stay on your server and are never shown again.</p>
+      <p className="m-0 text-label text-dim">Passwords and cookies stay on your server and are never shown again.</p>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={busy}>
           {busy ? 'Adding…' : 'Add and check'}
@@ -420,7 +420,7 @@ export function SolverCard() {
           keeps the pass for later searches.
         </p>
       </div>
-      <label htmlFor="solver-on" className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-[15px] font-medium">
+      <label htmlFor="solver-on" className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-body font-medium">
         <input id="solver-on" type="checkbox" checked={v.enabled} disabled={!!busy} onChange={(e) => save(e.target.checked)} className="size-5 accent-amber" />
         Solve bot checks
       </label>

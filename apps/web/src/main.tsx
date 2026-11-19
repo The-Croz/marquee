@@ -14,20 +14,18 @@ import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { ActivityPage } from './pages/Activity';
 import { MyHistoryPage, PersonPage } from './pages/Person';
-import { SwitchOverPage } from './pages/SwitchOver';
-import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
 import { DiscoverPageView } from './pages/Discover';
 import { DiscoverTitlePage } from './pages/DiscoverTitle';
 import { RequestsPage } from './pages/Requests';
 import { WatchSyncPage } from './pages/WatchSync';
+import { AutomationPage } from './pages/Automation';
 import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
-import { ComparePage } from './pages/Compare';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -76,11 +74,6 @@ const router = createBrowserRouter([
           />
         ),
       },
-      { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
-      { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="movie" /></AdminOnly>} /> },
-      { path: 'switch-over/tv', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="tv" kind="tv" /></AdminOnly>} /> },
-      { path: 'switch-over/tautulli', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="tautulli" kind="tautulli" /></AdminOnly>} /> },
-      { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="seerr" /></AdminOnly>} /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'history', element: <MyHistoryPage /> },
       {
@@ -104,6 +97,7 @@ const router = createBrowserRouter([
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
+          { path: 'automation', element: <RequireUser render={(st) => <AdminOnly status={st}><AutomationPage /></AdminOnly>} /> },
           { path: 'watched-sync', element: <RequireUser render={(st) => <AdminOnly status={st}><WatchSyncPage /></AdminOnly>} /> },
         ],
       },

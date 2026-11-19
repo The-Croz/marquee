@@ -4,6 +4,7 @@ import type { ProfileDetail, ProfileKind, ProfileRuleView, ProfilesView, Quality
 import { ApiFailure, api, queryClient } from '../api';
 import { Button, Card, Notice, cx } from '../components/ui';
 import { ProfileChoices } from '../components/ProfileChoices';
+import { PageHeader } from '../components/Page';
 
 /**
  * Quality: the profiles that decide which copy Marquee picks for a title.
@@ -24,13 +25,10 @@ export function QualityPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Quality</h1>
-        <p className="m-0 max-w-[720px] text-[15px] leading-relaxed text-muted">
-          A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything here can be changed. The
-          built-in profiles are starting points from the TRaSH Guides.
-        </p>
-      </div>
+      <PageHeader
+        title="Quality"
+        info="A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything can be changed. The built-in profiles start from the TRaSH Guides."
+      />
       {list.error && <Notice tone="error">{errMsg(list.error)}</Notice>}
       <div className="flex flex-wrap items-start gap-8">
         <section aria-label="Profiles" className="flex w-full flex-col gap-4 lg:w-[300px] lg:flex-none">
@@ -45,7 +43,7 @@ export function QualityPage() {
                   setKind(k);
                   setSelected(null);
                 }}
-                className={cx('h-11 flex-1 rounded-[9px] text-sm', kind === k ? 'bg-raised font-semibold text-text' : 'font-medium text-muted')}
+                className={cx('h-11 flex-1 rounded-lg text-sm', kind === k ? 'bg-raised font-semibold text-text' : 'font-medium text-muted')}
               >
                 {k === 'movie' ? 'Movies' : 'TV'}
               </button>
@@ -61,7 +59,7 @@ export function QualityPage() {
                 className={cx('flex flex-col gap-1.5 rounded-2xl border px-4 py-3.5 text-left', current?.id === p.id ? 'border-amber bg-raised' : 'border-line bg-panel hover:border-line-strong')}
               >
                 <span className="flex w-full flex-wrap items-center justify-between gap-2">
-                  <span className="text-[15px] font-semibold text-text">{p.name}</span>
+                  <span className="text-body font-semibold text-text">{p.name}</span>
                   <span className="flex gap-1">
                     {p.defaultFor.map((d) => (
                       <span key={d} className={cx('rounded-full px-2 py-0.5 text-xs', d === 'kids' ? 'border border-line-strong text-soft' : 'bg-amber text-amber-ink')}>
@@ -70,7 +68,7 @@ export function QualityPage() {
                     ))}
                   </span>
                 </span>
-                <span className="text-[13px] text-muted">
+                <span className="text-label text-muted">
                   {p.titles} {kind === 'movie' ? (p.titles === 1 ? 'movie' : 'movies') : p.titles === 1 ? 'show' : 'shows'}
                 </span>
               </button>
@@ -116,13 +114,13 @@ function NewProfile({ kind, view, onCreated }: { kind: ProfileKind; view: Profil
       }}
     >
       <h2 className="m-0 text-sm font-semibold">New profile</h2>
-      <label className="flex flex-col gap-1.5 text-[13px] text-muted">
+      <label className="flex flex-col gap-1.5 text-label text-muted">
         Name
-        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} className="h-11 rounded-[10px] border border-line-strong bg-ink px-3 text-sm text-text focus:border-amber focus:outline-none" />
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} className="h-11 rounded-lg border border-line-strong bg-ink px-3 text-sm text-text focus:border-amber focus:outline-none" />
       </label>
-      <label className="flex flex-col gap-1.5 text-[13px] text-muted">
+      <label className="flex flex-col gap-1.5 text-label text-muted">
         Start from
-        <select value={value} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm text-text">
+        <select value={value} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text">
           {options.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -152,12 +150,12 @@ function Defaults({ view }: { view: ProfilesView }) {
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-4">
       <h2 className="m-0 text-sm font-semibold">Requests from kids</h2>
       {rows.map((r) => (
-        <label key={r.slot} className="flex items-center justify-between gap-3 text-[13px] text-muted">
+        <label key={r.slot} className="flex items-center justify-between gap-3 text-label text-muted">
           {r.label}
           <select
             value={view.defaults[r.slot]}
             onChange={(e) => save.mutate({ [r.slot]: e.target.value })}
-            className="h-11 max-w-[170px] rounded-[10px] border border-line-strong bg-ink px-2.5 text-sm text-text"
+            className="h-11 max-w-[170px] rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text"
           >
             {r.options.map((o) => (
               <option key={o.key} value={o.key}>
@@ -259,7 +257,7 @@ function ProfileEditor({ id }: { id: number }) {
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-[260px] flex-1 flex-col gap-1.5">
-          <label htmlFor="profile-name" className="text-[13px] text-muted">
+          <label htmlFor="profile-name" className="text-label text-muted">
             Name
           </label>
           <input
@@ -267,9 +265,9 @@ function ProfileEditor({ id }: { id: number }) {
             value={draft.name}
             maxLength={60}
             onChange={(e) => edit({ name: e.target.value })}
-            className="h-11 max-w-[360px] rounded-[10px] border border-line-strong bg-panel px-3 text-xl font-semibold text-text focus:border-amber focus:outline-none"
+            className="h-11 max-w-[360px] rounded-lg border border-line-strong bg-panel px-3 text-xl font-semibold text-text focus:border-amber focus:outline-none"
           />
-          <span className="text-[13px] text-dim">{p.preset ? 'Built in. Change anything; “Put back TRaSH’s values” undoes it.' : 'Your own profile.'}</span>
+          <span className="text-label text-dim">{p.preset ? 'Built in. Change anything; “Put back TRaSH’s values” undoes it.' : 'Your own profile.'}</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {p.preset && (
@@ -326,12 +324,12 @@ function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, s
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="m-0 text-[17px] font-semibold">Qualities, best first</h2>
-        <span className="text-[13px] text-muted">Marquee takes the highest one it can find. Switch one off to never take it.</span>
+        <h2 className="m-0 text-heading font-semibold">Qualities, best first</h2>
+        <span className="text-label text-muted">Marquee takes the highest one it can find. Switch one off to never take it.</span>
       </div>
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
         {on.map((t, i) => (
-          <li key={t.name} className="flex items-center gap-3 rounded-[10px] border border-line-strong bg-raised px-3 py-1.5">
+          <li key={t.name} className="flex items-center gap-3 rounded-lg border border-line-strong bg-raised px-3 py-1.5">
             <span className="w-6 text-sm text-dim">{i + 1}</span>
             <span className="flex-1 text-sm">{tierLabel(t)}</span>
             {draft.cutoff === t.name && <span className="rounded-full bg-amber px-2 py-0.5 text-xs text-amber-ink">Good enough</span>}
@@ -353,7 +351,7 @@ function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, s
       {showOff && (
         <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
           {off.map((t) => (
-            <li key={t.name} className="flex items-center gap-3 rounded-[10px] border border-line px-3 py-1 text-muted">
+            <li key={t.name} className="flex items-center gap-3 rounded-lg border border-line px-3 py-1 text-muted">
               <span className="flex-1 text-sm">{tierLabel(t)}</span>
               <label className="flex size-11 items-center justify-center">
                 <input type="checkbox" checked={false} aria-label={`Take ${tierLabel(t)}`} onChange={() => toggle(t.name)} className="size-5 accent-amber" />
@@ -365,7 +363,7 @@ function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, s
       <div className="flex flex-wrap gap-6 border-t border-line pt-4">
         <label className="flex items-center gap-3 text-sm text-soft">
           Good enough at
-          <select value={draft.cutoff} onChange={(e) => edit({ cutoff: e.target.value })} className="h-11 rounded-[10px] border border-line-strong bg-raised px-2.5 text-sm text-text">
+          <select value={draft.cutoff} onChange={(e) => edit({ cutoff: e.target.value })} className="h-11 rounded-lg border border-line-strong bg-raised px-2.5 text-sm text-text">
             {on.map((t) => (
               <option key={t.name} value={t.name}>
                 {tierLabel(t)}
@@ -408,7 +406,7 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
   return (
     <Card className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="m-0 text-[17px] font-semibold">Rules and points</h2>
+        <h2 className="m-0 text-heading font-semibold">Rules and points</h2>
         <label className="flex items-center gap-3 text-sm text-soft">
           Find a rule
           <input
@@ -416,11 +414,11 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
             value={find}
             onChange={(e) => setFind(e.target.value)}
             placeholder="Dolby Vision, AMZN, x265…"
-            className="h-11 w-[240px] rounded-[10px] border border-line-strong bg-raised px-3 text-sm text-text placeholder:text-dim focus:border-amber focus:outline-none"
+            className="h-11 w-[240px] rounded-lg border border-line-strong bg-raised px-3 text-sm text-text placeholder:text-dim focus:border-amber focus:outline-none"
           />
         </label>
       </div>
-      <p className="m-0 text-[13px] text-muted">A copy’s points are the sum of the rules it matches; more points wins. A rule at −10,000 means never pick a copy that matches it.</p>
+      <p className="m-0 text-label text-muted">A copy’s points are the sum of the rules it matches; more points wins. A rule at −10,000 means never pick a copy that matches it.</p>
       {groups.map(([name, rules]) => {
         const visible = rules.filter(shown);
         if (!visible.length) return null;
@@ -442,7 +440,7 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
                       <div className={cx('text-sm font-semibold', d.enabled ? 'text-text' : 'text-soft')}>
                         {r.label} <span className="text-xs font-normal text-dim">TRaSH: {r.name}{changed && ` · TRaSH gives ${points(r.trashScore)}`}</span>
                       </div>
-                      {r.explain && <div className="text-[13px] text-muted">{r.explain}</div>}
+                      {r.explain && <div className="text-label text-muted">{r.explain}</div>}
                     </div>
                     <input
                       type="number"
@@ -451,7 +449,7 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
                       aria-label={`Points for ${r.label}`}
                       onChange={(e) => set(r.trashId, { score: Math.round(Number(e.target.value) || 0) })}
                       className={cx(
-                        'h-10 rounded-[10px] border bg-raised px-2.5 text-right text-sm font-semibold focus:border-amber focus:outline-none',
+                        'h-10 rounded-lg border bg-raised px-2.5 text-right text-sm font-semibold focus:border-amber focus:outline-none',
                         changed ? 'border-amber text-amber' : 'border-line-strong',
                         !changed && d.score <= NEVER ? 'text-warn' : !changed && 'text-text',
                       )}
@@ -470,7 +468,7 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
           value={draft.minScore}
           aria-label="Minimum points"
           onChange={(e) => edit({ minScore: Math.round(Number(e.target.value) || 0) })}
-          className="h-10 w-[110px] rounded-[10px] border border-line-strong bg-raised px-2.5 text-right text-sm font-semibold text-text"
+          className="h-10 w-[110px] rounded-lg border border-line-strong bg-raised px-2.5 text-right text-sm font-semibold text-text"
         />
         points
       </label>
@@ -483,9 +481,9 @@ function Sizes({ sizes, draft, kind, edit }: { sizes: SizeLimitView[]; draft: Dr
   const set = (quality: string, field: 'min' | 'preferred' | 'max', value: number) =>
     edit({ sizes: { ...draft.sizes, [quality]: { ...draft.sizes[quality]!, [field]: value } }, sizesChanged: new Set([...draft.sizesChanged, quality]) });
   return (
-    <details className="rounded-[18px] border border-line bg-panel p-6">
-      <summary className="min-h-11 cursor-pointer text-[17px] font-semibold">For experts: sizes per quality</summary>
-      <p className="mt-3 mb-4 text-[13px] text-muted">
+    <details className="rounded-2xl border border-line bg-panel p-6">
+      <summary className="min-h-11 cursor-pointer text-heading font-semibold">For experts: sizes per quality</summary>
+      <p className="mt-3 mb-4 text-label text-muted">
         In MB per minute of runtime, from TRaSH. Copies smaller than the smallest are usually poor or mislabeled. Among equal copies, the one closest to the preferred size wins. A largest of {top}{' '}
         means no limit.
       </p>
@@ -516,7 +514,7 @@ function Sizes({ sizes, draft, kind, edit }: { sizes: SizeLimitView[]; draft: Dr
                       value={draft.sizes[s.quality]![f]}
                       aria-label={`${f === 'min' ? 'Smallest' : f === 'max' ? 'Largest' : 'Preferred'} size for ${s.label}`}
                       onChange={(e) => set(s.quality, f, Number(e.target.value) || 0)}
-                      className="h-10 w-[100px] rounded-[10px] border border-line-strong bg-raised px-2.5 text-right text-sm text-text"
+                      className="h-10 w-[100px] rounded-lg border border-line-strong bg-raised px-2.5 text-right text-sm text-text"
                     />
                   </td>
                 ))}

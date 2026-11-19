@@ -318,16 +318,18 @@ describe('home', () => {
   it('shows real recently added titles once the library is scanned', async () => {
     const { app, admin } = await scannedApp();
     const home = await call(app, 'GET', '/api/home', undefined, admin);
-    expect(home.body.libraryReady).toBe(true);
     expect(home.body.recent[0]).toMatchObject({ title: 'Severance', sub: 'S2 E1 · 4K', posterPath: '/sev.jpg' });
     expect(home.body.recent.map((r: { title: string }) => r.title)).toContain('Dune: Part Two');
-    expect(home.body.stats[0]).toMatchObject({ label: 'In your library', value: '6', note: '4 movies · 2 shows' });
+    expect(home.body.stats.slice(0, 2)).toEqual([
+      { label: 'movies', value: '4', to: '/movies' },
+      { label: 'shows', value: '2', to: '/shows' },
+    ]);
   });
 
-  it('falls back to sample data before the first scan', async () => {
+  it('has nothing recent before the first scan', async () => {
     const { app } = libraryApp();
     const admin = await setupAdmin(app);
-    expect((await call(app, 'GET', '/api/home', undefined, admin)).body.libraryReady).toBe(false);
+    expect((await call(app, 'GET', '/api/home', undefined, admin)).body.recent).toEqual([]);
   });
 });
 

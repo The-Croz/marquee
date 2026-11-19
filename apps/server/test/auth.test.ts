@@ -100,14 +100,14 @@ describe('home', () => {
     db.insert(schema.requests).values({ kind: 'movie', tmdbId: 14160, title: 'Up', year: 2009, requestedBy: kidId, createdAt: Date.now() - 3 * 3_600_000 }).run();
 
     const adminHome = await call(app, 'GET', '/api/home', undefined, admin);
-    expect(adminHome.body.approvals).toMatchObject([{ title: 'Up', who: 'Kids · asked 3 hours ago', plan: 'Movie' }]);
-    expect(adminHome.body.stats.find((s: { label: string }) => s.label === 'Waiting for your OK')).toMatchObject({ value: '1', note: 'Kids' });
-    expect(adminHome.body.sample).toBe(true);
+    expect(adminHome.body.needsYou).toMatchObject([{ tone: 'attention', title: 'Kids asked for Up', detail: 'Movie · 3 hours ago', approveId: expect.any(Number), to: '/requests' }]);
+    expect(adminHome.body.myRequests).toEqual([]);
 
     const kidHome = await call(app, 'GET', '/api/home', undefined, kid);
-    expect(kidHome.body.approvals).toEqual([]);
-    expect(kidHome.body.nowDownloading).toBeNull();
-    expect(kidHome.body.recent.map((r: { title: string }) => r.title)).not.toContain('Dune: Part Two');
+    expect(kidHome.body.needsYou).toEqual([]);
+    expect(kidHome.body.onItsWay).toEqual([]);
+    expect(kidHome.body.stats).toEqual([]);
+    expect(kidHome.body.myRequests).toMatchObject([{ title: 'Up', state: 'pending' }]);
   });
 });
 

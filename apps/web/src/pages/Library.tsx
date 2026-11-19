@@ -55,7 +55,7 @@ export function ScanPanel() {
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-4 sm:flex-row sm:items-center sm:gap-5">
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-[15px] font-semibold">{status ? PHASE[status.phase] : 'Library'}</span>
+          <span className="text-body font-semibold">{status ? PHASE[status.phase] : 'Library'}</span>
           {status?.running && (
             <span className="text-sm text-muted">
               {status.processed} of {status.total} folders · {status.matched} matched
@@ -139,7 +139,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="m-0 font-display text-[56px] leading-none font-normal">{title}</h1>
+          <h1 className="m-0 font-display text-display leading-none font-normal">{title}</h1>
           {data && (
             <span className="text-sm text-muted">
               {items.length} {kind === 'movie' ? (items.length === 1 ? 'movie' : 'movies') : items.length === 1 ? 'show' : 'shows'}
@@ -167,7 +167,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           value={q}
           onChange={(e) => set('q', e.target.value)}
           placeholder={`Filter ${title.toLowerCase()}`}
-          className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
+          className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
         />
         <div role="group" aria-label="Show" className="flex gap-1.5">
           {[
@@ -258,13 +258,13 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               <Poster title={i.title} path={i.posterPath} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
               <span
                 className={cx(
-                  'absolute top-2 left-2 rounded-md px-2 py-0.5 text-[11px] font-semibold',
-                  i.complete ? 'bg-ink/85 text-soft' : 'bg-warn/90 text-[#2A1406]',
+                  'absolute top-2 left-2 rounded-md px-2 py-0.5 text-caption font-semibold',
+                  i.complete ? 'bg-ink/85 text-soft' : 'bg-warn/90 text-warn-ink',
                 )}
               >
                 {i.badge}
               </span>
-              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-[11px] font-semibold text-amber-ink">Wanted</span>}
+              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-caption font-semibold text-amber-ink">Wanted</span>}
               {selecting && (
                 <span aria-hidden="true" className={cx('absolute right-2 bottom-2 flex size-6 items-center justify-center rounded-full border-2 text-sm font-bold', picked.has(i.id) ? 'border-amber bg-amber text-amber-ink' : 'border-white/70 bg-ink/70')}>
                   {picked.has(i.id) ? '✓' : ''}

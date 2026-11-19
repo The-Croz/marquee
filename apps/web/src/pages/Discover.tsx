@@ -5,6 +5,7 @@ import type { DiscoverCard, DiscoverPage, DiscoverPrefs, ServiceChip, ServiceTop
 import { api, ApiFailure } from '../api';
 import { Hero, Row, TitleCard } from '../components/Discover';
 import { Notice, cx } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 const TYPES = [
   ['all', 'All'],
@@ -30,12 +31,12 @@ function Ranked({ title, cards, trailers }: { title: string; cards: DiscoverCard
   if (!cards.length) return null;
   return (
     <section aria-label={title} className="flex flex-col gap-3">
-      <h3 className="m-0 text-[17px] font-semibold">{title}</h3>
+      <h3 className="m-0 text-heading font-semibold">{title}</h3>
       <div ref={scroller} className="-mx-5 flex snap-x gap-[18px] overflow-x-auto px-5 pb-2 sm:-mx-10 sm:px-10">
         {cards.map((c, i) => (
           <div key={`${c.kind}${c.tmdbId}`} className="relative flex-none">
             <TitleCard card={c} trailers={trailers} />
-            <span aria-hidden="true" className="pointer-events-none absolute bottom-14 left-1 font-display text-[68px] leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.9)]">
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-14 left-1 font-display text-display-lg leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.9)]">
               {i + 1}
             </span>
           </div>
@@ -67,13 +68,13 @@ function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: '
   const { data, isLoading } = useQuery({ queryKey: ['discover', 'top', svc.key], queryFn: () => api<ServiceTop>(`/discover/top?service=${svc.key}`), staleTime: 10 * 60_000 });
   return (
     <section aria-labelledby="top10" className="flex flex-col gap-3">
-      <h2 id="top10" className="m-0 text-[20px] font-semibold">
+      <h2 id="top10" className="m-0 text-xl font-semibold">
         Top 10 on your services
       </h2>
       <div role="group" aria-label="Streaming service" className="-mx-5 flex gap-1 overflow-x-auto px-5 sm:-mx-10 sm:px-10">
         {services.map((s) => (
           <button key={s.key} type="button" aria-pressed={svc.key === s.key} onClick={() => choose(s.key)} className="flex h-11 flex-none items-center">
-            <span className={cx('rounded-full border px-3 py-1 text-[13px] font-medium whitespace-nowrap', svc.key === s.key ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}>{s.name}</span>
+            <span className={cx('rounded-full border px-3 py-1 text-label font-medium whitespace-nowrap', svc.key === s.key ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}>{s.name}</span>
           </button>
         ))}
       </div>
@@ -87,7 +88,7 @@ function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: '
 function Loading() {
   return (
     <div aria-busy="true" className="flex flex-col gap-8">
-      <div className="h-[420px] animate-pulse rounded-[22px] bg-panel" />
+      <div className="h-[420px] animate-pulse rounded-2xl bg-panel" />
       {[0, 1].map((n) => (
         <div key={n} className="flex flex-col gap-3">
           <div className="h-6 w-48 animate-pulse rounded bg-panel" />
@@ -122,10 +123,7 @@ export function DiscoverPageView() {
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Discover</h1>
-        <p className="m-0 text-sm text-muted">What’s new and popular, what’s on your services, and picks from what you watch and ask for.</p>
-      </div>
+      <PageHeader title="Discover" />
 
       <div className="flex flex-col gap-3">
         <div role="group" aria-label="Show" className="flex flex-wrap gap-2">

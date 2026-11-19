@@ -9,6 +9,7 @@ import { Watchers } from '../components/Watchers';
 import { WantedCheck, WantedSwitch } from '../components/Wanted';
 import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
+import { useDocTitle } from '../components/Page';
 
 function Hero({
   title,
@@ -28,22 +29,23 @@ function Hero({
   back: { to: string; label: string };
 }) {
   const bg = tmdbImage(backdrop, 'w1280');
+  useDocTitle(title);
   return (
     <>
       <Link to={back.to} className="text-sm no-underline">
         ← {back.label}
       </Link>
-      <section className="relative overflow-hidden rounded-[22px] bg-[#1A1F29]">
+      <section className="relative overflow-hidden rounded-2xl bg-raised">
         {bg && <img src={bg} alt="" className="absolute inset-0 size-full object-cover opacity-60" />}
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
         <div className="relative flex flex-wrap items-end gap-8 px-6 pt-32 pb-8 sm:px-10">
           <Poster title={title} path={poster} size="w500" className="w-[150px] flex-none shadow-2xl sm:w-[190px]" />
           <div className="flex min-w-[260px] flex-1 flex-col gap-3">
             <div className="text-sm text-soft">{meta}</div>
-            <h1 className="m-0 font-display text-[52px] leading-[0.95] font-normal sm:text-[72px]">
+            <h1 className="m-0 font-display text-display leading-[0.95] font-normal sm:text-display-lg">
               {title} {year && <span className="text-[0.55em] text-soft">({year})</span>}
             </h1>
-            <div className="flex flex-wrap gap-2 text-[13px]">
+            <div className="flex flex-wrap gap-2 text-label">
               {chips.map((c) => (
                 <span
                   key={c.text}
@@ -73,7 +75,7 @@ function FileRow({ f }: { f: MediaFileView }) {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line py-3">
       <span className="rounded-md bg-raised px-2 py-1 text-xs font-semibold text-soft">{q.label}</span>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-mono text-[13px] text-soft" title={f.path}>
+        <span className="truncate font-mono text-label text-soft" title={f.path}>
           {f.path}
         </span>
         {details && <span className="text-xs text-dim">{details}</span>}
@@ -104,7 +106,7 @@ export function MovieDetailPage() {
           ...(best ? [{ text: formatBytes(m.files.reduce((n, f) => n + f.sizeBytes, 0)) }] : []),
         ]}
       />
-      {m.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{m.overview}</p>}
+      {m.overview && <p className="m-0 max-w-[760px] text-heading leading-relaxed text-soft">{m.overview}</p>}
       {isAdmin && <WantedSwitch kind="movie" id={m.id} wanted={m.monitored} />}
       <Card className="flex flex-col">
         <h2 className="m-0 mb-2 text-lg font-semibold">Files</h2>
@@ -128,7 +130,7 @@ function SeasonBlock({ s, open, onToggle, showId, editable, showWanted }: { s: S
   return (
     <Card className="flex flex-col p-0">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-14 items-center gap-4 px-6 py-4 text-left text-text">
-        <span className="flex-1 text-[17px] font-semibold">{label}</span>
+        <span className="flex-1 text-heading font-semibold">{label}</span>
         <span className={cx('text-sm', done ? 'text-teal-hi' : s.have === 0 ? 'text-dim' : 'text-amber-hi')}>
           {s.aired === 0 ? 'Not aired yet' : `${s.have} of ${s.aired} episodes`}
         </span>
@@ -147,7 +149,7 @@ function SeasonBlock({ s, open, onToggle, showId, editable, showWanted }: { s: S
           {s.episodes.map((e) => (
             <div key={e.episode} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line py-2.5">
               <span className="w-10 text-sm font-semibold text-muted">{e.episode}</span>
-              <span className="min-w-[160px] flex-1 text-[15px]">{e.title ?? `Episode ${e.episode}`}</span>
+              <span className="min-w-[160px] flex-1 text-body">{e.title ?? `Episode ${e.episode}`}</span>
               <span className="text-xs text-dim">{e.airDate ?? 'No date'}</span>
               {editable && showWanted && <WantedCheck label={`Episode ${e.episode}: wanted`} checked={e.wanted} path={`/shows/${showId}/seasons/${s.season}/episodes/${e.episode}/wanted`} />}
               <span
@@ -190,7 +192,7 @@ export function ShowDetailPage() {
           ...(s.sizeBytes ? [{ text: formatBytes(s.sizeBytes) }] : []),
         ]}
       />
-      {s.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{s.overview}</p>}
+      {s.overview && <p className="m-0 max-w-[760px] text-heading leading-relaxed text-soft">{s.overview}</p>}
       {isAdmin && <WantedSwitch kind="series" id={s.id} wanted={s.monitored} />}
       <div className="flex flex-col gap-3">
         {s.seasons.map((x) => (

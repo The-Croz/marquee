@@ -5,6 +5,7 @@ import type { CalendarItem, CalendarView } from '@marquee/shared';
 import { ApiFailure, api } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Notice, cx } from '../components/ui';
+import { PageHeader } from '../components/Page';
 
 /**
  * The airing calendar: episodes of the shows in your library, day by day,
@@ -41,12 +42,7 @@ export function CalendarPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 font-display text-[56px] leading-none font-normal">Calendar</h1>
-        <p className="m-0 max-w-[720px] text-[15px] leading-relaxed text-muted">
-          New episodes of the shows in your library, by the day they air. Dates come from TMDB and are checked twice a day.
-        </p>
-      </div>
+      <PageHeader title="Calendar" info="New episodes of the shows in your library, by the day they air. Dates come from TMDB and are checked twice a day." />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => shift(-14)}>
           ← Earlier
@@ -75,7 +71,7 @@ export function CalendarPage() {
               <li key={`${i.seriesId}:${i.season}:${i.episode}`} className="flex items-center gap-4 border-t border-line py-3">
                 <Poster title={i.show} path={i.posterPath} size="w185" className="w-12 flex-none rounded-md [&_span]:hidden" />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <Link to={`/shows/${i.seriesId}`} className="flex min-h-11 items-center self-start text-[15px] font-semibold">
+                  <Link to={`/shows/${i.seriesId}`} className="flex min-h-11 items-center self-start text-body font-semibold">
                     {i.show}
                   </Link>
                   <span className="text-sm text-soft">
@@ -85,7 +81,7 @@ export function CalendarPage() {
                 </div>
                 <div className="flex max-w-[45%] flex-col items-end gap-0.5 text-right">
                   <span className={cx('text-sm font-medium', STATE[i.state].tone)}>{STATE[i.state].label}</span>
-                  {i.note !== STATE[i.state].label && <span className="text-[13px] text-muted">{i.note}</span>}
+                  {i.note !== STATE[i.state].label && <span className="text-label text-muted">{i.note}</span>}
                 </div>
               </li>
             ))}
