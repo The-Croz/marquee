@@ -18,6 +18,7 @@ import { SourceService } from './sources/service.js';
 import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
+import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
@@ -117,6 +118,14 @@ setInterval(() => {
     (err) => console.error('[downloads] check failed:', (err as Error).message),
   );
 }, 60 * 1000).unref();
+
+// Copy new watches from Plex and Jellyfin: a minute after start, then every 15 minutes.
+const plays = () => syncPlays({ db, clients, now: Date.now }).then(
+  (r) => (r.added || r.problems.length) && console.log(`[activity] copied ${r.added} watches${r.problems.length ? `; ${r.problems.join('; ')}` : ''}`),
+  (err) => console.error('[activity] failed:', (err as Error).message),
+);
+setTimeout(plays, 60 * 1000).unref();
+setInterval(plays, 15 * 60 * 1000).unref();
 
 // Tell admins once when a Source or the downloader stops working, and when wanted episodes air.
 setInterval(() => {

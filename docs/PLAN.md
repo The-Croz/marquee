@@ -269,11 +269,13 @@ Decided with Josh (2026-11-18):
 4. ✅ **Users from Plex and Jellyfin**: Settings → Users → "Add people from Plex or Jellyfin" lists the server's people (Plex: you and the friends it's shared with; Jellyfin: its enabled users), you tick who and pick a role, and they get a password-less account linked to that server. Plex people sign in with Plex (as before); Jellyfin people use "Sign in with my Jellyfin password" (Marquee passes it to Jellyfin and never stores it). Nobody is created at sign-in, so only people you picked can get in. Migration 18 adds the Jellyfin link.
 5. ✅ **Retire Seerr**: Switch over → Seerr. Marquee checks Discover works, the family has accounts and has signed in, a push channel has delivered, and a request reached the library; the last two steps (tell the family, turn Seerr off) are yours. No import from Seerr.
 
-## Milestone 6: Stats ⬜
+## Milestone 6: Stats 🔨
 
-- ⬜ Plex sessions + history; Jellyfin sessions + history (watch state per user, both servers)
-- ⬜ "Watching now", per-title "Who's watched", Activity page
-- ⬜ Retire Tautulli and WatchState
+- ✅ **Plex and Jellyfin watching**: Marquee reads who is watching now (Plex `/status/sessions`, Jellyfin `/Sessions`) and copies finished watches every 15 minutes (first run goes back a year; a day of overlap, duplicates ignored). Read-only. Migration 19 adds `plays`.
+- ✅ **Activity page** (admin only): Watching now (refreshes every 15 s, says when a device is being converted), the last 30 days as a bar chart with top people, movies and shows, and the history with Update now.
+- ✅ **Who's watched** on every movie and show page (admin only), matched to Marquee accounts by name.
+- ⬜ Per-person pages and "kids can see what they watched", and a watched/unwatched tick for each person on titles (needs a decision on privacy: today all of this is admin only).
+- ⬜ Retire Tautulli and WatchState (checklist like Seerr's)
 
 ## Milestone 7: iPhone app ⬜
 

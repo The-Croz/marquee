@@ -1086,3 +1086,46 @@ export interface RetireView {
   /** Every step Marquee can check is done. The last steps are yours to do. */
   ready: boolean;
 }
+
+// ---- Activity (Plex and Jellyfin watching) ----
+
+export interface NowPlayingView {
+  server: 'plex' | 'jellyfin';
+  user: string;
+  /** The movie or show. */
+  title: string;
+  /** Year for a movie; "S02E03 · Episode name" for TV. */
+  subtitle: string | null;
+  device: string;
+  state: 'playing' | 'paused' | 'buffering';
+  /** 0 to 1 */
+  progress: number;
+  transcoding: boolean;
+  /** The title's page in Marquee, if the library has it. */
+  href: string | null;
+}
+
+export interface PlayView {
+  id: number;
+  server: 'plex' | 'jellyfin';
+  user: string;
+  title: string;
+  subtitle: string | null;
+  at: number;
+  href: string | null;
+}
+
+export interface ActivityStats {
+  days: number;
+  total: number;
+  last24h: number;
+  perDay: { day: string; plays: number }[];
+  users: { name: string; plays: number }[];
+  movies: { name: string; plays: number }[];
+  shows: { name: string; plays: number }[];
+  servers: { plex: number; jellyfin: number };
+}
+
+export interface WatchersView {
+  watchers: { user: string; plays: number; last: number; /** Different episodes seen (TV only). */ episodes: number | null }[];
+}

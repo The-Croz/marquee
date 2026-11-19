@@ -388,6 +388,25 @@ const migrations: string[] = [
   ALTER TABLE users ADD COLUMN jellyfin_username TEXT;
   CREATE UNIQUE INDEX users_jellyfin_id ON users (jellyfin_id) WHERE jellyfin_id IS NOT NULL;
   `,
+  /* 19: what people watched, from Plex and Jellyfin */ `
+  CREATE TABLE plays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server TEXT NOT NULL CHECK (server IN ('plex', 'jellyfin')),
+    server_user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    item_key TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'episode')),
+    title TEXT NOT NULL,
+    show TEXT,
+    season INTEGER,
+    episode INTEGER,
+    year INTEGER,
+    tmdb_id INTEGER,
+    played_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX plays_once ON plays (server, server_user_id, item_key, played_at);
+  CREATE INDEX plays_when ON plays (played_at);
+  `,
 ];
 
 export function openDb(file: string): Db {

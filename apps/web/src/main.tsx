@@ -8,11 +8,11 @@ import { Shell } from './components/Shell';
 import { LoginPage } from './pages/Login';
 import { SetupPage } from './pages/Setup';
 import { HomePage } from './pages/Home';
-import { Placeholder } from './pages/Placeholder';
 import { AboutPage, AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
+import { ActivityPage } from './pages/Activity';
 import { SwitchOverPage } from './pages/SwitchOver';
 import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
@@ -60,7 +60,7 @@ const router = createBrowserRouter([
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },
-      { path: 'activity', element: <Placeholder title="Activity" milestone={6}>Who's watching now and watch history across Plex and Jellyfin.</Placeholder> },
+      { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
       {
         path: 'quality',
         element: (

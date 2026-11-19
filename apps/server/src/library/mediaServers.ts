@@ -34,7 +34,38 @@ export interface MediaPerson {
   name: string;
 }
 
+/** What was (or is being) watched. Episodes carry their show's name. */
+export interface WatchItem {
+  kind: 'movie' | 'episode';
+  title: string;
+  show: string | null;
+  season: number | null;
+  episode: number | null;
+  year: number | null;
+  tmdbId: number | null;
+}
+export interface NowPlayingItem extends WatchItem {
+  user: string;
+  device: string;
+  state: 'playing' | 'paused' | 'buffering';
+  /** 0 to 1 */
+  progress: number;
+  transcoding: boolean;
+}
+export interface PlayRecord extends WatchItem {
+  /** The server's id for the person, and the name it shows. */
+  userId: string;
+  user: string;
+  /** The server's id for the item, so a play is never counted twice. */
+  key: string;
+  playedAt: number;
+}
+
 export interface MediaServerApi {
+  /** Who is watching right now. */
+  nowPlaying(): Promise<NowPlayingItem[]>;
+  /** Finished plays since a time (ms), newest first. */
+  history(since: number): Promise<PlayRecord[]>;
   /** The people who can use this server (Plex: you and the friends it's shared with). */
   people(): Promise<MediaPerson[]>;
   /** Name and version, or throws MediaServerError. */
@@ -58,6 +89,30 @@ async function request(fetchImpl: typeof fetch, label: string, base: string, url
   if (res.status === 401 || res.status === 403) throw new MediaServerError(`${label} turned down the ${label === 'Plex' ? 'token' : 'API key'}.`);
   if (!res.ok) throw new MediaServerError(`${label} answered ${res.status}.`);
   return res;
+}
+
+interface PlexMeta {
+  type: string;
+  ratingKey?: string | number;
+  title: string;
+  grandparentTitle?: string;
+  parentIndex?: number;
+  index?: number;
+  year?: number;
+  viewOffset?: number;
+  duration?: number;
+  viewedAt?: number;
+  accountID?: number;
+  User?: { title?: string };
+  Player?: { title?: string; product?: string; state?: string };
+  TranscodeSession?: { videoDecision?: string };
+  Guid?: { id: string }[];
+}
+
+function plexItem(m: PlexMeta): WatchItem {
+  const tmdb = m.Guid?.map((g) => /^tmdb:\/\/(\d+)/.exec(g.id)?.[1]).find(Boolean);
+  const ep = m.type === 'episode';
+  return { kind: ep ? 'episode' : 'movie', title: m.title, show: ep ? (m.grandparentTitle ?? null) : null, season: ep ? (m.parentIndex ?? null) : null, episode: ep ? (m.index ?? null) : null, year: m.year ?? null, tmdbId: !ep && tmdb ? Number(tmdb) : null };
 }
 
 export class PlexServerClient implements MediaServerApi {
@@ -91,6 +146,31 @@ export class PlexServerClient implements MediaServerApi {
     }));
   }
 
+  private async list<T>(p: string): Promise<T[]> {
+    const body = (await (await this.get(p)).json()) as { MediaContainer?: { Metadata?: T[]; Account?: T[] } };
+    return body.MediaContainer?.Metadata ?? body.MediaContainer?.Account ?? [];
+  }
+
+  async nowPlaying(): Promise<NowPlayingItem[]> {
+    const rows = await this.list<PlexMeta>('/status/sessions?includeGuids=1');
+    return rows.filter((m) => m.type === 'movie' || m.type === 'episode').map((m) => ({
+      ...plexItem(m),
+      user: m.User?.title ?? 'Someone',
+      device: m.Player?.title || m.Player?.product || 'a device',
+      state: m.Player?.state === 'paused' ? 'paused' : m.Player?.state === 'buffering' ? 'buffering' : 'playing',
+      progress: m.duration ? Math.min(1, (m.viewOffset ?? 0) / m.duration) : 0,
+      transcoding: Boolean(m.TranscodeSession && m.TranscodeSession.videoDecision !== 'copy'),
+    }));
+  }
+
+  async history(since: number): Promise<PlayRecord[]> {
+    const names = new Map((await this.list<{ id: number; name: string }>('/accounts')).map((a) => [String(a.id), a.name]));
+    const rows = await this.list<PlexMeta>(`/status/sessions/history/all?sort=viewedAt:desc&includeGuids=1&X-Plex-Container-Start=0&X-Plex-Container-Size=2000&viewedAt>=${Math.floor(since / 1000)}`);
+    return rows
+      .filter((m) => (m.type === 'movie' || m.type === 'episode') && m.viewedAt)
+      .map((m) => ({ ...plexItem(m), userId: String(m.accountID), user: names.get(String(m.accountID)) ?? `User ${m.accountID}`, key: String(m.ratingKey), playedAt: m.viewedAt! * 1000 }));
+  }
+
   async people(): Promise<MediaPerson[]> {
     // The server's own address doesn't know the sharing list; plex.tv does, and the same token opens it.
     const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
@@ -104,6 +184,24 @@ export class PlexServerClient implements MediaServerApi {
   async scan(library: MediaLibrary, folder: string): Promise<void> {
     await this.get(`/library/sections/${encodeURIComponent(library.id)}/refresh?path=${encodeURIComponent(folder)}`);
   }
+}
+
+interface JfItem {
+  Id?: string;
+  Type: string;
+  Name: string;
+  SeriesName?: string;
+  ParentIndexNumber?: number;
+  IndexNumber?: number;
+  ProductionYear?: number;
+  RunTimeTicks?: number;
+  ProviderIds?: { Tmdb?: string };
+  UserData?: { LastPlayedDate?: string };
+}
+
+function jfItem(i: JfItem): WatchItem {
+  const ep = i.Type === 'Episode';
+  return { kind: ep ? 'episode' : 'movie', title: i.Name, show: ep ? (i.SeriesName ?? null) : null, season: ep ? (i.ParentIndexNumber ?? null) : null, episode: ep ? (i.IndexNumber ?? null) : null, year: i.ProductionYear ?? null, tmdbId: !ep && i.ProviderIds?.Tmdb ? Number(i.ProviderIds.Tmdb) : null };
 }
 
 export class JellyfinClient implements MediaServerApi {
@@ -136,6 +234,33 @@ export class JellyfinClient implements MediaServerApi {
       kind: f.CollectionType === 'movies' ? 'movie' : f.CollectionType === 'tvshows' ? 'tv' : 'other',
       locations: f.Locations ?? [],
     }));
+  }
+
+  async nowPlaying(): Promise<NowPlayingItem[]> {
+    type S = { UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string } };
+    const rows = (await (await this.send('/Sessions')).json()) as S[];
+    return rows.filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode')).map((r) => ({
+      ...jfItem(r.NowPlayingItem!),
+      user: r.UserName ?? 'Someone',
+      device: r.DeviceName || r.Client || 'a device',
+      state: r.PlayState?.IsPaused ? 'paused' : 'playing',
+      progress: r.NowPlayingItem!.RunTimeTicks ? Math.min(1, (r.PlayState?.PositionTicks ?? 0) / r.NowPlayingItem!.RunTimeTicks) : 0,
+      transcoding: r.PlayState?.PlayMethod === 'Transcode',
+    }));
+  }
+
+  async history(since: number): Promise<PlayRecord[]> {
+    const users = (await (await this.send('/Users')).json()) as { Id: string; Name: string }[];
+    const out: PlayRecord[] = [];
+    for (const u of users) {
+      const q = 'Recursive=true&Filters=IsPlayed&IncludeItemTypes=Movie,Episode&SortBy=DatePlayed&SortOrder=Descending&Limit=300&Fields=ProviderIds&EnableUserData=true';
+      const body = (await (await this.send(`/Users/${encodeURIComponent(u.Id)}/Items?${q}`)).json()) as { Items?: JfItem[] };
+      for (const i of body.Items ?? []) {
+        const at = i.UserData?.LastPlayedDate ? Date.parse(i.UserData.LastPlayedDate) : NaN;
+        if (Number.isFinite(at) && at >= since) out.push({ ...jfItem(i), userId: u.Id, user: u.Name, key: i.Id ?? '', playedAt: at });
+      }
+    }
+    return out.sort((a, b) => b.playedAt - a.playedAt);
   }
 
   async people(): Promise<MediaPerson[]> {
