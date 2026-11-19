@@ -113,8 +113,16 @@ userRoutes.get('/server-people', async (c) => {
   const { label, api } = serverApi(c, kind);
   try {
     const db = c.get('deps').db;
-    const people: ServerPerson[] = (await api.people()).map((p) => ({ ...p, marqueeUser: linkedTo(db, kind, p.id)?.username ?? null }));
-    return c.json({ people });
+    const all = db.select().from(users).orderBy(asc(users.displayName)).all();
+    // Accounts with no link to this server yet, which a person could be linked to instead of getting a new account.
+    const open = all.filter((u) => !(kind === 'plex' ? u.plexId : u.jellyfinId));
+    const same = (a: string | null | undefined, b: string) => !!a && a.toLowerCase() === b.toLowerCase();
+    const people: ServerPerson[] = (await api.people()).map((p) => ({
+      ...p,
+      marqueeUser: linkedTo(db, kind, p.id)?.username ?? null,
+      suggest: open.find((u) => [u.username, u.displayName, u.plexUsername, u.jellyfinUsername, u.email].some((x) => same(x, p.username) || same(x, p.name)))?.id ?? null,
+    }));
+    return c.json({ people, accounts: open.map((u) => ({ id: u.id, username: u.username, displayName: u.displayName })) });
   } catch (err) {
     if (err instanceof MediaServerError) throw new HttpError(502, 'server_unreachable', `${err.message} Check ${label} under Settings → Services.`);
     throw err;
@@ -126,7 +134,7 @@ userRoutes.post('/from-server', async (c) => {
   requireAdmin(c);
   const db = c.get('deps').db;
   const input = z
-    .object({ server: serverSchema, people: z.array(z.object({ id: z.string().min(1).max(100), role: roleSchema })).min(1).max(200) })
+    .object({ server: serverSchema, people: z.array(z.object({ id: z.string().min(1).max(100), role: roleSchema.default('member'), linkTo: z.number().int().optional() })).min(1).max(200) })
     .parse(await c.req.json());
   const { label, api } = serverApi(c, input.server);
   let listed;
@@ -137,11 +145,21 @@ userRoutes.post('/from-server', async (c) => {
     throw err;
   }
   const created: User[] = [];
+  const linked: User[] = [];
   for (const pick of input.people) {
     const person = listed.find((p) => p.id === pick.id);
     if (!person || linkedTo(db, input.server, person.id)) continue;
     const link = input.server === 'plex' ? { plexId: person.id, plexUsername: person.username } : { jellyfinId: person.id, jellyfinUsername: person.username };
+    if (pick.linkTo !== undefined) {
+      // Link an account that's already here: it keeps its name, role and password.
+      const target = findUserById(db, pick.linkTo);
+      if (!target) throw new HttpError(404, 'not_found', 'That Marquee account isn’t there any more.');
+      if (input.server === 'plex' ? target.plexId : target.jellyfinId) throw new HttpError(409, 'already_linked', `${target.displayName} is already linked to someone on ${label}.`);
+      db.update(users).set(link).where(eq(users.id, target.id)).run();
+      linked.push(findUserById(db, target.id)!);
+      continue;
+    }
     created.push(insertUser(db, { username: uniqueUsername(db, person.username), displayName: person.name, role: pick.role, passwordHash: null, ...link }));
   }
-  return c.json({ users: created.map(summary) }, 201);
+  return c.json({ users: created.map(summary), linked: linked.map(summary) }, 201);
 });

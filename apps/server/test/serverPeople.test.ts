@@ -49,8 +49,8 @@ describe('people from Plex and Jellyfin', () => {
     await call(app, 'POST', '/api/users/from-server', { server: 'jellyfin', people: [{ id: 'jf-sam', role: 'member' }] }, admin);
     const res = await call(app, 'GET', '/api/users/server-people?server=jellyfin', undefined, admin);
     expect(res.body.people).toEqual([
-      { id: 'jf-sam', username: 'sam', name: 'Sam', marqueeUser: 'sam' },
-      { id: 'jf-kid', username: 'riley', name: 'Riley', marqueeUser: null },
+      { id: 'jf-sam', username: 'sam', name: 'Sam', marqueeUser: 'sam', suggest: null },
+      { id: 'jf-kid', username: 'riley', name: 'Riley', marqueeUser: null, suggest: null },
     ]);
   });
 
@@ -63,6 +63,24 @@ describe('people from Plex and Jellyfin', () => {
     expect(made.body.users[0]).toMatchObject({ username: 'ana.m', role: 'kid', plexUsername: 'ana.m', linked: { plex: true, password: false } });
     const again = await call(app, 'POST', '/api/users/from-server', body, admin);
     expect(again.body.users).toHaveLength(0);
+  });
+
+  it('links someone to an account that’s already here instead of making a new one, and suggests it by name', async () => {
+    const { app, admin } = await connected();
+    const me = (await call(app, 'GET', '/api/users', undefined, admin)).body.users[0];
+    const plexList = (await call(app, 'GET', '/api/users/server-people?server=plex', undefined, admin)).body;
+    expect(plexList.people.find((p: { id: string }) => p.id === '1').suggest).toBe(me.id); // "josh" matches the admin's username
+    expect(plexList.accounts.map((a: { id: number }) => a.id)).toContain(me.id);
+
+    const res = await call(app, 'POST', '/api/users/from-server', { server: 'jellyfin', people: [{ id: 'jf-sam', linkTo: me.id }] }, admin);
+    expect(res.status).toBe(201);
+    expect(res.body.users).toEqual([]);
+    expect(res.body.linked[0]).toMatchObject({ id: me.id, username: me.username, role: 'admin', jellyfinUsername: 'sam', linked: { jellyfin: true, password: true } });
+    const after = (await call(app, 'GET', '/api/users/server-people?server=jellyfin', undefined, admin)).body;
+    expect(after.people.find((p: { id: string }) => p.id === 'jf-sam').marqueeUser).toBe(me.username);
+    expect(after.accounts).toEqual([]); // nobody left without a Jellyfin link
+    // The same account can't be linked to a second person on the same server.
+    expect((await call(app, 'POST', '/api/users/from-server', { server: 'jellyfin', people: [{ id: 'jf-kid', linkTo: me.id }] }, admin)).status).toBe(409);
   });
 
   it('picks a free username when theirs is taken', async () => {
@@ -132,15 +150,27 @@ describe('Jellyfin sign-in', () => {
 describe('server clients', () => {
   const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
-  it('Plex: you plus the friends the server is shared with', async () => {
+  it('Plex: you plus your friends, from the list that still works (the newer one answers 410 for some)', async () => {
     const urls: string[] = [];
     const f = (async (url: string) => {
       urls.push(url);
-      return url.endsWith('/user') ? reply({ id: 1, username: 'josh', title: 'Josh' }) : reply([{ id: 2, username: 'ana.m', title: 'Ana' }]);
+      if (url.endsWith('/v2/user')) return reply({ id: 1, username: 'josh', title: 'Josh' });
+      if (url.endsWith('/api/users')) return new Response('<MediaContainer><User id="2" title="Ana" username="ana.m" email="a@x"><Server/></User><User id="3" title="Kid" username=""/></MediaContainer>');
+      return reply({}, 410);
     }) as unknown as typeof fetch;
     const people = await new PlexServerClient('http://plex:32400', 'T', f).people();
-    expect(people.map((p) => p.id)).toEqual(['1', '2']);
-    expect(urls).toEqual(['https://plex.tv/api/v2/user', 'https://plex.tv/api/v2/friends']);
+    expect(people).toEqual([
+      { id: '1', username: 'josh', name: 'Josh' },
+      { id: '2', username: 'ana.m', name: 'Ana' },
+      { id: '3', username: 'Kid', name: 'Kid' },
+    ]);
+    expect(urls).toEqual(['https://plex.tv/api/v2/user', 'https://plex.tv/api/users']);
+  });
+
+  it('Plex: falls back to the newer friends list when the older one fails', async () => {
+    const f = (async (url: string) =>
+      url.endsWith('/v2/user') ? reply({ id: 1, username: 'josh' }) : url.endsWith('/api/users') ? reply({}, 500) : reply([{ id: 2, username: 'ana.m', title: 'Ana' }])) as unknown as typeof fetch;
+    expect((await new PlexServerClient('http://plex:32400', 'T', f).people()).map((p) => p.id)).toEqual(['1', '2']);
   });
 
   it('Jellyfin: lists enabled users only', async () => {
