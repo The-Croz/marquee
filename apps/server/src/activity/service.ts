@@ -99,6 +99,22 @@ function namer(db: Db): (raw: string) => string {
   };
 }
 
+/**
+ * Does this Plex or Jellyfin name (and id) belong to this Marquee account?
+ * Jellyfin links carry the server's user id; otherwise names are compared,
+ * the same way the Activity page matches people.
+ */
+export function belongsTo(u: User, server: string, serverUserId: string, userName: string): boolean {
+  if (server === 'jellyfin' && u.jellyfinId && u.jellyfinId === serverUserId) return true;
+  const n = userName.toLowerCase();
+  return [u.username, u.plexUsername, u.jellyfinUsername, u.displayName].some((x) => x?.toLowerCase() === n);
+}
+
+/** Everything this account watched on Plex and Jellyfin, newest first. */
+export function playsOf(db: Db, u: User): (typeof plays.$inferSelect)[] {
+  return db.select().from(plays).orderBy(desc(plays.playedAt)).all().filter((p) => belongsTo(u, p.server, p.serverUserId, p.userName));
+}
+
 const MIN_REAL = 30_000;
 
 /** Most streams playing at the same time, from their start and end times. */
@@ -261,5 +277,41 @@ export function watchersOf(db: Db, kind: 'movie' | 'tv', id: number): WatchersVi
     watchers: [...by]
       .map(([user, e]) => ({ user, plays: e.plays, last: e.last, episodes: kind === 'tv' ? e.eps.size : null }))
       .sort((a, b) => b.last - a.last),
+  };
+}
+
+/**
+ * One person's own watching, for "My history": everything they watched on
+ * Plex and Jellyfin (newest first, `limit` of it), what they watch most and
+ * their recent streams. Only ever their own.
+ */
+export function myHistory(db: Db, u: User, limit = 50): PersonView & { total: number } {
+  const mine = playsOf(db, u);
+  const ss = db.select().from(streams).orderBy(desc(streams.startedAt)).all().filter((r) => belongsTo(u, r.server, '', r.userName));
+  const counts = new Map<string, number>();
+  for (const r of mine) {
+    const k = r.kind === 'episode' ? (r.show ?? r.title) : r.title;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const devices = [...new Set(ss.map((r) => r.device))];
+  const last = Math.max(mine[0]?.playedAt ?? 0, ss[0]?.startedAt ?? 0) || null;
+  const ms = ss.reduce((n, r) => n + r.watchedMs, 0);
+  return {
+    name: u.displayName,
+    plays: mine.length,
+    hours: Math.round((ms / 3_600_000) * 10) / 10,
+    last,
+    devices,
+    total: mine.length,
+    top: [...counts].map(([n, p]) => ({ name: n, plays: p })).sort((a, b) => b.plays - a.plays || a.name.localeCompare(b.name)).slice(0, 8),
+    recent: mine.slice(0, limit).map((r) => ({
+      id: r.id,
+      server: r.server,
+      user: u.displayName,
+      ...describeItem({ kind: r.kind, title: r.title, show: r.show, season: r.season, episode: r.episode, year: r.year, tmdbId: r.tmdbId }),
+      at: r.playedAt,
+      href: hrefFor(db, { kind: r.kind, title: r.title, show: r.show, season: r.season, episode: r.episode, year: r.year, tmdbId: r.tmdbId }),
+    })),
+    streams: ss.slice(0, 20).map(streamView),
   };
 }

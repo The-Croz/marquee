@@ -62,13 +62,16 @@ export function Bell({ up = false }: { up?: boolean }) {
             {(data?.items ?? []).length === 0 && <li className="px-4 py-6 text-sm text-muted">Nothing yet. You’ll hear here when something you asked for is ready.</li>}
             {(data?.items ?? []).map((n) => {
               const inner = (
-                <>
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className={cx('text-sm', n.read ? 'text-soft' : 'font-semibold text-text')}>{n.title}</span>
-                    <span className="flex-none text-xs text-dim">{ago(n.createdAt)}</span>
+                <span className="flex gap-3">
+                  {n.image && <img src={n.image} alt="" loading="lazy" className="h-14 w-10 flex-none rounded-md bg-raised object-cover" />}
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className={cx('text-sm', n.read ? 'text-soft' : 'font-semibold text-text')}>{n.title}</span>
+                      <span className="flex-none text-xs text-dim">{ago(n.createdAt)}</span>
+                    </span>
+                    <span className="text-[13px] text-muted">{n.body}</span>
                   </span>
-                  <span className="text-[13px] text-muted">{n.body}</span>
-                </>
+                </span>
               );
               return (
                 <li key={n.id} className="border-b border-line last:border-0">

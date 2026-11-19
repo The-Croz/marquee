@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { CardState, NewRequest, RequestState, RequestView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { downloads, episodes, mediaFiles, movies, profiles, requests, series, users, type RequestRow, type User } from '../db/schema.js';
+import { downloads, episodes, mediaFiles, movies, profiles, requests, series, users, type Download, type RequestRow, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
 import type { Clients } from '../http.js';
 import type { LibraryScanner } from '../library/scanner.js';
@@ -11,7 +11,8 @@ import { lookForWanted } from '../downloads/wanted.js';
 import { lookForWantedTv } from '../downloads/wantedTv.js';
 import type { SourceService } from '../sources/service.js';
 import { ProfileService } from '../releases/profiles.js';
-import { notifyAdmins, notifyUser, type NotifyDeps } from '../notify/service.js';
+import { notifyAdmins, tell, type NotifyDeps } from '../notify/service.js';
+import { posterUrl, requestVars } from '../notify/vars.js';
 import { isKidSafe } from '../discover/kids.js';
 
 /**
@@ -238,7 +239,7 @@ export async function createRequest(deps: RequestDeps, user: User, input: NewReq
     .returning()
     .get();
   if (user.role === 'admin') return approveRequest(deps, row.id, user, {});
-  await notifyAdmins(deps.notify, 'request_pending', { title: 'New request', body: `${user.displayName} asked for ${title}${year ? ` (${year})` : ''}.`, link: '/requests' });
+  await notifyAdmins(deps.notify, 'request_pending', { vars: { ...requestVars(row), user: user.displayName }, link: '/requests' });
   return requestView(db, row, now());
 }
 
@@ -302,7 +303,7 @@ export async function approveRequest(deps: RequestDeps, id: number, admin: User,
   }
 
   if (r.requestedBy !== null && r.requestedBy !== admin.id) {
-    notifyUser(deps.notify, r.requestedBy, 'request_approved', { title: 'Request approved', body: `${r.title} was approved. Marquee is looking for it.`, link: '/requests' });
+    tell(deps.notify, r.requestedBy, 'request_approved', { vars: { ...requestVars(r), by: admin.displayName }, link: '/requests' });
   }
   return requestView(db, row, now());
 }
@@ -313,11 +314,7 @@ export function declineRequest(deps: RequestDeps, id: number, admin: User, reaso
   if (!r) throw new HttpError(404, 'not_found', 'That request isn’t there any more.');
   if (r.status !== 'pending') throw new HttpError(409, 'already_decided', 'That request has already been decided.');
   const row = db.update(requests).set({ status: 'declined', reason: reason.trim() || null, decidedBy: admin.id, decidedAt: now() }).where(eq(requests.id, id)).returning().get();
-  notifyUser(deps.notify, r.requestedBy, 'request_declined', {
-    title: 'Request turned down',
-    body: `${r.title} was turned down${reason.trim() ? `: ${reason.trim()}` : '.'}`,
-    link: '/requests',
-  });
+  tell(deps.notify, r.requestedBy, 'request_declined', { vars: { ...requestVars(r), reason: reason.trim() || null, by: admin.displayName }, link: '/requests' });
   return requestView(db, row, now());
 }
 
@@ -348,7 +345,33 @@ export function markReady(deps: Pick<RequestDeps, 'db' | 'notify' | 'now'>): num
   for (const r of db.select().from(requests).where(and(eq(requests.status, 'approved'), isNull(requests.readyAt))).all()) {
     if (approvedState(db, r, now()) !== 'ready') continue;
     db.update(requests).set({ readyAt: now() }).where(eq(requests.id, r.id)).run();
-    notifyUser(deps.notify, r.requestedBy, 'request_ready', { title: 'Ready to watch', body: `${r.title} is in the library.`, link: r.titleId !== null ? `/${r.kind === 'movie' ? 'movies' : 'shows'}/${r.titleId}` : '/requests' });
+    tell(deps.notify, r.requestedBy, 'request_ready', { vars: requestVars(r), link: r.titleId !== null ? `/${r.kind === 'movie' ? 'movies' : 'shows'}/${r.titleId}` : '/requests' });
+    n++;
+  }
+  return n;
+}
+
+/**
+ * After an episode reaches the library: tells each person who asked for the
+ * show (and whose request already said "Ready to watch") that a new one is in.
+ * Requests for other seasons stay quiet.
+ */
+export function tellNewEpisodes(deps: Pick<RequestDeps, 'db' | 'notify' | 'now'>, d: Pick<Download, 'kind' | 'seriesId' | 'season' | 'episodes'>): number {
+  const { db } = deps;
+  if (d.kind !== 'tv' || d.seriesId === null) return 0;
+  const show = db.select().from(series).where(eq(series.id, d.seriesId)).get();
+  if (!show) return 0;
+  const eps = d.episodes ? (JSON.parse(d.episodes) as number[]) : null;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const which = d.season === null ? 'New episodes' : eps?.length ? eps.map((e) => `S${pad(d.season!)}E${pad(e)}`).join(', ') : `Season ${d.season}`;
+  let n = 0;
+  const told = new Set<number>();
+  for (const r of db.select().from(requests).where(and(eq(requests.kind, 'series'), eq(requests.titleId, show.id), eq(requests.status, 'approved'))).all()) {
+    if (r.readyAt === null || r.requestedBy === null || told.has(r.requestedBy)) continue;
+    const seasons = r.seasons ? (JSON.parse(r.seasons) as number[]) : null;
+    if (seasons && d.season !== null && !seasons.includes(d.season)) continue;
+    told.add(r.requestedBy);
+    tell(deps.notify, r.requestedBy, 'new_episode', { vars: { show: show.title, episodes: which, season: d.season, poster: posterUrl(show.posterPath ?? r.posterPath) }, link: `/shows/${show.id}` });
     n++;
   }
   return n;

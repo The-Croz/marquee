@@ -89,7 +89,36 @@ export interface MediaServerApi {
   libraries(): Promise<MediaLibrary[]>;
   /** Asks the server to scan one folder of one library. */
   scan(library: MediaLibrary, folder: string): Promise<void>;
+  /** Watched sync: the server's people, each person's movies and episodes, and ticking one watched or not. */
+  watchedUsers?(): Promise<MediaPerson[]>;
+  watchedLibrary?(userId: string): Promise<SyncItem[]>;
+  setWatched?(userId: string, ref: string, watched: boolean): Promise<void>;
 }
+
+/** One movie or episode as one person sees it, for watched sync. */
+export interface SyncItem {
+  /** The server's id for it. */
+  ref: string;
+  /**
+   * What it is, in ids both servers know: "m:tmdb:603" for a movie,
+   * "e:tvdb:371980:1:2" for an episode (the show's id, season, episode).
+   */
+  keys: string[];
+  watched: boolean;
+  title: string;
+}
+
+/** "tmdb://603", "imdb://tt0133093" or a Jellyfin ProviderIds map → "tmdb:603", "imdb:tt0133093". */
+function idKeys(ids: Record<string, string | undefined>): string[] {
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(ids)) {
+    const name = k.toLowerCase();
+    if (v && ['tmdb', 'tvdb', 'imdb'].includes(name)) out.push(`${name}:${v}`);
+  }
+  return out;
+}
+const plexIds = (guids: { id: string }[] | undefined) => Object.fromEntries((guids ?? []).map((g) => g.id.split('://') as [string, string]));
+const sxe = (show: string[], s: number | undefined, e: number | undefined) => (s === undefined || e === undefined ? [] : show.map((k) => `e:${k}:${s}:${e}`));
 
 export class MediaServerError extends Error {}
 
@@ -135,6 +164,8 @@ interface PlexMeta {
   Media?: { videoResolution?: string }[];
   TranscodeSession?: { videoDecision?: string };
   Guid?: { id: string }[];
+  viewCount?: number;
+  grandparentRatingKey?: string | number;
 }
 
 function plexItem(m: PlexMeta): WatchItem {
@@ -176,8 +207,65 @@ export class PlexServerClient implements MediaServerApi {
     await this.get(`/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(message)}`);
   }
 
-  private get(p: string): Promise<Response> {
-    return request(this.fetchImpl, 'Plex', this.base, `${this.base}${p}`, { headers: { Accept: 'application/json', 'X-Plex-Token': this.token } });
+  private get(p: string, token = this.token): Promise<Response> {
+    return request(this.fetchImpl, 'Plex', this.base, `${this.base}${p}`, { headers: { Accept: 'application/json', 'X-Plex-Token': token } });
+  }
+
+  /** Each person's own key for this server (the owner uses the admin token), from plex.tv's sharing list. */
+  private tokens = new Map<string, string>();
+
+  async watchedUsers(): Promise<MediaPerson[]> {
+    const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
+    const me = (await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/user', { headers: h })).json()) as { id: number; username?: string; title?: string };
+    const machine = ((await (await this.get('/')).json()) as { MediaContainer?: { machineIdentifier?: string } }).MediaContainer?.machineIdentifier;
+    const people: MediaPerson[] = [{ id: String(me.id), username: me.username || me.title || String(me.id), name: me.title || me.username || String(me.id) }];
+    this.tokens = new Map([[String(me.id), this.token]]);
+    if (machine) {
+      // This list only comes as XML. Each <SharedServer> carries the person's own key for this server.
+      const xml = await (await request(this.fetchImpl, 'Plex', 'plex.tv', `https://plex.tv/api/servers/${encodeURIComponent(machine)}/shared_servers`, { headers: { ...h, Accept: 'application/xml' } })).text();
+      for (const tag of xml.match(/<SharedServer\b[^>]*>/g) ?? []) {
+        const attr = (n: string) => new RegExp(`\\b${n}="([^"]*)"`).exec(tag)?.[1];
+        const id = attr('userID');
+        const token = attr('accessToken');
+        if (!id || !token) continue;
+        this.tokens.set(id, token);
+        const name = attr('username') || attr('email') || id;
+        people.push({ id, username: name, name });
+      }
+    }
+    return people;
+  }
+
+  private async tokenFor(userId: string): Promise<string> {
+    if (!this.tokens.has(userId)) await this.watchedUsers();
+    const t = this.tokens.get(userId);
+    if (!t) throw new MediaServerError('Plex doesn’t share this server with that person any more.');
+    return t;
+  }
+
+  async watchedLibrary(userId: string): Promise<SyncItem[]> {
+    const token = await this.tokenFor(userId);
+    const list = async (p: string) => ((await (await this.get(p, token)).json()) as { MediaContainer?: { Metadata?: PlexMeta[] } }).MediaContainer?.Metadata ?? [];
+    const out: SyncItem[] = [];
+    for (const lib of await this.libraries()) {
+      const key = encodeURIComponent(lib.id);
+      if (lib.kind === 'movie') {
+        for (const m of await list(`/library/sections/${key}/all?type=1&includeGuids=1`)) {
+          out.push({ ref: String(m.ratingKey), keys: idKeys(plexIds(m.Guid)).map((k) => `m:${k}`), watched: (m.viewCount ?? 0) > 0, title: m.year ? `${m.title} (${m.year})` : m.title });
+        }
+      } else if (lib.kind === 'tv') {
+        const shows = new Map((await list(`/library/sections/${key}/all?type=2&includeGuids=1`)).map((m) => [String(m.ratingKey), idKeys(plexIds(m.Guid))]));
+        for (const m of await list(`/library/sections/${key}/all?type=4&includeGuids=1`)) {
+          const show = shows.get(String(m.grandparentRatingKey)) ?? [];
+          out.push({ ref: String(m.ratingKey), keys: sxe(show, m.parentIndex, m.index), watched: (m.viewCount ?? 0) > 0, title: `${m.grandparentTitle ?? ''} S${String(m.parentIndex ?? 0).padStart(2, '0')}E${String(m.index ?? 0).padStart(2, '0')}` });
+        }
+      }
+    }
+    return out;
+  }
+
+  async setWatched(userId: string, ref: string, watched: boolean): Promise<void> {
+    await this.get(`/:/${watched ? 'scrobble' : 'unscrobble'}?identifier=com.plexapp.plugins.library&key=${encodeURIComponent(ref)}`, await this.tokenFor(userId));
   }
 
   async ping() {
@@ -250,8 +338,9 @@ interface JfItem {
   ProductionYear?: number;
   RunTimeTicks?: number;
   Height?: number;
-  ProviderIds?: { Tmdb?: string };
-  UserData?: { LastPlayedDate?: string };
+  ProviderIds?: Record<string, string>;
+  UserData?: { LastPlayedDate?: string; Played?: boolean };
+  SeriesId?: string;
 }
 
 function jfItem(i: JfItem): WatchItem {
@@ -353,6 +442,29 @@ export class JellyfinClient implements MediaServerApi {
     type U = { Id: string; Name: string; Policy?: { IsDisabled?: boolean } };
     const rows = (await (await this.send('/Users')).json()) as U[];
     return rows.filter((u) => !u.Policy?.IsDisabled).map((u) => ({ id: u.Id, username: u.Name, name: u.Name }));
+  }
+
+  watchedUsers(): Promise<MediaPerson[]> {
+    return this.people();
+  }
+
+  async watchedLibrary(userId: string): Promise<SyncItem[]> {
+    const items = async (types: string) =>
+      ((await (await this.send(`/Users/${encodeURIComponent(userId)}/Items?Recursive=true&IncludeItemTypes=${types}&Fields=ProviderIds&EnableUserData=true`)).json()) as { Items?: JfItem[] }).Items ?? [];
+    const shows = new Map((await items('Series')).map((i) => [i.Id ?? '', idKeys(i.ProviderIds ?? {})]));
+    return (await items('Movie,Episode')).map((i) => {
+      const ep = i.Type === 'Episode';
+      return {
+        ref: i.Id ?? '',
+        keys: ep ? sxe(shows.get(i.SeriesId ?? '') ?? [], i.ParentIndexNumber, i.IndexNumber) : idKeys(i.ProviderIds ?? {}).map((k) => `m:${k}`),
+        watched: Boolean(i.UserData?.Played),
+        title: ep ? `${i.SeriesName ?? ''} S${String(i.ParentIndexNumber ?? 0).padStart(2, '0')}E${String(i.IndexNumber ?? 0).padStart(2, '0')}` : i.ProductionYear ? `${i.Name} (${i.ProductionYear})` : i.Name,
+      };
+    });
+  }
+
+  async setWatched(userId: string, ref: string, watched: boolean): Promise<void> {
+    await this.send(`/Users/${encodeURIComponent(userId)}/PlayedItems/${encodeURIComponent(ref)}`, { method: watched ? 'POST' : 'DELETE' });
   }
 
   async scan(_library: MediaLibrary, folder: string): Promise<void> {

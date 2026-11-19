@@ -56,7 +56,7 @@ export function retireSeerrChecklist({ db, config }: { db: Db; config: Config })
       : channels.length
         ? 'A channel is set up but nothing has gone through yet. Press Send a test on it.'
         : 'Set up Pushover or ntfy so you hear about new requests. People always get the bell inside Marquee.',
-    action: { label: 'Settings → Notifications', to: '/settings/notifications' },
+    action: { label: 'Settings → Notifications → Shared alerts', to: '/settings/notifications/shared' },
   });
 
   const asked = db.select({ n: sql<number>`count(*)` }).from(requests).get()?.n ?? 0;

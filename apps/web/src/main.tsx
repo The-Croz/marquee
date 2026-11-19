@@ -13,14 +13,15 @@ import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { ActivityPage } from './pages/Activity';
-import { PersonPage } from './pages/Person';
+import { MyHistoryPage, PersonPage } from './pages/Person';
 import { SwitchOverPage } from './pages/SwitchOver';
 import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
 import { DiscoverPageView } from './pages/Discover';
 import { DiscoverTitlePage } from './pages/DiscoverTitle';
 import { RequestsPage } from './pages/Requests';
-import { DiscoverSettingsPage, NotificationSettingsPage } from './pages/NotificationSettings';
+import { WatchSyncPage } from './pages/WatchSync';
+import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
 import { LibraryPage } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
       { path: 'switch-over/tautulli', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="tautulli" kind="tautulli" /></AdminOnly>} /> },
       { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="seerr" /></AdminOnly>} /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'history', element: <MyHistoryPage /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,
@@ -89,11 +91,20 @@ const router = createBrowserRouter([
           { path: 'account', element: <AccountPage /> },
           { path: 'about', element: <AboutPage /> },
           { path: 'discover', element: <DiscoverSettingsPage /> },
-          { path: 'notifications', element: <NotificationSettingsPage /> },
+          {
+            path: 'notifications',
+            element: <NotificationSettingsLayout />,
+            children: [
+              { index: true, element: <MyNotificationsPage /> },
+              { path: 'shared', element: <RequireUser render={(s) => <AdminOnly status={s}><SharedAlertsPage /></AdminOnly>} /> },
+              { path: 'wording', element: <RequireUser render={(s) => <AdminOnly status={s}><WordingPage /></AdminOnly>} /> },
+            ],
+          },
           { path: 'users', element: <UsersPage /> },
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
+          { path: 'watched-sync', element: <RequireUser render={(st) => <AdminOnly status={st}><WatchSyncPage /></AdminOnly>} /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

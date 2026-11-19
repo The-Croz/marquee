@@ -1,4 +1,4 @@
-import { MediaServerError, type MediaLibrary, type MediaPerson, type NowPlayingItem, type PlayRecord, type MediaServerApi } from '../../src/library/mediaServers.js';
+import { MediaServerError, type MediaLibrary, type MediaPerson, type NowPlayingItem, type PlayRecord, type MediaServerApi, type SyncItem } from '../../src/library/mediaServers.js';
 
 /** A fake Plex or Jellyfin for tests and demo mode: its libraries, and every scan it was asked for. No network. */
 export class FakeMediaServer {
@@ -10,6 +10,10 @@ export class FakeMediaServer {
   people: MediaPerson[] = [];
   playing: NowPlayingItem[] = [];
   plays: PlayRecord[] = [];
+  /** Watched sync: each person's movies and episodes (by server user id), and every tick asked for. */
+  watched = new Map<string, SyncItem[]>();
+  ticks: { user: string; ref: string; watched: boolean }[] = [];
+  failTick: string | null = null;
   /** Streams stopped by an admin: session id and the message shown. */
   stopped: { sessionId: string; message: string }[] = [];
   /** Set to make stopping fail this way. */
@@ -80,6 +84,21 @@ export class FakeMediaServer {
       scan: async (library, folder) => {
         gate();
         this.scans.push({ library: library.id, folder });
+      },
+      watchedUsers: async () => {
+        gate();
+        return structuredClone(this.people);
+      },
+      watchedLibrary: async (userId) => {
+        gate();
+        return structuredClone(this.watched.get(userId) ?? []);
+      },
+      setWatched: async (userId, ref, watched) => {
+        gate();
+        if (this.failTick && ref === this.failTick) throw new MediaServerError('No such item.');
+        this.ticks.push({ user: userId, ref, watched });
+        const item = this.watched.get(userId)?.find((i) => i.ref === ref);
+        if (item) item.watched = watched;
       },
     };
   }

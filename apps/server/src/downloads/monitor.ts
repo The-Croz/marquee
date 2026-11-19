@@ -1,11 +1,13 @@
-import { notifyAdmins, type NotifyDeps } from '../notify/service.js';
-import { markReady } from '../requests/service.js';
+import { tell, type NotifyDeps } from '../notify/service.js';
+import type { Vars } from '../notify/template.js';
+import { posterUrl } from '../notify/vars.js';
+import { markReady, tellNewEpisodes } from '../requests/service.js';
 import path from 'node:path';
 import { and, eq, inArray, isNotNull, isNull, or, lt } from 'drizzle-orm';
 import fs from 'node:fs/promises';
 import type { DownloadActionResult, DownloadsView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { downloads, neverPick, type Download } from '../db/schema.js';
+import { downloads, movies, neverPick, series, type Download } from '../db/schema.js';
 import { HttpError, type Clients } from '../http.js';
 import type { SourceService } from '../sources/service.js';
 import { QbitError, type QbitApi, type QbitFile } from './qbittorrent.js';
@@ -151,7 +153,7 @@ export class DownloadMonitor {
         .where(eq(downloads.id, row.id))
         .run();
       if (done && !row.adopted) {
-        this.tell('download_finished', 'Download finished', row.title);
+        this.tell('download_finished', this.vars(row));
         await this.putInLibrary(row.id);
       }
       if (done || row.adopted) continue;
@@ -182,9 +184,19 @@ export class DownloadMonitor {
   }
 
   /** Tells the admins (inbox and push). Never holds up the monitor. */
-  private tell(event: string, title: string, body: string, link: string | null = '/downloads'): void {
-    const n = this.deps.notify;
-    if (n) void notifyAdmins(n, event, { title, body, link }).catch((e) => console.error('[notify] failed:', (e as Error).message));
+  private tell(event: string, vars: Vars, link: string | null = '/downloads'): void {
+    tell(this.deps.notify, 'admins', event, { vars, link });
+  }
+
+  /** The facts about a download for its messages: the copy's name, and the title and cover art when it's in the library. */
+  private vars(row: Download): Vars {
+    const { db } = this.deps;
+    const t = row.movieId
+      ? db.select({ title: movies.title, posterPath: movies.posterPath }).from(movies).where(eq(movies.id, row.movieId)).get()
+      : row.seriesId
+        ? db.select({ title: series.title, posterPath: series.posterPath }).from(series).where(eq(series.id, row.seriesId)).get()
+        : undefined;
+    return { release: row.title, title: t?.title ?? row.title, poster: posterUrl(t?.posterPath) };
   }
 
   private row(id: number): Download {
@@ -244,12 +256,18 @@ export class DownloadMonitor {
         .where(eq(downloads.id, id))
         .run();
       const told = await this.tellServers(id);
-      this.tell('imported', 'Added to the library', r.paths.map((p) => p.split('/').at(-1)).join(', '), row.kind === 'movie' && row.movieId ? `/movies/${row.movieId}` : row.seriesId ? `/shows/${row.seriesId}` : '/downloads');
-      if (this.deps.notify) markReady({ db, notify: this.deps.notify, now });
+      const names = r.paths.map((p) => p.split('/').at(-1)).join(', ');
+      const link = row.kind === 'movie' && row.movieId ? `/movies/${row.movieId}` : row.seriesId ? `/shows/${row.seriesId}` : '/downloads';
+      // A copy that replaced one already there is an upgrade; otherwise it's new to the library.
+      this.tell(r.replaced.length ? 'upgraded' : 'imported', { ...this.vars(row), files: names }, link);
+      if (this.deps.notify) {
+        if (!r.replaced.length) tellNewEpisodes({ db, notify: this.deps.notify, now }, row);
+        markReady({ db, notify: this.deps.notify, now });
+      }
       return { message: `In your library: ${r.paths.map((p) => p.split('/').at(-1)).join(', ')}.${told ? ` ${told}` : ''}`, next: null };
     } catch (err) {
       if (!(err instanceof ImportError) && !(err instanceof HttpError)) throw err;
-      if (!row.importError) this.tell('download_problem', 'Couldn’t put a download in the library', `${row.title}: ${err.message}`);
+      if (!row.importError) this.tell('download_problem', { ...this.vars(row), problem: 'Couldn’t put a download in the library', reason: err.message });
       db.update(downloads).set({ importError: err.message, importTriedAt: now() }).where(eq(downloads.id, id)).run();
       return { message: `Couldn't put it in your library: ${err.message}`, next: null };
     }
@@ -330,7 +348,7 @@ export class DownloadMonitor {
       .run();
     if (row.qbitState !== 'gone') await this.call(() => qbit.remove(row.infoHash, true));
     db.update(downloads).set({ state: 'failed', message: reason }).where(eq(downloads.id, id)).run();
-    this.tell('download_problem', 'Tried another copy', `${row.title}: ${reason}`);
+    this.tell('download_problem', { ...this.vars(row), problem: 'Tried another copy', reason });
 
     const target: SearchTarget =
       row.kind === 'movie'
