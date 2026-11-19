@@ -192,7 +192,7 @@ plex.plays = [
   { kind: 'episode', title: 'Half Loop', show: 'Severance', season: 1, episode: 2, year: null, tmdbId: null, userId: '2', user: 'ana', key: 'p3', playedAt: hoursAgo(54) },
 ];
 jellyfin.plays = [{ kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, userId: 'jf-sam', user: 'sam', key: 'j1', playedAt: hoursAgo(80) }];
-plex.playing = [{ kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, user: 'ana', device: 'Living room TV', state: 'playing', progress: 0.37, transcoding: false }];
+plex.playing = [{ sessionId: 's1', platform: 'Plex for Roku', resolution: '4k', kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, user: 'ana', device: 'Living room TV', state: 'playing', progress: 0.37, transcoding: false }];
 // Fake sites Marquee searches itself, and the catalogue they come from (the test site files).
 const web = new FakeWeb();
 const fixtures = path.resolve(import.meta.dirname, '../test/fixtures/sites');

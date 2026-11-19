@@ -13,6 +13,7 @@ import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { ActivityPage } from './pages/Activity';
+import { PersonPage } from './pages/Person';
 import { SwitchOverPage } from './pages/SwitchOver';
 import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
@@ -60,6 +61,7 @@ const router = createBrowserRouter([
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },
+      { path: 'activity/people/:name', element: <RequireUser render={(s) => <AdminOnly status={s}><PersonPage /></AdminOnly>} /> },
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
       {
         path: 'quality',
@@ -76,7 +78,8 @@ const router = createBrowserRouter([
       { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
       { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="movie" /></AdminOnly>} /> },
       { path: 'switch-over/tv', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="tv" kind="tv" /></AdminOnly>} /> },
-      { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage /></AdminOnly>} /> },
+      { path: 'switch-over/tautulli', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="tautulli" kind="tautulli" /></AdminOnly>} /> },
+      { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="seerr" /></AdminOnly>} /> },
       { path: 'calendar', element: <CalendarPage /> },
       {
         path: 'settings',

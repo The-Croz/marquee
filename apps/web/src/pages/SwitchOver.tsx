@@ -55,6 +55,7 @@ export function SwitchTabs() {
           ['/switch-over', 'Movies'],
           ['/switch-over/tv', 'TV'],
           ['/switch-over/seerr', 'Seerr'],
+          ['/switch-over/tautulli', 'Tautulli'],
         ] as const
       ).map(([to, label]) => (
         <NavLink

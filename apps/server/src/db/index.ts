@@ -407,6 +407,31 @@ const migrations: string[] = [
   CREATE UNIQUE INDEX plays_once ON plays (server, server_user_id, item_key, played_at);
   CREATE INDEX plays_when ON plays (played_at);
   `,
+  /* 20: every stream Marquee watched happen, with how long it was really watched */ `
+  CREATE TABLE streams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server TEXT NOT NULL CHECK (server IN ('plex', 'jellyfin')),
+    session_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'episode')),
+    title TEXT NOT NULL,
+    show TEXT,
+    season INTEGER,
+    episode INTEGER,
+    year INTEGER,
+    tmdb_id INTEGER,
+    device TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    resolution TEXT,
+    transcoding INTEGER NOT NULL DEFAULT 0,
+    started_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    ended_at INTEGER,
+    watched_ms INTEGER NOT NULL DEFAULT 0,
+    progress REAL NOT NULL DEFAULT 0
+  );
+  CREATE INDEX streams_started ON streams (started_at);
+  `,
 ];
 
 export function openDb(file: string): Db {

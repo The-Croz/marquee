@@ -27,7 +27,7 @@ describe('activity', () => {
     const stats = (await call(app, 'GET', '/api/activity/stats', undefined, admin)).body;
     expect(stats).toMatchObject({ total: 3, last24h: 2, servers: { plex: 2, jellyfin: 1 } });
     expect(stats.perDay).toHaveLength(30);
-    expect(stats.users[0]).toEqual({ name: 'josh', plays: 2 });
+    expect(stats.users[0]).toEqual({ name: 'Josh', plays: 2 });
     expect(stats.shows).toEqual([{ name: 'Severance', plays: 1 }]);
     const hist = (await call(app, 'GET', '/api/activity/history?limit=2', undefined, admin)).body;
     expect(hist.total).toBe(3);
@@ -47,7 +47,7 @@ describe('activity', () => {
   it('shows who is watching now, linked to the library title', async () => {
     const { app, db, plex, admin } = await setup();
     db.insert(movies).values({ tmdbId: 438631, title: 'Dune', sortTitle: 'dune', year: 2021, path: '/m/dune', addedAt: 1, refreshedAt: 1 } as never).run();
-    plex.playing = [{ kind: 'movie', title: 'Dune', show: null, season: null, episode: null, year: 2021, tmdbId: 438631, user: 'ana', device: 'Living room TV', state: 'paused', progress: 0.4, transcoding: false }];
+    plex.playing = [{ sessionId: 's1', platform: 'Roku', resolution: '1080', kind: 'movie', title: 'Dune', show: null, season: null, episode: null, year: 2021, tmdbId: 438631, user: 'ana', device: 'Living room TV', state: 'paused', progress: 0.4, transcoding: false }];
     const r = (await call(app, 'GET', '/api/activity/now', undefined, admin)).body;
     expect(r.sessions).toHaveLength(1);
     expect(r.sessions[0]).toMatchObject({ server: 'plex', user: 'ana', title: 'Dune', state: 'paused', href: expect.stringMatching(/^\/movies\/\d+$/) });

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { keepListening, nodeSocket, type SocketFactory } from '../activity/socket.js';
 import { getSetting, setSetting, type Db } from '../db/index.js';
 import { libraryRoots } from './services.js';
 
@@ -45,6 +46,12 @@ export interface WatchItem {
   tmdbId: number | null;
 }
 export interface NowPlayingItem extends WatchItem {
+  /** The server's id for this stream, needed to stop it. */
+  sessionId: string;
+  /** The app playing it, e.g. "Plex for Roku". */
+  platform: string;
+  /** "4k", "1080", "720", "480" or "sd"; null when the server doesn't say. */
+  resolution: string | null;
   user: string;
   device: string;
   state: 'playing' | 'paused' | 'buffering';
@@ -64,6 +71,15 @@ export interface PlayRecord extends WatchItem {
 export interface MediaServerApi {
   /** Who is watching right now. */
   nowPlaying(): Promise<NowPlayingItem[]>;
+  /** Stops one stream, showing the viewer `message`. Throws MediaServerError if the server says no. */
+  stop(sessionId: string, message: string): Promise<void>;
+  /**
+   * Calls `onHint` the moment the server says something started, paused or
+   * stopped playing, so Marquee can look at once instead of waiting for its
+   * next check. `onState` says whether that live line is open. Returns a
+   * function that closes it. Servers without one just don't offer this.
+   */
+  watch?(onHint: () => void, onState?: (connected: boolean) => void): () => void;
   /** Finished plays since a time (ms), newest first. */
   history(since: number): Promise<PlayRecord[]>;
   /** The people who can use this server (Plex: you and the friends it's shared with). */
@@ -91,6 +107,16 @@ async function request(fetchImpl: typeof fetch, label: string, base: string, url
   return res;
 }
 
+/** One short name for a picture size. */
+export function resolutionLabel(v: string | number | null | undefined): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string' && /^(4k|sd)$/i.test(v)) return v.toLowerCase();
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  // Plex says the height already ("1080"); Jellyfin gives a height too.
+  return n >= 2000 ? '4k' : n >= 1000 ? '1080' : n >= 700 ? '720' : n >= 400 ? '480' : 'sd';
+}
+
 interface PlexMeta {
   type: string;
   ratingKey?: string | number;
@@ -104,7 +130,9 @@ interface PlexMeta {
   viewedAt?: number;
   accountID?: number;
   User?: { title?: string };
-  Player?: { title?: string; product?: string; state?: string };
+  Player?: { title?: string; product?: string; platform?: string; state?: string };
+  Session?: { id?: string };
+  Media?: { videoResolution?: string }[];
   TranscodeSession?: { videoDecision?: string };
   Guid?: { id: string }[];
 }
@@ -121,8 +149,31 @@ export class PlexServerClient implements MediaServerApi {
     url: string,
     private readonly token: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly socket: SocketFactory = nodeSocket,
   ) {
     this.base = url.replace(/\/+$/, '');
+  }
+
+  watch(onHint: () => void, onState: (connected: boolean) => void = () => {}): () => void {
+    // Plex sends {"NotificationContainer":{"type":"playing", ...}} on every play, pause and stop.
+    return keepListening(
+      {
+        url: `${this.base.replace(/^http/, 'ws')}/:/websockets/notifications?X-Plex-Token=${encodeURIComponent(this.token)}`,
+        onMessage: (text) => {
+          try {
+            if ((JSON.parse(text) as { NotificationContainer?: { type?: string } }).NotificationContainer?.type === 'playing') onHint();
+          } catch {
+            /* not JSON: ignore */
+          }
+        },
+      },
+      onState,
+      this.socket,
+    );
+  }
+
+  async stop(sessionId: string, message: string): Promise<void> {
+    await this.get(`/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(message)}`);
   }
 
   private get(p: string): Promise<Response> {
@@ -155,6 +206,9 @@ export class PlexServerClient implements MediaServerApi {
     const rows = await this.list<PlexMeta>('/status/sessions?includeGuids=1');
     return rows.filter((m) => m.type === 'movie' || m.type === 'episode').map((m) => ({
       ...plexItem(m),
+      sessionId: String(m.Session?.id ?? m.ratingKey ?? ''),
+      platform: m.Player?.product || m.Player?.platform || 'an app',
+      resolution: resolutionLabel(m.Media?.[0]?.videoResolution),
       user: m.User?.title ?? 'Someone',
       device: m.Player?.title || m.Player?.product || 'a device',
       state: m.Player?.state === 'paused' ? 'paused' : m.Player?.state === 'buffering' ? 'buffering' : 'playing',
@@ -195,6 +249,7 @@ interface JfItem {
   IndexNumber?: number;
   ProductionYear?: number;
   RunTimeTicks?: number;
+  Height?: number;
   ProviderIds?: { Tmdb?: string };
   UserData?: { LastPlayedDate?: string };
 }
@@ -210,8 +265,36 @@ export class JellyfinClient implements MediaServerApi {
     url: string,
     private readonly apiKey: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly socket: SocketFactory = nodeSocket,
   ) {
     this.base = url.replace(/\/+$/, '');
+  }
+
+  watch(onHint: () => void, onState: (connected: boolean) => void = () => {}): () => void {
+    // Jellyfin sends the whole session list every few seconds once we ask for it, and
+    // straight away on changes. We use each message as a nudge and read the list ourselves.
+    return keepListening(
+      {
+        url: `${this.base.replace(/^http/, 'ws')}/socket?api_key=${encodeURIComponent(this.apiKey)}&deviceId=marquee`,
+        onOpen: (s) => s.send(JSON.stringify({ MessageType: 'SessionsStart', Data: '0,5000' })),
+        onMessage: (text) => {
+          try {
+            if ((JSON.parse(text) as { MessageType?: string }).MessageType === 'Sessions') onHint();
+          } catch {
+            /* not JSON: ignore */
+          }
+        },
+      },
+      onState,
+      this.socket,
+    );
+  }
+
+  async stop(sessionId: string, message: string): Promise<void> {
+    const id = encodeURIComponent(sessionId);
+    const json = { 'Content-Type': 'application/json' };
+    if (message) await this.send(`/Sessions/${id}/Message`, { method: 'POST', headers: json, body: JSON.stringify({ Header: 'Playback stopped', Text: message, TimeoutMs: 10_000 }) }).catch(() => {});
+    await this.send(`/Sessions/${id}/Playing/Stop`, { method: 'POST' });
   }
 
   private send(p: string, init: RequestInit = {}): Promise<Response> {
@@ -237,10 +320,13 @@ export class JellyfinClient implements MediaServerApi {
   }
 
   async nowPlaying(): Promise<NowPlayingItem[]> {
-    type S = { UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string } };
+    type S = { Id?: string; UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string } };
     const rows = (await (await this.send('/Sessions')).json()) as S[];
     return rows.filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode')).map((r) => ({
       ...jfItem(r.NowPlayingItem!),
+      sessionId: r.Id ?? '',
+      platform: r.Client || 'an app',
+      resolution: resolutionLabel(r.NowPlayingItem!.Height),
       user: r.UserName ?? 'Someone',
       device: r.DeviceName || r.Client || 'a device',
       state: r.PlayState?.IsPaused ? 'paused' : 'playing',

@@ -10,6 +10,19 @@ export class FakeMediaServer {
   people: MediaPerson[] = [];
   playing: NowPlayingItem[] = [];
   plays: PlayRecord[] = [];
+  /** Streams stopped by an admin: session id and the message shown. */
+  stopped: { sessionId: string; message: string }[] = [];
+  /** Set to make stopping fail this way. */
+  failStop: string | null = null;
+  private hints = new Set<() => void>();
+  /** Pretends the server just pushed "something changed". */
+  hint(): void {
+    for (const h of this.hints) h();
+  }
+  /** How many live lines are open. */
+  get watchers(): number {
+    return this.hints.size;
+  }
 
   constructor(kind: 'plex' | 'jellyfin', libs?: MediaLibrary[]) {
     this.name = kind === 'plex' ? 'Plex' : 'Jellyfin';
@@ -36,6 +49,17 @@ export class FakeMediaServer {
       ping: async () => {
         gate();
         return { name: `Josh's ${this.name}`, version: this.name === 'Plex' ? '1.41.3' : '10.10.3' };
+      },
+      stop: async (sessionId, message) => {
+        gate();
+        if (this.failStop) throw new MediaServerError(this.failStop);
+        this.stopped.push({ sessionId, message });
+        this.playing = this.playing.filter((p) => p.sessionId !== sessionId);
+      },
+      watch: (onHint, onState) => {
+        this.hints.add(onHint);
+        onState?.(true);
+        return () => void this.hints.delete(onHint);
       },
       nowPlaying: async () => {
         gate();

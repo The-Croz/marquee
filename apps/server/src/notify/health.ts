@@ -3,6 +3,7 @@ import type { Db } from '../db/index.js';
 import { getSetting, setSetting } from '../db/index.js';
 import { episodes, series, sources } from '../db/schema.js';
 import type { Clients } from '../http.js';
+import { readMediaServer } from '../library/mediaServers.js';
 import { checkDownloader, readDownloader, DOWNLOADER_TEXT } from '../downloads/service.js';
 import { STATE_TEXT } from '../sources/service.js';
 import { notifyAdmins, type NotifyDeps } from './service.js';
@@ -24,7 +25,7 @@ function changed(db: Db, k: string, now: string | null): boolean {
   return now !== null;
 }
 
-export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'qbittorrent'> }): Promise<void> {
+export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'qbittorrent'> & Partial<Pick<Clients, 'plexServer' | 'jellyfin'>> }): Promise<void> {
   const { db, clients, now } = deps;
 
   for (const s of db.select().from(sources).where(eq(sources.enabled, true)).all()) {
@@ -41,6 +42,23 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     const bad = !['working', 'firewalled', 'not_set_up'].includes(h.state);
     if (changed(db, 'downloader', bad ? h.state : null)) {
       await notifyAdmins(deps, 'downloader_problem', { title: 'qBittorrent stopped working', body: `${h.label}. ${DOWNLOADER_TEXT[h.state].fix ?? ''}`.trim(), link: '/settings/downloader' });
+    }
+  }
+
+  // Plex and Jellyfin: told once when one stops answering.
+  for (const kind of ['plex', 'jellyfin'] as const) {
+    const m = readMediaServer(db, kind);
+    const make = kind === 'plex' ? deps.clients.plexServer : deps.clients.jellyfin;
+    if (!m.url || !m.secret || !make) continue;
+    let down: string | null = null;
+    try {
+      await make(m.url, m.secret).ping();
+    } catch (err) {
+      down = (err as Error).message;
+    }
+    if (changed(db, `server.${kind}`, down ? 'down' : null)) {
+      const name = kind === 'plex' ? 'Plex' : 'Jellyfin';
+      await notifyAdmins(deps, 'media_server_problem', { title: `${name} stopped answering`, body: `${down} Marquee tries again by itself.`, link: '/settings/services' });
     }
   }
 

@@ -271,11 +271,25 @@ Decided with Josh (2026-11-18):
 
 ## Milestone 6: Stats 🔨
 
-- ✅ **Plex and Jellyfin watching**: Marquee reads who is watching now (Plex `/status/sessions`, Jellyfin `/Sessions`) and copies finished watches every 15 minutes (first run goes back a year; a day of overlap, duplicates ignored). Read-only. Migration 19 adds `plays`.
-- ✅ **Activity page** (admin only): Watching now (refreshes every 15 s, says when a device is being converted), the last 30 days as a bar chart with top people, movies and shows, and the history with Update now.
-- ✅ **Who's watched** on every movie and show page (admin only), matched to Marquee accounts by name.
-- ⬜ Per-person pages and "kids can see what they watched", and a watched/unwatched tick for each person on titles (needs a decision on privacy: today all of this is admin only).
-- ⬜ Retire Tautulli and WatchState (checklist like Seerr's)
+How it works (the way Tautulli does it, for Plex and Jellyfin both):
+- **Live line + a quick look.** Marquee keeps a websocket open to Plex (`/:/websockets/notifications`) and to Jellyfin (`/socket`, asking for `SessionsStart`). Each message is only a nudge: Marquee then reads what is really playing from the server, compares it with what it saw before, and records the difference. While anything plays it also looks every 10 s (5 s with no live line); idle, every 60 s (30 s). A dropped line reconnects by itself (5 s, doubling to 1 min), so nothing depends on it.
+- **Streams are recorded as they happen** (`streams` table, migration 20): who, what, device, app, picture size, converted or direct, start and end, and **watched time that only counts while playing** (a pause doesn't count; gaps over a minute aren't counted). Autoplay's next episode is its own stream. If the server stops answering, streams are kept for 2 minutes and then closed; a restart closes any left open.
+- **History is copied too** (`plays`, migration 19) from each server's own history every 15 minutes, so the time before Marquee was watching is included.
+- Read-only towards Plex and Jellyfin, except stopping a stream when an admin asks.
+
+Done:
+- ✅ **Activity page** (admin only): Watching now, pushed live to the page (server-sent events, falling back to asking every 15 s); 30-day chart; busiest hours and days; time watched, streams, most at once, direct vs converted; top people, movies, shows, apps and picture quality; library size by picture size and video format; people list; history with Update now.
+- ✅ **Stop a stream**: "Stop…" on any stream, with an optional message the viewer sees. Plex: `/status/sessions/terminate` (Plex only allows this with a Plex Pass; the page says so when it refuses). Jellyfin: shows the message, then stops playback.
+- ✅ **People pages**: what each person watches most, recent streams (how long, which device, picture size) and history. People are matched to Marquee accounts by name.
+- ✅ **Who's watched** on every movie and show page.
+- ✅ **Notifications**: someone started watching, finished watching (30 s or more, with how long), a stream is being converted, paused, resumed (all off until you turn them on, per channel), and Plex or Jellyfin stopped answering (on by default).
+- ✅ **Retire Tautulli** checklist (Switch over → Tautulli).
+
+Not done, on purpose:
+- ⬜ **Keeping "watched" ticks in step between Plex and Jellyfin (what WatchState does).** This writes to the servers and needs people matched across both, so it needs its own design. Keep WatchState until then.
+- ⬜ Members seeing their own history (everything here is admin only for now).
+- ⬜ Tautulli's old history isn't imported; IP addresses and locations and newsletters are left out for privacy and upkeep.
+- ⬜ Rules to stop streams automatically (limits per person); only stopping by hand.
 
 ## Milestone 7: iPhone app ⬜
 
