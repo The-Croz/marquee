@@ -58,7 +58,7 @@ export function CalendarPage() {
       {!v && !q.error && <p className="text-muted">Loading…</p>}
       {v && days.size === 0 && (
         <p className="m-0 text-muted">
-          Nothing airs between these dates. Shows in your library appear here once TMDB lists their next episodes; add shows from <Link to="/shows">Shows</Link>.
+          Nothing airs between these dates. Shows in your library appear here once TMDB lists their next episodes; add shows from <Link to="/library/shows">Library</Link>.
         </p>
       )}
       {[...days].map(([day, items]) => (

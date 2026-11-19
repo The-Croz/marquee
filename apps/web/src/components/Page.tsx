@@ -39,7 +39,7 @@ export function PageHeader({
           </div>
           {meta && <div className="text-sm text-dim">{meta}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full">{actions}</div>}
       </div>
     </header>
   );

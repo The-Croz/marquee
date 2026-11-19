@@ -17,7 +17,7 @@ interface NavItem {
   to: string;
   label: string;
   icon: IconName;
-  /** Other paths that light this item up (Library covers /movies and /shows). */
+  /** Other paths that light this item up (Library covers the title pages under /movies and /shows). */
   also?: string[];
   roles?: Role[];
 }
@@ -30,7 +30,7 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
     items: [
       { to: '/', label: 'Home', icon: 'home' },
       { to: '/discover', label: 'Discover', icon: 'discover' },
-      { to: '/movies', label: 'Library', icon: 'movies', also: ['/shows', '/library'] },
+      { to: '/library', label: 'Library', icon: 'movies', also: ['/movies', '/shows'] },
       { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },
@@ -50,9 +50,9 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
 
 /** The phone's bottom bar: at most five. */
 const TABS: Record<Role, string[]> = {
-  admin: ['/', '/discover', '/movies', '/requests', '/downloads'],
-  member: ['/', '/discover', '/movies', '/requests', '/calendar'],
-  kid: ['/', '/discover', '/movies', '/requests'],
+  admin: ['/', '/discover', '/library', '/requests', '/downloads'],
+  member: ['/', '/discover', '/library', '/requests', '/calendar'],
+  kid: ['/', '/discover', '/library', '/requests'],
 };
 
 const allowed = (n: NavItem, role: Role) => (n.roles ?? ALL).includes(role);

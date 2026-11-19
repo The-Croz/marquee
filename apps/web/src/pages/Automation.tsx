@@ -14,8 +14,8 @@ const KEY = ['automation'];
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Marquee couldn’t do that. Try again in a moment.');
 
 const KINDS: Record<Kind, { title: string; when: string; looks: Look[]; noun: [string, string]; library: string }> = {
-  movies: { title: 'Look for wanted movies', when: 'Missing ones every 6 hours, better copies once a day', looks: ['missing', 'better'], noun: ['movie', 'movies'], library: '/movies' },
-  tv: { title: 'Look for wanted episodes', when: 'New ones every 30 minutes, missing every 6 hours, better copies once a day', looks: ['new', 'missing', 'better'], noun: ['show', 'shows'], library: '/shows' },
+  movies: { title: 'Look for wanted movies', when: 'Missing ones every 6 hours, better copies once a day', looks: ['missing', 'better'], noun: ['movie', 'movies'], library: '/library/movies' },
+  tv: { title: 'Look for wanted episodes', when: 'New ones every 30 minutes, missing every 6 hours, better copies once a day', looks: ['new', 'missing', 'better'], noun: ['show', 'shows'], library: '/library/shows' },
 };
 
 const LOOK_LABEL: Record<Look, string> = { new: 'New episodes', missing: 'Missing', better: 'Better copies' };

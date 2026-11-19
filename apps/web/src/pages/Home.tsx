@@ -47,7 +47,7 @@ export function HomePage() {
           <p className="m-0 max-w-[560px] text-soft">
             {role === 'admin' ? 'Once Marquee has scanned your library, new arrivals and what’s coming up show here.' : 'Find something to watch and ask for it. It shows up here when it’s ready.'}
           </p>
-          <Link to={role === 'admin' ? '/movies' : '/discover'} className="inline-flex h-11 items-center rounded-xl bg-amber px-5 text-body font-semibold text-amber-ink no-underline hover:bg-amber-hi hover:text-amber-ink">
+          <Link to={role === 'admin' ? '/library' : '/discover'} className="inline-flex h-11 items-center rounded-xl bg-amber px-5 text-body font-semibold text-amber-ink no-underline hover:bg-amber-hi hover:text-amber-ink">
             {role === 'admin' ? 'Go to your library' : 'Open Discover'}
           </Link>
         </section>
@@ -280,7 +280,7 @@ function Shelf({ title, items, big }: { title: string; items: HomeTitle[]; big?:
         <h2 id="shelf-h" className="m-0 text-lg font-semibold">
           {title}
         </h2>
-        <Link to="/movies" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
+        <Link to="/library" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
           Library →
         </Link>
       </div>

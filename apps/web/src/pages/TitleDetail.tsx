@@ -99,7 +99,7 @@ export function MovieDetailPage() {
         year={m.year}
         backdrop={m.backdropPath}
         poster={m.posterPath}
-        back={{ to: '/movies', label: 'Movies' }}
+        back={{ to: '/library/movies', label: 'Movies' }}
         meta={[m.certification, m.runtime && `${Math.floor(m.runtime / 60)} h ${m.runtime % 60} m`, m.genres.slice(0, 3).join(', ')].filter(Boolean).join(' · ')}
         chips={[
           best ? { text: `On disk · ${best.quality.label}`, tone: 'amber' } : { text: 'Missing', tone: 'warn' },
@@ -185,7 +185,7 @@ export function ShowDetailPage() {
         year={s.year}
         backdrop={s.backdropPath}
         poster={s.posterPath}
-        back={{ to: '/shows', label: 'Shows' }}
+        back={{ to: '/library/shows', label: 'Shows' }}
         meta={[s.certification, s.network, s.status === 'Ended' ? 'Ended' : s.status === 'Returning Series' ? 'Still airing' : s.status].filter(Boolean).join(' · ')}
         chips={[
           aired === 0 ? { text: 'Not aired yet' } : have >= aired ? { text: `All ${aired} episodes`, tone: 'amber' } : { text: `${have} of ${aired} episodes`, tone: 'warn' },

@@ -21,7 +21,7 @@ import { RequestsPage } from './pages/Requests';
 import { WatchSyncPage } from './pages/WatchSync';
 import { AutomationPage } from './pages/Automation';
 import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
-import { LibraryPage } from './pages/Library';
+import { LibraryHome, LibraryPage, LibraryRedirect } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
@@ -52,9 +52,12 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'discover', element: <DiscoverPageView /> },
       { path: 'discover/:kind/:id', element: <DiscoverTitlePage /> },
-      { path: 'movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
+      { path: 'library', element: <LibraryHome /> },
+      { path: 'library/movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
+      { path: 'library/shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
+      { path: 'movies', element: <LibraryRedirect to="movies" /> },
       { path: 'movies/:id', element: <MovieDetailPage /> },
-      { path: 'shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
+      { path: 'shows', element: <LibraryRedirect to="shows" /> },
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },

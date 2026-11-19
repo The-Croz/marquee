@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
+import { PageHeader, Tabs } from '../components/Page';
 import { refreshLibrary } from '../components/Wanted';
 import { SearchBox } from './Search';
 
@@ -96,7 +97,33 @@ export function ScanPanel() {
   );
 }
 
+const LAST_KIND = 'marquee.library.kind';
+
+/** `/library`: opens Movies or Shows, whichever you looked at last. */
+export function LibraryHome() {
+  let last: string | null = null;
+  try {
+    last = localStorage.getItem(LAST_KIND);
+  } catch {
+    // Private windows can refuse storage; Movies is fine.
+  }
+  return <Navigate to={last === 'shows' ? '/library/shows' : '/library/movies'} replace />;
+}
+
+/** Old `/movies` and `/shows` links land on the matching Library tab, keeping any filters. */
+export function LibraryRedirect({ to }: { to: 'movies' | 'shows' }) {
+  const { search } = useLocation();
+  return <Navigate to={`/library/${to}${search}`} replace />;
+}
+
 export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: SessionUser }) {
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_KIND, kind === 'movie' ? 'movies' : 'shows');
+    } catch {
+      // Not remembering is fine.
+    }
+  }, [kind]);
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const filter = params.get('filter') ?? 'all';
@@ -137,23 +164,33 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="m-0 font-display text-display leading-none font-normal">{title}</h1>
-          {data && (
-            <span className="text-sm text-muted">
+      <PageHeader
+        title="Library"
+        docTitle={`${title} · Library`}
+        meta={
+          data && (
+            <>
               {items.length} {kind === 'movie' ? (items.length === 1 ? 'movie' : 'movies') : items.length === 1 ? 'show' : 'shows'}
               {total > 0 && ` · ${formatBytes(total)}`}
               {isAdmin && ` · ${wantedCount} Wanted`}
-            </span>
-          )}
-        </div>
-        {user.role !== 'kid' && (
-          <div className="flex w-full max-w-[420px]">
-            <SearchBox kind={kind} />
-          </div>
-        )}
-      </div>
+            </>
+          )
+        }
+        actions={
+          user.role !== 'kid' && (
+            <div className="flex w-full min-w-0 sm:w-[420px]">
+              <SearchBox kind={kind} />
+            </div>
+          )
+        }
+      />
+      <Tabs
+        label="Movies or shows"
+        items={[
+          { value: 'movie', label: 'Movies', to: '/library/movies' },
+          { value: 'series', label: 'Shows', to: '/library/shows' },
+        ]}
+      />
 
       {user.role === 'admin' && <ScanPanel />}
 
