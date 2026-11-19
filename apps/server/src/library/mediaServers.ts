@@ -316,11 +316,21 @@ export class PlexServerClient implements MediaServerApi {
   async people(): Promise<MediaPerson[]> {
     // The server's own address doesn't know the sharing list; plex.tv does, and the same token opens it.
     const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
-    const me = await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/user', { headers: h });
-    const friends = await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/friends', { headers: h });
     type P = { id: number; username?: string; title?: string };
-    const rows = [(await me.json()) as P, ...((await friends.json()) as P[])];
-    return rows.filter((p) => p.id).map((p) => ({ id: String(p.id), username: p.username || p.title || String(p.id), name: p.title || p.username || String(p.id) }));
+    const me = (await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/user', { headers: h })).json()) as P;
+    let friends: P[];
+    try {
+      // The friends list Seerr and Tautulli read. It only comes as XML: <User id=".." title=".." username=".."/>.
+      const xml = await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/users', { headers: { ...h, Accept: 'application/xml' } })).text();
+      friends = (xml.match(/<User\b[^>]*>/g) ?? []).map((tag) => {
+        const attr = (n: string) => new RegExp(`\\s${n}="([^"]*)"`).exec(tag)?.[1];
+        return { id: Number(attr('id')), username: attr('username') || undefined, title: attr('title') || undefined };
+      });
+    } catch {
+      // Older accounts: the newer list, which plex.tv has retired for some (it answers 410).
+      friends = (await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/friends', { headers: h })).json()) as P[];
+    }
+    return [me, ...friends].filter((p) => p.id).map((p) => ({ id: String(p.id), username: p.username || p.title || String(p.id), name: p.title || p.username || String(p.id) }));
   }
 
   async scan(library: MediaLibrary, folder: string): Promise<void> {

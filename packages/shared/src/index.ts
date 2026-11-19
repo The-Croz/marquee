@@ -1107,6 +1107,8 @@ export interface ServerPerson {
   name: string;
   /** Marquee username if they already have an account. */
   marqueeUser: string | null;
+  /** An existing Marquee account with the same name, to link instead of making a new one. */
+  suggest: number | null;
 }
 
 /** One step of the "Retire Seerr" checklist. Same states as the switch-over steps. */
