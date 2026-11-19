@@ -8,7 +8,7 @@ export interface SessionUser {
   username: string;
   displayName: string;
   role: Role;
-  linked: { plex: boolean; oidc: boolean; password: boolean };
+  linked: { plex: boolean; oidc: boolean; password: boolean; jellyfin: boolean };
 }
 
 export interface AuthStatus {
@@ -18,6 +18,8 @@ export interface AuthStatus {
     password: true;
     oidc: { enabled: boolean; name: string };
     plex: { enabled: boolean };
+    /** True once Jellyfin is connected under Settings → Services. */
+    jellyfin: { enabled: boolean };
   };
   user: SessionUser | null;
   /** Running version, e.g. "1.2.0" or "main-f00a740". */
@@ -44,6 +46,7 @@ export type PlexPinCheck =
 export interface UserSummary extends SessionUser {
   email: string | null;
   plexUsername: string | null;
+  jellyfinUsername: string | null;
   createdAt: number;
   lastLoginAt: number | null;
 }
@@ -1058,4 +1061,28 @@ export interface NotificationInboxItem {
   link: string | null;
   createdAt: number;
   read: boolean;
+}
+
+/** Someone on Plex or Jellyfin who could get a Marquee account. */
+export interface ServerPerson {
+  id: string;
+  username: string;
+  name: string;
+  /** Marquee username if they already have an account. */
+  marqueeUser: string | null;
+}
+
+/** One step of the "Retire Seerr" checklist. Same states as the switch-over steps. */
+export interface RetireStep {
+  key: string;
+  title: string;
+  state: CutoverStep['state'];
+  detail: string;
+  action: { label: string; to: string } | null;
+}
+
+export interface RetireView {
+  steps: RetireStep[];
+  /** Every step Marquee can check is done. The last steps are yours to do. */
+  ready: boolean;
 }

@@ -38,7 +38,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [error, setError] = useState<string | null>(ERRORS[params.get('error') ?? ''] ?? null);
-  const [busy, setBusy] = useState<'password' | 'plex' | null>(null);
+  const [busy, setBusy] = useState<'password' | 'plex' | 'jellyfin' | null>(null);
 
   if (status?.setupRequired) return <Navigate to="/setup" replace />;
   if (status?.user) return <Navigate to="/" replace />;
@@ -50,6 +50,22 @@ export function LoginPage() {
     setError(null);
     try {
       await api<{ user: SessionUser }>('/auth/login', { body: { username: form.get('username'), password: form.get('password') } });
+      await refreshAuth();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiFailure ? err.message : "Couldn't reach Marquee.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function onJellyfin(form: HTMLFormElement | null) {
+    if (!form || !form.reportValidity()) return;
+    const d = new FormData(form);
+    setBusy('jellyfin');
+    setError(null);
+    try {
+      await api<{ user: SessionUser }>('/auth/jellyfin', { body: { username: d.get('username'), password: d.get('password') } });
       await refreshAuth();
       navigate('/', { replace: true });
     } catch (err) {
@@ -88,6 +104,11 @@ export function LoginPage() {
         <Button type="submit" disabled={busy !== null} className="mt-1">
           {busy === 'password' ? 'Signing in…' : 'Sign in'}
         </Button>
+        {status?.providers.jellyfin.enabled && (
+          <Button variant="ghost" type="button" disabled={busy !== null} onClick={(e) => onJellyfin(e.currentTarget.form)}>
+            {busy === 'jellyfin' ? 'Checking with Jellyfin…' : 'Sign in with my Jellyfin password'}
+          </Button>
+        )}
       </form>
 
       {(oidc?.enabled || plex?.enabled) && (

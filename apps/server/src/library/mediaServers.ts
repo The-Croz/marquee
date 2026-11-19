@@ -26,7 +26,17 @@ export interface MediaLibrary {
   locations: string[];
 }
 
+/** Someone with access to a media server, as its own user list shows them. */
+export interface MediaPerson {
+  /** Plex account id, or Jellyfin user id. */
+  id: string;
+  username: string;
+  name: string;
+}
+
 export interface MediaServerApi {
+  /** The people who can use this server (Plex: you and the friends it's shared with). */
+  people(): Promise<MediaPerson[]>;
   /** Name and version, or throws MediaServerError. */
   ping(): Promise<{ name: string; version: string }>;
   libraries(): Promise<MediaLibrary[]>;
@@ -81,6 +91,16 @@ export class PlexServerClient implements MediaServerApi {
     }));
   }
 
+  async people(): Promise<MediaPerson[]> {
+    // The server's own address doesn't know the sharing list; plex.tv does, and the same token opens it.
+    const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
+    const me = await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/user', { headers: h });
+    const friends = await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/friends', { headers: h });
+    type P = { id: number; username?: string; title?: string };
+    const rows = [(await me.json()) as P, ...((await friends.json()) as P[])];
+    return rows.filter((p) => p.id).map((p) => ({ id: String(p.id), username: p.username || p.title || String(p.id), name: p.title || p.username || String(p.id) }));
+  }
+
   async scan(library: MediaLibrary, folder: string): Promise<void> {
     await this.get(`/library/sections/${encodeURIComponent(library.id)}/refresh?path=${encodeURIComponent(folder)}`);
   }
@@ -116,6 +136,12 @@ export class JellyfinClient implements MediaServerApi {
       kind: f.CollectionType === 'movies' ? 'movie' : f.CollectionType === 'tvshows' ? 'tv' : 'other',
       locations: f.Locations ?? [],
     }));
+  }
+
+  async people(): Promise<MediaPerson[]> {
+    type U = { Id: string; Name: string; Policy?: { IsDisabled?: boolean } };
+    const rows = (await (await this.send('/Users')).json()) as U[];
+    return rows.filter((u) => !u.Policy?.IsDisabled).map((u) => ({ id: u.Id, username: u.Name, name: u.Name }));
   }
 
   async scan(_library: MediaLibrary, folder: string): Promise<void> {
@@ -219,4 +245,32 @@ export async function tellMediaServers(
     }
   }
   return out;
+}
+
+/**
+ * Jellyfin sign-in: asks Jellyfin to check a username and password. Returns the
+ * person's Jellyfin id, or null when Jellyfin says no. The password is passed
+ * straight through and never stored or logged.
+ */
+export async function jellyfinCheckLogin(url: string, username: string, password: string, fetchImpl: typeof fetch = fetch): Promise<{ id: string; name: string } | null> {
+  const base = url.replace(/\/+$/, '');
+  let res: Response;
+  try {
+    res = await fetchImpl(`${base}/Users/AuthenticateByName`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: 'MediaBrowser Client="Marquee", Device="Marquee", DeviceId="marquee", Version="1"',
+      },
+      body: JSON.stringify({ Username: username, Pw: password }),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new MediaServerError(`Couldn't reach Jellyfin at ${base}.`);
+  }
+  if (res.status === 401 || res.status === 400 || res.status === 403) return null;
+  if (!res.ok) throw new MediaServerError(`Jellyfin answered ${res.status}.`);
+  const body = (await res.json()) as { User?: { Id?: string; Name?: string } };
+  return body.User?.Id ? { id: body.User.Id, name: body.User.Name ?? username } : null;
 }

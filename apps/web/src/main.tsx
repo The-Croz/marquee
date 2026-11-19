@@ -14,6 +14,7 @@ import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { SwitchOverPage } from './pages/SwitchOver';
+import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
 import { DiscoverPageView } from './pages/Discover';
 import { DiscoverTitlePage } from './pages/DiscoverTitle';
@@ -75,6 +76,7 @@ const router = createBrowserRouter([
       { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
       { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="movie" /></AdminOnly>} /> },
       { path: 'switch-over/tv', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="tv" kind="tv" /></AdminOnly>} /> },
+      { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage /></AdminOnly>} /> },
       { path: 'calendar', element: <CalendarPage /> },
       {
         path: 'settings',

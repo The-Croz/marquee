@@ -32,6 +32,8 @@ export interface Clients extends SourceClients {
   /** A Plex Media Server, to ask for scans. */
   plexServer(url: string, token: string): MediaServerApi;
   jellyfin(url: string, apiKey: string): MediaServerApi;
+  /** Asks Jellyfin whether a username and password are right. */
+  jellyfinLogin(url: string, username: string, password: string): Promise<{ id: string; name: string } | null>;
   /** Pushover and ntfy. */
   push: PushClient;
 }

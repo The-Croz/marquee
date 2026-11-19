@@ -11,7 +11,7 @@ export function toSessionUser(u: User): SessionUser {
     username: u.username,
     displayName: u.displayName,
     role: u.role as Role,
-    linked: { plex: u.plexId !== null, oidc: u.oidcSubject !== null, password: u.passwordHash !== null },
+    linked: { plex: u.plexId !== null, oidc: u.oidcSubject !== null, password: u.passwordHash !== null, jellyfin: u.jellyfinId !== null },
   };
 }
 

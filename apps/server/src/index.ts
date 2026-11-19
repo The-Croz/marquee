@@ -18,11 +18,12 @@ import { SourceService } from './sources/service.js';
 import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
+import { checkHealth } from './notify/health.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
 import { refreshAiring } from './library/airing.js';
-import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
+import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/mediaServers.js';
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
 import { CATALOGUE_URL, catalogueDue, refreshCatalogue } from './sources/sites/catalogue.js';
@@ -41,6 +42,7 @@ const clients = {
   fetchTorrent: (url: string, headers?: Record<string, string>) => fetchTorrent(url, fetch, 30_000, headers),
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
+  jellyfinLogin: (url: string, username: string, password: string) => jellyfinCheckLogin(url, username, password),
   push: new HttpPushClient(),
   siteFetch: realSiteFetch,
   solver: (url: string) => new FlareSolverrClient(url),
@@ -115,6 +117,11 @@ setInterval(() => {
     (err) => console.error('[downloads] check failed:', (err as Error).message),
   );
 }, 60 * 1000).unref();
+
+// Tell admins once when a Source or the downloader stops working, and when wanted episodes air.
+setInterval(() => {
+  checkHealth({ db, clients, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }).catch((err) => console.error('[health] failed:', (err as Error).message));
+}, 5 * 60 * 1000).unref();
 
 // Once switched over: look for missing movies every 6 hours and better copies once a day;
 // for TV also read the Sources' newest copies every 30 minutes. Runs one at a time.

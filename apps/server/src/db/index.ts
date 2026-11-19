@@ -383,6 +383,11 @@ const migrations: string[] = [
   );
   CREATE INDEX notifications_user ON notifications (user_id, created_at);
   `,
+  /* 18: people from Jellyfin, for Jellyfin sign-in */ `
+  ALTER TABLE users ADD COLUMN jellyfin_id TEXT;
+  ALTER TABLE users ADD COLUMN jellyfin_username TEXT;
+  CREATE UNIQUE INDEX users_jellyfin_id ON users (jellyfin_id) WHERE jellyfin_id IS NOT NULL;
+  `,
 ];
 
 export function openDb(file: string): Db {
