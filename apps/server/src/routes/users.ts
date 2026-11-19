@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
 import { asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { UserSummary } from '@marquee/shared';
+import type { ServerPerson, UserSummary } from '@marquee/shared';
+import type { Db } from '../db/index.js';
 import { users, type User } from '../db/schema.js';
 import { hashPassword } from '../auth/password.js';
 import { deleteUserSessions } from '../auth/sessions.js';
-import { countAdmins, findUserById, findUserByUsername, insertUser, toSessionUser, updateUser } from '../auth/users.js';
+import { countAdmins, findUserById, uniqueUsername, findUserByUsername, insertUser, toSessionUser, updateUser } from '../auth/users.js';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
+import { MediaServerError, readMediaServer, type ServerKind } from '../library/mediaServers.js';
 import { passwordSchema, usernameSchema } from './auth.js';
 
 /** Admin-only user management: family members, kid profiles, roles. */
@@ -15,7 +17,7 @@ export const userRoutes = new Hono<Env>();
 const roleSchema = z.enum(['admin', 'member', 'kid']);
 
 function summary(u: User): UserSummary {
-  return { ...toSessionUser(u), email: u.email, plexUsername: u.plexUsername, createdAt: u.createdAt, lastLoginAt: u.lastLoginAt };
+  return { ...toSessionUser(u), email: u.email, plexUsername: u.plexUsername, jellyfinUsername: u.jellyfinUsername, createdAt: u.createdAt, lastLoginAt: u.lastLoginAt };
 }
 
 function load(c: Ctx): User {
@@ -87,4 +89,59 @@ userRoutes.delete('/:id{[0-9]+}', (c) => {
   if (target.id === admin.id) throw new HttpError(400, 'self_delete', "You can't delete your own account.");
   c.get('deps').db.delete(users).where(eq(users.id, target.id)).run();
   return c.json({ ok: true });
+});
+
+// ---------- Pick people from Plex or Jellyfin ----------
+
+function serverApi(c: Ctx, kind: ServerKind) {
+  const { db, clients } = c.get('deps');
+  const label = kind === 'plex' ? 'Plex' : 'Jellyfin';
+  const saved = readMediaServer(db, kind);
+  if (!saved.url || !saved.secret) throw new HttpError(400, 'not_set_up', `Connect ${label} under Settings → Services first.`);
+  return { label, api: kind === 'plex' ? clients.plexServer(saved.url, saved.secret) : clients.jellyfin(saved.url, saved.secret) };
+}
+
+const serverSchema = z.enum(['plex', 'jellyfin']);
+
+function linkedTo(db: Db, kind: ServerKind, id: string): User | undefined {
+  return db.select().from(users).where(eq(kind === 'plex' ? users.plexId : users.jellyfinId, id)).get();
+}
+
+userRoutes.get('/server-people', async (c) => {
+  requireAdmin(c);
+  const kind = serverSchema.parse(c.req.query('server'));
+  const { label, api } = serverApi(c, kind);
+  try {
+    const db = c.get('deps').db;
+    const people: ServerPerson[] = (await api.people()).map((p) => ({ ...p, marqueeUser: linkedTo(db, kind, p.id)?.username ?? null }));
+    return c.json({ people });
+  } catch (err) {
+    if (err instanceof MediaServerError) throw new HttpError(502, 'server_unreachable', `${err.message} Check ${label} under Settings → Services.`);
+    throw err;
+  }
+});
+
+/** Makes Marquee accounts for the people picked from a server's list. They have no password; they sign in through that server. */
+userRoutes.post('/from-server', async (c) => {
+  requireAdmin(c);
+  const db = c.get('deps').db;
+  const input = z
+    .object({ server: serverSchema, people: z.array(z.object({ id: z.string().min(1).max(100), role: roleSchema })).min(1).max(200) })
+    .parse(await c.req.json());
+  const { label, api } = serverApi(c, input.server);
+  let listed;
+  try {
+    listed = await api.people();
+  } catch (err) {
+    if (err instanceof MediaServerError) throw new HttpError(502, 'server_unreachable', `${err.message} Check ${label} under Settings → Services.`);
+    throw err;
+  }
+  const created: User[] = [];
+  for (const pick of input.people) {
+    const person = listed.find((p) => p.id === pick.id);
+    if (!person || linkedTo(db, input.server, person.id)) continue;
+    const link = input.server === 'plex' ? { plexId: person.id, plexUsername: person.username } : { jellyfinId: person.id, jellyfinUsername: person.username };
+    created.push(insertUser(db, { username: uniqueUsername(db, person.username), displayName: person.name, role: pick.role, passwordHash: null, ...link }));
+  }
+  return c.json({ users: created.map(summary) }, 201);
 });

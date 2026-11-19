@@ -177,6 +177,14 @@ const jellyfin = new FakeMediaServer('jellyfin', [
   { id: 'a1', name: 'Movies', kind: 'movie', locations: [path.join(root, 'movies')] },
   { id: 'b2', name: 'Shows', kind: 'tv', locations: [path.join(root, 'tv')] },
 ]);
+plex.people = [
+  { id: '1001', username: 'josh', name: 'Josh' },
+  { id: '1002', username: 'ana.m', name: 'Ana' },
+];
+jellyfin.people = [
+  { id: 'jf-sam', username: 'sam', name: 'Sam' },
+  { id: 'jf-kid', username: 'riley', name: 'Riley' },
+];
 // Fake sites Marquee searches itself, and the catalogue they come from (the test site files).
 const web = new FakeWeb();
 const fixtures = path.resolve(import.meta.dirname, '../test/fixtures/sites');
@@ -209,6 +217,8 @@ const solver = new FakeSolver(web);
 const clients = {
   plexServer: (url: string, token: string) => plex.as(url, token),
   jellyfin: (url: string, key: string) => jellyfin.as(url, key),
+  // Demo Jellyfin sign-in: "sam" / "jellyfin-pass".
+  jellyfinLogin: async (_url: string, username: string, password: string) => (username.toLowerCase() === 'sam' && password === 'jellyfin-pass' ? { id: 'jf-sam', name: 'Sam' } : null),
   qbittorrent: (url: string, user: string, pass: string) => qbit.as(url, user, pass),
   fetchTorrent: async (url: string) => {
     const t = await fakeFetchTorrent()(url);

@@ -14,6 +14,8 @@ export const users = sqliteTable(
     role: text('role', { enum: ['admin', 'member', 'kid'] }).notNull().default('member'),
     plexId: text('plex_id').unique(),
     plexUsername: text('plex_username'),
+    jellyfinId: text('jellyfin_id'),
+    jellyfinUsername: text('jellyfin_username'),
     oidcIssuer: text('oidc_issuer'),
     oidcSubject: text('oidc_subject'),
     createdAt: integer('created_at').notNull(),

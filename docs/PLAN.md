@@ -265,8 +265,8 @@ Decided with Josh (2026-11-18):
    - Events that wait for M6: someone started watching, a stream stopped, a user's first stream, and the other Tautulli-style ones.
    - **Built:** Pushover and ntfy channels (Settings → Notifications, admin: add, pause, test, per-channel events, secrets never sent back), the bell inbox for everyone, and per-person muting. Events sent today: request waiting (admins); request approved, turned down, ready to watch (the person); download finished, stuck or replaced, couldn't be put in the library, and added to the library (admins).
    - **Not yet:** Source and downloader health alerts, new-episode alerts for requested shows, upgraded, "Marquee updated", and a push address for each person (today pushes go to the admins' channels; other people get the bell). iPhone push is M7.
-4. ⬜ **Users from Plex and Jellyfin** (can land any time): pick people from each server's user list (Plex first, Jellyfin next), with Jellyfin sign-in when it fits.
-5. ⬜ **Retire Seerr**: with requests, Discover, notifications and people in place, a short checklist like the switch-over pages. No import from Seerr.
+4. ✅ **Users from Plex and Jellyfin**: Settings → Users → "Add people from Plex or Jellyfin" lists the server's people (Plex: you and the friends it's shared with; Jellyfin: its enabled users), you tick who and pick a role, and they get a password-less account linked to that server. Plex people sign in with Plex (as before); Jellyfin people use "Sign in with my Jellyfin password" (Marquee passes it to Jellyfin and never stores it). Nobody is created at sign-in, so only people you picked can get in. Migration 18 adds the Jellyfin link.
+5. ✅ **Retire Seerr**: Switch over → Seerr. Marquee checks Discover works, the family has accounts and has signed in, a push channel has delivered, and a request reached the library; the last two steps (tell the family, turn Seerr off) are yours. No import from Seerr.
 
 ## Milestone 6: Stats ⬜
 

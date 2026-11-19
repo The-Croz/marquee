@@ -1,4 +1,4 @@
-import { MediaServerError, type MediaLibrary, type MediaServerApi } from '../../src/library/mediaServers.js';
+import { MediaServerError, type MediaLibrary, type MediaPerson, type MediaServerApi } from '../../src/library/mediaServers.js';
 
 /** A fake Plex or Jellyfin for tests and demo mode: its libraries, and every scan it was asked for. No network. */
 export class FakeMediaServer {
@@ -7,6 +7,7 @@ export class FakeMediaServer {
   libs: MediaLibrary[];
   scans: { library: string; folder: string }[] = [];
   fail: string | null = null;
+  people: MediaPerson[] = [];
 
   constructor(kind: 'plex' | 'jellyfin', libs?: MediaLibrary[]) {
     this.name = kind === 'plex' ? 'Plex' : 'Jellyfin';
@@ -33,6 +34,10 @@ export class FakeMediaServer {
       ping: async () => {
         gate();
         return { name: `Josh's ${this.name}`, version: this.name === 'Plex' ? '1.41.3' : '10.10.3' };
+      },
+      people: async () => {
+        gate();
+        return structuredClone(this.people);
       },
       libraries: async () => {
         gate();

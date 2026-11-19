@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type { AuthStatus, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
+import { ServerPeople } from '../components/ServerPeople';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
@@ -182,8 +183,8 @@ function LinkRow({ name, linked, onLink, onUnlink }: { name: string; linked: boo
 
 const ROLES: { value: Role; label: string; note: string }[] = [
   { value: 'admin', label: 'Admin', note: 'Everything, including settings and approvals' },
-  { value: 'member', label: 'Member', note: 'Requests go through without approval' },
-  { value: 'kid', label: 'Kid', note: 'Kids-only Discover; requests need approval' },
+  { value: 'member', label: 'Member', note: 'Can browse and ask; an admin approves requests' },
+  { value: 'kid', label: 'Kid', note: 'Kids-only Discover; an admin approves requests' },
 ];
 
 export function UsersPage() {
@@ -257,6 +258,7 @@ function UsersAdmin({ status }: Ctx) {
               <div className="text-[13px] text-muted">
                 {u.username}
                 {u.plexUsername && ` · Plex: ${u.plexUsername}`}
+                {u.jellyfinUsername && ` · Jellyfin: ${u.jellyfinUsername}`}
                 {u.linked.oidc && ` · ${status.providers.oidc.name || 'SSO'}`}
                 {!u.linked.password && ' · no password'}
               </div>
@@ -295,6 +297,8 @@ function UsersAdmin({ status }: Ctx) {
         ))}
       </Card>
 
+      <ServerPeople jellyfinSignIn />
+
       <Card className="flex flex-col gap-4">
         <h2 className="m-0 text-lg font-semibold">Add someone</h2>
         <p className="m-0 text-sm text-muted">
@@ -315,7 +319,7 @@ function UsersAdmin({ status }: Ctx) {
                 </option>
               ))}
             </select>
-            <span className="text-xs text-dim">Members' requests go straight through. Kids get a kids-only Discover and need approval.</span>
+            <span className="text-xs text-dim">Members can ask for things and an admin approves them. Kids get a kids-only Discover.</span>
           </div>
           <div>
             <Button type="submit" disabled={create.isPending}>

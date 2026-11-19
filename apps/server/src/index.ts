@@ -22,7 +22,7 @@ import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
 import { refreshAiring } from './library/airing.js';
-import { JellyfinClient, PlexServerClient } from './library/mediaServers.js';
+import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/mediaServers.js';
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
 import { CATALOGUE_URL, catalogueDue, refreshCatalogue } from './sources/sites/catalogue.js';
@@ -41,6 +41,7 @@ const clients = {
   fetchTorrent: (url: string, headers?: Record<string, string>) => fetchTorrent(url, fetch, 30_000, headers),
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
+  jellyfinLogin: (url: string, username: string, password: string) => jellyfinCheckLogin(url, username, password),
   push: new HttpPushClient(),
   siteFetch: realSiteFetch,
   solver: (url: string) => new FlareSolverrClient(url),

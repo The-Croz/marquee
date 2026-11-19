@@ -18,6 +18,7 @@ import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { compareRoutes } from './routes/compare.js';
 import { downloaderRoutes } from './routes/downloader.js';
 import { downloadRoutes } from './routes/downloads.js';
+import { retireRoutes } from './routes/retire.js';
 import { cutoverRoutes } from './routes/cutover.js';
 import { calendarRoutes } from './routes/calendar.js';
 import { discoverRoutes } from './routes/discover.js';
@@ -77,6 +78,7 @@ export function createApp(given: Omit<Deps, 'copies'> & { copies?: CopyCache }) 
   app.route('/api/settings/downloader', downloaderRoutes);
   app.route('/api/downloads', downloadRoutes);
   app.route('/api/cutover', cutoverRoutes);
+  app.route('/api/retire-seerr', retireRoutes);
   app.route('/api/calendar', calendarRoutes);
   app.route('/api/discover', discoverRoutes);
   app.route('/api/requests', requestRoutes);

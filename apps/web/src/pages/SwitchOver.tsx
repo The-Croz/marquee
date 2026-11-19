@@ -39,12 +39,38 @@ const RUN_TEXT: Record<LookKind, { did: string; button: string }> = {
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong.');
 
-const MARK: Record<CutoverStep['state'], { sign: string; label: string; tone: string }> = {
+export const MARK: Record<CutoverStep['state'], { sign: string; label: string; tone: string }> = {
   done: { sign: '✓', label: 'Done', tone: 'border-teal text-teal-hi' },
   todo: { sign: '·', label: 'To do', tone: 'border-line-strong text-soft' },
   warn: { sign: '!', label: 'Worth a look', tone: 'border-amber text-amber-hi' },
   unknown: { sign: '?', label: 'Can’t check', tone: 'border-line-strong text-muted' },
 };
+
+/** Movies, TV, and retiring Seerr: the three things to switch over. */
+export function SwitchTabs() {
+  return (
+    <nav aria-label="What to switch over" className="flex gap-2">
+      {(
+        [
+          ['/switch-over', 'Movies'],
+          ['/switch-over/tv', 'TV'],
+          ['/switch-over/seerr', 'Seerr'],
+        ] as const
+      ).map(([to, label]) => (
+        <NavLink
+          key={to}
+          to={to}
+          end
+          className={({ isActive }) =>
+            cx('flex min-h-11 items-center rounded-full border px-4 text-sm font-medium no-underline', isActive ? 'border-amber bg-amber text-amber-ink' : 'border-line-strong text-soft')
+          }
+        >
+          {label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
 
 function when(ms: number): string {
   return new Date(ms).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -129,25 +155,7 @@ export function SwitchOverPage({ kind = 'movie' }: { kind?: Kind }) {
   return (
     <>
       <div className="flex flex-col gap-2">
-        <nav aria-label="What to switch over" className="flex gap-2">
-          {(
-            [
-              ['/switch-over', 'Movies'],
-              ['/switch-over/tv', 'TV'],
-            ] as const
-          ).map(([to, label]) => (
-            <NavLink
-              key={to}
-              to={to}
-              end
-              className={({ isActive }) =>
-                cx('flex min-h-11 items-center rounded-full border px-4 text-sm font-medium no-underline', isActive ? 'border-amber bg-amber text-amber-ink' : 'border-line-strong text-soft')
-              }
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+        <SwitchTabs />
         <h1 className="m-0 font-display text-[56px] leading-none font-normal">{text.heading}</h1>
         <p className="m-0 max-w-[720px] text-[15px] leading-relaxed text-muted">{text.intro}</p>
       </div>

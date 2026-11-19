@@ -3,7 +3,9 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AuthStatus, PlexPinCheck, PlexPinStart } from '@marquee/shared';
+import type { Db } from '../db/index.js';
 import { users, type User } from '../db/schema.js';
+import { MediaServerError, readMediaServer } from '../library/mediaServers.js';
 import { hashPassword, verifyPassword, burnPasswordCheck } from '../auth/password.js';
 import { deleteSession } from '../auth/sessions.js';
 import { describeError } from '../auth/oidc.js';
@@ -45,6 +47,7 @@ authRoutes.get('/status', (c) => {
       password: true,
       oidc: { enabled: oidc !== null, name: config.oidc?.name ?? '' },
       plex: { enabled: config.plex.enabled },
+      jellyfin: { enabled: jellyfinReady(db) },
     },
     user: user ? toSessionUser(user) : null,
     version: VERSION,
@@ -165,6 +168,42 @@ authRoutes.get('/oidc/callback', async (c) => {
   }
   signIn(c, user);
   return c.redirect('/', 302);
+});
+
+// ---------- Jellyfin ----------
+
+function jellyfinReady(db: Db): boolean {
+  const j = readMediaServer(db, 'jellyfin');
+  return Boolean(j.url && j.secret);
+}
+
+/**
+ * Jellyfin sign-in: Jellyfin checks the password, and the person must already
+ * have a Marquee account linked to that Jellyfin user (pick them under
+ * Settings → Users). Nobody is created here.
+ */
+authRoutes.post('/jellyfin', async (c) => {
+  const { db, clients, loginLimiter } = c.get('deps');
+  const input = z.object({ username: z.string().trim().max(64).min(1), password: z.string().max(200) }).parse(await c.req.json());
+  const saved = readMediaServer(db, 'jellyfin');
+  if (!saved.url || !saved.secret) throw new HttpError(404, 'jellyfin_disabled', 'Jellyfin sign-in is not set up.');
+  const key = `${clientIp(c)}|jf|${input.username.toLowerCase()}`;
+  const wait = loginLimiter.hit(key);
+  if (wait > 0) throw new HttpError(429, 'rate_limited', `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.`);
+
+  let who;
+  try {
+    who = await clients.jellyfinLogin(saved.url, input.username, input.password);
+  } catch (err) {
+    if (err instanceof MediaServerError) throw new HttpError(502, 'jellyfin_unreachable', "Marquee couldn't reach Jellyfin. Try your Marquee password, or ask an admin.");
+    throw err;
+  }
+  if (!who) throw new HttpError(401, 'bad_credentials', 'Jellyfin says that username or password is wrong.');
+  const user = db.select().from(users).where(eq(users.jellyfinId, who.id)).get();
+  if (!user) throw new HttpError(403, 'not_linked', "That Jellyfin account isn't set up in Marquee yet. Ask an admin to add you under Settings → Users.");
+  loginLimiter.reset(key);
+  signIn(c, user);
+  return c.json({ user: toSessionUser(user) });
 });
 
 // ---------- Plex ----------
