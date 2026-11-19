@@ -1032,14 +1032,30 @@ export interface NewRequest {
   seasons?: number[];
 }
 
+/** One bit of information a notification carries, for {{key}} in its wording. */
+export interface NotificationVar {
+  key: string;
+  label: string;
+  /** Shown in the wording editor's preview. */
+  example: string;
+}
+
+export type NotificationGroup = 'Requests' | 'Downloads' | 'Problems' | 'Watching' | 'Marquee';
+
 export interface NotificationEventInfo {
   key: string;
+  group: NotificationGroup;
   /** Off until you turn it on (chatty events, like every pause). */
   quiet?: boolean;
   label: string;
   description: string;
   /** Who it's for: admins (channels and inbox), or the person who asked. */
   audience: 'admins' | 'requester';
+  vars: NotificationVar[];
+  /** Marquee's own wording (templates). */
+  title: string;
+  body: string;
+  image: string;
 }
 
 export interface NotificationChannelView {
@@ -1061,8 +1077,27 @@ export interface NotificationInboxItem {
   title: string;
   body: string;
   link: string | null;
+  image: string | null;
   createdAt: number;
   read: boolean;
+}
+
+/** The wording for one event: Marquee's, or the admin's own. */
+export interface NotificationTemplateView {
+  event: string;
+  title: string;
+  body: string;
+  image: string;
+  /** True when an admin changed it. */
+  custom: boolean;
+}
+
+export interface NotificationPreview {
+  title: string;
+  body: string;
+  image: string | null;
+  /** Names in the wording this event doesn't have. */
+  unknown: string[];
 }
 
 /** Someone on Plex or Jellyfin who could get a Marquee account. */
@@ -1183,4 +1218,40 @@ export interface PersonView extends PersonSummary {
 
 export interface WatchersView {
   watchers: { user: string; plays: number; last: number; /** Different episodes seen (TV only). */ episodes: number | null }[];
+}
+
+// ---------------- Watched sync (Plex ↔ Jellyfin) ----------------
+
+export interface WatchSyncPerson {
+  userId: number;
+  name: string;
+  /** linked: on both servers; not_linked: needs a link; problem: couldn't read. */
+  state: 'linked' | 'not_linked' | 'problem';
+  /** What to do, in plain words, when it isn't linked or failed. */
+  note: string | null;
+  toPlex: number;
+  toJellyfin: number;
+  /** A few titles that would get a tick. */
+  examples?: string[];
+}
+
+export interface WatchSyncPlan {
+  ready: boolean;
+  problem: string | null;
+  people: WatchSyncPerson[];
+  /** Ticks that would be added. */
+  total: number;
+}
+
+export interface WatchSyncRun {
+  at: number;
+  ticked: number;
+  failed: number;
+  problem: string | null;
+}
+
+export interface WatchSyncStatus {
+  enabled: boolean;
+  last: WatchSyncRun | null;
+  runs: { at: number; ticks: number; undone: number; items: { person: string; title: string; server: string }[] }[];
 }

@@ -21,6 +21,10 @@ import { fetchTorrent } from './downloads/torrent.js';
 import { ActivityMonitor } from './activity/live.js';
 import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
+import { announceVersion } from './notify/updated.js';
+import { runSync, syncEnabled } from './watchsync/sync.js';
+import { once } from './routes/watchSync.js';
+import { VERSION } from './version.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
@@ -76,6 +80,7 @@ const app = createApp({
 });
 
 purgeExpiredSessions(db);
+announceVersion({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }, VERSION).catch((err) => console.error('[notify] version check failed:', (err as Error).message));
 setInterval(() => purgeExpiredSessions(db), 6 * 60 * 60 * 1000).unref();
 
 // Keep Prowlarr's sites in step every 6 hours, and forget old Source calls.
@@ -136,6 +141,12 @@ setInterval(plays, 15 * 60 * 1000).unref();
 setInterval(() => {
   checkHealth({ db, clients, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }).catch((err) => console.error('[health] failed:', (err as Error).message));
 }, 5 * 60 * 1000).unref();
+
+// Watched sync (when turned on): every 30 minutes, tick on each server what was watched on the other.
+setInterval(() => {
+  if (!syncEnabled(db)) return;
+  once(() => runSync({ db, clients, now: Date.now })).catch((err) => console.error('[watch sync] failed:', (err as Error).message));
+}, 30 * 60 * 1000).unref();
 
 // Once switched over: look for missing movies every 6 hours and better copies once a day;
 // for TV also read the Sources' newest copies every 30 minutes. Runs one at a time.

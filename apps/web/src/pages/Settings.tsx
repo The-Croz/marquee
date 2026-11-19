@@ -20,6 +20,7 @@ export function SettingsLayout({ status }: Ctx) {
           { to: '/settings/services', label: 'Services' },
           { to: '/settings/sources', label: 'Sources' },
           { to: '/settings/downloader', label: 'Downloader' },
+          { to: '/settings/watched-sync', label: 'Watched sync' },
         ]
       : []),
     { to: '/settings/about', label: 'About' },
@@ -27,7 +28,7 @@ export function SettingsLayout({ status }: Ctx) {
   return (
     <>
       <h1 className="m-0 font-display text-[56px] leading-none font-normal">Settings</h1>
-      <nav aria-label="Settings" className="flex gap-2">
+      <nav aria-label="Settings" className="flex flex-wrap gap-2">
         {tabs.map((t) => (
           <NavLink
             key={t.to}

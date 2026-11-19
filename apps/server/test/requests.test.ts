@@ -197,6 +197,74 @@ describe('Push channels', () => {
   });
 });
 
+describe('Notification wording', () => {
+  it('an admin’s own wording is used for push and the bell, previews say which names are unknown, and it can be put back', async () => {
+    const t = await setup();
+    await call(t.app, 'POST', '/api/settings/notifications', { kind: 'ntfy', name: 'ntfy', topic: 'marquee', events: ['request_pending'] }, t.admin);
+    const mine = { title: '🎬 {{user}} wants {{title}}', body: '{{#year}}From {{year}}.{{/year}}{{^year}}No year.{{/year}} {{nope}}', image: '{{poster}}' };
+    const preview = await call(t.app, 'POST', '/api/settings/notifications/templates/preview', { event: 'request_pending', ...mine }, t.admin);
+    expect(preview.body).toMatchObject({ title: '🎬 Jessie wants Dune: Part Two', body: 'From 2024.', unknown: ['nope'] });
+    expect((preview.body as { image: string }).image).toMatch(/^https:\/\/image\.tmdb\.org\//);
+    const saved = await call(t.app, 'PUT', '/api/settings/notifications/templates/request_pending', mine, t.admin);
+    expect(saved.body).toMatchObject({ custom: true });
+    await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 });
+    expect(t.pushed.at(-1)).toEqual({ kind: 'ntfy', title: '🎬 Jessie wants The Matrix', body: 'From 1999.' });
+    expect((await t.inbox(t.admin)).items[0]).toMatchObject({ title: '🎬 Jessie wants The Matrix' });
+
+    const list = (await call(t.app, 'GET', '/api/settings/notifications/templates', undefined, t.admin)).body as { items: { event: string; custom: boolean }[] };
+    expect(list.items.find((i) => i.event === 'request_pending')!.custom).toBe(true);
+    expect((await call(t.app, 'DELETE', '/api/settings/notifications/templates/request_pending', undefined, t.admin)).body).toMatchObject({ custom: false, title: 'New request' });
+    await t.ask(t.sam, { kind: 'movie', tmdbId: 693134 });
+    expect(t.pushed.at(-1)).toMatchObject({ title: 'New request', body: 'Sam asked for Dune: Part Two (2024).' });
+
+    expect((await call(t.app, 'PUT', '/api/settings/notifications/templates/request_pending', { ...mine, title: '  ' }, t.admin)).status).toBe(400);
+    expect((await call(t.app, 'PUT', '/api/settings/notifications/templates/nope', mine, t.admin)).status).toBe(404);
+    expect((await call(t.app, 'GET', '/api/settings/notifications/templates', undefined, t.jessie)).status).toBe(403);
+  });
+});
+
+describe('Each person’s own push channels', () => {
+  it('a member can add their own channel for their own events; it’s private to them and respects muting', async () => {
+    const t = await setup();
+    const made = await call(t.app, 'POST', '/api/notifications/channels', { kind: 'ntfy', name: 'My phone', topic: 'jess', events: ['request_declined', 'request_pending'] }, t.jessie);
+    expect(made.status).toBe(201);
+    const ch = made.body as { id: number; events: string[] };
+    expect(ch.events).toEqual(['request_declined']); // admin-only events are dropped
+    expect(((await call(t.app, 'GET', '/api/settings/notifications', undefined, t.admin)).body as { items: unknown[] }).items).toEqual([]);
+    expect((await call(t.app, 'PATCH', `/api/notifications/channels/${ch.id}`, { enabled: false }, t.sam)).status).toBe(404);
+
+    const asked = (await t.ask(t.jessie, { kind: 'movie', tmdbId: 603 })).body as RequestView;
+    expect(t.pushed).toEqual([]); // request_pending is for admins, and no admin channel is set up
+    await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, { reason: 'We have it on Netflix' }, t.admin);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.pushed).toEqual([{ kind: 'ntfy', title: 'Request turned down', body: 'The Matrix was turned down: We have it on Netflix' }]);
+
+    await call(t.app, 'PUT', '/api/notifications/muted', { muted: ['request_declined'] }, t.jessie);
+    await call(t.app, 'POST', `/api/requests/${asked.id}/reopen`, {}, t.admin);
+    await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, { reason: '' }, t.admin);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.pushed).toHaveLength(1);
+  });
+
+  it('tells the person who asked for a show when a new episode arrives, after the first "Ready to watch"', async () => {
+    const t = await setup();
+    const { tellNewEpisodes } = await import('../src/requests/service.js');
+    const show = t.db.insert(schema.series).values({ tmdbId: 95396, title: 'Severance', sortTitle: 'severance', addedAt: 0, refreshedAt: 0, posterPath: '/sev.jpg' } as never).returning().get();
+    const ids = t.db.select().from(schema.users).all();
+    const jessie = ids.find((u) => u.username === 'jessie')!.id;
+    const sam = ids.find((u) => u.username === 'sam')!.id;
+    const req = (by: number, seasons: number[] | null, readyAt: number | null) =>
+      t.db.insert(schema.requests).values({ kind: 'series', tmdbId: 95396, title: 'Severance', requestedBy: by, status: 'approved', titleId: show.id, seasons: seasons ? JSON.stringify(seasons) : null, readyAt, createdAt: 0 }).run();
+    req(jessie, null, 5);
+    req(sam, [1], 5); // only asked for season 1
+    const deps = { db: t.db, notify: { db: t.db, push: { send: async () => {} }, now: Date.now }, now: Date.now };
+    expect(tellNewEpisodes(deps, { kind: 'tv', seriesId: show.id, season: 2, episodes: '[3]' })).toBe(1);
+    expect((await t.inbox(t.jessie)).items[0]).toMatchObject({ event: 'new_episode', title: 'New episode of Severance', body: 'S02E03 is ready to watch.', image: 'https://image.tmdb.org/t/p/w500/sev.jpg' });
+    expect((await t.inbox(t.sam)).items).toEqual([]);
+    expect(tellNewEpisodes(deps, { kind: 'movie', seriesId: null, season: null, episodes: null })).toBe(0);
+  });
+});
+
 describe('Discover', () => {
   it('builds rows and a banner, marks what you have and what’s asked for, and hides services you don’t want', async () => {
     const t = await setup();
@@ -244,6 +312,21 @@ describe('Discover', () => {
     for (const r of because) for (const c of r.items) expect(['Up', 'Inside Out 2']).not.toContain(c.title);
     expect(because.flatMap((r) => r.items.map((c) => c.title))).toContain('Moana 2');
     expect(because.map((r) => r.title).join(' ')).toMatch(/Because you have/);
+  });
+
+  it('"Because you watched…" comes from that person’s own Plex and Jellyfin history', async () => {
+    const t = await setup();
+    const play = (userName: string, server: 'plex' | 'jellyfin', title: string, tmdbId: number | null, at: number) =>
+      t.db.insert(schema.plays).values({ server, serverUserId: userName, userName, itemKey: `${title}${at}`, kind: 'movie', title, tmdbId, playedAt: at }).run();
+    play('Jessie', 'plex', 'Up', 14160, 1000);
+    play('jessie', 'jellyfin', 'Up', 14160, 2000); // same title on the other server shows once
+    play('sam', 'plex', 'Dune: Part Two', 693134, 3000); // someone else's
+    play('jessie', 'plex', 'Home video', null, 4000); // no TMDB id and not in the library: skipped
+    const page = (await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.jessie)).body as DiscoverPage;
+    const watched = page.rows.filter((r) => r.id.startsWith('because-watched'));
+    expect(watched.map((r) => r.title)).toEqual(['Because you watched Up']);
+    const samPage = (await call(t.app, 'GET', '/api/discover?type=movie', undefined, t.sam)).body as DiscoverPage;
+    expect(samPage.rows.filter((r) => r.id.startsWith('because-watched')).map((r) => r.title)).not.toContain('Because you watched Up');
   });
 
   it('kids only see kid-safe titles everywhere', async () => {

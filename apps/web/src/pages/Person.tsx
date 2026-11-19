@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router';
 import type { PersonView } from '@marquee/shared';
 import { api, ApiFailure } from '../api';
-import { Card, Notice } from '../components/ui';
+import { Button, Card, Notice } from '../components/ui';
 import { Name, SERVER, when } from './Activity';
 
 const RES: Record<string, string> = { '4k': '4K', '1080': '1080p', '720': '720p', '480': '480p', sd: 'SD' };
@@ -28,8 +29,15 @@ export function PersonPage() {
         )}
       </div>
       {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Something went wrong.'}</Notice>}
-      {p && (
-        <>
+      {p && <PersonBody p={p} />}
+    </div>
+  );
+}
+
+/** What someone watches most, their recent streams and their history. */
+function PersonBody({ p, more }: { p: PersonView; more?: React.ReactNode }) {
+  return (
+    <>
           <Card className="flex flex-col gap-2">
             <h2 className="m-0 text-lg font-semibold">Watches most</h2>
             <ol className="m-0 flex list-none flex-col gap-1 p-0">
@@ -73,7 +81,43 @@ export function PersonPage() {
               </div>
             ))}
           </Card>
-        </>
+      {more}
+    </>
+  );
+}
+
+/** "My history": your own watching on Plex and Jellyfin. Everyone sees only their own. */
+export function MyHistoryPage() {
+  const [limit, setLimit] = useState(50);
+  const q = useQuery({ queryKey: ['activity', 'mine', limit], queryFn: () => api<PersonView & { total: number }>(`/activity/mine?limit=${limit}`), placeholderData: (prev) => prev });
+  const p = q.data;
+  return (
+    <div className="flex max-w-[1000px] flex-col gap-5">
+      <div className="flex flex-col gap-2">
+        <h1 className="m-0 font-display text-[56px] leading-none font-normal">My history</h1>
+        <p className="m-0 text-[15px] text-muted">
+          {p
+            ? p.plays
+              ? `${p.plays} watched${p.hours > 0 ? ` · ${p.hours} hours since Marquee started watching` : ''}${p.last ? ` · last ${when(p.last)}` : ''}`
+              : 'What you watch on Plex and Jellyfin shows up here.'
+            : 'Loading…'}
+        </p>
+      </div>
+      {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Something went wrong.'}</Notice>}
+      {p && p.plays === 0 && (
+        <Notice>Nothing yet. Marquee copies what you’ve watched from Plex and Jellyfin every 15 minutes. If you watch there under a different name, ask an admin to link your account in Settings → Users.</Notice>
+      )}
+      {p && p.plays > 0 && (
+        <PersonBody
+          p={p}
+          more={
+            p.total > p.recent.length && (
+              <Button type="button" variant="ghost" className="self-start" disabled={q.isFetching} onClick={() => setLimit(limit + 100)}>
+                {q.isFetching ? 'Loading…' : `Show more (${p.total - p.recent.length} older)`}
+              </Button>
+            )
+          }
+        />
       )}
     </div>
   );

@@ -2,11 +2,11 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { ActivityStats, NowPlayingView, PersonSummary, PersonView, PlayView, WatchersView } from '@marquee/shared';
-import { HttpError, requireAdmin, type Env } from '../http.js';
-import { activityStats, people, person, recentPlays, syncPlays, watchersOf } from '../activity/service.js';
+import { HttpError, requireAdmin, requireUser, type Env } from '../http.js';
+import { activityStats, myHistory, people, person, recentPlays, syncPlays, watchersOf } from '../activity/service.js';
 import { MediaServerError } from '../library/mediaServers.js';
 
-/** `/api/activity`: who is watching and what was watched, from Plex and Jellyfin. Admin only. */
+/** `/api/activity`: who is watching and what was watched, from Plex and Jellyfin. Admin only, except `/mine`. */
 export const activityRoutes = new Hono<Env>();
 
 /** What is playing right now. Looks at the servers first, so the answer is fresh. */
@@ -58,6 +58,13 @@ activityRoutes.post('/stop', async (c) => {
     throw err;
   }
   return c.json({ ok: true });
+});
+
+/** Your own history: what you watched on Plex and Jellyfin. Everyone, only their own. */
+activityRoutes.get('/mine', (c) => {
+  const user = requireUser(c);
+  const q = z.object({ limit: z.coerce.number().int().min(1).max(1000).default(50) }).parse(c.req.query());
+  return c.json<PersonView & { total: number }>(myHistory(c.get('deps').db, user, q.limit));
 });
 
 activityRoutes.get('/people', (c) => {

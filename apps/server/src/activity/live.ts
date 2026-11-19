@@ -1,10 +1,13 @@
 import { eq, isNull } from 'drizzle-orm';
 import type { NowPlayingView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { streams } from '../db/schema.js';
+import { movies, series, streams } from '../db/schema.js';
 import type { Clients } from '../http.js';
 import { MediaServerError, readMediaServer, type MediaServerApi, type NowPlayingItem, type ServerKind } from '../library/mediaServers.js';
-import { notifyAdmins, type NotifyDeps } from '../notify/service.js';
+import { tell, type NotifyDeps } from '../notify/service.js';
+import type { Vars } from '../notify/template.js';
+import { posterUrl } from '../notify/vars.js';
+import { normalizeTitle } from '../releases/decide.js';
 import { describeItem, hrefFor } from './service.js';
 
 /**
@@ -194,9 +197,26 @@ export class ActivityMonitor {
     for (const live of [...this.current.values()]) if (live.server === kind) this.end(live, at);
   }
 
-  private tell(event: string, title: string, body: string): void {
-    const n = this.deps.notify?.();
-    if (n) void notifyAdmins(n, event, { title, body, link: '/activity' }).catch((e) => console.error('[notify] failed:', (e as Error).message));
+  /** Tells the admins about a stream. The facts are the same for every stream event. */
+  private tell(event: string, server: ServerKind, it: NowPlayingItem, extra: Vars = {}): void {
+    const what = describeItem(it);
+    const vars: Vars = {
+      user: it.user, title: what.title, subtitle: what.subtitle, show: it.show, season: it.season, episode: it.episode, year: it.year,
+      device: it.device, app: it.platform, quality: it.resolution ? (/^\d+$/.test(it.resolution) ? `${it.resolution}p` : it.resolution.toUpperCase()) : null,
+      converting: it.transcoding, server: SERVER_NAME[server], poster: this.poster(it), ...extra,
+    };
+    tell(this.deps.notify?.(), 'admins', event, { vars, link: '/activity' });
+  }
+
+  /** Cover art from the library: the movie by TMDB id, or the show by name. */
+  private poster(it: NowPlayingItem): string | null {
+    const { db } = this.deps;
+    if (it.kind === 'movie' && it.tmdbId) return posterUrl(db.select({ p: movies.posterPath }).from(movies).where(eq(movies.tmdbId, it.tmdbId)).get()?.p);
+    if (it.show) {
+      const want = normalizeTitle(it.show);
+      return posterUrl(db.select({ t: series.title, p: series.posterPath }).from(series).all().find((s) => normalizeTitle(s.t) === want)?.p);
+    }
+    return null;
   }
 
   /** Compares what the server says is playing with what we knew, and records the differences. */
@@ -210,8 +230,6 @@ export class ActivityMonitor {
       const key = `${kind}:${it.sessionId}:${it.show ?? ''}:${it.season ?? ''}:${it.episode ?? ''}:${it.title}`;
       seen.add(key);
       const live = this.current.get(key);
-      const what = describeItem(it);
-      const where = `on ${it.device}${it.transcoding ? ' (the server is converting it)' : ''}`;
 
       if (!live) {
         const row = db
@@ -220,18 +238,18 @@ export class ActivityMonitor {
           .returning({ id: streams.id })
           .get();
         this.current.set(key, { key, server: kind, rowId: row.id, item: it, startedAt: t, lastTick: t, lastWrite: t, watchedMs: 0, progress: it.progress, transcodeTold: it.transcoding });
-        this.tell('stream_started', `${it.user} started ${what.title}`, `${what.subtitle ? `${what.subtitle} ` : ''}${where}.`);
-        if (it.transcoding) this.tell('stream_transcoding', `${what.title} is being converted`, `${it.user} ${where}. Converting uses extra power on the server.`);
+        this.tell('stream_started', kind, it);
+        if (it.transcoding) this.tell('stream_transcoding', kind, it);
         continue;
       }
 
       const gap = Math.min(t - live.lastTick, MAX_GAP);
       if (live.item.state === 'playing') live.watchedMs += gap;
-      if (live.item.state === 'playing' && it.state === 'paused') this.tell('stream_paused', `${it.user} paused ${what.title}`, `${what.subtitle ?? ''} ${where}.`.trim());
-      if (live.item.state === 'paused' && it.state === 'playing') this.tell('stream_resumed', `${it.user} resumed ${what.title}`, `${what.subtitle ?? ''} ${where}.`.trim());
+      if (live.item.state === 'playing' && it.state === 'paused') this.tell('stream_paused', kind, it);
+      if (live.item.state === 'paused' && it.state === 'playing') this.tell('stream_resumed', kind, it);
       if (it.transcoding && !live.transcodeTold) {
         live.transcodeTold = true;
-        this.tell('stream_transcoding', `${what.title} is being converted`, `${it.user} ${where}. Converting uses extra power on the server.`);
+        this.tell('stream_transcoding', kind, it);
       }
       live.lastTick = t;
       live.progress = Math.max(live.progress, it.progress);
@@ -250,8 +268,7 @@ export class ActivityMonitor {
     this.current.delete(live.key);
     this.deps.db.update(streams).set({ endedAt: at, lastSeenAt: at, watchedMs: live.watchedMs, progress: live.progress, transcoding: live.item.transcoding || live.transcodeTold }).where(eq(streams.id, live.rowId)).run();
     if (live.watchedMs >= MIN_STOP_MS) {
-      const what = describeItem(live.item);
-      this.tell('stream_stopped', `${live.item.user} finished watching ${what.title}`, `${what.subtitle ? `${what.subtitle}: ` : ''}watched ${minutes(live.watchedMs)} min (${Math.round(live.progress * 100)}% through) on ${live.item.device}.`);
+      this.tell('stream_stopped', live.server, live.item, { minutes: minutes(live.watchedMs), percent: Math.round(live.progress * 100) });
     }
   }
 

@@ -432,6 +432,31 @@ const migrations: string[] = [
   );
   CREATE INDEX streams_started ON streams (started_at);
   `,
+  /* 21: your own wording for each notification; push channels that belong to one person; a picture in the bell */ `
+  CREATE TABLE notification_templates (
+    event TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    image TEXT NOT NULL DEFAULT '',
+    updated_at INTEGER NOT NULL
+  );
+  ALTER TABLE notification_channels ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+  ALTER TABLE notifications ADD COLUMN image TEXT;
+  `,
+  /* 22: watched sync between Plex and Jellyfin: every tick Marquee made, so a run can be undone */ `
+  CREATE TABLE watch_sync_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_at INTEGER NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    person TEXT NOT NULL,
+    server TEXT NOT NULL CHECK (server IN ('plex', 'jellyfin')),
+    server_user_id TEXT NOT NULL,
+    item_ref TEXT NOT NULL,
+    title TEXT NOT NULL,
+    undone_at INTEGER
+  );
+  CREATE INDEX watch_sync_log_run ON watch_sync_log (run_at);
+  `,
 ];
 
 export function openDb(file: string): Db {

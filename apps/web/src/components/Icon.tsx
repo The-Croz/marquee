@@ -32,6 +32,7 @@ const paths = {
   ),
   downloads: <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />,
   activity: <path d="M3 12h4l3-8 4 16 3-8h4" />,
+  history: <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4M12 7.5V12l3 2" />,
   quality: (
     <>
       <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />

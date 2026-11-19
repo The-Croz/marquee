@@ -12,6 +12,8 @@ interface NavItem {
   icon: IconName;
   adminOnly?: boolean;
   hideForKids?: boolean;
+  /** Admins see everyone's on Activity instead. */
+  notForAdmins?: boolean;
 }
 
 const NAV: NavItem[] = [
@@ -23,6 +25,7 @@ const NAV: NavItem[] = [
   { to: '/requests', label: 'Requests', icon: 'requests' },
   { to: '/downloads', label: 'Downloads', icon: 'downloads', hideForKids: true },
   { to: '/activity', label: 'Activity', icon: 'activity', adminOnly: true },
+  { to: '/history', label: 'My history', icon: 'history', notForAdmins: true },
   { to: '/quality', label: 'Quality', icon: 'quality', adminOnly: true },
   { to: '/compare', label: 'Compare', icon: 'compare', adminOnly: true },
   { to: '/switch-over', label: 'Switch over', icon: 'switch', adminOnly: true },
@@ -32,7 +35,7 @@ const NAV: NavItem[] = [
 export function Shell({ user }: { user: SessionUser; version?: string }) {
   const navigate = useNavigate();
   const { data: summary } = useQuery({ queryKey: ['requests', 'summary'], queryFn: () => api<{ pending: number }>('/requests/summary'), refetchInterval: 30_000, enabled: user.role === 'admin' });
-  const items = NAV.filter((n) => (!n.adminOnly || user.role === 'admin') && (!n.hideForKids || user.role !== 'kid'));
+  const items = NAV.filter((n) => (!n.adminOnly || user.role === 'admin') && (!n.hideForKids || user.role !== 'kid') && (!n.notForAdmins || user.role !== 'admin'));
 
   async function signOut() {
     await api('/auth/logout', { body: {} });

@@ -21,6 +21,7 @@ import { downloadRoutes } from './routes/downloads.js';
 import { ActivityMonitor } from './activity/live.js';
 import { retireRoutes, retireTautulliRoutes } from './routes/retire.js';
 import { activityRoutes } from './routes/activity.js';
+import { watchSyncRoutes } from './routes/watchSync.js';
 import { cutoverRoutes } from './routes/cutover.js';
 import { calendarRoutes } from './routes/calendar.js';
 import { discoverRoutes } from './routes/discover.js';
@@ -87,6 +88,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity'> & { copies?: 
   app.route('/api/downloads', downloadRoutes);
   app.route('/api/cutover', cutoverRoutes);
   app.route('/api/activity', activityRoutes);
+  app.route('/api/watch-sync', watchSyncRoutes);
   app.route('/api/retire-seerr', retireRoutes);
   app.route('/api/retire-tautulli', retireTautulliRoutes);
   app.route('/api/calendar', calendarRoutes);

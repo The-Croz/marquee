@@ -446,6 +446,8 @@ export const notificationChannels = sqliteTable('notification_channels', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   kind: text('kind', { enum: ['pushover', 'ntfy'] }).notNull(),
   name: text('name').notNull(),
+  /** Whose channel this is. Null = a shared admin channel (Settings → Notifications). */
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
   /** JSON; holds secrets, never sent back. */
   config: text('config').notNull().default('{}'),
   /** JSON string[] of event keys sent to admins on this channel. */
@@ -464,8 +466,19 @@ export const notifications = sqliteTable('notifications', {
   title: text('title').notNull(),
   body: text('body').notNull(),
   link: text('link'),
+  /** A picture address (usually cover art), when the message has one. */
+  image: text('image'),
   createdAt: integer('created_at').notNull(),
   readAt: integer('read_at'),
+});
+
+/** An admin's own wording for one event. No row = Marquee's wording. */
+export const notificationTemplates = sqliteTable('notification_templates', {
+  event: text('event').primaryKey(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  image: text('image').notNull().default(''),
+  updatedAt: integer('updated_at').notNull(),
 });
 
 /** One finished watch, copied from Plex or Jellyfin. */
@@ -512,4 +525,18 @@ export const streams = sqliteTable('streams', {
   endedAt: integer('ended_at'),
   watchedMs: integer('watched_ms').notNull().default(0),
   progress: real('progress').notNull().default(0),
+});
+
+/** One "watched" tick Marquee copied from one server to the other. */
+export const watchSyncLog = sqliteTable('watch_sync_log', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  runAt: integer('run_at').notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  person: text('person').notNull(),
+  /** The server Marquee ticked it on. */
+  server: text('server', { enum: ['plex', 'jellyfin'] }).notNull(),
+  serverUserId: text('server_user_id').notNull(),
+  itemRef: text('item_ref').notNull(),
+  title: text('title').notNull(),
+  undoneAt: integer('undone_at'),
 });

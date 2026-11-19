@@ -32,7 +32,7 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     const bad = !['unchecked', 'working', 'slowed_down'].includes(s.state) && s.failures >= FAILS_BEFORE_TELLING;
     if (changed(db, `source.${s.id}`, bad ? s.state : null)) {
       const t = STATE_TEXT[s.state];
-      await notifyAdmins(deps, 'source_problem', { title: `${s.name} stopped working`, body: `${t.label}. ${t.fix ?? ''}`.trim(), link: '/settings/sources' });
+      await notifyAdmins(deps, 'source_problem', { vars: { source: s.name, problem: t.label, fix: t.fix ?? null }, link: '/settings/sources' });
     }
   }
 
@@ -41,7 +41,7 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     const h = await checkDownloader(clients.qbittorrent(dl.url, dl.username, dl.password ?? ''), dl.category, now());
     const bad = !['working', 'firewalled', 'not_set_up'].includes(h.state);
     if (changed(db, 'downloader', bad ? h.state : null)) {
-      await notifyAdmins(deps, 'downloader_problem', { title: 'qBittorrent stopped working', body: `${h.label}. ${DOWNLOADER_TEXT[h.state].fix ?? ''}`.trim(), link: '/settings/downloader' });
+      await notifyAdmins(deps, 'downloader_problem', { vars: { problem: h.label, fix: DOWNLOADER_TEXT[h.state].fix ?? null }, link: '/settings/downloader' });
     }
   }
 
@@ -58,7 +58,7 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     }
     if (changed(db, `server.${kind}`, down ? 'down' : null)) {
       const name = kind === 'plex' ? 'Plex' : 'Jellyfin';
-      await notifyAdmins(deps, 'media_server_problem', { title: `${name} stopped answering`, body: `${down} Marquee tries again by itself.`, link: '/settings/services' });
+      await notifyAdmins(deps, 'media_server_problem', { vars: { server: name, error: down }, link: '/settings/services' });
     }
   }
 
@@ -75,8 +75,11 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     if (aired.length) {
       const line = (a: (typeof aired)[number]) => `${a.show} S${String(a.season).padStart(2, '0')}E${String(a.episode).padStart(2, '0')}`;
       await notifyAdmins(deps, 'episode_aired', {
-        title: aired.length === 1 ? `New episode: ${line(aired[0]!)}` : `${aired.length} wanted episodes came out today`,
-        body: aired.slice(0, 8).map(line).join(', ') + (aired.length > 8 ? ', …' : '') + '. Marquee is looking for them.',
+        vars: {
+          summary: aired.length === 1 ? `New episode: ${line(aired[0]!)}` : `${aired.length} wanted episodes came out today`,
+          episodes: aired.slice(0, 8).map(line).join(', ') + (aired.length > 8 ? ', …' : ''),
+          count: aired.length,
+        },
         link: '/calendar',
       });
     }

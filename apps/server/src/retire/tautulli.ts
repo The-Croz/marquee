@@ -64,7 +64,7 @@ export function retireTautulliChecklist({ db, activity }: { db: Db; activity: Ac
     title: 'Playback messages go to your phone',
     state: wantsStreams ? 'done' : 'todo',
     detail: wantsStreams ? 'A channel is set to tell you when someone starts or stops watching.' : 'In Settings → Notifications, switch on “Someone started watching” (and the others you used in Tautulli) for a Pushover or ntfy channel. They start switched off.',
-    action: { label: 'Settings → Notifications', to: '/settings/notifications' },
+    action: { label: 'Settings → Notifications → Shared alerts', to: '/settings/notifications/shared' },
   });
 
   steps.push({

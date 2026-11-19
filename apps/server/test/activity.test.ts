@@ -109,3 +109,26 @@ describe('server clients: watching', () => {
     expect(hist[0]).toMatchObject({ tmdbId: 438631, user: 'Sam', userId: 'a', key: 'i1' });
   });
 });
+
+describe('my history', () => {
+  it('a member sees only their own watching, matched by name or Jellyfin link, and nothing admin-only', async () => {
+    const { app, db, plex, jf, admin } = await setup();
+    await call(app, 'POST', '/api/users', { username: 'sam', displayName: 'Sam', role: 'member', password: 'sam password' }, admin);
+    const sam = (await call(app, 'POST', '/api/auth/login', { username: 'sam', password: 'sam password' })).cookie!;
+    const { users, streams } = await import('../src/db/schema.js');
+    const { eq } = await import('drizzle-orm');
+    db.update(users).set({ jellyfinId: 'jf-sam' }).where(eq(users.username, 'sam')).run();
+    plex.plays = [play({ user: 'sam', userId: '7', key: 'p1' }), play({ user: 'josh', key: 'p2', title: 'Up', tmdbId: 14160 })];
+    jf.plays = [play({ user: 'Samuel on the TV', userId: 'jf-sam', key: 'j1', kind: 'episode', title: 'Pilot', show: 'Severance', season: 1, episode: 1, tmdbId: null, playedAt: NOW - 60_000 })];
+    await call(app, 'POST', '/api/activity/sync', {}, admin);
+    db.insert(streams).values({ server: 'plex', sessionId: 'x', userName: 'Sam', kind: 'movie', title: 'Dune', device: 'iPad', platform: 'iOS', startedAt: NOW - 3600_000, lastSeenAt: NOW, endedAt: NOW, watchedMs: 1_800_000 }).run();
+
+    const mine = (await call(app, 'GET', '/api/activity/mine', undefined, sam)).body;
+    expect(mine).toMatchObject({ name: 'Sam', plays: 2, total: 2, hours: 0.5, devices: ['iPad'] });
+    expect(mine.recent.map((r: { title: string }) => r.title)).toEqual(['Severance', 'Dune']);
+    expect(mine.streams).toHaveLength(1);
+    expect((await call(app, 'GET', '/api/activity/mine?limit=1', undefined, sam)).body.recent).toHaveLength(1);
+    expect((await call(app, 'GET', '/api/activity/history', undefined, sam)).status).toBe(403);
+    expect((await call(app, 'GET', '/api/activity/people/josh', undefined, sam)).status).toBe(403);
+  });
+});
