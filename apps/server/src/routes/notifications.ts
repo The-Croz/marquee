@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { NotificationChannelView, NotificationEventInfo, NotificationInboxItem } from '@marquee/shared';
 import { notificationChannels, notifications, userPrefs, type NotificationChannel } from '../db/schema.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
-import { ADMIN_EVENTS, EVENTS } from '../notify/events.js';
+import { ADMIN_EVENTS, DEFAULT_ADMIN_EVENTS, EVENTS } from '../notify/events.js';
 import type { NotifyDeps } from '../notify/service.js';
 
 /**
@@ -79,8 +79,8 @@ function channelView(ch: NotificationChannel): NotificationChannelView {
 const events = z.array(z.string().max(40)).max(40).transform((list) => list.filter((k) => ADMIN_EVENTS.includes(k)));
 const secret = z.string().max(300).optional();
 const createBody = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('pushover'), name: z.string().trim().min(1).max(60), appToken: z.string().trim().min(1).max(300), userKey: z.string().trim().min(1).max(300), events: events.default([...ADMIN_EVENTS]) }),
-  z.object({ kind: z.literal('ntfy'), name: z.string().trim().min(1).max(60), server: z.string().trim().max(300).default(''), topic: z.string().trim().min(1).max(200), token: secret, events: events.default([...ADMIN_EVENTS]) }),
+  z.object({ kind: z.literal('pushover'), name: z.string().trim().min(1).max(60), appToken: z.string().trim().min(1).max(300), userKey: z.string().trim().min(1).max(300), events: events.default([...DEFAULT_ADMIN_EVENTS]) }),
+  z.object({ kind: z.literal('ntfy'), name: z.string().trim().min(1).max(60), server: z.string().trim().max(300).default(''), topic: z.string().trim().min(1).max(200), token: secret, events: events.default([...DEFAULT_ADMIN_EVENTS]) }),
 ]);
 
 channelRoutes.get('/', (c) => {

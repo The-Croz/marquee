@@ -22,7 +22,7 @@ const NAV: NavItem[] = [
   { to: '/calendar', label: 'Calendar', icon: 'calendar' },
   { to: '/requests', label: 'Requests', icon: 'requests' },
   { to: '/downloads', label: 'Downloads', icon: 'downloads', hideForKids: true },
-  { to: '/activity', label: 'Activity', icon: 'activity', hideForKids: true },
+  { to: '/activity', label: 'Activity', icon: 'activity', adminOnly: true },
   { to: '/quality', label: 'Quality', icon: 'quality', adminOnly: true },
   { to: '/compare', label: 'Compare', icon: 'compare', adminOnly: true },
   { to: '/switch-over', label: 'Switch over', icon: 'switch', adminOnly: true },

@@ -52,3 +52,32 @@ describe('retire Seerr checklist', () => {
     expect((await call(app, 'GET', '/api/retire-seerr')).status).toBe(401);
   });
 });
+
+describe('retire Tautulli checklist', () => {
+  it('ticks off as Marquee connects, copies and records', async () => {
+    const { FakeMediaServer } = await import('./fakes/mediaServers.js');
+    const { streams, notificationChannels } = await import('../src/db/schema.js');
+    const plex = new FakeMediaServer('plex');
+    const { app, db, activity } = makeApp({ clients: { plexServer: (u, k) => plex.as(u, k) } });
+    const admin = await setupAdmin(app);
+    let res = await call(app, 'GET', '/api/retire-tautulli', undefined, admin);
+    expect(res.body.steps.map((s: { key: string }) => s.key)).toEqual(['servers', 'live', 'history', 'recorded', 'notify', 'old_data', 'watchstate', 'turn_off']);
+    expect(state(res.body, 'servers')).toBe('todo');
+    expect(state(res.body, 'watchstate')).toBe('unknown');
+
+    await call(app, 'PUT', '/api/settings/services', { plexUrl: 'http://plex:32400', plexToken: 'plex-token' }, admin);
+    activity.start();
+    res = await call(app, 'GET', '/api/retire-tautulli', undefined, admin);
+    expect(state(res.body, 'servers')).toBe('done');
+    expect(state(res.body, 'live')).toBe('done');
+    activity.stopWatching();
+
+    db.insert(streams).values({ server: 'plex', sessionId: '1', userName: 'a', kind: 'movie', title: 'T', device: 'd', platform: 'p', startedAt: 1, lastSeenAt: 2, endedAt: 2 }).run();
+    db.insert(notificationChannels).values({ kind: 'ntfy', name: 'Phone', config: '{}', events: '["stream_started"]', createdAt: 1 }).run();
+    res = await call(app, 'GET', '/api/retire-tautulli', undefined, admin);
+    expect(state(res.body, 'recorded')).toBe('done');
+    expect(state(res.body, 'notify')).toBe('done');
+    expect(state(res.body, 'history')).toBe('todo');
+    expect((await call(app, 'GET', '/api/retire-tautulli')).status).toBe(401);
+  });
+});

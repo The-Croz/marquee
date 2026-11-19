@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { keepListening, nodeSocket, type SocketFactory } from '../activity/socket.js';
 import { getSetting, setSetting, type Db } from '../db/index.js';
 import { libraryRoots } from './services.js';
 
@@ -34,7 +35,53 @@ export interface MediaPerson {
   name: string;
 }
 
+/** What was (or is being) watched. Episodes carry their show's name. */
+export interface WatchItem {
+  kind: 'movie' | 'episode';
+  title: string;
+  show: string | null;
+  season: number | null;
+  episode: number | null;
+  year: number | null;
+  tmdbId: number | null;
+}
+export interface NowPlayingItem extends WatchItem {
+  /** The server's id for this stream, needed to stop it. */
+  sessionId: string;
+  /** The app playing it, e.g. "Plex for Roku". */
+  platform: string;
+  /** "4k", "1080", "720", "480" or "sd"; null when the server doesn't say. */
+  resolution: string | null;
+  user: string;
+  device: string;
+  state: 'playing' | 'paused' | 'buffering';
+  /** 0 to 1 */
+  progress: number;
+  transcoding: boolean;
+}
+export interface PlayRecord extends WatchItem {
+  /** The server's id for the person, and the name it shows. */
+  userId: string;
+  user: string;
+  /** The server's id for the item, so a play is never counted twice. */
+  key: string;
+  playedAt: number;
+}
+
 export interface MediaServerApi {
+  /** Who is watching right now. */
+  nowPlaying(): Promise<NowPlayingItem[]>;
+  /** Stops one stream, showing the viewer `message`. Throws MediaServerError if the server says no. */
+  stop(sessionId: string, message: string): Promise<void>;
+  /**
+   * Calls `onHint` the moment the server says something started, paused or
+   * stopped playing, so Marquee can look at once instead of waiting for its
+   * next check. `onState` says whether that live line is open. Returns a
+   * function that closes it. Servers without one just don't offer this.
+   */
+  watch?(onHint: () => void, onState?: (connected: boolean) => void): () => void;
+  /** Finished plays since a time (ms), newest first. */
+  history(since: number): Promise<PlayRecord[]>;
   /** The people who can use this server (Plex: you and the friends it's shared with). */
   people(): Promise<MediaPerson[]>;
   /** Name and version, or throws MediaServerError. */
@@ -60,14 +107,73 @@ async function request(fetchImpl: typeof fetch, label: string, base: string, url
   return res;
 }
 
+/** One short name for a picture size. */
+export function resolutionLabel(v: string | number | null | undefined): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string' && /^(4k|sd)$/i.test(v)) return v.toLowerCase();
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  // Plex says the height already ("1080"); Jellyfin gives a height too.
+  return n >= 2000 ? '4k' : n >= 1000 ? '1080' : n >= 700 ? '720' : n >= 400 ? '480' : 'sd';
+}
+
+interface PlexMeta {
+  type: string;
+  ratingKey?: string | number;
+  title: string;
+  grandparentTitle?: string;
+  parentIndex?: number;
+  index?: number;
+  year?: number;
+  viewOffset?: number;
+  duration?: number;
+  viewedAt?: number;
+  accountID?: number;
+  User?: { title?: string };
+  Player?: { title?: string; product?: string; platform?: string; state?: string };
+  Session?: { id?: string };
+  Media?: { videoResolution?: string }[];
+  TranscodeSession?: { videoDecision?: string };
+  Guid?: { id: string }[];
+}
+
+function plexItem(m: PlexMeta): WatchItem {
+  const tmdb = m.Guid?.map((g) => /^tmdb:\/\/(\d+)/.exec(g.id)?.[1]).find(Boolean);
+  const ep = m.type === 'episode';
+  return { kind: ep ? 'episode' : 'movie', title: m.title, show: ep ? (m.grandparentTitle ?? null) : null, season: ep ? (m.parentIndex ?? null) : null, episode: ep ? (m.index ?? null) : null, year: m.year ?? null, tmdbId: !ep && tmdb ? Number(tmdb) : null };
+}
+
 export class PlexServerClient implements MediaServerApi {
   private readonly base: string;
   constructor(
     url: string,
     private readonly token: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly socket: SocketFactory = nodeSocket,
   ) {
     this.base = url.replace(/\/+$/, '');
+  }
+
+  watch(onHint: () => void, onState: (connected: boolean) => void = () => {}): () => void {
+    // Plex sends {"NotificationContainer":{"type":"playing", ...}} on every play, pause and stop.
+    return keepListening(
+      {
+        url: `${this.base.replace(/^http/, 'ws')}/:/websockets/notifications?X-Plex-Token=${encodeURIComponent(this.token)}`,
+        onMessage: (text) => {
+          try {
+            if ((JSON.parse(text) as { NotificationContainer?: { type?: string } }).NotificationContainer?.type === 'playing') onHint();
+          } catch {
+            /* not JSON: ignore */
+          }
+        },
+      },
+      onState,
+      this.socket,
+    );
+  }
+
+  async stop(sessionId: string, message: string): Promise<void> {
+    await this.get(`/status/sessions/terminate?sessionId=${encodeURIComponent(sessionId)}&reason=${encodeURIComponent(message)}`);
   }
 
   private get(p: string): Promise<Response> {
@@ -91,6 +197,34 @@ export class PlexServerClient implements MediaServerApi {
     }));
   }
 
+  private async list<T>(p: string): Promise<T[]> {
+    const body = (await (await this.get(p)).json()) as { MediaContainer?: { Metadata?: T[]; Account?: T[] } };
+    return body.MediaContainer?.Metadata ?? body.MediaContainer?.Account ?? [];
+  }
+
+  async nowPlaying(): Promise<NowPlayingItem[]> {
+    const rows = await this.list<PlexMeta>('/status/sessions?includeGuids=1');
+    return rows.filter((m) => m.type === 'movie' || m.type === 'episode').map((m) => ({
+      ...plexItem(m),
+      sessionId: String(m.Session?.id ?? m.ratingKey ?? ''),
+      platform: m.Player?.product || m.Player?.platform || 'an app',
+      resolution: resolutionLabel(m.Media?.[0]?.videoResolution),
+      user: m.User?.title ?? 'Someone',
+      device: m.Player?.title || m.Player?.product || 'a device',
+      state: m.Player?.state === 'paused' ? 'paused' : m.Player?.state === 'buffering' ? 'buffering' : 'playing',
+      progress: m.duration ? Math.min(1, (m.viewOffset ?? 0) / m.duration) : 0,
+      transcoding: Boolean(m.TranscodeSession && m.TranscodeSession.videoDecision !== 'copy'),
+    }));
+  }
+
+  async history(since: number): Promise<PlayRecord[]> {
+    const names = new Map((await this.list<{ id: number; name: string }>('/accounts')).map((a) => [String(a.id), a.name]));
+    const rows = await this.list<PlexMeta>(`/status/sessions/history/all?sort=viewedAt:desc&includeGuids=1&X-Plex-Container-Start=0&X-Plex-Container-Size=2000&viewedAt>=${Math.floor(since / 1000)}`);
+    return rows
+      .filter((m) => (m.type === 'movie' || m.type === 'episode') && m.viewedAt)
+      .map((m) => ({ ...plexItem(m), userId: String(m.accountID), user: names.get(String(m.accountID)) ?? `User ${m.accountID}`, key: String(m.ratingKey), playedAt: m.viewedAt! * 1000 }));
+  }
+
   async people(): Promise<MediaPerson[]> {
     // The server's own address doesn't know the sharing list; plex.tv does, and the same token opens it.
     const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
@@ -106,14 +240,61 @@ export class PlexServerClient implements MediaServerApi {
   }
 }
 
+interface JfItem {
+  Id?: string;
+  Type: string;
+  Name: string;
+  SeriesName?: string;
+  ParentIndexNumber?: number;
+  IndexNumber?: number;
+  ProductionYear?: number;
+  RunTimeTicks?: number;
+  Height?: number;
+  ProviderIds?: { Tmdb?: string };
+  UserData?: { LastPlayedDate?: string };
+}
+
+function jfItem(i: JfItem): WatchItem {
+  const ep = i.Type === 'Episode';
+  return { kind: ep ? 'episode' : 'movie', title: i.Name, show: ep ? (i.SeriesName ?? null) : null, season: ep ? (i.ParentIndexNumber ?? null) : null, episode: ep ? (i.IndexNumber ?? null) : null, year: i.ProductionYear ?? null, tmdbId: !ep && i.ProviderIds?.Tmdb ? Number(i.ProviderIds.Tmdb) : null };
+}
+
 export class JellyfinClient implements MediaServerApi {
   private readonly base: string;
   constructor(
     url: string,
     private readonly apiKey: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly socket: SocketFactory = nodeSocket,
   ) {
     this.base = url.replace(/\/+$/, '');
+  }
+
+  watch(onHint: () => void, onState: (connected: boolean) => void = () => {}): () => void {
+    // Jellyfin sends the whole session list every few seconds once we ask for it, and
+    // straight away on changes. We use each message as a nudge and read the list ourselves.
+    return keepListening(
+      {
+        url: `${this.base.replace(/^http/, 'ws')}/socket?api_key=${encodeURIComponent(this.apiKey)}&deviceId=marquee`,
+        onOpen: (s) => s.send(JSON.stringify({ MessageType: 'SessionsStart', Data: '0,5000' })),
+        onMessage: (text) => {
+          try {
+            if ((JSON.parse(text) as { MessageType?: string }).MessageType === 'Sessions') onHint();
+          } catch {
+            /* not JSON: ignore */
+          }
+        },
+      },
+      onState,
+      this.socket,
+    );
+  }
+
+  async stop(sessionId: string, message: string): Promise<void> {
+    const id = encodeURIComponent(sessionId);
+    const json = { 'Content-Type': 'application/json' };
+    if (message) await this.send(`/Sessions/${id}/Message`, { method: 'POST', headers: json, body: JSON.stringify({ Header: 'Playback stopped', Text: message, TimeoutMs: 10_000 }) }).catch(() => {});
+    await this.send(`/Sessions/${id}/Playing/Stop`, { method: 'POST' });
   }
 
   private send(p: string, init: RequestInit = {}): Promise<Response> {
@@ -136,6 +317,36 @@ export class JellyfinClient implements MediaServerApi {
       kind: f.CollectionType === 'movies' ? 'movie' : f.CollectionType === 'tvshows' ? 'tv' : 'other',
       locations: f.Locations ?? [],
     }));
+  }
+
+  async nowPlaying(): Promise<NowPlayingItem[]> {
+    type S = { Id?: string; UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string } };
+    const rows = (await (await this.send('/Sessions')).json()) as S[];
+    return rows.filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode')).map((r) => ({
+      ...jfItem(r.NowPlayingItem!),
+      sessionId: r.Id ?? '',
+      platform: r.Client || 'an app',
+      resolution: resolutionLabel(r.NowPlayingItem!.Height),
+      user: r.UserName ?? 'Someone',
+      device: r.DeviceName || r.Client || 'a device',
+      state: r.PlayState?.IsPaused ? 'paused' : 'playing',
+      progress: r.NowPlayingItem!.RunTimeTicks ? Math.min(1, (r.PlayState?.PositionTicks ?? 0) / r.NowPlayingItem!.RunTimeTicks) : 0,
+      transcoding: r.PlayState?.PlayMethod === 'Transcode',
+    }));
+  }
+
+  async history(since: number): Promise<PlayRecord[]> {
+    const users = (await (await this.send('/Users')).json()) as { Id: string; Name: string }[];
+    const out: PlayRecord[] = [];
+    for (const u of users) {
+      const q = 'Recursive=true&Filters=IsPlayed&IncludeItemTypes=Movie,Episode&SortBy=DatePlayed&SortOrder=Descending&Limit=300&Fields=ProviderIds&EnableUserData=true';
+      const body = (await (await this.send(`/Users/${encodeURIComponent(u.Id)}/Items?${q}`)).json()) as { Items?: JfItem[] };
+      for (const i of body.Items ?? []) {
+        const at = i.UserData?.LastPlayedDate ? Date.parse(i.UserData.LastPlayedDate) : NaN;
+        if (Number.isFinite(at) && at >= since) out.push({ ...jfItem(i), userId: u.Id, user: u.Name, key: i.Id ?? '', playedAt: at });
+      }
+    }
+    return out.sort((a, b) => b.playedAt - a.playedAt);
   }
 
   async people(): Promise<MediaPerson[]> {

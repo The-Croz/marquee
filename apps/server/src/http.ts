@@ -15,6 +15,7 @@ import type { QbitApi } from './downloads/qbittorrent.js';
 import type { FetchedTorrent } from './downloads/torrent.js';
 import type { CopyCache } from './downloads/cache.js';
 import type { MediaServerApi } from './library/mediaServers.js';
+import type { ActivityMonitor } from './activity/live.js';
 import type { PushClient } from './notify/push.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
@@ -49,6 +50,8 @@ export interface Deps {
   sources: SourceService;
   /** Recent searches' copies, for "Download this". Made by createApp when not given. */
   copies: CopyCache;
+  /** Follows what is playing on Plex and Jellyfin. Made by createApp when not given. */
+  activity: ActivityMonitor;
   now: () => number;
 }
 

@@ -15,8 +15,16 @@ export const EVENTS: NotificationEventInfo[] = [
   { key: 'source_problem', audience: 'admins', label: 'A Source stopped working', description: 'A Source has failed several times in a row. Says what to do about it.' },
   { key: 'downloader_problem', audience: 'admins', label: 'The downloader stopped working', description: 'Marquee can’t reach qBittorrent, or it has no internet.' },
   { key: 'episode_aired', audience: 'admins', label: 'A wanted episode came out', description: 'An episode of a show you want aired today. Marquee is looking for it.' },
+  { key: 'media_server_problem', audience: 'admins', label: 'Plex or Jellyfin stopped answering', description: 'Marquee can’t reach a media server, so watching and library scans won’t work.' },
+  { key: 'stream_started', audience: 'admins', label: 'Someone started watching', description: 'A movie or episode started playing on Plex or Jellyfin.', quiet: true },
+  { key: 'stream_stopped', audience: 'admins', label: 'Someone finished watching', description: 'A stream ended after at least 30 seconds, with how long it was watched.', quiet: true },
+  { key: 'stream_transcoding', audience: 'admins', label: 'A stream is being converted', description: 'The server is re-encoding video for a device, which uses extra power.', quiet: true },
+  { key: 'stream_paused', audience: 'admins', label: 'Someone paused', description: 'A stream was paused.', quiet: true },
+  { key: 'stream_resumed', audience: 'admins', label: 'Someone resumed', description: 'A paused stream carried on.', quiet: true },
   { key: 'imported', audience: 'admins', label: 'Added to the library', description: 'A finished download went into the library.' },
 ];
 
 export const eventInfo = (key: string) => EVENTS.find((e) => e.key === key);
 export const ADMIN_EVENTS = EVENTS.filter((e) => e.audience === 'admins').map((e) => e.key);
+/** What a new channel gets: everything except the chatty events, which you turn on yourself. */
+export const DEFAULT_ADMIN_EVENTS = EVENTS.filter((e) => e.audience === 'admins' && !e.quiet).map((e) => e.key);

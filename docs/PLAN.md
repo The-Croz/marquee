@@ -269,11 +269,27 @@ Decided with Josh (2026-11-18):
 4. ✅ **Users from Plex and Jellyfin**: Settings → Users → "Add people from Plex or Jellyfin" lists the server's people (Plex: you and the friends it's shared with; Jellyfin: its enabled users), you tick who and pick a role, and they get a password-less account linked to that server. Plex people sign in with Plex (as before); Jellyfin people use "Sign in with my Jellyfin password" (Marquee passes it to Jellyfin and never stores it). Nobody is created at sign-in, so only people you picked can get in. Migration 18 adds the Jellyfin link.
 5. ✅ **Retire Seerr**: Switch over → Seerr. Marquee checks Discover works, the family has accounts and has signed in, a push channel has delivered, and a request reached the library; the last two steps (tell the family, turn Seerr off) are yours. No import from Seerr.
 
-## Milestone 6: Stats ⬜
+## Milestone 6: Stats 🔨
 
-- ⬜ Plex sessions + history; Jellyfin sessions + history (watch state per user, both servers)
-- ⬜ "Watching now", per-title "Who's watched", Activity page
-- ⬜ Retire Tautulli and WatchState
+How it works (the way Tautulli does it, for Plex and Jellyfin both):
+- **Live line + a quick look.** Marquee keeps a websocket open to Plex (`/:/websockets/notifications`) and to Jellyfin (`/socket`, asking for `SessionsStart`). Each message is only a nudge: Marquee then reads what is really playing from the server, compares it with what it saw before, and records the difference. While anything plays it also looks every 10 s (5 s with no live line); idle, every 60 s (30 s). A dropped line reconnects by itself (5 s, doubling to 1 min), so nothing depends on it.
+- **Streams are recorded as they happen** (`streams` table, migration 20): who, what, device, app, picture size, converted or direct, start and end, and **watched time that only counts while playing** (a pause doesn't count; gaps over a minute aren't counted). Autoplay's next episode is its own stream. If the server stops answering, streams are kept for 2 minutes and then closed; a restart closes any left open.
+- **History is copied too** (`plays`, migration 19) from each server's own history every 15 minutes, so the time before Marquee was watching is included.
+- Read-only towards Plex and Jellyfin, except stopping a stream when an admin asks.
+
+Done:
+- ✅ **Activity page** (admin only): Watching now, pushed live to the page (server-sent events, falling back to asking every 15 s); 30-day chart; busiest hours and days; time watched, streams, most at once, direct vs converted; top people, movies, shows, apps and picture quality; library size by picture size and video format; people list; history with Update now.
+- ✅ **Stop a stream**: "Stop…" on any stream, with an optional message the viewer sees. Plex: `/status/sessions/terminate` (Plex only allows this with a Plex Pass; the page says so when it refuses). Jellyfin: shows the message, then stops playback.
+- ✅ **People pages**: what each person watches most, recent streams (how long, which device, picture size) and history. People are matched to Marquee accounts by name.
+- ✅ **Who's watched** on every movie and show page.
+- ✅ **Notifications**: someone started watching, finished watching (30 s or more, with how long), a stream is being converted, paused, resumed (all off until you turn them on, per channel), and Plex or Jellyfin stopped answering (on by default).
+- ✅ **Retire Tautulli** checklist (Switch over → Tautulli).
+
+Not done, on purpose:
+- ⬜ **Keeping "watched" ticks in step between Plex and Jellyfin (what WatchState does).** This writes to the servers and needs people matched across both, so it needs its own design. Keep WatchState until then.
+- ⬜ Members seeing their own history (everything here is admin only for now).
+- ⬜ Tautulli's old history isn't imported; IP addresses and locations and newsletters are left out for privacy and upkeep.
+- ⬜ Rules to stop streams automatically (limits per person); only stopping by hand.
 
 ## Milestone 7: iPhone app ⬜
 

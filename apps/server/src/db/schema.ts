@@ -467,3 +467,49 @@ export const notifications = sqliteTable('notifications', {
   createdAt: integer('created_at').notNull(),
   readAt: integer('read_at'),
 });
+
+/** One finished watch, copied from Plex or Jellyfin. */
+export const plays = sqliteTable(
+  'plays',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    server: text('server', { enum: ['plex', 'jellyfin'] }).notNull(),
+    serverUserId: text('server_user_id').notNull(),
+    userName: text('user_name').notNull(),
+    itemKey: text('item_key').notNull(),
+    kind: text('kind', { enum: ['movie', 'episode'] }).notNull(),
+    title: text('title').notNull(),
+    show: text('show'),
+    season: integer('season'),
+    episode: integer('episode'),
+    year: integer('year'),
+    tmdbId: integer('tmdb_id'),
+    playedAt: integer('played_at').notNull(),
+  },
+  (t) => [uniqueIndex('plays_once').on(t.server, t.serverUserId, t.itemKey, t.playedAt)],
+);
+
+/** One stream Marquee saw start and stop, with the time it was really playing. */
+export const streams = sqliteTable('streams', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  server: text('server', { enum: ['plex', 'jellyfin'] }).notNull(),
+  sessionId: text('session_id').notNull(),
+  userName: text('user_name').notNull(),
+  kind: text('kind', { enum: ['movie', 'episode'] }).notNull(),
+  title: text('title').notNull(),
+  show: text('show'),
+  season: integer('season'),
+  episode: integer('episode'),
+  year: integer('year'),
+  tmdbId: integer('tmdb_id'),
+  device: text('device').notNull(),
+  platform: text('platform').notNull(),
+  resolution: text('resolution'),
+  transcoding: integer('transcoding', { mode: 'boolean' }).notNull().default(false),
+  startedAt: integer('started_at').notNull(),
+  lastSeenAt: integer('last_seen_at').notNull(),
+  /** Null while it is still going. */
+  endedAt: integer('ended_at'),
+  watchedMs: integer('watched_ms').notNull().default(0),
+  progress: real('progress').notNull().default(0),
+});

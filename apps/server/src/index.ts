@@ -18,6 +18,8 @@ import { SourceService } from './sources/service.js';
 import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
+import { ActivityMonitor } from './activity/live.js';
+import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
@@ -57,7 +59,11 @@ const bundledSolver = new BundledSolver(process.env.MARQUEE_SOLVER_BIN ?? null, 
 const sources = new SourceService(db, clients, Date.now, undefined, bundledSolver);
 
 const appScanner = new LibraryScanner(db);
+// Follows Plex and Jellyfin: their live lines, plus a quick look while anything is playing.
+const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }) });
+activity.start();
 const app = createApp({
+  activity,
   db,
   config,
   oidc: config.oidc ? new OidcProvider(config.oidc) : null,
@@ -118,6 +124,14 @@ setInterval(() => {
   );
 }, 60 * 1000).unref();
 
+// Copy new watches from Plex and Jellyfin: a minute after start, then every 15 minutes.
+const plays = () => syncPlays({ db, clients, now: Date.now }).then(
+  (r) => (r.added || r.problems.length) && console.log(`[activity] copied ${r.added} watches${r.problems.length ? `; ${r.problems.join('; ')}` : ''}`),
+  (err) => console.error('[activity] failed:', (err as Error).message),
+);
+setTimeout(plays, 60 * 1000).unref();
+setInterval(plays, 15 * 60 * 1000).unref();
+
 // Tell admins once when a Source or the downloader stops working, and when wanted episodes air.
 setInterval(() => {
   checkHealth({ db, clients, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }).catch((err) => console.error('[health] failed:', (err as Error).message));
@@ -157,6 +171,7 @@ const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     server.close();
+    activity.stopWatching();
     bundledSolver.stop();
     db.$client.close();
     process.exit(0);

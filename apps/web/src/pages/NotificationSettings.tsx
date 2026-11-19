@@ -78,7 +78,7 @@ function MyEvents() {
         <p className="m-0 text-sm text-muted">Untick anything you don’t want to hear about.</p>
       </div>
       {data.events.map((e) => (
-        <Check key={e.key} label={e.label} hint={e.description} checked={!data.muted.includes(e.key)} onChange={(on) => set(e.key, on)} />
+        <Check key={e.key} label={e.label} hint={e.quiet ? `${e.description} Off until you turn it on.` : e.description} checked={!data.muted.includes(e.key)} onChange={(on) => set(e.key, on)} />
       ))}
       {error && <Notice tone="error">{error}</Notice>}
     </Card>
@@ -142,7 +142,7 @@ function ChannelCard({ ch, events }: { ch: NotificationChannelView; events: Noti
       <fieldset className="m-0 flex flex-col border-0 p-0">
         <legend className="mb-1 text-sm text-soft">Send here when…</legend>
         {events.map((e) => (
-          <Check key={e.key} label={e.label} hint={e.description} checked={ch.events.includes(e.key)} onChange={(on) => patch({ events: on ? [...ch.events, e.key] : ch.events.filter((k) => k !== e.key) })} />
+          <Check key={e.key} label={e.label} hint={e.quiet ? `${e.description} Off until you turn it on.` : e.description} checked={ch.events.includes(e.key)} onChange={(on) => patch({ events: on ? [...ch.events, e.key] : ch.events.filter((k) => k !== e.key) })} />
         ))}
       </fieldset>
       {error && <Notice tone="error">{error}</Notice>}

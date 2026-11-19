@@ -5,6 +5,7 @@ import type { MediaFileView, MovieDetail, SeasonView, ShowDetail } from '@marque
 import { api, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { TitleDownloads } from '../components/Downloads';
+import { Watchers } from '../components/Watchers';
 import { WantedCheck, WantedSwitch } from '../components/Wanted';
 import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
@@ -115,6 +116,7 @@ export function MovieDetailPage() {
         {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
       </Card>
       {isAdmin && <TitleDownloads movieId={m.id} />}
+      {isAdmin && <Watchers kind="movie" id={m.id} />}
       {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} byHand={m.profileByHand} />}
     </>
   );
@@ -197,6 +199,7 @@ export function ShowDetailPage() {
       </div>
       {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
       {isAdmin && <TitleDownloads seriesId={s.id} />}
+      {isAdmin && <Watchers kind="tv" id={s.id} />}
       {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} byHand={s.profileByHand} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
     </>
   );

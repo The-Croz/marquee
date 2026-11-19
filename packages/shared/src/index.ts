@@ -1034,6 +1034,8 @@ export interface NewRequest {
 
 export interface NotificationEventInfo {
   key: string;
+  /** Off until you turn it on (chatty events, like every pause). */
+  quiet?: boolean;
   label: string;
   description: string;
   /** Who it's for: admins (channels and inbox), or the person who asked. */
@@ -1085,4 +1087,100 @@ export interface RetireView {
   steps: RetireStep[];
   /** Every step Marquee can check is done. The last steps are yours to do. */
   ready: boolean;
+}
+
+// ---- Activity (Plex and Jellyfin watching) ----
+
+export interface NowPlayingView {
+  server: 'plex' | 'jellyfin';
+  /** The server's id for the stream; send it to stop the stream. */
+  sessionId: string;
+  platform: string;
+  /** "4k", "1080", "720", "480" or "sd". */
+  resolution: string | null;
+  startedAt: number;
+  user: string;
+  /** The movie or show. */
+  title: string;
+  /** Year for a movie; "S02E03 · Episode name" for TV. */
+  subtitle: string | null;
+  device: string;
+  state: 'playing' | 'paused' | 'buffering';
+  /** 0 to 1 */
+  progress: number;
+  transcoding: boolean;
+  /** The title's page in Marquee, if the library has it. */
+  href: string | null;
+}
+
+export interface PlayView {
+  id: number;
+  server: 'plex' | 'jellyfin';
+  user: string;
+  title: string;
+  subtitle: string | null;
+  at: number;
+  href: string | null;
+}
+
+export interface ActivityStats {
+  days: number;
+  total: number;
+  last24h: number;
+  perDay: { day: string; plays: number }[];
+  /** Watches by hour of the day (0 to 23), in the server's time zone. */
+  hours: number[];
+  /** Watches by day of the week, Sunday first. */
+  weekdays: number[];
+  users: { name: string; plays: number }[];
+  movies: { name: string; plays: number }[];
+  shows: { name: string; plays: number }[];
+  servers: { plex: number; jellyfin: number };
+  /** From streams Marquee saw happen (not the servers' older history). */
+  live: {
+    streams: number;
+    watchHours: number;
+    /** Most streams playing at once. */
+    peakStreams: number;
+    direct: number;
+    converted: number;
+    platforms: { name: string; plays: number }[];
+    resolutions: { name: string; plays: number }[];
+    watchTime: { name: string; hours: number }[];
+  };
+  library: { files: number; bytes: number; resolutions: { name: string; count: number }[]; codecs: { name: string; count: number }[] };
+}
+
+export interface PersonSummary {
+  name: string;
+  plays: number;
+  hours: number;
+  last: number | null;
+  devices: string[];
+}
+
+export interface StreamView {
+  id: number;
+  server: 'plex' | 'jellyfin';
+  title: string;
+  subtitle: string | null;
+  device: string;
+  platform: string;
+  resolution: string | null;
+  converted: boolean;
+  startedAt: number;
+  watchedMs: number;
+  progress: number;
+  /** Still playing. */
+  going: boolean;
+}
+
+export interface PersonView extends PersonSummary {
+  top: { name: string; plays: number }[];
+  recent: PlayView[];
+  streams: StreamView[];
+}
+
+export interface WatchersView {
+  watchers: { user: string; plays: number; last: number; /** Different episodes seen (TV only). */ episodes: number | null }[];
 }
