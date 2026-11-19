@@ -12,6 +12,9 @@ export const EVENTS: NotificationEventInfo[] = [
   { key: 'request_ready', audience: 'requester', label: 'Ready to watch', description: 'What you asked for is in the library.' },
   { key: 'download_finished', audience: 'admins', label: 'A download finished', description: 'The downloader has the whole copy.' },
   { key: 'download_problem', audience: 'admins', label: 'A download is stuck or failed', description: 'Nobody is sharing it so Marquee tried another copy, it looked fake, or it couldn’t be put in the library.' },
+  { key: 'source_problem', audience: 'admins', label: 'A Source stopped working', description: 'A Source has failed several times in a row. Says what to do about it.' },
+  { key: 'downloader_problem', audience: 'admins', label: 'The downloader stopped working', description: 'Marquee can’t reach qBittorrent, or it has no internet.' },
+  { key: 'episode_aired', audience: 'admins', label: 'A wanted episode came out', description: 'An episode of a show you want aired today. Marquee is looking for it.' },
   { key: 'imported', audience: 'admins', label: 'Added to the library', description: 'A finished download went into the library.' },
 ];
 

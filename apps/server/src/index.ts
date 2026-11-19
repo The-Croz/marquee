@@ -18,6 +18,7 @@ import { SourceService } from './sources/service.js';
 import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
+import { checkHealth } from './notify/health.js';
 import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
@@ -116,6 +117,11 @@ setInterval(() => {
     (err) => console.error('[downloads] check failed:', (err as Error).message),
   );
 }, 60 * 1000).unref();
+
+// Tell admins once when a Source or the downloader stops working, and when wanted episodes air.
+setInterval(() => {
+  checkHealth({ db, clients, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }).catch((err) => console.error('[health] failed:', (err as Error).message));
+}, 5 * 60 * 1000).unref();
 
 // Once switched over: look for missing movies every 6 hours and better copies once a day;
 // for TV also read the Sources' newest copies every 30 minutes. Runs one at a time.
