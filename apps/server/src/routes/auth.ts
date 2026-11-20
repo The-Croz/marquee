@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { AuthStatus, PlexPinCheck, PlexPinStart } from '@marquee/shared';
+import type { AuthStatus, PlexPinCheck, PlexPinStart, SignInWall } from '@marquee/shared';
+import { readServices } from '../library/services.js';
 import type { Db } from '../db/index.js';
 import { users, type User } from '../db/schema.js';
 import { MediaServerError, readMediaServer } from '../library/mediaServers.js';
@@ -54,6 +55,38 @@ authRoutes.get('/status', (c) => {
   };
   return c.json(body);
 });
+
+// ---------- Sign-in poster wall ----------
+
+/**
+ * Popular movies and shows from TMDB for the sign-in screen. Anyone can see
+ * this page, so it never shows what's in the library. Kept for six hours;
+ * empty when there's no TMDB key or TMDB can't be reached.
+ */
+let wall: { at: number; key: string; posters: string[] } | null = null;
+const WALL_FOR = 6 * 60 * 60 * 1000;
+
+authRoutes.get('/wall', async (c) => {
+  const { db, config, clients, now } = c.get('deps');
+  const key = readServices(db, config).tmdbApiKey;
+  if (!key) return c.json({ posters: [] } satisfies SignInWall);
+  if (!wall || wall.key !== key || now() - wall.at > WALL_FOR) {
+    try {
+      const tmdb = clients.tmdb(key);
+      const [m, s] = await Promise.all([tmdb.list('movie', 'popular'), tmdb.list('series', 'popular')]);
+      const mixed = m.flatMap((x, i) => [x, s[i]]).filter((x): x is NonNullable<typeof x> => !!x?.posterPath);
+      wall = { at: now(), key, posters: mixed.slice(0, 30).map((x) => x.posterPath!) };
+    } catch {
+      return c.json({ posters: wall?.posters ?? [] } satisfies SignInWall);
+    }
+  }
+  return c.json({ posters: wall.posters } satisfies SignInWall);
+});
+
+/** Tests start from an empty wall. */
+export const forgetWall = () => {
+  wall = null;
+};
 
 // ---------- First run ----------
 

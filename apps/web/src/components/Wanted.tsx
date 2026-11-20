@@ -28,7 +28,7 @@ export function WantedSwitch({ kind, id, wanted }: { kind: 'movie' | 'series'; i
   return (
     <div className={cx('flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border px-5 py-4', wanted ? 'border-amber/60 bg-amber/8' : 'border-line bg-panel')}>
       <div className="flex min-w-[240px] flex-1 flex-col gap-0.5">
-        <span className="text-[15px] font-semibold">{wanted ? 'Wanted' : 'Not wanted'}</span>
+        <span className="text-body font-semibold">{wanted ? 'Wanted' : 'Not wanted'}</span>
         <span className="text-sm text-muted">
           {wanted
             ? kind === 'movie'

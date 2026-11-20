@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { MediaFileView, MovieDetail, SeasonView, ShowDetail } from '@marquee/shared';
 import { api, useAuthStatus } from '../api';
@@ -7,14 +7,17 @@ import { CopiesPanel } from '../components/Copies';
 import { TitleDownloads } from '../components/Downloads';
 import { Watchers } from '../components/Watchers';
 import { WantedCheck, WantedSwitch } from '../components/Wanted';
-import { Poster, formatBytes, tmdbImage } from '../components/Poster';
+import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/Poster';
 import { Card, Notice, cx } from '../components/ui';
+import { Tabs, useDocTitle } from '../components/Page';
 
 function Hero({
   title,
   year,
   backdrop,
   poster,
+  color,
+  href,
   meta,
   chips,
   back,
@@ -23,27 +26,37 @@ function Hero({
   year: number | null;
   backdrop: string | null;
   poster: string | null;
+  /** The poster's main colour: tints the glow behind the title. */
+  color: string | null;
+  /** This page's own address, for the poster's grow-into-place transition. */
+  href: string;
   meta: string;
   chips: { text: string; tone?: 'amber' | 'blue' | 'warn' }[];
   back: { to: string; label: string };
 }) {
   const bg = tmdbImage(backdrop, 'w1280');
+  useDocTitle(title);
   return (
     <>
-      <Link to={back.to} className="text-sm no-underline">
+      <Link to={back.to} viewTransition className="-mt-2 flex min-h-11 items-center self-start text-sm text-muted no-underline hover:text-text">
         ← {back.label}
       </Link>
-      <section className="relative overflow-hidden rounded-[22px] bg-[#1A1F29]">
-        {bg && <img src={bg} alt="" className="absolute inset-0 size-full object-cover opacity-60" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
+      <section className="relative isolate overflow-hidden rounded-2xl bg-raised" style={{ '--tint': color ?? 'var(--color-amber)' } as React.CSSProperties}>
+        {bg ? (
+          <img src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover opacity-60" />
+        ) : (
+          <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(80%_110%_at_80%_0%,color-mix(in_oklab,var(--tint)_34%,transparent)_0%,color-mix(in_oklab,var(--tint)_12%,var(--color-ink))_50%,var(--color-ink)_100%)]" />
+        )}
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(60%_80%_at_10%_100%,color-mix(in_oklab,var(--tint)_28%,transparent),transparent_70%)]" />
         <div className="relative flex flex-wrap items-end gap-8 px-6 pt-32 pb-8 sm:px-10">
-          <Poster title={title} path={poster} size="w500" className="w-[150px] flex-none shadow-2xl sm:w-[190px]" />
+          <Poster title={title} path={poster} color={color} transition={posterTransition(href)} size="w500" className="w-[150px] flex-none shadow-2xl sm:w-[190px]" />
           <div className="flex min-w-[260px] flex-1 flex-col gap-3">
             <div className="text-sm text-soft">{meta}</div>
-            <h1 className="m-0 font-display text-[52px] leading-[0.95] font-normal sm:text-[72px]">
+            <h1 className="m-0 font-display text-display leading-[0.95] font-normal sm:text-display-lg">
               {title} {year && <span className="text-[0.55em] text-soft">({year})</span>}
             </h1>
-            <div className="flex flex-wrap gap-2 text-[13px]">
+            <div className="flex flex-wrap gap-2 text-label">
               {chips.map((c) => (
                 <span
                   key={c.text}
@@ -66,6 +79,41 @@ function Hero({
   );
 }
 
+type Section = 'main' | 'copies' | 'downloads' | 'watched';
+
+/**
+ * Admins see a title's tools in tabs (what's on disk, copies to pick from,
+ * downloads, who watched) instead of one long page. The tab is in the address
+ * (`?tab=copies`) so it can be linked. Everyone else just sees the first.
+ */
+function TitleSections({ admin, main, copies, downloads, watched }: { admin: boolean; main: { label: string; body: React.ReactNode }; copies: React.ReactNode; downloads: React.ReactNode; watched: React.ReactNode }) {
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get('tab') as Section | null) ?? 'main';
+  if (!admin) return <>{main.body}</>;
+  const body: Record<Section, React.ReactNode> = { main: main.body, copies, downloads, watched };
+  return (
+    <div className="flex flex-col gap-4">
+      <Tabs<Section>
+        label="About this title"
+        value={tab in body ? tab : 'main'}
+        onChange={(v) => {
+          const next = new URLSearchParams(params);
+          if (v === 'main') next.delete('tab');
+          else next.set('tab', v);
+          setParams(next, { replace: true });
+        }}
+        items={[
+          { value: 'main', label: main.label },
+          { value: 'copies', label: 'Copies' },
+          { value: 'downloads', label: 'Downloads' },
+          { value: 'watched', label: 'Watched' },
+        ]}
+      />
+      {body[tab in body ? tab : 'main']}
+    </div>
+  );
+}
+
 function FileRow({ f }: { f: MediaFileView }) {
   const q = f.quality;
   const details = [q.source, q.hdr, q.codec, q.group && `by ${q.group}`].filter(Boolean).join(' · ');
@@ -73,7 +121,7 @@ function FileRow({ f }: { f: MediaFileView }) {
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line py-3">
       <span className="rounded-md bg-raised px-2 py-1 text-xs font-semibold text-soft">{q.label}</span>
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-mono text-[13px] text-soft" title={f.path}>
+        <span className="truncate font-mono text-label text-soft" title={f.path}>
           {f.path}
         </span>
         {details && <span className="text-xs text-dim">{details}</span>}
@@ -97,27 +145,34 @@ export function MovieDetailPage() {
         year={m.year}
         backdrop={m.backdropPath}
         poster={m.posterPath}
-        back={{ to: '/movies', label: 'Movies' }}
+        color={m.posterColor}
+        href={`/movies/${m.id}`}
+        back={{ to: '/library/movies', label: 'Movies' }}
         meta={[m.certification, m.runtime && `${Math.floor(m.runtime / 60)} h ${m.runtime % 60} m`, m.genres.slice(0, 3).join(', ')].filter(Boolean).join(' · ')}
         chips={[
           best ? { text: `On disk · ${best.quality.label}`, tone: 'amber' } : { text: 'Missing', tone: 'warn' },
           ...(best ? [{ text: formatBytes(m.files.reduce((n, f) => n + f.sizeBytes, 0)) }] : []),
         ]}
       />
-      {m.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{m.overview}</p>}
+      {m.overview && <p className="m-0 max-w-[760px] text-heading leading-relaxed text-soft">{m.overview}</p>}
       {isAdmin && <WantedSwitch kind="movie" id={m.id} wanted={m.monitored} />}
-      <Card className="flex flex-col">
-        <h2 className="m-0 mb-2 text-lg font-semibold">Files</h2>
-        {m.files.length === 0 ? (
-          <p className="m-0 text-sm text-muted">Nothing on disk yet.</p>
-        ) : (
-          m.files.map((f) => <FileRow key={f.id} f={f} />)
-        )}
-        {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
-      </Card>
-      {isAdmin && <TitleDownloads movieId={m.id} />}
-      {isAdmin && <Watchers kind="movie" id={m.id} />}
-      {isAdmin && <CopiesPanel kind="movie" titleId={m.id} profile={m.profile} byHand={m.profileByHand} />}
+      <TitleSections
+        admin={isAdmin}
+        main={{ label: 'Files', body: (
+          <Card className="flex flex-col">
+            <h2 className="m-0 mb-2 text-lg font-semibold">Files</h2>
+            {m.files.length === 0 ? (
+              <p className="m-0 text-sm text-muted">Nothing on disk yet.</p>
+            ) : (
+              m.files.map((f) => <FileRow key={f.id} f={f} />)
+            )}
+            {m.path && <p className="m-0 mt-3 text-xs text-dim">Folder: {m.path}</p>}
+          </Card>
+        ) }}
+        copies={<CopiesPanel kind="movie" titleId={m.id} profile={m.profile} byHand={m.profileByHand} />}
+        downloads={<TitleDownloads movieId={m.id} />}
+        watched={<Watchers kind="movie" id={m.id} />}
+      />
     </>
   );
 }
@@ -128,7 +183,7 @@ function SeasonBlock({ s, open, onToggle, showId, editable, showWanted }: { s: S
   return (
     <Card className="flex flex-col p-0">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-14 items-center gap-4 px-6 py-4 text-left text-text">
-        <span className="flex-1 text-[17px] font-semibold">{label}</span>
+        <span className="flex-1 text-heading font-semibold">{label}</span>
         <span className={cx('text-sm', done ? 'text-teal-hi' : s.have === 0 ? 'text-dim' : 'text-amber-hi')}>
           {s.aired === 0 ? 'Not aired yet' : `${s.have} of ${s.aired} episodes`}
         </span>
@@ -147,7 +202,7 @@ function SeasonBlock({ s, open, onToggle, showId, editable, showWanted }: { s: S
           {s.episodes.map((e) => (
             <div key={e.episode} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line py-2.5">
               <span className="w-10 text-sm font-semibold text-muted">{e.episode}</span>
-              <span className="min-w-[160px] flex-1 text-[15px]">{e.title ?? `Episode ${e.episode}`}</span>
+              <span className="min-w-[160px] flex-1 text-body">{e.title ?? `Episode ${e.episode}`}</span>
               <span className="text-xs text-dim">{e.airDate ?? 'No date'}</span>
               {editable && showWanted && <WantedCheck label={`Episode ${e.episode}: wanted`} checked={e.wanted} path={`/shows/${showId}/seasons/${s.season}/episodes/${e.episode}/wanted`} />}
               <span
@@ -183,24 +238,34 @@ export function ShowDetailPage() {
         year={s.year}
         backdrop={s.backdropPath}
         poster={s.posterPath}
-        back={{ to: '/shows', label: 'Shows' }}
+        color={s.posterColor}
+        href={`/shows/${s.id}`}
+        back={{ to: '/library/shows', label: 'Shows' }}
         meta={[s.certification, s.network, s.status === 'Ended' ? 'Ended' : s.status === 'Returning Series' ? 'Still airing' : s.status].filter(Boolean).join(' · ')}
         chips={[
           aired === 0 ? { text: 'Not aired yet' } : have >= aired ? { text: `All ${aired} episodes`, tone: 'amber' } : { text: `${have} of ${aired} episodes`, tone: 'warn' },
           ...(s.sizeBytes ? [{ text: formatBytes(s.sizeBytes) }] : []),
         ]}
       />
-      {s.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{s.overview}</p>}
+      {s.overview && <p className="m-0 max-w-[760px] text-heading leading-relaxed text-soft">{s.overview}</p>}
       {isAdmin && <WantedSwitch kind="series" id={s.id} wanted={s.monitored} />}
-      <div className="flex flex-col gap-3">
-        {s.seasons.map((x) => (
-          <SeasonBlock key={x.season} s={x} open={open.has(x.season)} onToggle={() => toggle(x.season)} showId={s.id} editable={isAdmin} showWanted={s.monitored} />
-        ))}
-      </div>
-      {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
-      {isAdmin && <TitleDownloads seriesId={s.id} />}
-      {isAdmin && <Watchers kind="tv" id={s.id} />}
-      {isAdmin && <CopiesPanel kind="tv" titleId={s.id} profile={s.profile} byHand={s.profileByHand} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
+      <TitleSections
+        admin={isAdmin}
+        main={{
+          label: 'Episodes',
+          body: (
+            <div className="flex flex-col gap-3">
+              {s.seasons.map((x) => (
+                <SeasonBlock key={x.season} s={x} open={open.has(x.season)} onToggle={() => toggle(x.season)} showId={s.id} editable={isAdmin} showWanted={s.monitored} />
+              ))}
+              {s.path && <p className="m-0 text-xs text-dim">Folder: {s.path}</p>}
+            </div>
+          ),
+        }}
+        copies={<CopiesPanel kind="tv" titleId={s.id} profile={s.profile} byHand={s.profileByHand} seasons={s.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) }))} />}
+        downloads={<TitleDownloads seriesId={s.id} />}
+        watched={<Watchers kind="tv" id={s.id} />}
+      />
     </>
   );
 }

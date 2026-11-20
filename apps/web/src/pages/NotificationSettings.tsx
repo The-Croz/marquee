@@ -14,7 +14,7 @@ function Check({ checked, onChange, label, hint }: { checked: boolean; onChange:
     <label className="flex min-h-11 items-start gap-3 py-1.5">
       <input type="checkbox" className="mt-1 size-5 flex-none accent-amber" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span className="flex flex-col">
-        <span className="text-[15px]">{label}</span>
+        <span className="text-body">{label}</span>
         {hint && <span className="text-sm text-muted">{hint}</span>}
       </span>
     </label>
@@ -156,7 +156,7 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
   };
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-[18px] border border-line bg-panel">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-panel">
         <table className="w-full border-collapse text-left">
           <caption className="sr-only">{caption}</caption>
           <thead>
@@ -181,7 +181,7 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
               <tbody key={g} className="border-b border-line last:border-0">
                 <tr className="bg-raised/50">
                   <th scope="rowgroup" className="sticky left-0 z-10 bg-raised px-4 py-2">
-                    <span className="block text-[15px] font-semibold">{g}</span>
+                    <span className="block text-body font-semibold">{g}</span>
                     <span className="block text-xs font-normal text-dim">{GROUP_HINT[g]}</span>
                   </th>
                   {columns.map((c) => {
@@ -198,7 +198,7 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
                 {list.map((e) => (
                   <tr key={e.key} className="border-t border-line/60">
                     <th scope="row" className="sticky left-0 z-10 max-w-[340px] bg-panel px-4 py-2 font-normal">
-                      <span className="block text-[15px]">{e.label}</span>
+                      <span className="block text-body">{e.label}</span>
                       <span className="block text-xs text-dim">{e.description}</span>
                     </th>
                     {columns.map((c) => (
@@ -258,7 +258,7 @@ function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string })
     <li className="flex flex-col gap-2 border-b border-line py-3 last:border-0">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-[15px] font-semibold">
+          <span className="text-body font-semibold">
             {ch.name} <span className="text-sm font-normal text-dim">· {ch.kind === 'pushover' ? 'Pushover' : 'ntfy'}</span>
           </span>
           <span className="truncate text-sm text-muted">
@@ -314,7 +314,7 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
   }
   return (
     <details open={startOpen} className="group rounded-xl border border-line-strong">
-      <summary className="flex min-h-11 cursor-pointer items-center px-4 text-[15px] font-medium text-amber">Add a phone or another place…</summary>
+      <summary className="flex min-h-11 cursor-pointer items-center px-4 text-body font-medium text-amber">Add a phone or another place…</summary>
       <div className="flex flex-col gap-4 px-4 pt-1 pb-4">
         <div role="group" aria-label="Which service" className="flex gap-2">
           {(['pushover', 'ntfy'] as const).map((k) => (
@@ -491,7 +491,7 @@ function Editor({ info, current, common }: { info: NotificationEventInfo; curren
       setSaved('Back to Marquee’s wording.');
     });
   const p = preview.data;
-  const field = 'rounded-xl border border-line-strong bg-ink px-4 text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none';
+  const field = 'rounded-xl border border-line-strong bg-ink px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none';
   return (
     <Card className="flex min-w-0 flex-1 flex-col gap-5">
       <div>

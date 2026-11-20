@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import type { CutoverView, LibraryCard, ShowDetail, WantedRunView } from '@marquee/shared';
+import type { AutomationView, LibraryCard, ShowDetail, WantedRunView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { lookForWanted } from '../src/downloads/wanted.js';
 import { catchNewEpisodes, lookForWantedTv } from '../src/downloads/wantedTv.js';
@@ -117,7 +117,7 @@ describe('Wanted and not wanted', () => {
     const member = (await call(t.app, 'POST', '/api/auth/login', { username: 'jessie', password: 'jessie password' })).cookie;
     expect((await call(t.app, 'PUT', `/api/movies/${t.up.id}/wanted`, { wanted: true }, member)).status).toBe(403);
     expect((await call(t.app, 'POST', '/api/shows/wanted', { ids: [t.sev.id], wanted: true }, member)).status).toBe(403);
-    expect((await call(t.app, 'PUT', '/api/cutover/limit', { dailyLimit: 5 }, member)).status).toBe(403);
+    expect((await call(t.app, 'PUT', '/api/automation', { dailyLimit: 5 }, member)).status).toBe(403);
   });
 
   it('adding a title is Not wanted unless you say "look for it"', async () => {
@@ -136,13 +136,13 @@ describe('Preview and the daily limit', () => {
   it('a preview says what it would send and sends nothing', async () => {
     const t = await setup();
     await call(t.app, 'POST', '/api/movies/wanted', { ids: [t.up.id], wanted: true }, t.cookie);
-    const r = await call(t.app, 'POST', '/api/cutover/look-now', { kind: 'missing', preview: true }, t.cookie);
+    const r = await call(t.app, 'POST', '/api/automation/movies/look-now', { kind: 'missing', preview: true }, t.cookie);
     const run = r.body as WantedRunView;
     expect(run.preview).toBe(true);
     expect(run.sent).toHaveLength(1);
     expect(t.sent()).toEqual([]);
-    const view = (await call(t.app, 'GET', '/api/cutover', undefined, t.cookie)).body as CutoverView;
-    expect(view.runs).toEqual([]); // not remembered
+    const view = (await call(t.app, 'GET', '/api/automation', undefined, t.cookie)).body as AutomationView;
+    expect(view.movies.runs).toEqual([]); // not remembered
     // and it didn't use up the movie's turn
     expect((await lookForWanted(t.deps(), 'missing')).sent).toHaveLength(1);
   });
@@ -150,7 +150,7 @@ describe('Preview and the daily limit', () => {
   it('stops at the daily limit, says so, and carries on after a day', async () => {
     const t = await setup();
     await call(t.app, 'POST', '/api/movies/wanted', { ids: [t.up.id, t.dune.id], wanted: true }, t.cookie);
-    await call(t.app, 'PUT', '/api/cutover/limit', { dailyLimit: 1 }, t.cookie);
+    await call(t.app, 'PUT', '/api/automation', { dailyLimit: 1 }, t.cookie);
     const first = await lookForWanted(t.deps(), 'missing');
     expect(first.sent).toHaveLength(1);
     expect(first.capped).toBe(true);
@@ -164,22 +164,10 @@ describe('Preview and the daily limit', () => {
   it('a preview respects the limit too, and 0 means no limit', async () => {
     const t = await setup();
     await call(t.app, 'POST', '/api/movies/wanted', { ids: [t.up.id, t.dune.id], wanted: true }, t.cookie);
-    await call(t.app, 'PUT', '/api/cutover/limit', { dailyLimit: 1 }, t.cookie);
+    await call(t.app, 'PUT', '/api/automation', { dailyLimit: 1 }, t.cookie);
     expect((await lookForWanted(t.deps(true), 'missing')).sent).toHaveLength(1);
-    await call(t.app, 'PUT', '/api/cutover/limit', { dailyLimit: 0 }, t.cookie);
+    await call(t.app, 'PUT', '/api/automation', { dailyLimit: 0 }, t.cookie);
     expect((await lookForWanted(t.deps(true), 'missing')).sent).toHaveLength(2);
-  });
-
-  it('the checklist says how many are wanted, the limit and how many went out', async () => {
-    const t = await setup();
-    let v = (await call(t.app, 'GET', '/api/cutover', undefined, t.cookie)).body as CutoverView;
-    expect(v).toMatchObject({ wantedTitles: 0, dailyLimit: 10, sentToday: 0 });
-    expect(v.steps.find((s) => s.key === 'take_over')!.detail).toMatch(/Nothing is wanted yet/);
-    await call(t.app, 'POST', '/api/movies/wanted', { ids: [t.up.id], wanted: true }, t.cookie);
-    await lookForWanted(t.deps(), 'missing');
-    v = (await call(t.app, 'GET', '/api/cutover', undefined, t.cookie)).body as CutoverView;
-    expect(v).toMatchObject({ wantedTitles: 1, sentToday: 1 });
-    expect(v.steps.find((s) => s.key === 'take_over')!.detail).toMatch(/1 movie is Wanted/);
   });
 });
 

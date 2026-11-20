@@ -17,7 +17,7 @@ export function Watchers({ kind, id }: { kind: 'movie' | 'tv'; id: number }) {
       ) : (
         <ul className="m-0 flex list-none flex-col p-0">
           {q.data.watchers.map((w) => (
-            <li key={w.user} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2 text-[15px] first:border-t-0">
+            <li key={w.user} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2 text-body first:border-t-0">
               <span className="font-medium">{w.user}</span>
               <span className="text-sm text-muted">
                 {w.episodes !== null ? `${w.episodes} ${w.episodes === 1 ? 'episode' : 'episodes'} · ` : w.plays > 1 ? `${w.plays} times · ` : ''}last {day(w.last)}

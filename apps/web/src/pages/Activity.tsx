@@ -5,6 +5,7 @@ import type { ActivityStats, NowPlayingView, PersonSummary, PlayView } from '@ma
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Notice, Progress, cx } from '../components/ui';
 import { formatBytes } from '../components/Poster';
+import { PageHeader } from '../components/Page';
 
 export const SERVER = { plex: 'Plex', jellyfin: 'Jellyfin' } as const;
 const STATE = { playing: 'Playing', paused: 'Paused', buffering: 'Buffering' } as const;
@@ -140,7 +141,7 @@ function NowPlaying() {
       {feed?.sessions.map((s) => (
         <div key={`${s.server}${s.sessionId}`} className="flex flex-col gap-1.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-[15px] font-semibold">
+            <span className="text-body font-semibold">
               <Name href={s.href}>{s.title}</Name>
               {s.subtitle && <span className="font-normal text-soft"> · {s.subtitle}</span>}
             </span>
@@ -178,7 +179,7 @@ function Bars({ title, values, labels, peakLabel }: { title: string; values: num
           <div key={i} title={`${labels[i]}: ${v}`} className="flex-1 rounded-t bg-amber/80" style={{ height: `${Math.max(v ? 6 : 2, (v / peak) * 100)}%`, opacity: v ? 1 : 0.25 }} />
         ))}
       </div>
-      <div className="flex justify-between text-[11px] text-dim" aria-hidden="true">
+      <div className="flex justify-between text-caption text-dim" aria-hidden="true">
         <span>{labels[0]}</span>
         <span>{peakLabel}</span>
         <span>{labels[labels.length - 1]}</span>
@@ -288,7 +289,7 @@ function People() {
     <Card className="flex flex-col gap-1">
       <h2 className="m-0 mb-2 text-lg font-semibold">People</h2>
       {q.data.people.map((p) => (
-        <Link key={p.name} to={`/activity/people/${encodeURIComponent(p.name)}`} className={cx('flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-line py-2 text-[15px] no-underline')}>
+        <Link key={p.name} to={`/activity/people/${encodeURIComponent(p.name)}`} className={cx('flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-line py-2 text-body no-underline')}>
           <span className="font-medium text-text">{p.name}</span>
           <span className="text-sm text-muted">
             {p.plays} watched{p.hours > 0 && ` · ${p.hours} h`}
@@ -308,7 +309,7 @@ function History() {
       <h2 className="m-0 mb-2 text-lg font-semibold">History</h2>
       {q.data?.plays.length === 0 && <p className="m-0 text-sm text-muted">No watches copied yet. Marquee copies them from Plex and Jellyfin every 15 minutes; press Update now to do it at once.</p>}
       {q.data?.plays.map((p) => (
-        <div key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-[15px]">
+        <div key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line py-2.5 text-body">
           <span>
             <Name href={p.href}>{p.title}</Name>
             {p.subtitle && <span className="text-soft"> · {p.subtitle}</span>}
@@ -349,15 +350,15 @@ export function ActivityPage() {
 
   return (
     <div className="flex max-w-[1000px] flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <h1 className="m-0 font-display text-[56px] leading-none font-normal">Activity</h1>
-          <p className="m-0 max-w-[640px] text-[15px] text-muted">Who is watching and what was watched, from Plex and Jellyfin. Marquee reads from them, and can stop a stream if you ask it to.</p>
-        </div>
-        <Button variant="ghost" onClick={update} disabled={busy}>
-          {busy ? 'Updating…' : 'Update now'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Watching"
+        info="Who is watching and what was watched, from Plex and Jellyfin. Marquee only reads from them, except when you ask it to stop a stream."
+        actions={
+          <Button variant="ghost" onClick={update} disabled={busy}>
+            {busy ? 'Updating…' : 'Update now'}
+          </Button>
+        }
+      />
       {note && <Notice tone={note.tone}>{note.text}</Notice>}
       <NowPlaying />
       <Stats />

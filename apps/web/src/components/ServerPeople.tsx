@@ -94,9 +94,9 @@ export function ServerPeople({ jellyfinSignIn }: { jellyfinSignIn: boolean }) {
                   })
                 }
               />
-              <label htmlFor={`pp-${p.id}`} className="min-w-[160px] flex-1 text-[15px]">
+              <label htmlFor={`pp-${p.id}`} className="min-w-[160px] flex-1 text-body">
                 {p.name}
-                <span className="text-[13px] text-muted">
+                <span className="text-label text-muted">
                   {p.username !== p.name && ` · ${p.username}`}
                   {p.marqueeUser && ` · already in Marquee as ${p.marqueeUser}`}
                 </span>

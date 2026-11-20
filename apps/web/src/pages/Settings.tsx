@@ -1,48 +1,131 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, NavLink, Outlet, useOutletContext, useSearchParams } from 'react-router';
+import { Link, Navigate, NavLink, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { AuthStatus, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { ServerPeople } from '../components/ServerPeople';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { InfoTip, PageHeader } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
-export function SettingsLayout({ status }: Ctx) {
-  const tabs = [
-    { to: '/settings/account', label: 'Account' },
-    { to: '/settings/discover', label: 'Discover' },
-    { to: '/settings/notifications', label: 'Notifications' },
-    ...(status.user.role === 'admin'
+export type SettingsItem = { to: string; label: string; blurb: string; info?: string };
+type SettingsGroup = { title: string; items: SettingsItem[] };
+
+/** Every Settings page, grouped the way people think about them. Admin-only groups are left out for others. */
+export function settingsGroups(role: Role): SettingsGroup[] {
+  const admin = role === 'admin';
+  return [
+    {
+      title: 'You',
+      items: [
+        { to: '/settings/account', label: 'Account', blurb: 'Your name, password and ways to sign in' },
+        { to: '/settings/discover', label: 'Discover', blurb: 'What Discover shows you' },
+        { to: '/settings/notifications', label: 'Notifications', blurb: 'What you hear about, and where' },
+      ],
+    },
+    ...(admin
       ? [
-          { to: '/settings/users', label: 'Users' },
-          { to: '/settings/services', label: 'Services' },
-          { to: '/settings/sources', label: 'Sources' },
-          { to: '/settings/downloader', label: 'Downloader' },
-          { to: '/settings/watched-sync', label: 'Watched sync' },
+          {
+            title: 'Getting things',
+            items: [
+              {
+                to: '/settings/sources',
+                label: 'Sources',
+                blurb: 'The sites Marquee searches',
+                info: 'Sources are the sites Marquee searches for copies of a movie or show. Older apps call them indexers. Marquee searches them itself, or through Prowlarr if you still use it. It only reads from them: nothing is downloaded until you say so.',
+              },
+              { to: '/settings/downloader', label: 'Downloader', blurb: 'qBittorrent, and where finished files go' },
+              {
+                to: '/settings/quality',
+                label: 'Quality',
+                blurb: 'Profiles: what a good copy looks like',
+                info: 'A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything can be changed. The built-in profiles start from the TRaSH Guides.',
+              },
+              { to: '/settings/automation', label: 'Automatic searching', blurb: 'Looking for wanted titles by itself' },
+            ],
+          },
+          {
+            title: 'Your servers',
+            items: [
+              { to: '/settings/services', label: 'Services', blurb: 'TMDB, Plex, Jellyfin and library folders' },
+              { to: '/settings/watched-sync', label: 'Watched sync', blurb: 'Keep watched marks the same on Plex and Jellyfin' },
+              { to: '/settings/users', label: 'Users', blurb: 'Family, roles and who needs approval' },
+            ],
+          },
         ]
       : []),
-    { to: '/settings/about', label: 'About' },
+    { title: 'Marquee', items: [{ to: '/settings/about', label: 'About', blurb: 'Version and where to get help' }] },
   ];
+}
+
+export function SettingsLayout({ status }: Ctx) {
+  const { pathname } = useLocation();
+  const groups = settingsGroups(status.user.role);
+  const current = groups.flatMap((g) => g.items).find((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+
+  if (!current) {
+    return (
+      <>
+        <PageHeader title="Settings" />
+        <div className="flex max-w-[720px] flex-col gap-8">
+          {groups.map((g) => (
+            <section key={g.title} aria-labelledby={`sg-${g.title}`} className="flex flex-col gap-2">
+              <h2 id={`sg-${g.title}`} className="m-0 text-caption font-semibold tracking-widest text-dim uppercase">
+                {g.title}
+              </h2>
+              <ul className="m-0 flex list-none flex-col overflow-hidden rounded-2xl border border-line bg-panel p-0">
+                {g.items.map((i) => (
+                  <li key={i.to} className="border-line not-last:border-b">
+                    <Link to={i.to} className="flex min-h-14 items-center gap-4 px-4 py-3 text-text no-underline hover:bg-raised hover:text-text">
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-body font-semibold">{i.label}</span>
+                        <span className="text-sm text-muted">{i.blurb}</span>
+                      </span>
+                      <span aria-hidden="true" className="text-dim">
+                        ›
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
-    <>
-      <h1 className="m-0 font-display text-[56px] leading-none font-normal">Settings</h1>
-      <nav aria-label="Settings" className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            className={({ isActive }) =>
-              cx('rounded-full border px-4 py-2 text-sm font-medium no-underline', isActive ? 'border-amber bg-amber text-amber-ink hover:text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')
-            }
-          >
-            {t.label}
-          </NavLink>
+    <div className="flex items-start gap-10">
+      <nav aria-label="Settings" className="sticky top-6 hidden w-[220px] flex-none flex-col gap-5 lg:flex">
+        <Link to="/settings" className="text-title font-semibold tracking-tight text-text no-underline hover:text-text">
+          Settings
+        </Link>
+        {groups.map((g) => (
+          <div key={g.title} className="flex flex-col gap-0.5">
+            <span className="px-3 pb-1 text-caption font-semibold tracking-widest text-dim uppercase">{g.title}</span>
+            {g.items.map((i) => (
+              <NavLink
+                key={i.to}
+                to={i.to}
+                className={() =>
+                  cx('flex min-h-10 items-center rounded-lg px-3 text-sm no-underline', i === current ? 'bg-raised font-semibold text-text hover:text-text' : 'text-muted hover:bg-panel hover:text-text')
+                }
+                aria-current={i === current ? 'page' : undefined}
+              >
+                {i.label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
-      <Outlet context={{ status } satisfies Ctx} />
-    </>
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <PageHeader title={current.label} docTitle={`${current.label} · Settings`} back={{ to: '/settings', label: 'Settings', wideHidden: true }} info={current.info} />
+        <Outlet context={{ status } satisfies Ctx} />
+      </div>
+    </div>
   );
 }
 
@@ -164,7 +247,7 @@ function LinkRow({ name, linked, onLink, onUnlink }: { name: string; linked: boo
   return (
     <div className="flex flex-wrap items-center gap-4 border-t border-line py-3.5">
       <div className="flex-1">
-        <div className="text-[15px] font-medium">{name}</div>
+        <div className="text-body font-medium">{name}</div>
         <div className={cx('text-sm', linked ? 'text-teal-hi' : 'text-dim')}>{linked ? 'Linked' : 'Not linked'}</div>
       </div>
       {linked ? (
@@ -253,10 +336,10 @@ function UsersAdmin({ status }: Ctx) {
               {u.displayName.slice(0, 1).toUpperCase()}
             </span>
             <div className="min-w-[180px] flex-1">
-              <div className="text-[15px] font-semibold">
+              <div className="text-body font-semibold">
                 {u.displayName} {u.id === status.user.id && <span className="text-sm font-normal text-dim">(you)</span>}
               </div>
-              <div className="text-[13px] text-muted">
+              <div className="text-label text-muted">
                 {u.username}
                 {u.plexUsername && ` · Plex: ${u.plexUsername}`}
                 {u.jellyfinUsername && ` · Jellyfin: ${u.jellyfinUsername}`}
@@ -313,7 +396,7 @@ function UsersAdmin({ status }: Ctx) {
             <label htmlFor="new-role" className="text-sm font-medium text-soft">
               Role
             </label>
-            <select id="new-role" name="role" defaultValue="member" className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-[15px] text-text">
+            <select id="new-role" name="role" defaultValue="member" className="h-12 rounded-xl border border-line-strong bg-ink px-4 text-body text-text">
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
@@ -412,8 +495,10 @@ function MediaServerCard({ kind, s }: { kind: 'plex' | 'jellyfin'; s: MediaServe
           {name} <span className="text-sm font-normal text-dim">optional</span>
         </h2>
         <p className="m-0 mt-1 text-sm text-muted">
-          After Marquee puts something in your library, it asks {name} to scan just that folder, so it shows up in seconds. If {name} sees your library under different folder names, Marquee works out its own path from
-          the library you pick.
+          New arrivals show up in {name} within seconds.{' '}
+          <InfoTip className="-my-3.5 align-middle" label={`About ${name}`}>
+            After Marquee puts something in your library, it asks {name} to scan just that folder. If {name} sees your library under different folder names, Marquee works out its own path from the library you pick.
+          </InfoTip>
         </p>
       </div>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
@@ -469,9 +554,9 @@ function NamePattern({ kind, saved, fallback }: { kind: 'movie' | 'tv'; saved: s
         onChange={(e) => setValue(e.target.value)}
         spellCheck={false}
         aria-describedby={`${id}-preview`}
-        className="h-11 rounded-xl border border-line-strong bg-ink px-3.5 font-mono text-[13px] text-text"
+        className="h-11 rounded-xl border border-line-strong bg-ink px-3.5 font-mono text-label text-text"
       />
-      <p id={`${id}-preview`} role="status" className={cx('m-0 font-mono text-[12px] break-all', preview?.problem ? 'text-warn' : 'text-muted')}>
+      <p id={`${id}-preview`} role="status" className={cx('m-0 font-mono text-caption break-all', preview?.problem ? 'text-warn' : 'text-muted')}>
         {preview?.problem ?? (preview?.example ? `e.g. ${preview.example}` : ' ')}
       </p>
       {value !== fallback && (
@@ -653,7 +738,7 @@ export function AboutPage() {
         <h2 className="m-0 text-lg font-semibold">About Marquee</h2>
         <p className="m-0 text-sm text-muted">Movies and shows for your household, from one app.</p>
       </div>
-      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-[15px]">
+      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-body">
         <dt className="text-dim">Version</dt>
         <dd className="m-0 font-mono text-soft">{status.version}</dd>
         <dt className="text-dim">License</dt>

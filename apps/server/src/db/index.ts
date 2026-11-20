@@ -457,6 +457,12 @@ const migrations: string[] = [
   );
   CREATE INDEX watch_sync_log_run ON watch_sync_log (run_at);
   `,
+  /* 23: each poster's main colour, and which poster it was picked from */ `
+  ALTER TABLE movies ADD COLUMN poster_color TEXT;
+  ALTER TABLE movies ADD COLUMN poster_color_for TEXT;
+  ALTER TABLE series ADD COLUMN poster_color TEXT;
+  ALTER TABLE series ADD COLUMN poster_color_for TEXT;
+  `,
 ];
 
 export function openDb(file: string): Db {

@@ -25,8 +25,8 @@ import { lastRunAt, type WantedDeps, type WantedRun } from './wanted.js';
  *   whole season, skipping seasons already "good enough" for their profile.
  *
  * Specials (season 0) are only searched when you ask, from the show's page.
- * A few searches per run, longest-waiting first. Off until you turn it on at
- * the end of the TV switch-over checklist.
+ * A few searches per run, longest-waiting first. Off until you turn it on in
+ * Settings → Automatic searching.
  */
 
 const MINUTE = 60_000;

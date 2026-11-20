@@ -48,7 +48,7 @@ export function Bell({ up = false }: { up?: boolean }) {
         className="relative flex size-11 items-center justify-center rounded-lg text-muted hover:bg-raised hover:text-text"
       >
         <Icon name="bell" />
-        {unread > 0 && <span className="absolute top-1.5 right-1.5 flex min-w-[18px] items-center justify-center rounded-full bg-amber px-1 text-[11px] font-bold text-amber-ink">{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && <span className="absolute top-1.5 right-1.5 flex min-w-[18px] items-center justify-center rounded-full bg-amber px-1 text-caption font-bold text-amber-ink">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
         <div role="dialog" aria-label="Notifications" className={cx(up ? "bottom-12 left-0" : "top-12 right-0", "absolute z-30 flex max-h-[70vh] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line-strong bg-panel shadow-2xl")}>
@@ -69,7 +69,7 @@ export function Bell({ up = false }: { up?: boolean }) {
                       <span className={cx('text-sm', n.read ? 'text-soft' : 'font-semibold text-text')}>{n.title}</span>
                       <span className="flex-none text-xs text-dim">{ago(n.createdAt)}</span>
                     </span>
-                    <span className="text-[13px] text-muted">{n.body}</span>
+                    <span className="text-label text-muted">{n.body}</span>
                   </span>
                 </span>
               );

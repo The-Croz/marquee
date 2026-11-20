@@ -58,6 +58,10 @@ export const movies = sqliteTable('movies', {
   year: integer('year'),
   overview: text('overview'),
   posterPath: text('poster_path'),
+  /** The poster's main colour, `#rrggbb`. Null until picked, or when the image couldn't be read. */
+  posterColor: text('poster_color'),
+  /** The poster path the colour was picked from; differs from posterPath when the poster changed. */
+  posterColorFor: text('poster_color_for'),
   backdropPath: text('backdrop_path'),
   runtime: integer('runtime'),
   certification: text('certification'),
@@ -92,6 +96,10 @@ export const series = sqliteTable('series', {
   year: integer('year'),
   overview: text('overview'),
   posterPath: text('poster_path'),
+  /** The poster's main colour, `#rrggbb`. Null until picked, or when the image couldn't be read. */
+  posterColor: text('poster_color'),
+  /** The poster path the colour was picked from; differs from posterPath when the poster changed. */
+  posterColorFor: text('poster_color_for'),
   backdropPath: text('backdrop_path'),
   status: text('status'),
   network: text('network'),

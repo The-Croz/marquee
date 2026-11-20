@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { WatchSyncPlan, WatchSyncRun, WatchSyncStatus } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Notice } from '../components/ui';
+import { InfoTip } from '../components/Page';
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong. Try again.');
 const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -59,7 +60,8 @@ export function WatchSyncPage() {
         <div>
           <h2 className="m-0 text-lg font-semibold">Watched on one, watched on both</h2>
           <p className="m-0 text-sm text-muted">
-            When someone watches a movie or episode on Plex, Marquee ticks it as watched on Jellyfin too, and the other way round. It only ever adds ticks, never takes one away, and every sync can be undone.
+            Watch it on Plex and it's ticked on Jellyfin too, and the other way round.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About watched sync">It only ever adds ticks, never takes one away, and every sync can be undone.</InfoTip>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -89,7 +91,7 @@ export function WatchSyncPage() {
                 {plan.people.map((p) => (
                   <li key={p.userId} className="flex flex-col gap-1 border-t border-line py-3 first:border-0">
                     <span className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="text-[15px] font-semibold">{p.name}</span>
+                      <span className="text-body font-semibold">{p.name}</span>
                       {p.state === 'linked' && (
                         <span className="text-sm text-muted">
                           {p.toJellyfin + p.toPlex === 0 ? 'Already the same' : `${ticks(p.toJellyfin)} on Jellyfin · ${ticks(p.toPlex)} on Plex`}
@@ -114,7 +116,7 @@ export function WatchSyncPage() {
         {s.runs.length === 0 && <p className="m-0 text-sm text-muted">Nothing synced yet. Syncs that add ticks show here, with a way to undo them.</p>}
         {s.runs.map((r) => (
           <details key={r.at} className="border-t border-line first-of-type:border-0">
-            <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-[15px]">
+            <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-body">
               <span>
                 {when(r.at)} · {ticks(r.ticks)}
                 {r.undone > 0 && <span className="text-dim"> · {r.undone === r.ticks ? 'undone' : `${r.undone} undone`}</span>}

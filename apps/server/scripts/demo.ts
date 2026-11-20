@@ -22,11 +22,13 @@ import { openDb, setSetting } from '../src/db/index.js';
 import { RateLimiter } from '../src/auth/rateLimit.js';
 import { PlexClient, plexClientId } from '../src/auth/plex.js';
 import { LibraryScanner } from '../src/library/scanner.js';
+import { colorPosters } from '../src/library/posterColor.js';
+import sharp from 'sharp';
 import { FakeTmdb } from '../test/fakes/tmdb.js';
 import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
-import { FakeRadarr, grab, radarrRelease } from '../test/fakes/radarr.js';
+import { FakeRadarr } from '../test/fakes/radarr.js';
 import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
 import { FakeMediaServer } from '../test/fakes/mediaServers.js';
 import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
@@ -106,16 +108,8 @@ sites.feed('http://prowlarr:9696/1/api', { releases: dune });
 sites.feed('http://prowlarr:9696/2/api', { releases: [] });
 sites.feed('http://prowlarr:9696/3/api', { releases: dune });
 sites.feed('http://prowlarr:9696/5/api', { fail: new TorznabError('blocked', 'The site has a bot check in front of it.') });
-// A fake Radarr at http://radarr:7878 with a few downloads to compare against.
+// A fake Radarr at http://radarr:7878 (read-only, for matching the library).
 const radarr = new FakeRadarr();
-const day = 86400_000;
-radarr.history = [
-  grab(101, 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { date: Date.now() - 2 * day }),
-  grab(102, 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { id: 102, date: Date.now() - 3 * day, quality: 'Remux-2160p' }),
-  grab(103, 'Dune.Part.Two.2024.1080p.WEBRip.x265.10bit-LAMA', { date: Date.now() - 4 * day, quality: 'WEBRip-1080p', score: -100 }),
-  grab(104, 'Some.Movie.Not.In.Library.2023.1080p.WEB-DL-GRP', { radarrMovieId: 9, tmdbId: 1, movieTitle: 'Some Movie', date: Date.now() - 5 * day }),
-];
-radarr.lists.set(1, dune.map((r) => radarrRelease(r.title, { size: r.size, seeders: r.seeders, infoHash: r.infoHash })));
 radarr.movies = [
   { title: 'Dune: Part Two', monitored: true },
   { title: 'The Matrix', monitored: true },
@@ -123,7 +117,7 @@ radarr.movies = [
 ];
 setSetting(db, 'services.radarr_url', 'http://radarr:7878');
 setSetting(db, 'services.radarr_api_key', 'radarr-key');
-// A fake Sonarr at http://sonarr:8989, still watching both shows, for the TV switch-over checklist.
+// A fake Sonarr at http://sonarr:8989.
 const sonarr = new FakeRadarr();
 sonarr.movies = [
   { title: 'Severance', monitored: true },
@@ -235,7 +229,7 @@ const clients = {
     if (/S\d\dE\d\d/i.test(decodeURIComponent(url))) qbitTvHashes.add(t.infoHash);
     return t;
   },
-  tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), radarrHistory: () => radarr, torznab: sites.torznab, prowlarr: sites.prowlarr,
+  tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), torznab: sites.torznab, prowlarr: sites.prowlarr,
   push: { send: async () => {} },
   siteFetch: web.fetch,
   solver: () => solver,
@@ -254,4 +248,13 @@ const app = createApp({
   now: Date.now,
 });
 void refreshCatalogue({ db, dataDir: root, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
+// Poster colours: the demo has no real posters, so each one is a solid colour picked from its path.
+const DEMO_POSTER_COLORS = ['#c8501e', '#3a78c8', '#2a8a4a', '#9a3ab0', '#c89a1e', '#b02a3a', '#1e8aa0'];
+const demoPoster = (url: string) => {
+  let h = 0;
+  for (const ch of url) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return sharp({ create: { width: 8, height: 12, channels: 3, background: DEMO_POSTER_COLORS[h % DEMO_POSTER_COLORS.length]! } }).png().toBuffer();
+};
+setInterval(() => void colorPosters(db, demoPoster).catch(() => {}), 5_000).unref();
+
 serve({ fetch: app.fetch, port: config.port }, (i) => console.log(`Marquee demo on http://localhost:${i.port} (library at ${root})`));

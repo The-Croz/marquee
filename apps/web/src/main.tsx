@@ -14,20 +14,18 @@ import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
 import { ActivityPage } from './pages/Activity';
 import { MyHistoryPage, PersonPage } from './pages/Person';
-import { SwitchOverPage } from './pages/SwitchOver';
-import { RetireSeerrPage } from './pages/RetireSeerr';
 import { CalendarPage } from './pages/Calendar';
 import { DiscoverPageView } from './pages/Discover';
 import { DiscoverTitlePage } from './pages/DiscoverTitle';
 import { RequestsPage } from './pages/Requests';
 import { WatchSyncPage } from './pages/WatchSync';
+import { AutomationPage } from './pages/Automation';
 import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
-import { LibraryPage } from './pages/Library';
+import { LibraryHome, LibraryPage, LibraryRedirect } from './pages/Library';
 import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
-import { ComparePage } from './pages/Compare';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -54,9 +52,12 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: 'discover', element: <DiscoverPageView /> },
       { path: 'discover/:kind/:id', element: <DiscoverTitlePage /> },
-      { path: 'movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
+      { path: 'library', element: <LibraryHome /> },
+      { path: 'library/movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },
+      { path: 'library/shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
+      { path: 'movies', element: <LibraryRedirect to="movies" /> },
       { path: 'movies/:id', element: <MovieDetailPage /> },
-      { path: 'shows', element: <RequireUser render={(s) => <LibraryPage key="shows" kind="series" user={s.user} />} /> },
+      { path: 'shows', element: <LibraryRedirect to="shows" /> },
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
@@ -64,32 +65,17 @@ const router = createBrowserRouter([
       { path: 'downloads', element: <DownloadsPage /> },
       { path: 'activity/people/:name', element: <RequireUser render={(s) => <AdminOnly status={s}><PersonPage /></AdminOnly>} /> },
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
-      {
-        path: 'quality',
-        element: (
-          <RequireUser
-            render={(s) => (
-              <AdminOnly status={s}>
-                <QualityPage />
-              </AdminOnly>
-            )}
-          />
-        ),
-      },
-      { path: 'compare', element: <RequireUser render={(s) => <AdminOnly status={s}><ComparePage /></AdminOnly>} /> },
-      { path: 'switch-over', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="movie" /></AdminOnly>} /> },
-      { path: 'switch-over/tv', element: <RequireUser render={(s) => <AdminOnly status={s}><SwitchOverPage key="tv" kind="tv" /></AdminOnly>} /> },
-      { path: 'switch-over/tautulli', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="tautulli" kind="tautulli" /></AdminOnly>} /> },
-      { path: 'switch-over/seerr', element: <RequireUser render={(s) => <AdminOnly status={s}><RetireSeerrPage key="seerr" /></AdminOnly>} /> },
+      { path: 'quality', element: <Navigate to="/settings/quality" replace /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'history', element: <MyHistoryPage /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,
         children: [
-          { index: true, element: <Navigate to="account" replace /> },
+          { index: true, element: null },
           { path: 'account', element: <AccountPage /> },
           { path: 'about', element: <AboutPage /> },
+          { path: 'quality', element: <RequireUser render={(st) => <AdminOnly status={st}><QualityPage /></AdminOnly>} /> },
           { path: 'discover', element: <DiscoverSettingsPage /> },
           {
             path: 'notifications',
@@ -104,6 +90,7 @@ const router = createBrowserRouter([
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
+          { path: 'automation', element: <RequireUser render={(st) => <AdminOnly status={st}><AutomationPage /></AdminOnly>} /> },
           { path: 'watched-sync', element: <RequireUser render={(st) => <AdminOnly status={st}><WatchSyncPage /></AdminOnly>} /> },
         ],
       },

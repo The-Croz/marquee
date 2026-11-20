@@ -6,6 +6,7 @@ import { api, ApiFailure } from '../api';
 import { Row, STATE_LABEL, StateBadge, Trailer, useRequest } from '../components/Discover';
 import { Poster, tmdbImage } from '../components/Poster';
 import { Button, Card, Notice, cx } from '../components/ui';
+import { useDocTitle } from '../components/Page';
 
 const pretty = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 const money = (n: number) => (n >= 1e9 ? `$${(n / 1e9).toFixed(2)} billion` : `$${Math.round(n / 1e6)} million`);
@@ -43,7 +44,7 @@ function DetailsCard({ t, kind }: { t: DiscoverTitle; kind: 'movie' | 'series' }
           {d.releases.map((r) => (
             <div key={r.kind} className="flex min-w-[150px] flex-col rounded-xl border border-line bg-ink/50 px-4 py-2.5">
               <span className="text-xs text-dim">{RELEASE_LABEL[r.kind] ?? r.kind}</span>
-              <span className="text-[15px] font-semibold">{pretty(r.date)}</span>
+              <span className="text-body font-semibold">{pretty(r.date)}</span>
             </div>
           ))}
         </div>
@@ -52,7 +53,7 @@ function DetailsCard({ t, kind }: { t: DiscoverTitle; kind: 'movie' | 'series' }
         {shown.map(([label, value]) => (
           <div key={label} className="flex flex-col">
             <dt className="text-xs text-dim">{label}</dt>
-            <dd className="m-0 text-[15px] text-soft">{value}</dd>
+            <dd className="m-0 text-body text-soft">{value}</dd>
           </div>
         ))}
       </dl>
@@ -76,6 +77,7 @@ export function DiscoverTitlePage() {
     enabled: !!k,
   });
   const { ask, busy, message } = useRequest();
+  useDocTitle(t?.card.title);
   const { data: prefs } = useQuery({ queryKey: ['discover', 'prefs'], queryFn: () => api<DiscoverPrefs>('/discover/prefs') });
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [showTrailer, setShowTrailer] = useState(params.get('trailer') === '1');
@@ -103,7 +105,7 @@ export function DiscoverTitlePage() {
           </button>
         </section>
       )}
-      <section className={cx('relative overflow-hidden rounded-[22px] bg-raised', showTrailer && t.trailerKey && 'hidden')}>
+      <section className={cx('relative overflow-hidden rounded-2xl bg-raised', showTrailer && t.trailerKey && 'hidden')}>
         {bg && <img src={bg} alt="" className="absolute inset-0 size-full object-cover opacity-60" />}
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/60 to-ink/20" />
         <div className="relative flex flex-wrap items-end gap-8 px-6 pt-32 pb-8 sm:px-10">
@@ -112,11 +114,11 @@ export function DiscoverTitlePage() {
             <div className="text-sm text-soft">
               {[t.certification, t.runtime && (t.runtime >= 60 ? `${Math.floor(t.runtime / 60)} h ${t.runtime % 60} m` : `${t.runtime} m`), t.genres.slice(0, 3).join(', ')].filter(Boolean).join(' · ')}
             </div>
-            <h1 className="m-0 font-display text-[52px] leading-[0.95] font-normal sm:text-[72px]">
+            <h1 className="m-0 font-display text-display leading-[0.95] font-normal sm:text-display-lg">
               {c.title} {c.year && <span className="text-[0.55em] text-soft">({c.year})</span>}
             </h1>
-            {t.tagline && <p className="m-0 text-[15px] text-soft italic">{t.tagline}</p>}
-            <div className="flex flex-wrap items-center gap-2 text-[13px]">
+            {t.tagline && <p className="m-0 text-body text-soft italic">{t.tagline}</p>}
+            <div className="flex flex-wrap items-center gap-2 text-label">
               <StateBadge state={c.state} className="px-2.5 py-1" />
               {!d.released && d.releaseDate && <span className="rounded-full bg-amber/20 px-2.5 py-1 font-semibold text-amber-hi">Not out yet · {pretty(d.releaseDate)}</span>}
               {d.score !== null && <span className="rounded-full bg-white/8 px-2.5 py-1 font-semibold text-amber-hi">★ {d.score.toFixed(1)}</span>}
@@ -125,12 +127,12 @@ export function DiscoverTitlePage() {
             </div>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               {t.trailerKey && (
-                <button type="button" onClick={() => setShowTrailer(true)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-ink hover:bg-amber">
+                <button type="button" onClick={() => setShowTrailer(true)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-6 text-body font-semibold text-ink hover:bg-amber">
                   <span aria-hidden="true">▶</span> Play trailer
                 </button>
               )}
               {c.libraryId !== null && c.state === 'in_library' && (
-                <Link to={`/${k === 'movie' ? 'movies' : 'shows'}/${c.libraryId}`} className="inline-flex h-12 items-center rounded-full border border-white/30 px-6 text-[15px] font-semibold text-text no-underline hover:bg-white/10 hover:text-text">
+                <Link to={`/${k === 'movie' ? 'movies' : 'shows'}/${c.libraryId}`} className="inline-flex h-12 items-center rounded-full border border-white/30 px-6 text-body font-semibold text-text no-underline hover:bg-white/10 hover:text-text">
                   Open in your library
                 </Link>
               )}
@@ -139,7 +141,7 @@ export function DiscoverTitlePage() {
         </div>
       </section>
 
-      {c.overview && <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-soft">{c.overview}</p>}
+      {c.overview && <p className="m-0 max-w-[760px] text-heading leading-relaxed text-soft">{c.overview}</p>}
 
       <Card className="flex flex-col gap-4">
         <h2 className="m-0 text-lg font-semibold">{k === 'movie' ? 'Ask for this movie' : 'Ask for this show'}</h2>
@@ -158,7 +160,7 @@ export function DiscoverTitlePage() {
           <fieldset className="m-0 flex flex-col gap-1 border-0 p-0">
             <legend className="mb-1 text-sm text-muted">Seasons</legend>
             {t.seasons.map((s) => (
-              <label key={s.season} className={cx('flex min-h-11 items-center gap-3 text-[15px]', s.state !== 'none' && 'opacity-70')}>
+              <label key={s.season} className={cx('flex min-h-11 items-center gap-3 text-body', s.state !== 'none' && 'opacity-70')}>
                 <input type="checkbox" className="size-5 accent-amber" disabled={s.state !== 'none'} checked={s.state !== 'none' || picked.has(s.season)} onChange={() => toggle(s.season)} />
                 <span className="flex-1">
                   Season {s.season} <span className="text-dim">· {s.episodeCount} {s.episodeCount === 1 ? 'episode' : 'episodes'}</span>

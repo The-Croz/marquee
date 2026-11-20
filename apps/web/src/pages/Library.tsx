@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
-import { Poster, formatBytes } from '../components/Poster';
+import { Poster, formatBytes, posterTransition } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
+import { PageHeader, Tabs } from '../components/Page';
+import { useToast } from '../components/Overlay';
 import { refreshLibrary } from '../components/Wanted';
 import { SearchBox } from './Search';
 
@@ -55,7 +57,7 @@ export function ScanPanel() {
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-4 sm:flex-row sm:items-center sm:gap-5">
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-[15px] font-semibold">{status ? PHASE[status.phase] : 'Library'}</span>
+          <span className="text-body font-semibold">{status ? PHASE[status.phase] : 'Library'}</span>
           {status?.running && (
             <span className="text-sm text-muted">
               {status.processed} of {status.total} folders · {status.matched} matched
@@ -96,7 +98,33 @@ export function ScanPanel() {
   );
 }
 
+const LAST_KIND = 'marquee.library.kind';
+
+/** `/library`: opens Movies or Shows, whichever you looked at last. */
+export function LibraryHome() {
+  let last: string | null = null;
+  try {
+    last = localStorage.getItem(LAST_KIND);
+  } catch {
+    // Private windows can refuse storage; Movies is fine.
+  }
+  return <Navigate to={last === 'shows' ? '/library/shows' : '/library/movies'} replace />;
+}
+
+/** Old `/movies` and `/shows` links land on the matching Library tab, keeping any filters. */
+export function LibraryRedirect({ to }: { to: 'movies' | 'shows' }) {
+  const { search } = useLocation();
+  return <Navigate to={`/library/${to}${search}`} replace />;
+}
+
 export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: SessionUser }) {
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_KIND, kind === 'movie' ? 'movies' : 'shows');
+    } catch {
+      // Not remembering is fine.
+    }
+  }, [kind]);
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const filter = params.get('filter') ?? 'all';
@@ -106,6 +134,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const toast = useToast();
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
   const { data, isLoading } = useQuery({
     queryKey: ['library', kind, q, filter, sort, wantedFilter],
@@ -124,11 +153,22 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
 
   async function markPicked(wanted: boolean) {
     setBulkError(null);
+    // Undo puts each one back the way it was, not all to the opposite.
+    const before = items.filter((i) => picked.has(i.id));
     try {
       await api(`${endpoint}/wanted`, { body: { ids: [...picked], wanted } });
       await refreshLibrary();
       setPicked(new Set());
       setSelecting(false);
+      const noun = kind === 'movie' ? (before.length === 1 ? 'movie' : 'movies') : before.length === 1 ? 'show' : 'shows';
+      toast({
+        message: wanted ? `Looking for ${before.length} ${noun}.` : `Stopped looking for ${before.length} ${noun}.`,
+        undo: async () => {
+          const was = (w: boolean) => before.filter((i) => i.wanted === w).map((i) => i.id);
+          for (const w of [true, false]) if (was(w).length) await api(`${endpoint}/wanted`, { body: { ids: was(w), wanted: w } });
+          await refreshLibrary();
+        },
+      });
     } catch (e) {
       setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
     }
@@ -137,23 +177,33 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="m-0 font-display text-[56px] leading-none font-normal">{title}</h1>
-          {data && (
-            <span className="text-sm text-muted">
+      <PageHeader
+        title="Library"
+        docTitle={`${title} · Library`}
+        meta={
+          data && (
+            <>
               {items.length} {kind === 'movie' ? (items.length === 1 ? 'movie' : 'movies') : items.length === 1 ? 'show' : 'shows'}
               {total > 0 && ` · ${formatBytes(total)}`}
               {isAdmin && ` · ${wantedCount} Wanted`}
-            </span>
-          )}
-        </div>
-        {user.role !== 'kid' && (
-          <div className="flex w-full max-w-[420px]">
-            <SearchBox kind={kind} />
-          </div>
-        )}
-      </div>
+            </>
+          )
+        }
+        actions={
+          user.role !== 'kid' && (
+            <div className="flex w-full min-w-0 sm:w-[420px]">
+              <SearchBox kind={kind} />
+            </div>
+          )
+        }
+      />
+      <Tabs
+        label="Movies or shows"
+        items={[
+          { value: 'movie', label: 'Movies', to: '/library/movies' },
+          { value: 'series', label: 'Shows', to: '/library/shows' },
+        ]}
+      />
 
       {user.role === 'admin' && <ScanPanel />}
 
@@ -167,7 +217,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           value={q}
           onChange={(e) => set('q', e.target.value)}
           placeholder={`Filter ${title.toLowerCase()}`}
-          className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-[15px] text-text placeholder:text-dim focus:border-amber focus:outline-none"
+          className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
         />
         <div role="group" aria-label="Show" className="flex gap-1.5">
           {[
@@ -255,16 +305,16 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           const tile = (
             <>
             <div className="relative">
-              <Poster title={i.title} path={i.posterPath} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
+              <Poster title={i.title} path={i.posterPath} color={i.posterColor} transition={posterTransition(`${endpoint}/${i.id}`)} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
               <span
                 className={cx(
-                  'absolute top-2 left-2 rounded-md px-2 py-0.5 text-[11px] font-semibold',
-                  i.complete ? 'bg-ink/85 text-soft' : 'bg-warn/90 text-[#2A1406]',
+                  'absolute top-2 left-2 rounded-md px-2 py-0.5 text-caption font-semibold',
+                  i.complete ? 'bg-ink/85 text-soft' : 'bg-warn/90 text-warn-ink',
                 )}
               >
                 {i.badge}
               </span>
-              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-[11px] font-semibold text-amber-ink">Wanted</span>}
+              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-caption font-semibold text-amber-ink">Wanted</span>}
               {selecting && (
                 <span aria-hidden="true" className={cx('absolute right-2 bottom-2 flex size-6 items-center justify-center rounded-full border-2 text-sm font-bold', picked.has(i.id) ? 'border-amber bg-amber text-amber-ink' : 'border-white/70 bg-ink/70')}>
                   {picked.has(i.id) ? '✓' : ''}
@@ -282,7 +332,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               {tile}
             </button>
           ) : (
-            <Link key={i.id} to={`${endpoint}/${i.id}`} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+            <Link key={i.id} to={`${endpoint}/${i.id}`} viewTransition className="group flex flex-col gap-2 text-text no-underline hover:text-text">
               {tile}
             </Link>
           );

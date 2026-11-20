@@ -10,12 +10,11 @@ import { PlexClient, plexClientId } from './auth/plex.js';
 import { RateLimiter } from './auth/rateLimit.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
 import { TmdbClient } from './library/tmdb.js';
-import { ArrClient, RadarrHistoryClient } from './library/arr.js';
+import { ArrClient } from './library/arr.js';
 import { LibraryScanner } from './library/scanner.js';
 import { TorznabClient } from './sources/torznab.js';
 import { ProwlarrClient } from './sources/prowlarr.js';
 import { SourceService } from './sources/service.js';
-import { ComparisonService } from './compare/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
 import { ActivityMonitor } from './activity/live.js';
@@ -29,6 +28,7 @@ import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
 import { refreshAiring } from './library/airing.js';
+import { colorPosters } from './library/posterColor.js';
 import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/mediaServers.js';
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
@@ -41,7 +41,6 @@ const clientId = plexClientId(db);
 const clients = {
   tmdb: (key: string) => new TmdbClient(key, db),
   arr: (kind: 'radarr' | 'sonarr', url: string, key: string) => new ArrClient(kind, url, key),
-  radarrHistory: (url: string, key: string) => new RadarrHistoryClient(url, key),
   torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),
   qbittorrent: (url: string, username: string, password: string) => new QbitClient(url, username, password),
@@ -107,16 +106,6 @@ const catalogue = () => {
 catalogue();
 setInterval(catalogue, 60 * 60 * 1000).unref();
 
-// Comparison mode: every hour, bring in Radarr's new downloads and compare a few.
-const comparisons = new ComparisonService(db, config, clients, sources, Date.now);
-setInterval(() => {
-  if (!comparisons.enabled()) return;
-  comparisons.run().then(
-    (r) => r.compared && console.log(`[compare] compared ${r.compared}, ${r.waiting} waiting`),
-    (err) => console.error('[compare] run failed:', (err as Error).message),
-  );
-}, 60 * 60 * 1000).unref();
-
 // Downloads: follow qBittorrent every minute; stuck or fake downloads get another copy.
 const downloads = sharedMonitor({ db, clients, sources, now: Date.now, notify: { db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null } });
 setInterval(() => {
@@ -172,6 +161,23 @@ const airing = () =>
   );
 setTimeout(airing, 60 * 1000).unref();
 setInterval(airing, 60 * 60 * 1000).unref();
+
+// Pick each poster's main colour: new titles, changed posters, and the whole library the first time.
+let coloring = false;
+const posterColors = async () => {
+  if (coloring) return;
+  coloring = true;
+  try {
+    const r = await colorPosters(db);
+    if (r.colored || r.failed) console.log(`[posters] coloured ${r.colored}${r.failed ? `, ${r.failed} had no usable image` : ''}`);
+  } catch (err) {
+    console.error('[posters] will try again later:', (err as Error).message);
+  } finally {
+    coloring = false;
+  }
+};
+setTimeout(posterColors, 90 * 1000).unref();
+setInterval(posterColors, 10 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);

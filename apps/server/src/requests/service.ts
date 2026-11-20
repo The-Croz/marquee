@@ -293,7 +293,7 @@ export async function approveRequest(deps: RequestDeps, id: number, admin: User,
     .returning()
     .get();
 
-  // Look for it now; ongoing looking is the switch-over's job. Never fails the approval.
+  // Look for it now; ongoing looking is Automatic searching's job. Never fails the approval.
   try {
     const wanted = { db, clients: deps.clients, sources: deps.sources, now, only: { id: titleId }, manual: true };
     if (r.kind === 'movie') await lookForWanted(wanted, 'missing', 1);

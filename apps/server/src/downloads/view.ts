@@ -96,12 +96,15 @@ function inLibrary(d: Download, rule: SeedRule): [string, string] {
 export function describeDownload(db: Db, d: Download, now: number): DownloadView {
   let titleName = d.title;
   let titleLink: string | null = null;
+  let art: { posterPath: string | null; posterColor: string | null } = { posterPath: null, posterColor: null };
   if (d.movieId) {
-    const m = db.select({ title: movies.title, year: movies.year }).from(movies).where(eq(movies.id, d.movieId)).get();
+    const m = db.select({ title: movies.title, year: movies.year, posterPath: movies.posterPath, posterColor: movies.posterColor }).from(movies).where(eq(movies.id, d.movieId)).get();
     if (m) titleName = m.year ? `${m.title} (${m.year})` : m.title;
+    if (m) art = { posterPath: m.posterPath, posterColor: m.posterColor };
     titleLink = `/movies/${d.movieId}`;
   } else if (d.seriesId) {
-    const sh = db.select({ title: series.title }).from(series).where(eq(series.id, d.seriesId)).get();
+    const sh = db.select({ title: series.title, posterPath: series.posterPath, posterColor: series.posterColor }).from(series).where(eq(series.id, d.seriesId)).get();
+    if (sh) art = { posterPath: sh.posterPath, posterColor: sh.posterColor };
     const eps = d.episodes ? (JSON.parse(d.episodes) as number[]) : null;
     const pad = (n: number) => String(n).padStart(2, '0');
     const which = d.season === null ? '' : eps?.length ? ` · S${pad(d.season)}E${eps.map(pad).join('-E')}` : ` · Season ${d.season}`;
@@ -111,6 +114,7 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
   return {
     id: d.id,
     kind: d.kind,
+    ...art,
     movieId: d.movieId,
     seriesId: d.seriesId,
     season: d.season,

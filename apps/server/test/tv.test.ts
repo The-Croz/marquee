@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CalendarView, CutoverView, HomeData } from '@marquee/shared';
+import type { CalendarView, AutomationView, HomeData } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { catchNewEpisodes, lookForWantedTv, wantedTvTick } from '../src/downloads/wantedTv.js';
 import { refreshAiring } from '../src/library/airing.js';
@@ -204,8 +204,8 @@ describe('the TV schedule', () => {
     const t = await setup([]);
     await t.connect();
     expect(await wantedTvTick(t.deps())).toBeNull();
-    const put = await call(t.app, 'PUT', '/api/cutover/tv', { lookForWanted: true }, t.cookie);
-    expect(put.body).toMatchObject({ kind: 'tv', lookingForWanted: true });
+    const put = await call(t.app, 'PUT', '/api/automation', { tv: true }, t.cookie);
+    expect(put.body).toMatchObject({ tv: { on: true } });
     expect((await wantedTvTick(t.deps()))!.kind).toBe('new');
     expect((await wantedTvTick(t.deps()))!.kind).toBe('missing');
     expect((await wantedTvTick(t.deps()))!.kind).toBe('better');
@@ -214,40 +214,19 @@ describe('the TV schedule', () => {
     expect((await wantedTvTick(t.deps()))!.kind).toBe('new');
     expect(await wantedTvTick(t.deps())).toBeNull();
     // Movies are a separate switch.
-    expect((await call(t.app, 'GET', '/api/cutover', undefined, t.cookie)).body.lookingForWanted).toBe(false);
+    expect((await call(t.app, 'GET', '/api/automation', undefined, t.cookie)).body.movies.on).toBe(false);
   });
 });
 
-describe('TV switch-over checklist', () => {
-  const state = (v: CutoverView) => Object.fromEntries(v.steps.map((s) => [s.key, s.state]));
-
-  it('starts with what to do, and checks Sonarr once connected', async () => {
-    const t = await setup();
-    const v = (await call(t.app, 'GET', '/api/cutover/tv', undefined, t.cookie)).body as CutoverView;
-    expect(v.kind).toBe('tv');
-    expect(state(v)).toEqual({ movies_first: 'todo', downloader: 'todo', import: 'todo', media: 'todo', sonarr_queue: 'unknown', sonarr_off: 'unknown', take_over: 'todo' });
-    expect(v.steps.find((s) => s.key === 'movies_first')!.action).toEqual({ label: 'Switch movies over', to: '/switch-over' });
-
-    await t.connect();
-    await call(t.app, 'PUT', '/api/cutover', { lookForWanted: true }, t.cookie);
-    await call(t.app, 'PUT', '/api/settings/services', { sonarrUrl: 'http://sonarr:8989', sonarrApiKey: 'k' }, t.cookie);
-    t.sonarr.queue = 1;
-    t.sonarr.movies = [{ title: 'Severance', monitored: true }];
-    t.db.insert(schema.downloads).values({ kind: 'tv', seriesId: t.sev.id, season: 1, title: S1_PACK_4K, infoHash: 'h', addedAt: 0, state: 'done', importedAt: 1 }).run();
-    const w = (await call(t.app, 'GET', '/api/cutover/tv', undefined, t.cookie)).body as CutoverView;
-    expect(state(w)).toMatchObject({ movies_first: 'done', downloader: 'done', import: 'done', sonarr_queue: 'warn', sonarr_off: 'todo' });
-    expect(w.steps.find((s) => s.key === 'sonarr_off')!.detail).toMatch(/Sonarr still watches 1 show\. In Sonarr: Series → Select Series/);
-    expect(w.steps.find((s) => s.key === 'import')!.detail).toMatch(/1 download downloaded and put in your library/);
-  });
-
+describe('Look now for TV', () => {
   it('Look now runs each TV job at once', async () => {
     const t = await setup([tv(S2E02_4K)]);
     await t.connect();
-    const r = await call(t.app, 'POST', '/api/cutover/tv/look-now', { kind: 'new' }, t.cookie);
+    const r = await call(t.app, 'POST', '/api/automation/tv/look-now', { kind: 'new' }, t.cookie);
     expect(r.body).toMatchObject({ kind: 'new', sent: [{ title: 'Severance · S02E02' }] });
-    const m = await call(t.app, 'POST', '/api/cutover/tv/look-now', { kind: 'missing' }, t.cookie);
+    const m = await call(t.app, 'POST', '/api/automation/tv/look-now', { kind: 'missing' }, t.cookie);
     expect(m.body.kind).toBe('missing');
-    const runs = ((await call(t.app, 'GET', '/api/cutover/tv', undefined, t.cookie)).body as CutoverView).runs;
+    const runs = ((await call(t.app, 'GET', '/api/automation', undefined, t.cookie)).body as AutomationView).tv.runs;
     expect(runs.map((x) => x.kind)).toEqual(['missing', 'new']);
   });
 });
@@ -265,7 +244,7 @@ describe('airing calendar', () => {
       ['Severance', 2, 3, 'coming'],
     ]);
     expect(v.items[3]!.note).toBe('4K Quality');
-    await call(t.app, 'PUT', '/api/cutover/tv', { lookForWanted: true }, t.cookie);
+    await call(t.app, 'PUT', '/api/automation', { tv: true }, t.cookie);
     const on = (await call(t.app, 'GET', '/api/calendar?from=2026-11-24&days=1', undefined, t.cookie)).body as CalendarView;
     expect(on.items[0]!.note).toBe('Marquee will download it in 4K Quality');
     expect((await call(t.app, 'GET', '/api/calendar?from=nope', undefined, t.cookie)).status).toBe(400);

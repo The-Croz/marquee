@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
-import type { SessionUser } from '@marquee/shared';
+import { useQuery } from '@tanstack/react-query';
+import type { SessionUser, SignInWall } from '@marquee/shared';
 import { api, ApiFailure, refreshAuth, useAuthStatus } from '../api';
 import { plexSignIn } from '../plex';
-import { Button, Field, Notice } from '../components/ui';
+import { Button, Field, Notice, cx } from '../components/ui';
+import { tmdbImage } from '../components/Poster';
 
 const ERRORS: Record<string, string> = {
   oidc_expired: 'That sign-in took too long. Please try again.',
@@ -13,9 +15,37 @@ const ERRORS: Record<string, string> = {
   oidc_account_exists: 'You already have a Marquee account. Sign in with your password, then link single sign-on under Settings → Account.',
 };
 
+/**
+ * A slowly drifting wall of popular posters behind the sign-in card, dimmed so
+ * the card stays easy to read. Popular titles from TMDB, never your library:
+ * anyone can see this page. Nothing shows without a TMDB key.
+ */
+function PosterWall() {
+  const { data } = useQuery({ queryKey: ['auth', 'wall'], queryFn: () => api<SignInWall>('/auth/wall'), staleTime: 60 * 60_000, retry: false });
+  const posters = data?.posters ?? [];
+  if (posters.length < 8) return null;
+  // Six columns, each a loop of posters, alternate columns drifting the other way.
+  const cols = Array.from({ length: 6 }, (_, c) => posters.filter((_, i) => i % 6 === c));
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-0 overflow-hidden">
+      <div className="absolute -inset-x-24 -inset-y-24 grid rotate-[-6deg] grid-cols-3 gap-4 opacity-35 sm:grid-cols-4 lg:grid-cols-6">
+        {cols.map((col, c) => (
+          <div key={c} className={cx('poster-drift flex flex-col gap-4', c % 2 === 1 && 'poster-drift-up', c >= 3 && 'max-sm:hidden', c >= 4 && 'max-lg:hidden')}>
+            {[...col, ...col].map((p, i) => (
+              <img key={i} src={tmdbImage(p, 'w185')!} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} className="aspect-[2/3] w-full rounded-xl bg-panel object-cover" />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_45%,color-mix(in_oklab,var(--color-ink)_92%,transparent),color-mix(in_oklab,var(--color-ink)_55%,transparent))]" />
+    </div>
+  );
+}
+
 export function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ink px-5 py-12">
+      <PosterWall />
       {/* Warm marquee glow behind the card */}
       <div aria-hidden="true" className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-amber/10 blur-[120px]" />
       <div className="relative flex w-full max-w-[420px] flex-col gap-8">
@@ -27,7 +57,7 @@ export function AuthLayout({ children, title, subtitle }: { children: React.Reac
           <h1 className="m-0 text-xl font-semibold">{title}</h1>
           <p className="m-0 text-sm text-muted">{subtitle}</p>
         </div>
-        <div className="flex flex-col gap-5 rounded-[20px] border border-line bg-panel p-7">{children}</div>
+        <div className="flex flex-col gap-5 rounded-2xl border border-line bg-panel p-7">{children}</div>
       </div>
     </div>
   );
@@ -122,7 +152,7 @@ export function LoginPage() {
             {oidc?.enabled && (
               <a
                 href="/api/auth/oidc/start"
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-line-strong text-[15px] font-medium text-text no-underline hover:bg-raised hover:text-text"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-line-strong text-body font-medium text-text no-underline hover:bg-raised hover:text-text"
               >
                 Continue with {oidc.name}
               </a>
