@@ -321,8 +321,8 @@ describe('home', () => {
     expect(home.body.recent[0]).toMatchObject({ title: 'Severance', sub: 'S2 E1 · 4K', posterPath: '/sev.jpg' });
     expect(home.body.recent.map((r: { title: string }) => r.title)).toContain('Dune: Part Two');
     expect(home.body.stats.slice(0, 2)).toEqual([
-      { label: 'movies', value: '4', to: '/movies' },
-      { label: 'shows', value: '2', to: '/shows' },
+      { label: 'movies', value: '4', to: '/library/movies' },
+      { label: 'shows', value: '2', to: '/library/shows' },
     ]);
   });
 

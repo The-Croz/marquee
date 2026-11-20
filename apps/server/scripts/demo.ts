@@ -22,6 +22,8 @@ import { openDb, setSetting } from '../src/db/index.js';
 import { RateLimiter } from '../src/auth/rateLimit.js';
 import { PlexClient, plexClientId } from '../src/auth/plex.js';
 import { LibraryScanner } from '../src/library/scanner.js';
+import { colorPosters } from '../src/library/posterColor.js';
+import sharp from 'sharp';
 import { FakeTmdb } from '../test/fakes/tmdb.js';
 import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
@@ -246,4 +248,13 @@ const app = createApp({
   now: Date.now,
 });
 void refreshCatalogue({ db, dataDir: root, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
+// Poster colours: the demo has no real posters, so each one is a solid colour picked from its path.
+const DEMO_POSTER_COLORS = ['#c8501e', '#3a78c8', '#2a8a4a', '#9a3ab0', '#c89a1e', '#b02a3a', '#1e8aa0'];
+const demoPoster = (url: string) => {
+  let h = 0;
+  for (const ch of url) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return sharp({ create: { width: 8, height: 12, channels: 3, background: DEMO_POSTER_COLORS[h % DEMO_POSTER_COLORS.length]! } }).png().toBuffer();
+};
+setInterval(() => void colorPosters(db, demoPoster).catch(() => {}), 5_000).unref();
+
 serve({ fetch: app.fetch, port: config.port }, (i) => console.log(`Marquee demo on http://localhost:${i.port} (library at ${root})`));

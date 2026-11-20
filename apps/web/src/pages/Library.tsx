@@ -305,7 +305,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           const tile = (
             <>
             <div className="relative">
-              <Poster title={i.title} path={i.posterPath} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
+              <Poster title={i.title} path={i.posterPath} color={i.posterColor} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
               <span
                 className={cx(
                   'absolute top-2 left-2 rounded-md px-2 py-0.5 text-caption font-semibold',

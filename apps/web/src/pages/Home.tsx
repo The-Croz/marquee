@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import type { HomeAttention, HomeData, HomeHero, HomeTitle } from '@marquee/shared';
+import type { DiscoverPage, HomeAttention, HomeData, HomeHero, SetupStep } from '@marquee/shared';
 import { ApiFailure, api, queryClient, useAuthStatus } from '../api';
 import { Bulbs } from '../components/Bulbs';
 import { Notice, Progress, cx } from '../components/ui';
@@ -26,6 +26,8 @@ export function HomePage() {
         {role === 'admin' && <StatusPill needs={data.needsYou.length} problems={problems} arriving={data.onItsWay.length} />}
       </div>
 
+      {data.setup && <GetSetUp steps={data.setup} />}
+
       {data.hero ? <Hero hero={data.hero} /> : role === 'kid' && <h1 className="m-0 font-display text-[44px] leading-none font-normal">Hi {auth?.user?.displayName}</h1>}
 
       {role === 'admin' && (data.needsYou.length > 0 || data.onItsWay.length > 0) && (
@@ -37,11 +39,23 @@ export function HomePage() {
 
       {data.myRequests.length > 0 && <MyRequests items={data.myRequests} />}
 
-      {data.recent.length > 0 && <Shelf title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} />}
+      {data.recent.length > 0 && <Shelf id="recent" title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} more={{ to: '/library', label: 'Library' }} />}
+
+      {role !== 'admin' && <ForYou big={role === 'kid'} />}
+
+      {role === 'kid' && (
+        <section className="flex flex-col items-start gap-3 rounded-2xl border border-line bg-panel p-5">
+          <h2 className="m-0 text-xl font-semibold">Want something new?</h2>
+          <p className="m-0 text-soft">Find a movie or show and ask for it. A grown-up says yes, then it shows up here.</p>
+          <Link to="/discover" className="inline-flex h-11 items-center rounded-xl bg-amber px-5 text-body font-semibold text-amber-ink no-underline hover:bg-amber-hi hover:text-amber-ink">
+            Ask for something
+          </Link>
+        </section>
+      )}
 
       <Week items={data.upcoming} />
 
-      {data.recent.length === 0 && !data.hero && data.needsYou.length === 0 && (
+      {data.recent.length === 0 && !data.hero && !data.setup && data.needsYou.length === 0 && role !== 'kid' && (
         <section className="flex flex-col items-start gap-3 py-6">
           <h2 className="m-0 text-xl font-semibold">Nothing here yet</h2>
           <p className="m-0 max-w-[560px] text-soft">
@@ -89,16 +103,22 @@ function Hero({ hero }: { hero: HomeHero }) {
   const bg = tmdbImage(hero.backdropPath, 'w1280');
   const live = hero.kind === 'watching';
   return (
-    <section aria-label={hero.eyebrow} className="relative isolate flex min-h-[300px] overflow-hidden rounded-2xl bg-raised sm:min-h-[360px]">
+    <section
+      aria-label={hero.eyebrow}
+      className="relative isolate flex min-h-[300px] overflow-hidden rounded-2xl bg-raised sm:min-h-[360px]"
+      // The poster's own colour tints the glow; amber when Marquee hasn't picked one yet.
+      style={{ '--tint': hero.color ?? 'var(--color-amber)' } as React.CSSProperties}
+    >
       {bg ? (
         <img src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover" />
       ) : (
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_85%_20%,color-mix(in_oklab,var(--color-amber)_30%,transparent)_0%,var(--color-warn-ink)_45%,var(--color-ink)_100%)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_85%_20%,color-mix(in_oklab,var(--tint)_38%,transparent)_0%,color-mix(in_oklab,var(--tint)_14%,var(--color-ink))_45%,var(--color-ink)_100%)]" />
       )}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/75 to-ink/5" />
+      {bg && <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(70%_90%_at_0%_100%,color-mix(in_oklab,var(--tint)_30%,transparent),transparent_70%)]" />}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
       <div className="flex w-full items-end gap-6 px-6 py-8 sm:px-10 sm:py-10">
-        {hero.posterPath && !bg && <Poster title={hero.title} path={hero.posterPath} className="hidden w-[150px] flex-none shadow-2xl sm:block" />}
+        {hero.posterPath && !bg && <Poster title={hero.title} path={hero.posterPath} color={hero.color} className="hidden w-[150px] flex-none shadow-2xl sm:block" />}
         <div className="flex max-w-[600px] flex-col gap-3.5">
           <div className="flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-amber uppercase">
             <Bulbs lit={live ? 4 : 3} chase={live} />
@@ -273,29 +293,106 @@ function MyRequests({ items }: { items: HomeData['myRequests'] }) {
   );
 }
 
-function Shelf({ title, items, big }: { title: string; items: HomeTitle[]; big?: boolean }) {
+interface ShelfItem {
+  href: string;
+  title: string;
+  sub: string;
+  posterPath: string | null;
+  posterColor?: string | null;
+  /** Shows a NEW badge for a day. */
+  addedAt?: number;
+}
+
+function Shelf({ id, title, items, big, more }: { id: string; title: string; items: ShelfItem[]; big?: boolean; more?: { to: string; label: string } }) {
   return (
-    <section aria-labelledby="shelf-h" className="flex flex-col gap-3">
+    <section aria-labelledby={`${id}-h`} className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="shelf-h" className="m-0 text-lg font-semibold">
+        <h2 id={`${id}-h`} className="m-0 text-lg font-semibold">
           {title}
         </h2>
-        <Link to="/library" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
-          Library →
-        </Link>
+        {more && (
+          <Link to={more.to} className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
+            {more.label} →
+          </Link>
+        )}
       </div>
       <div className={cx('grid gap-4', big ? 'grid-cols-[repeat(auto-fill,minmax(170px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(130px,1fr))]')}>
         {items.map((p) => (
           <Link key={p.href} to={p.href} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
             <div className="relative transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-              <Poster title={p.title} path={p.posterPath} />
-              {Date.now() - p.addedAt < 86_400_000 && <span className="absolute top-2 left-2 rounded bg-amber px-1.5 py-0.5 text-caption font-bold tracking-wider text-amber-ink">NEW</span>}
+              <Poster title={p.title} path={p.posterPath} color={p.posterColor} />
+              {p.addedAt !== undefined && Date.now() - p.addedAt < 86_400_000 && (
+                <span className="absolute top-2 left-2 rounded bg-amber px-1.5 py-0.5 text-caption font-bold tracking-wider text-amber-ink">NEW</span>
+              )}
             </div>
             <span className="truncate text-label font-semibold">{p.title}</span>
             <span className="-mt-1.5 text-xs text-dim">{p.sub}</span>
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Members and kids: one row picked for them from Discover ("Because you
+ * watched…", or Top picks). Nothing shows until there's something to suggest.
+ */
+function ForYou({ big }: { big: boolean }) {
+  const { data } = useQuery({ queryKey: ['discover', 'home'], queryFn: () => api<DiscoverPage>('/discover?type=all'), staleTime: 10 * 60_000, retry: false });
+  const row = data?.rows.find((r) => r.id.startsWith('because-watched')) ?? data?.rows.find((r) => r.id === 'top-picks');
+  if (!row || row.items.length < 2) return null;
+  const items = row.items.slice(0, big ? 6 : 8).map((c) => ({ href: `/discover/${c.kind}/${c.tmdbId}`, title: c.title, sub: c.year ? String(c.year) : c.kind === 'movie' ? 'Movie' : 'Show', posterPath: c.posterPath }));
+  return <Shelf id="for-you" title={row.title} items={items} big={big} more={{ to: '/discover', label: 'Discover' }} />;
+}
+
+/** Admins on a new install: what's left to do, in order, one action each. */
+function GetSetUp({ steps }: { steps: SetupStep[] }) {
+  const musts = steps.filter((s) => !s.optional);
+  const done = musts.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done);
+  return (
+    <section aria-labelledby="setup-h" className="flex flex-col gap-4 rounded-2xl border border-line bg-panel p-5 sm:p-6">
+      <div className="flex flex-col gap-1">
+        <Bulbs count={musts.length} lit={done} />
+        <h2 id="setup-h" className="m-0 mt-2 text-xl font-semibold">
+          Get set up
+        </h2>
+        <p className="m-0 text-sm text-muted">
+          {done} of {musts.length} done. This goes away once the first {musts.length} are.
+        </p>
+      </div>
+      <ol className="m-0 flex list-none flex-col p-0">
+        {steps.map((s, i) => (
+          <li key={s.key} className="flex items-center gap-4 border-t border-line py-3">
+            <span
+              aria-hidden="true"
+              className={cx('flex size-8 flex-none items-center justify-center rounded-full text-sm font-semibold', s.done ? 'bg-teal/20 text-teal-hi' : s === next ? 'bg-amber text-amber-ink' : 'border border-line-strong text-dim')}
+            >
+              {s.done ? '✓' : i + 1}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className={cx('text-body font-semibold', s.done && 'text-muted line-through decoration-dim')}>
+                {s.title}
+                {s.optional && <span className="ml-2 text-sm font-normal text-dim no-underline">optional</span>}
+              </span>
+              {!s.done && <span className="text-sm text-muted">{s.detail}</span>}
+              <span className="sr-only">{s.done ? 'Done.' : 'Not done yet.'}</span>
+            </span>
+            {!s.done && (
+              <Link
+                to={s.to}
+                className={cx(
+                  'inline-flex min-h-11 flex-none items-center rounded-xl px-4 text-sm font-semibold no-underline',
+                  s === next ? 'bg-amber text-amber-ink hover:bg-amber-hi hover:text-amber-ink' : 'border border-line text-soft hover:text-text',
+                )}
+              >
+                {s === next ? 'Start' : 'Open'}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

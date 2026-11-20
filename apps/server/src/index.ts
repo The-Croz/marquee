@@ -28,6 +28,7 @@ import { sharedMonitor } from './downloads/monitor.js';
 import { wantedTick } from './downloads/wanted.js';
 import { wantedTvTick } from './downloads/wantedTv.js';
 import { refreshAiring } from './library/airing.js';
+import { colorPosters } from './library/posterColor.js';
 import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/mediaServers.js';
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
@@ -160,6 +161,23 @@ const airing = () =>
   );
 setTimeout(airing, 60 * 1000).unref();
 setInterval(airing, 60 * 60 * 1000).unref();
+
+// Pick each poster's main colour: new titles, changed posters, and the whole library the first time.
+let coloring = false;
+const posterColors = async () => {
+  if (coloring) return;
+  coloring = true;
+  try {
+    const r = await colorPosters(db);
+    if (r.colored || r.failed) console.log(`[posters] coloured ${r.colored}${r.failed ? `, ${r.failed} had no usable image` : ''}`);
+  } catch (err) {
+    console.error('[posters] will try again later:', (err as Error).message);
+  } finally {
+    coloring = false;
+  }
+};
+setTimeout(posterColors, 90 * 1000).unref();
+setInterval(posterColors, 10 * 60 * 1000).unref();
 
 const server = serve({ fetch: app.fetch, port: config.port, hostname: '0.0.0.0' }, (info) => {
   console.log(`Marquee listening on http://0.0.0.0:${info.port}`);

@@ -20,8 +20,8 @@ describe('Home', () => {
     const h = await t.home();
     expect(h).toMatchObject({ needsYou: [], watching: [], onItsWay: [], myRequests: [], recent: [], upcoming: [] });
     expect(h.stats.slice(0, 2)).toEqual([
-      { label: 'movies', value: '0', to: '/movies' },
-      { label: 'shows', value: '0', to: '/shows' },
+      { label: 'movies', value: '0', to: '/library/movies' },
+      { label: 'shows', value: '0', to: '/library/shows' },
     ]);
     expect(h.stats.find((s) => s.label === 'Automatic searching')).toMatchObject({ value: 'off', to: '/settings/automation' });
   });
@@ -77,5 +77,35 @@ describe('Home', () => {
     expect(h.hero).toMatchObject({ kind: 'arrived', eyebrow: 'Just arrived · 2 hours ago', title: 'Dune: Part Two', href: `/movies/${dune.id}`, backdropPath: '/dune-bg.jpg', posterPath: '/693134.jpg' });
     t.db.update(schema.mediaFiles).set({ addedAt: NOW - 4 * 86_400_000 }).run();
     expect((await t.home()).hero).toBeNull();
+  });
+
+  it('walks a new admin through getting set up, and goes away once the musts are done', async () => {
+    const t = await setup();
+    const steps = (h: HomeData) => h.setup?.map((s) => [s.key, s.done, !!s.optional]);
+    expect(steps(await t.home())).toEqual([
+      ['tmdb', false, false],
+      ['scan', false, false],
+      ['downloader', false, false],
+      ['sources', false, false],
+      ['mediaServer', false, true],
+      ['people', false, true],
+    ]);
+    expect((await t.home()).setup![0]).toMatchObject({ title: 'Add your TMDB key', to: '/settings/services' });
+
+    t.db.insert(schema.settings).values({ key: 'services.tmdb_api_key', value: 'k' }).run();
+    t.movie('Up', 14160);
+    t.db.insert(schema.settings).values({ key: 'downloader.url', value: 'http://qbit.test' }).run();
+    expect(steps(await t.home())!.slice(0, 4).map((s) => s[1])).toEqual([true, true, true, false]);
+
+    t.db.insert(schema.sources).values({ name: 'TPB', url: 'http://tpb.test/api', state: 'working', createdAt: 0 }).run();
+    // The optional steps alone don't keep the checklist on Home.
+    expect((await t.home()).setup).toBeNull();
+  });
+
+  it('never shows the checklist to members', async () => {
+    const t = await setup();
+    await call(t.app, 'POST', '/api/users', { username: 'ana', displayName: 'Ana', role: 'member', password: 'ana password!' }, t.cookie);
+    const ana = (await call(t.app, 'POST', '/api/auth/login', { username: 'ana', password: 'ana password!' })).cookie;
+    expect((await t.home(ana)).setup).toBeNull();
   });
 });

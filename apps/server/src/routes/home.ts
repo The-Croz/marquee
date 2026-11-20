@@ -1,9 +1,11 @@
 import fs from 'node:fs/promises';
 import { Hono } from 'hono';
 import { count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
-import type { HomeAttention, HomeData, HomeHero, HomeTitle, NowPlayingView } from '@marquee/shared';
+import type { HomeAttention, HomeData, HomeHero, HomeTitle, NowPlayingView, SetupStep } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { mediaFiles, movies, scanItems, series, type User } from '../db/schema.js';
+import { mediaFiles, movies, scanItems, series, users, type User } from '../db/schema.js';
+import { readDownloader } from '../downloads/service.js';
+import { readMediaServer } from '../library/mediaServers.js';
 import { comingUp } from '../library/airing.js';
 import { readServices } from '../library/services.js';
 import { sharedMonitor } from '../downloads/monitor.js';
@@ -39,9 +41,11 @@ homeRoutes.get('/', async (c) => {
     upcoming: db.select({ id: series.id }).from(series).limit(1).get() ? comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined) : [],
     stats: libraryStats(db, isKid),
     hero: null,
+    setup: null,
   };
 
   if (isAdmin) {
+    data.setup = setupSteps(c);
     await household(c, user, data);
   } else {
     data.myRequests = listRequests(db, user, 'mine', now())
@@ -52,6 +56,31 @@ homeRoutes.get('/', async (c) => {
   return c.json(data);
 });
 
+/**
+ * "Get set up": what a new install still needs, in the order to do it. Shown to
+ * admins until every step that isn't optional is done.
+ */
+function setupSteps(c: Ctx): SetupStep[] | null {
+  const { db, config, sources } = c.get('deps');
+  const hasTitles = !!db.select({ id: movies.id }).from(movies).limit(1).get() || !!db.select({ id: series.id }).from(series).limit(1).get();
+  const steps: SetupStep[] = [
+    { key: 'tmdb', title: 'Add your TMDB key', detail: 'Posters, descriptions and matching come from TMDB. The key is free.', to: '/settings/services', done: !!readServices(db, config).tmdbApiKey },
+    { key: 'scan', title: 'Scan your library', detail: 'Marquee reads your movie and TV folders. It doesn’t move or change anything.', to: '/library', done: hasTitles },
+    { key: 'downloader', title: 'Connect qBittorrent', detail: 'Where Marquee sends the copies it picks.', to: '/settings/downloader', done: !!readDownloader(db).url },
+    { key: 'sources', title: 'Add a Source', detail: 'A site Marquee searches for copies.', to: '/settings/sources', done: sources.view().sources.length > 0 },
+    {
+      key: 'mediaServer',
+      title: 'Link Plex or Jellyfin',
+      detail: 'So new arrivals show up there in seconds, and Home shows who’s watching.',
+      to: '/settings/services',
+      done: (['plex', 'jellyfin'] as const).some((k) => !!readMediaServer(db, k).url),
+      optional: true,
+    },
+    { key: 'people', title: 'Add your family', detail: 'Everyone gets their own Discover, requests and history.', to: '/settings/users', done: (db.select({ n: count() }).from(users).get()?.n ?? 0) > 1, optional: true },
+  ];
+  return steps.every((s) => s.done || s.optional) ? null : steps;
+}
+
 const RES: Record<string, string> = { '4k': '4K', '1080': '1080p', '720': '720p', '480': 'SD', sd: 'SD' };
 
 /** Something playing beats something ready for you, which beats something new in the last three days. */
@@ -61,12 +90,12 @@ function pickHero(db: Db, data: HomeData, now: number): HomeHero | null {
   const ready = data.myRequests.find((r) => r.state === 'ready' && r.href);
   if (ready) {
     const art = artFor(db, ready.href);
-    return { kind: 'ready', eyebrow: 'Ready to watch · you asked for it', title: ready.title, chips: ready.year ? [String(ready.year)] : [], href: ready.href, backdropPath: art.backdrop, posterPath: art.poster ?? ready.posterPath, progress: null, note: null };
+    return { kind: 'ready', eyebrow: 'Ready to watch · you asked for it', title: ready.title, chips: ready.year ? [String(ready.year)] : [], href: ready.href, backdropPath: art.backdrop, posterPath: art.poster ?? ready.posterPath, color: art.color, progress: null, note: null };
   }
   const fresh = data.recent[0];
   if (fresh && now - fresh.addedAt < 3 * DAY) {
     const art = artFor(db, fresh.href);
-    return { kind: 'arrived', eyebrow: `Just arrived · ${ago(now - fresh.addedAt)}`, title: fresh.title, chips: [fresh.sub], href: fresh.href, backdropPath: art.backdrop, posterPath: art.poster ?? fresh.posterPath, progress: null, note: null };
+    return { kind: 'arrived', eyebrow: `Just arrived · ${ago(now - fresh.addedAt)}`, title: fresh.title, chips: [fresh.sub], href: fresh.href, backdropPath: art.backdrop, posterPath: art.poster ?? fresh.posterPath, color: art.color ?? fresh.posterColor, progress: null, note: null };
   }
   return null;
 }
@@ -82,18 +111,19 @@ function watchingHero(db: Db, w: NowPlayingView, total: number): HomeHero {
     href: w.href,
     backdropPath: art.backdrop,
     posterPath: art.poster,
+    color: art.color,
     progress: Math.round(w.progress * 100),
     note: w.subtitle,
   };
 }
 
 /** Poster and backdrop for a /movies/:id or /shows/:id page. */
-function artFor(db: Db, href: string | null): { poster: string | null; backdrop: string | null } {
+function artFor(db: Db, href: string | null): { poster: string | null; backdrop: string | null; color: string | null } {
   const m = href?.match(/^\/(movies|shows)\/(\d+)$/);
-  if (!m) return { poster: null, backdrop: null };
+  if (!m) return { poster: null, backdrop: null, color: null };
   const table = m[1] === 'movies' ? movies : series;
-  const row = db.select({ poster: table.posterPath, backdrop: table.backdropPath }).from(table).where(eq(table.id, Number(m[2]))).get();
-  return row ?? { poster: null, backdrop: null };
+  const row = db.select({ poster: table.posterPath, backdrop: table.backdropPath, color: table.posterColor }).from(table).where(eq(table.id, Number(m[2]))).get();
+  return row ?? { poster: null, backdrop: null, color: null };
 }
 
 /** The admin's part: Needs you, Watching now, On its way, and the footer numbers only they see. */
@@ -196,12 +226,12 @@ function recentTitles(db: Db, kid: boolean): HomeTitle[] {
     if (l.movieId) {
       const m = movieRows.get(l.movieId);
       if (!m || (kid && !KID_MOVIE_RATINGS.includes(m.certification ?? ''))) continue;
-      out.push({ title: m.title, sub: `Movie · ${qualityLabel(l)}`, posterPath: m.posterPath, href: `/movies/${m.id}`, addedAt: l.addedAt });
+      out.push({ title: m.title, sub: `Movie · ${qualityLabel(l)}`, posterPath: m.posterPath, posterColor: m.posterColor, href: `/movies/${m.id}`, addedAt: l.addedAt });
     } else if (l.seriesId) {
       const s = showRows.get(l.seriesId);
       if (!s || (kid && !KID_TV_RATINGS.includes(s.certification ?? ''))) continue;
       const ep = (JSON.parse(l.episodes ?? '[]') as number[])[0];
-      out.push({ title: s.title, sub: `S${l.season} E${ep ?? '?'} · ${qualityLabel(l)}`, posterPath: s.posterPath, href: `/shows/${s.id}`, addedAt: l.addedAt });
+      out.push({ title: s.title, sub: `S${l.season} E${ep ?? '?'} · ${qualityLabel(l)}`, posterPath: s.posterPath, posterColor: s.posterColor, href: `/shows/${s.id}`, addedAt: l.addedAt });
     }
   }
   return out;
@@ -212,8 +242,8 @@ function libraryStats(db: Db, kid: boolean): HomeData['stats'] {
   const movieCount = db.select({ n: sql<number>`count(distinct ${mediaFiles.movieId})` }).from(mediaFiles).where(isNotNull(mediaFiles.movieId)).get()?.n ?? 0;
   const showCount = db.select({ n: sql<number>`count(distinct ${mediaFiles.seriesId})` }).from(mediaFiles).where(isNotNull(mediaFiles.seriesId)).get()?.n ?? 0;
   return [
-    { label: movieCount === 1 ? 'movie' : 'movies', value: String(movieCount), to: '/movies' },
-    { label: showCount === 1 ? 'show' : 'shows', value: String(showCount), to: '/shows' },
+    { label: movieCount === 1 ? 'movie' : 'movies', value: String(movieCount), to: '/library/movies' },
+    { label: showCount === 1 ? 'show' : 'shows', value: String(showCount), to: '/library/shows' },
   ];
 }
 

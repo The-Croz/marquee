@@ -71,6 +71,18 @@ export interface HomeData {
   stats: { label: string; value: string; to?: string }[];
   /** The big picture at the top: what's playing, what's ready for you, or what just arrived. Null when there's nothing. */
   hero: HomeHero | null;
+  /** Admins on a new install: the "Get set up" checklist. Null once every step that isn't optional is done. */
+  setup: SetupStep[] | null;
+}
+
+export interface SetupStep {
+  key: 'tmdb' | 'scan' | 'downloader' | 'sources' | 'mediaServer' | 'people';
+  title: string;
+  /** Why it matters, in one line. */
+  detail: string;
+  to: string;
+  done: boolean;
+  optional?: boolean;
 }
 
 export interface HomeHero {
@@ -82,6 +94,8 @@ export interface HomeHero {
   href: string | null;
   backdropPath: string | null;
   posterPath: string | null;
+  /** The poster's main colour, for the glow behind it. */
+  color: string | null;
   /** 0–100, while playing. */
   progress: number | null;
   /** "1 h 01 of 2 h 46" style line, or who's watching. */
@@ -119,6 +133,8 @@ export interface HomeTitle {
   /** "Movie · 4K" or "S2 E7 · 1080p" */
   sub: string;
   posterPath: string | null;
+  /** The poster's main colour, `#rrggbb`, once Marquee has picked it. */
+  posterColor: string | null;
   href: string;
   addedAt: number;
 }
@@ -377,6 +393,8 @@ export interface LibraryCard {
   title: string;
   year: number | null;
   posterPath: string | null;
+  /** The poster's main colour, `#rrggbb`, once Marquee has picked it. */
+  posterColor: string | null;
   certification: string | null;
   /** Movies: has a file. Shows: has every aired episode. */
   complete: boolean;
