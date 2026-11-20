@@ -42,7 +42,7 @@ export function CalendarPage() {
 
   return (
     <>
-      <PageHeader title="Calendar" info="New episodes of the shows in your library, by the day they air. Dates come from TMDB and are checked twice a day." />
+      <PageHeader title="Calendar" back={{ to: "/", label: "Home" }} info="New episodes of the shows in your library, by the day they air. Dates come from TMDB and are checked twice a day." />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => shift(-14)}>
           ← Earlier

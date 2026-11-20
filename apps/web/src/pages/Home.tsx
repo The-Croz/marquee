@@ -39,7 +39,7 @@ export function HomePage() {
 
       {data.recent.length > 0 && <Shelf title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} />}
 
-      {data.upcoming.length > 0 && <Week items={data.upcoming} />}
+      <Week items={data.upcoming} />
 
       {data.recent.length === 0 && !data.hero && data.needsYou.length === 0 && (
         <section className="flex flex-col items-start gap-3 py-6">
@@ -314,9 +314,10 @@ function Week({ items }: { items: HomeData['upcoming'] }) {
           This week
         </h2>
         <Link to="/calendar" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
-          Calendar →
+          Full calendar →
         </Link>
       </div>
+      {days.length === 0 && <p className="m-0 text-sm text-muted">Nothing new airs in the next seven days.</p>}
       <ol className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-0">
         {days.map((d, i) => (
           <li key={d.day} className={cx('flex flex-col gap-2.5 rounded-xl border bg-panel p-3.5', i === 0 ? 'border-amber/45' : 'border-line')}>

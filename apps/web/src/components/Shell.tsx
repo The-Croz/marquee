@@ -34,7 +34,6 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
       { to: '/', label: 'Home', icon: 'home' },
       { to: '/discover', label: 'Discover', icon: 'discover' },
       { to: '/library', label: 'Library', icon: 'movies', also: ['/movies', '/shows'] },
-      { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },
   {
@@ -54,7 +53,7 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
 /** The phone's bottom bar: at most five. */
 const TABS: Record<Role, string[]> = {
   admin: ['/', '/discover', '/library', '/requests', '/downloads'],
-  member: ['/', '/discover', '/library', '/requests', '/calendar'],
+  member: ['/', '/discover', '/library', '/requests', '/downloads'],
   kid: ['/', '/discover', '/library', '/requests'],
 };
 
@@ -85,6 +84,7 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const destinations: Destination[] = [
     ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page' })),
+    { to: '/calendar', label: 'Calendar', group: 'Page', keywords: 'episodes airing schedule' },
     ...(user.role === 'admin' ? [] : [{ to: '/history', label: 'My history', group: 'Page' }]),
     ...settingsGroups(user.role)
       .flatMap((g) => g.items)
@@ -202,13 +202,11 @@ function AccountMenu({ user, placement, compact }: { user: SessionUser; placemen
   // On phones the menu also holds what the five tabs leave out.
   const links: { to: string; label: string; icon: IconName; phoneOnly?: boolean }[] = admin
     ? [
-        { to: '/calendar', label: 'Calendar', icon: 'calendar', phoneOnly: true },
         { to: '/activity', label: 'Watching', icon: 'activity', phoneOnly: true },
         { to: '/settings', label: 'Settings', icon: 'settings', phoneOnly: true },
         { to: '/settings/account', label: 'My account', icon: 'user' },
       ]
     : [
-        ...(user.role === 'kid' ? [{ to: '/calendar', label: 'Calendar', icon: 'calendar' as const, phoneOnly: true }] : []),
         { to: '/history', label: 'My history', icon: 'history' },
         { to: '/settings', label: 'Settings', icon: 'settings' },
       ];
