@@ -10,11 +10,11 @@ import { InfoTip, PageHeader } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
-type SettingsItem = { to: string; label: string; blurb: string; info?: string };
+export type SettingsItem = { to: string; label: string; blurb: string; info?: string };
 type SettingsGroup = { title: string; items: SettingsItem[] };
 
 /** Every Settings page, grouped the way people think about them. Admin-only groups are left out for others. */
-function settingsGroups(role: Role): SettingsGroup[] {
+export function settingsGroups(role: Role): SettingsGroup[] {
   const admin = role === 'admin';
   return [
     {

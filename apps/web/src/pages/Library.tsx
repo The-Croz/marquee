@@ -6,6 +6,7 @@ import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { PageHeader, Tabs } from '../components/Page';
+import { useToast } from '../components/Overlay';
 import { refreshLibrary } from '../components/Wanted';
 import { SearchBox } from './Search';
 
@@ -133,6 +134,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const toast = useToast();
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
   const { data, isLoading } = useQuery({
     queryKey: ['library', kind, q, filter, sort, wantedFilter],
@@ -151,11 +153,22 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
 
   async function markPicked(wanted: boolean) {
     setBulkError(null);
+    // Undo puts each one back the way it was, not all to the opposite.
+    const before = items.filter((i) => picked.has(i.id));
     try {
       await api(`${endpoint}/wanted`, { body: { ids: [...picked], wanted } });
       await refreshLibrary();
       setPicked(new Set());
       setSelecting(false);
+      const noun = kind === 'movie' ? (before.length === 1 ? 'movie' : 'movies') : before.length === 1 ? 'show' : 'shows';
+      toast({
+        message: wanted ? `Looking for ${before.length} ${noun}.` : `Stopped looking for ${before.length} ${noun}.`,
+        undo: async () => {
+          const was = (w: boolean) => before.filter((i) => i.wanted === w).map((i) => i.id);
+          for (const w of [true, false]) if (was(w).length) await api(`${endpoint}/wanted`, { body: { ids: was(w), wanted: w } });
+          await refreshLibrary();
+        },
+      });
     } catch (e) {
       setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
     }

@@ -6,6 +6,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell } from './Bell';
 import { Icon, type IconName } from './Icon';
 import { cx } from './ui';
+import { Menu, MenuDivider, ToastProvider, menuItemClass } from './Overlay';
+import { CommandBar, commandKeyHint, type Destination } from './CommandBar';
+import { settingsGroups } from '../pages/Settings';
 
 /**
  * The frame around every screen. Desktop: a sidebar in three groups. Phones: a
@@ -55,6 +58,16 @@ const TABS: Record<Role, string[]> = {
   kid: ['/', '/discover', '/library', '/requests'],
 };
 
+/** Extra words the command bar matches, for people who know the older apps. */
+const KEYWORDS: Record<string, string> = {
+  '/settings/sources': 'prowlarr sites trackers jackett',
+  '/settings/downloader': 'qbittorrent torrents seeding',
+  '/settings/quality': 'profiles trash 4k hdr 1080p',
+  '/settings/services': 'plex jellyfin tmdb radarr sonarr',
+  '/settings/automation': 'search wanted rss',
+  '/settings/users': 'people family kids',
+};
+
 const allowed = (n: NavItem, role: Role) => (n.roles ?? ALL).includes(role);
 
 function useActive() {
@@ -69,6 +82,15 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   const items = GROUPS.flatMap((g) => g.items).filter((n) => allowed(n, user.role));
   const tabs = TABS[user.role].map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n);
 
+  const [commandOpen, setCommandOpen] = useState(false);
+  const destinations: Destination[] = [
+    ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page' })),
+    ...(user.role === 'admin' ? [] : [{ to: '/history', label: 'My history', group: 'Page' }]),
+    ...settingsGroups(user.role)
+      .flatMap((g) => g.items)
+      .map((i) => ({ to: i.to, label: i.label, group: 'Settings', keywords: `${i.blurb} ${KEYWORDS[i.to] ?? ''}` })),
+  ];
+
   const badge = (n: NavItem) =>
     n.to === '/requests' && pending > 0 ? (
       <span aria-label={`${pending} waiting`} className="rounded-full bg-amber px-1.5 text-caption font-bold text-amber-ink">
@@ -77,6 +99,7 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
     ) : null;
 
   return (
+    <ToastProvider>
     <div className="flex min-h-screen flex-col bg-ink md:flex-row md:items-start">
       {/* Desktop sidebar */}
       <nav aria-label="Main" className="sticky top-0 hidden h-screen w-[232px] flex-none flex-col px-3 py-6 md:flex">
@@ -84,6 +107,15 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
           <Wordmark />
           <Bell />
         </div>
+        <button
+          type="button"
+          onClick={() => setCommandOpen(true)}
+          className="mb-3 flex min-h-11 items-center gap-3 rounded-lg border border-line bg-panel px-3 text-left text-sm text-dim hover:text-text"
+        >
+          <Icon name="search" />
+          <span className="flex-1">Go to…</span>
+          <kbd className="font-sans text-caption text-dim">{commandKeyHint}</kbd>
+        </button>
         <div className="flex flex-col gap-0.5">
           {GROUPS.map((g) => {
             const shown = g.items.filter((n) => allowed(n, user.role));
@@ -142,6 +174,8 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
         ))}
       </nav>
     </div>
+    <CommandBar user={user} destinations={destinations} open={commandOpen} onOpenChange={setCommandOpen} />
+    </ToastProvider>
   );
 }
 
@@ -156,23 +190,7 @@ function Wordmark() {
 
 /** The avatar: your name, and a menu with what isn't in the main nav, then Sign out. */
 function AccountMenu({ user, placement, compact }: { user: SessionUser; placement: 'up' | 'down'; compact?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  useEffect(() => setOpen(false), [pathname]);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
 
   async function signOut() {
     await api('/auth/logout', { body: {} });
@@ -201,43 +219,32 @@ function AccountMenu({ user, placement, compact }: { user: SessionUser; placemen
   );
 
   return (
-    <div ref={box} className="relative">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`${user.displayName}: account menu`}
-        onClick={() => setOpen((o) => !o)}
-        className={cx('flex min-h-11 items-center gap-3 rounded-lg text-left hover:bg-panel', compact ? 'px-1' : 'w-full px-2 py-1.5')}
-      >
-        {avatar}
-        {!compact && (
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold">{user.displayName}</span>
-            <span className="block text-caption text-dim capitalize">{user.role}</span>
-          </span>
-        )}
+    <Menu
+      label={`${user.displayName}: account menu`}
+      placement={placement}
+      trigger={
+        <span className={cx('flex min-w-0 flex-1 items-center gap-3', compact ? 'px-1' : 'px-2 py-1.5')}>
+          {avatar}
+          {!compact && (
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{user.displayName}</span>
+              <span className="block text-caption text-dim capitalize">{user.role}</span>
+            </span>
+          )}
+        </span>
+      }
+    >
+      {links.map((l) => (
+        <Link key={l.to + l.label} role="menuitem" to={l.to} className={cx(menuItemClass, l.phoneOnly && 'md:hidden')}>
+          <Icon name={l.icon} className="text-dim" />
+          {l.label}
+        </Link>
+      ))}
+      <MenuDivider />
+      <button type="button" role="menuitem" onClick={signOut} className={menuItemClass}>
+        <Icon name="logout" className="text-dim" />
+        Sign out
       </button>
-      {open && (
-        <div role="menu" className={cx('absolute z-40 flex w-56 flex-col rounded-xl border border-line-strong bg-panel p-1.5 shadow-2xl', placement === 'up' ? 'bottom-full left-0 mb-2' : 'top-full right-0 mt-2')}>
-          {links.map((l) => (
-            <Link
-              key={l.to + l.label}
-              role="menuitem"
-              to={l.to}
-              className={cx('flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-soft no-underline hover:bg-raised hover:text-text', l.phoneOnly && 'md:hidden')}
-            >
-              <Icon name={l.icon} className="text-dim" />
-              {l.label}
-            </Link>
-          ))}
-          <div className="my-1 border-t border-line" />
-          <button type="button" role="menuitem" onClick={signOut} className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-left text-sm text-soft hover:bg-raised hover:text-text">
-            <Icon name="logout" className="text-dim" />
-            Sign out
-          </button>
-        </div>
-      )}
-    </div>
+    </Menu>
   );
 }
