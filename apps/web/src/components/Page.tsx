@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import { cx } from './ui';
 
@@ -17,7 +17,8 @@ export function PageHeader({
 }: {
   title: ReactNode;
   meta?: ReactNode;
-  back?: { to: string; label: string };
+  /** `wideHidden`: hide it on wide screens, where a side list already leads back. */
+  back?: { to: string; label: string; wideHidden?: boolean };
   actions?: ReactNode;
   info?: ReactNode;
   /** The browser tab's title, when `title` isn't plain text. */
@@ -27,7 +28,7 @@ export function PageHeader({
   return (
     <header className="flex flex-col gap-1">
       {back && (
-        <Link to={back.to} className="-mt-2 flex min-h-11 items-center self-start text-sm text-muted no-underline hover:text-text">
+        <Link to={back.to} className={cx('-mt-2 flex min-h-11 items-center self-start text-sm text-muted no-underline hover:text-text', back.wideHidden && 'lg:hidden')}>
           ← {back.label}
         </Link>
       )}
@@ -62,6 +63,16 @@ export function InfoTip({ label, children, className }: { label: string; childre
   const [open, setOpen] = useState(false);
   const id = useId();
   const ref = useRef<HTMLSpanElement>(null);
+  const note = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+  // Keep the note on screen: slide it left when the ⓘ sits near the right edge.
+  useLayoutEffect(() => {
+    if (!open || !note.current) return setShift(0);
+    const r = note.current.getBoundingClientRect();
+    const over = r.right - shift - (document.documentElement.clientWidth - 12);
+    setShift(over > 0 ? over : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -92,7 +103,9 @@ export function InfoTip({ label, children, className }: { label: string; childre
       {open && (
         <span
           id={id}
+          ref={note}
           role="note"
+          style={shift ? { transform: `translateX(-${shift}px)` } : undefined}
           className="absolute top-full left-0 z-30 mt-1 w-[min(340px,80vw)] rounded-lg border border-line-strong bg-raised p-4 text-sm leading-relaxed font-normal tracking-normal text-soft normal-case shadow-2xl"
         >
           {children}

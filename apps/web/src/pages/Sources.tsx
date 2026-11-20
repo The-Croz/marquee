@@ -36,10 +36,6 @@ function SourcesAdmin() {
 
   return (
     <div className="flex max-w-[960px] flex-col gap-6">
-      <p className="m-0 max-w-[680px] text-body text-muted">
-        Sources are the sites Marquee searches for copies of a movie or show. Older apps call them indexers. Marquee searches them itself, or through Prowlarr if you still use it. It only reads
-        from them: nothing is downloaded until you say so.
-      </p>
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
       <Card className="flex flex-col gap-1">
         <h2 className="m-0 mb-3 text-lg font-semibold">

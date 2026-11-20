@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { AuthStatus, DownloaderHealth, DownloaderUpdate, DownloaderView, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { InfoTip } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
@@ -113,7 +114,8 @@ function DownloaderAdmin() {
           <div>
             <h2 className="m-0 text-lg font-semibold">qBittorrent</h2>
             <p className="m-0 mt-1 text-sm text-muted">
-              Your Downloader: Marquee sends it the copies you pick with “Download this”, under its own category. It never changes downloads in other categories, so Radarr's and Sonarr's are left alone.
+              Marquee sends it the copies you pick, under its own category.{' '}
+              <InfoTip className="-my-3.5 align-middle" label="About the category">It never changes downloads in other categories, so Radarr's and Sonarr's are left alone.</InfoTip>
             </p>
           </div>
           {data.url && (
@@ -179,8 +181,10 @@ function DownloaderAdmin() {
         <div>
           <h2 className="m-0 text-lg font-semibold">Sharing after a download</h2>
           <p className="m-0 mt-1 text-sm text-muted">
-            Once a download is in your library, qBittorrent keeps sharing it so others can download it too. The library file is a hardlink, so sharing costs no extra space. Each Source can have its own rule
-            under Settings → Sources → For experts.
+            qBittorrent keeps sharing what's in your library, at no extra space.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About sharing">
+              The library file is a hardlink to the download, so sharing costs no extra space. Each Source can have its own rule under Settings → Sources → For experts.
+            </InfoTip>
           </p>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">

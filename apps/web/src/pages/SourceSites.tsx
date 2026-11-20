@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { SiteField, SiteForm, SiteSettingsView, SitesView, SiteSummary, SolverView, SourceCheckResult, SourceView } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { InfoTip } from '../components/Page';
 
 /**
  * Sites Marquee searches itself: picking one from the list (Prowlarr's
@@ -224,8 +225,8 @@ export function AddSiteCard({ setMessage }: { setMessage: (m: Msg) => void }) {
       <div>
         <h2 className="m-0 text-lg font-semibold">Add a site</h2>
         <p className="m-0 mt-1 max-w-[640px] text-sm text-muted">
-          Marquee can search hundreds of sites itself, no Prowlarr needed. Pick one, fill in what it asks for (private sites need your username and password, or a cookie), and Marquee checks it
-          straight away.
+          Pick a site and fill in what it asks for; Marquee checks it straight away.{' '}
+          <InfoTip className="-my-3.5 align-middle" label="About adding sites">Marquee can search hundreds of sites itself, no Prowlarr needed. Private sites need your username and password, or a cookie.</InfoTip>
         </p>
       </div>
       {list.error && <Notice tone="error">{errMsg(list.error)}</Notice>}
@@ -416,8 +417,10 @@ export function SolverCard() {
       <div>
         <h2 className="m-0 text-lg font-semibold">Bot checks</h2>
         <p className="m-0 mt-1 max-w-[640px] text-sm text-muted">
-          Some sites put a “checking your browser” page in front of their search (Cloudflare). With this on, Marquee gets past it with a solver that runs inside Marquee, only when a site needs it, and
-          keeps the pass for later searches.
+          Gets past “checking your browser” pages in front of some sites.{' '}
+          <InfoTip className="-my-3.5 align-middle" label="About bot checks">
+            Some sites put a Cloudflare check in front of their search. With this on, Marquee solves it itself, only when a site needs it, and keeps the pass for later searches.
+          </InfoTip>
         </p>
       </div>
       <label htmlFor="solver-on" className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-body font-medium">

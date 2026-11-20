@@ -44,7 +44,7 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
   },
   {
     label: 'Manage',
-    items: [{ to: '/settings', label: 'Settings', icon: 'settings', also: ['/quality'], roles: ['admin'] }],
+    items: [{ to: '/settings', label: 'Settings', icon: 'settings', roles: ['admin'] }],
   },
 ];
 
@@ -192,7 +192,7 @@ function AccountMenu({ user, placement, compact }: { user: SessionUser; placemen
     : [
         ...(user.role === 'kid' ? [{ to: '/calendar', label: 'Calendar', icon: 'calendar' as const, phoneOnly: true }] : []),
         { to: '/history', label: 'My history', icon: 'history' },
-        { to: '/settings/account', label: 'Settings', icon: 'settings' },
+        { to: '/settings', label: 'Settings', icon: 'settings' },
       ];
   const avatar = (
     <span className="flex size-9 flex-none items-center justify-center rounded-full bg-amber text-sm font-bold text-amber-ink" aria-hidden="true">

@@ -4,7 +4,6 @@ import type { ProfileDetail, ProfileKind, ProfileRuleView, ProfilesView, Quality
 import { ApiFailure, api, queryClient } from '../api';
 import { Button, Card, Notice, cx } from '../components/ui';
 import { ProfileChoices } from '../components/ProfileChoices';
-import { PageHeader } from '../components/Page';
 
 /**
  * Quality: the profiles that decide which copy Marquee picks for a title.
@@ -25,13 +24,9 @@ export function QualityPage() {
 
   return (
     <>
-      <PageHeader
-        title="Quality"
-        info="A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything can be changed. The built-in profiles start from the TRaSH Guides."
-      />
       {list.error && <Notice tone="error">{errMsg(list.error)}</Notice>}
       <div className="flex flex-wrap items-start gap-8">
-        <section aria-label="Profiles" className="flex w-full flex-col gap-4 lg:w-[300px] lg:flex-none">
+        <section aria-label="Profiles" className="flex w-full flex-col gap-4 2xl:w-[300px] 2xl:flex-none">
           <div role="tablist" aria-label="Library" className="flex rounded-xl border border-line bg-panel p-1">
             {(['movie', 'tv'] as const).map((k) => (
               <button

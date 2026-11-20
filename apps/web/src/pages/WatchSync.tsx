@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { WatchSyncPlan, WatchSyncRun, WatchSyncStatus } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Notice } from '../components/ui';
+import { InfoTip } from '../components/Page';
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong. Try again.');
 const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -59,7 +60,8 @@ export function WatchSyncPage() {
         <div>
           <h2 className="m-0 text-lg font-semibold">Watched on one, watched on both</h2>
           <p className="m-0 text-sm text-muted">
-            When someone watches a movie or episode on Plex, Marquee ticks it as watched on Jellyfin too, and the other way round. It only ever adds ticks, never takes one away, and every sync can be undone.
+            Watch it on Plex and it's ticked on Jellyfin too, and the other way round.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About watched sync">It only ever adds ticks, never takes one away, and every sync can be undone.</InfoTip>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

@@ -65,27 +65,17 @@ const router = createBrowserRouter([
       { path: 'downloads', element: <DownloadsPage /> },
       { path: 'activity/people/:name', element: <RequireUser render={(s) => <AdminOnly status={s}><PersonPage /></AdminOnly>} /> },
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
-      {
-        path: 'quality',
-        element: (
-          <RequireUser
-            render={(s) => (
-              <AdminOnly status={s}>
-                <QualityPage />
-              </AdminOnly>
-            )}
-          />
-        ),
-      },
+      { path: 'quality', element: <Navigate to="/settings/quality" replace /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'history', element: <MyHistoryPage /> },
       {
         path: 'settings',
         element: <RequireUser render={(s) => <SettingsLayout status={s} />} />,
         children: [
-          { index: true, element: <Navigate to="account" replace /> },
+          { index: true, element: null },
           { path: 'account', element: <AccountPage /> },
           { path: 'about', element: <AboutPage /> },
+          { path: 'quality', element: <RequireUser render={(st) => <AdminOnly status={st}><QualityPage /></AdminOnly>} /> },
           { path: 'discover', element: <DiscoverSettingsPage /> },
           {
             path: 'notifications',
