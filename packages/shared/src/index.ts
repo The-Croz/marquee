@@ -11,6 +11,11 @@ export interface SessionUser {
   linked: { plex: boolean; oidc: boolean; password: boolean; jellyfin: boolean };
 }
 
+/** Posters for the sign-in screen's wall: popular titles from TMDB, never what's in your library. */
+export interface SignInWall {
+  posters: string[];
+}
+
 export interface AuthStatus {
   /** True until the first admin account exists. */
   setupRequired: boolean;
@@ -422,6 +427,7 @@ export interface MovieDetail {
   year: number | null;
   overview: string | null;
   posterPath: string | null;
+  posterColor: string | null;
   backdropPath: string | null;
   runtime: number | null;
   certification: string | null;
@@ -461,6 +467,7 @@ export interface ShowDetail {
   year: number | null;
   overview: string | null;
   posterPath: string | null;
+  posterColor: string | null;
   backdropPath: string | null;
   status: string | null;
   network: string | null;
@@ -642,6 +649,9 @@ export type DownloadState = 'sent' | 'downloading' | 'done' | 'failed' | 'remove
 export interface DownloadView {
   id: number;
   kind: 'movie' | 'tv';
+  /** The title's poster and its colour, for the row's art. */
+  posterPath: string | null;
+  posterColor: string | null;
   movieId: number | null;
   seriesId: number | null;
   season: number | null;

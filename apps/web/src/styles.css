@@ -122,3 +122,39 @@
     opacity: 0;
   }
 }
+
+/* Poster → title page: the poster grows into place; the rest of the page cross-fades.
+   Turned off for people who ask for less motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+::view-transition-group(*) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Sign-in poster wall: each column drifts slowly; none of it moves with reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .poster-drift {
+    animation: drift 90s linear infinite;
+  }
+  .poster-drift-up {
+    animation-direction: reverse;
+  }
+}
+@keyframes drift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}

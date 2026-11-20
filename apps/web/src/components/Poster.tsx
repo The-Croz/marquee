@@ -22,17 +22,20 @@ export function Poster({
   color,
   className,
   size = 'w342',
+  transition,
 }: {
   title: string;
   path: string | null | undefined;
   color?: string | null;
   className?: string;
   size?: 'w185' | 'w342' | 'w500';
+  /** Ties this poster to the same title's poster on the next page, so it grows into place. See `posterTransition`. */
+  transition?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const src = tmdbImage(path, size);
   return (
-    <div className={cx('relative aspect-[2/3] overflow-hidden rounded-xl', className)} style={{ background: color ? `color-mix(in oklab, ${color} 55%, var(--color-ink))` : colorFor(title) }}>
+    <div className={cx('relative aspect-[2/3] overflow-hidden rounded-xl', className)} style={{ background: color ? `color-mix(in oklab, ${color} 55%, var(--color-ink))` : colorFor(title), viewTransitionName: transition }}>
       {/* The title sits underneath, so it shows while the image loads or if it fails. */}
       <div className="absolute inset-0 flex items-end p-3">
         <span className="font-display text-xl leading-[1.05] text-cream">{title}</span>
@@ -41,6 +44,12 @@ export function Poster({
     </div>
   );
 }
+
+/**
+ * The name that links a poster in a grid to the big poster on its title page
+ * (`/movies/12` → `poster-movies-12`). Use it on one poster per page only.
+ */
+export const posterTransition = (href: string) => `poster-${href.replace(/^\//, '').replace(/\//g, '-')}`;
 
 export function formatBytes(n: number): string {
   if (n <= 0) return '—';

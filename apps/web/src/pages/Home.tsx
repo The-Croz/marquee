@@ -5,7 +5,7 @@ import type { DiscoverPage, HomeAttention, HomeData, HomeHero, SetupStep } from 
 import { ApiFailure, api, queryClient, useAuthStatus } from '../api';
 import { Bulbs } from '../components/Bulbs';
 import { Notice, Progress, cx } from '../components/ui';
-import { Poster, tmdbImage } from '../components/Poster';
+import { Poster, posterTransition, tmdbImage } from '../components/Poster';
 import { SearchBox } from './Search';
 import { STATE as REQUEST_STATE } from './Requests';
 
@@ -293,6 +293,9 @@ function MyRequests({ items }: { items: HomeData['myRequests'] }) {
   );
 }
 
+/** Titles in your library have a page whose poster this one can grow into. */
+const ownTitle = (href: string) => /^\/(movies|shows)\/\d+$/.test(href);
+
 interface ShelfItem {
   href: string;
   title: string;
@@ -304,8 +307,15 @@ interface ShelfItem {
 }
 
 function Shelf({ id, title, items, big, more }: { id: string; title: string; items: ShelfItem[]; big?: boolean; more?: { to: string; label: string } }) {
+  const tint = items.find((i) => i.posterColor)?.posterColor;
   return (
-    <section aria-labelledby={`${id}-h`} className="flex flex-col gap-3">
+    <section
+      aria-labelledby={`${id}-h`}
+      className="relative isolate flex flex-col gap-3"
+      // The row picks up its first poster's colour as a faint wash behind it.
+      style={tint ? ({ '--tint': tint } as React.CSSProperties) : undefined}
+    >
+      {tint && <div aria-hidden="true" className="absolute -inset-x-6 -inset-y-5 -z-10 rounded-3xl bg-[radial-gradient(70%_100%_at_15%_0%,color-mix(in_oklab,var(--tint)_16%,transparent),transparent_75%)]" />}
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={`${id}-h`} className="m-0 text-lg font-semibold">
           {title}
@@ -318,9 +328,9 @@ function Shelf({ id, title, items, big, more }: { id: string; title: string; ite
       </div>
       <div className={cx('grid gap-4', big ? 'grid-cols-[repeat(auto-fill,minmax(170px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(130px,1fr))]')}>
         {items.map((p) => (
-          <Link key={p.href} to={p.href} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+          <Link key={p.href} to={p.href} viewTransition={ownTitle(p.href)} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
             <div className="relative transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-              <Poster title={p.title} path={p.posterPath} color={p.posterColor} />
+              <Poster title={p.title} path={p.posterPath} color={p.posterColor} transition={ownTitle(p.href) ? posterTransition(p.href) : undefined} />
               {p.addedAt !== undefined && Date.now() - p.addedAt < 86_400_000 && (
                 <span className="absolute top-2 left-2 rounded bg-amber px-1.5 py-0.5 text-caption font-bold tracking-wider text-amber-ink">NEW</span>
               )}

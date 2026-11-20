@@ -3,7 +3,8 @@ import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { DownloadActionResult, DownloadView, DownloadsView } from '@marquee/shared';
 import { ApiFailure, api, queryClient } from '../api';
-import { formatBytes } from './Poster';
+import { Poster, formatBytes } from './Poster';
+import { Menu, MenuDivider, menuItemClass } from './Overlay';
 import { Button, Notice, cx } from './ui';
 
 /** Download rows with plain-English states and their buttons. Used by the Downloads page and title pages. */
@@ -64,9 +65,25 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
     }
   }
 
+  const pct = Math.floor(d.progress * 100);
+  const details = [d.size !== null ? formatBytes(d.size) : null, d.quality, d.sourceName, d.adopted ? 'Sent by another app' : null].filter(Boolean).join(' · ');
+  const small = (
+    label: string,
+    onClick: () => void,
+  ) => (
+    <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={onClick}>
+      {busy ? 'Working…' : label}
+    </Button>
+  );
+
   return (
-    <li className={cx('flex flex-col gap-3 rounded-2xl border px-5 py-4', active ? 'border-line-strong bg-raised' : 'border-line')}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <li
+      className={cx('relative isolate flex flex-col gap-3 overflow-hidden rounded-2xl border p-3 sm:p-4', active ? 'border-line-strong bg-raised' : 'border-line')}
+      style={d.posterColor ? ({ '--tint': d.posterColor } as React.CSSProperties) : undefined}
+    >
+      {active && d.posterColor && <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(60%_120%_at_0%_50%,color-mix(in_oklab,var(--tint)_16%,transparent),transparent_70%)]" />}
+      <div className="flex items-start gap-4">
+        {showTitle && <Poster title={d.titleName} path={d.posterPath} color={d.posterColor} size="w185" className="w-12 flex-none rounded-lg sm:w-14 [&_span]:hidden" />}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {showTitle &&
             (d.titleLink ? (
@@ -79,56 +96,39 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
           <span className={cx('font-medium', TONE[d.status.tone])}>{d.status.label}</span>
           {d.status.detail && <span className="text-sm text-soft">{d.status.detail}</span>}
           {d.status.nextTryAt && <span className="text-sm text-muted">Marquee tries another copy {at(d.status.nextTryAt)} if it’s still stuck.</span>}
-          <span className="font-mono text-caption break-all text-dim">{d.title}</span>
-          <span className="text-label text-muted">
-            {[d.size !== null ? formatBytes(d.size) : null, d.sourceName, d.adopted ? 'Sent by another app' : null].filter(Boolean).join(' · ')}
-          </span>
         </div>
-        {active && <span className="text-sm font-semibold text-soft">{Math.floor(d.progress * 100)}%</span>}
+        {active && <span className="pt-0.5 text-sm font-semibold text-soft tabular-nums">{pct}%</span>}
+        {d.canControl && !confirmRemove && (
+          <Menu label={`More for ${d.titleName}`} trigger={<span className="flex size-11 items-center justify-center text-xl leading-none text-muted">⋯</span>} className="-my-1.5 -mr-1.5 flex-none">
+            {paused ? (
+              <button type="button" role="menuitem" className={menuItemClass} onClick={() => act('resume')}>
+                Resume
+              </button>
+            ) : (
+              <button type="button" role="menuitem" className={menuItemClass} onClick={() => act('pause')}>
+                Pause
+              </button>
+            )}
+            <button type="button" role="menuitem" className={menuItemClass} onClick={() => act('try-another')}>
+              Try another copy
+            </button>
+            <MenuDivider />
+            <button type="button" role="menuitem" className={cx(menuItemClass, 'text-warn hover:text-warn')} onClick={() => setConfirmRemove(true)}>
+              Remove…
+            </button>
+          </Menu>
+        )}
       </div>
       {active && (
-        <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={Math.floor(d.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Downloaded">
-          <div className={cx('h-full', BAR[d.status.tone])} style={{ width: `${Math.max(2, d.progress * 100)}%` }} />
+        <div className="h-1.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Downloaded">
+          <div className={cx('h-full transition-[width] duration-700 motion-reduce:transition-none', BAR[d.status.tone])} style={{ width: `${Math.max(2, d.progress * 100)}%` }} />
         </div>
       )}
-      {d.importedPaths && d.importedPaths.length > 0 && (
-        <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-caption break-all text-muted">
-          {d.importedPaths.map((p) => (
-            <li key={p}>→ {p}</li>
-          ))}
-        </ul>
-      )}
-      {d.canRemoveShared && (
+      {(d.canImport || d.canRemoveShared || (d.canControl && paused)) && !confirmRemove && (
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('remove', { deleteFiles: true })}>
-            {busy ? 'Working…' : 'Remove from qBittorrent'}
-          </Button>
-        </div>
-      )}
-      {d.canImport && (
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('import')}>
-            {busy ? 'Working…' : 'Try again'}
-          </Button>
-        </div>
-      )}
-      {d.canControl && !confirmRemove && (
-        <div className="flex flex-wrap gap-2">
-          {paused ? (
-            <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('resume')}>
-              Resume
-            </Button>
-          ) : (
-            <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('pause')}>
-              Pause
-            </Button>
-          )}
-          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => act('try-another')}>
-            {busy ? 'Working…' : 'Try another copy'}
-          </Button>
-          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={busy} onClick={() => setConfirmRemove(true)}>
-            Remove
-          </Button>
+          {d.canImport && small('Try again', () => act('import'))}
+          {d.canRemoveShared && small('Remove from qBittorrent', () => act('remove', { deleteFiles: true }))}
+          {d.canControl && paused && small('Resume', () => act('resume'))}
         </div>
       )}
       {confirmRemove && (
@@ -147,6 +147,20 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
           </div>
         </div>
       )}
+      <details className="text-sm">
+        <summary className="flex min-h-11 cursor-pointer items-center text-muted hover:text-text">Details</summary>
+        <div className="flex flex-col gap-1 pb-1">
+          <span className="font-mono text-caption break-all text-dim">{d.title}</span>
+          {details && <span className="text-label text-muted">{details}</span>}
+          {d.importedPaths && d.importedPaths.length > 0 && (
+            <ul className="m-0 flex list-none flex-col gap-0.5 p-0 font-mono text-caption break-all text-muted">
+              {d.importedPaths.map((p) => (
+                <li key={p}>→ {p}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
       {note && (
         <p role="status" className={cx('m-0 text-sm', note.ok ? 'text-teal-hi' : 'text-warn')}>
           {note.text}
@@ -176,14 +190,18 @@ export function DownloadList({ view, showTitle = true }: { view: DownloadsView; 
 /** A title page's downloads, shown only when it has some. */
 export function TitleDownloads(filter: { movieId?: number; seriesId?: number }) {
   const q = useDownloads(filter);
-  if (!q.data || q.data.items.length === 0) return null;
+  if (!q.data) return null;
   const items = q.data.items.slice(0, 5);
   return (
     <section aria-labelledby="title-downloads" className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-6">
       <h2 id="title-downloads" className="m-0 text-lg font-semibold">
         Downloads
       </h2>
-      <DownloadList view={{ ...q.data, items }} showTitle={!!filter.seriesId} />
+      {items.length === 0 ? (
+        <p className="m-0 text-sm text-muted">Nothing sent to qBittorrent for this yet. Pick a copy under Copies to download one.</p>
+      ) : (
+        <DownloadList view={{ ...q.data, items }} showTitle={!!filter.seriesId} />
+      )}
     </section>
   );
 }

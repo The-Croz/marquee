@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
-import { Poster, formatBytes } from '../components/Poster';
+import { Poster, formatBytes, posterTransition } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { PageHeader, Tabs } from '../components/Page';
 import { useToast } from '../components/Overlay';
@@ -305,7 +305,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           const tile = (
             <>
             <div className="relative">
-              <Poster title={i.title} path={i.posterPath} color={i.posterColor} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
+              <Poster title={i.title} path={i.posterPath} color={i.posterColor} transition={posterTransition(`${endpoint}/${i.id}`)} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
               <span
                 className={cx(
                   'absolute top-2 left-2 rounded-md px-2 py-0.5 text-caption font-semibold',
@@ -332,7 +332,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               {tile}
             </button>
           ) : (
-            <Link key={i.id} to={`${endpoint}/${i.id}`} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+            <Link key={i.id} to={`${endpoint}/${i.id}`} viewTransition className="group flex flex-col gap-2 text-text no-underline hover:text-text">
               {tile}
             </Link>
           );
