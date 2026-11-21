@@ -59,11 +59,29 @@ export interface QbitTorrent {
   ratio: number;
   /** Seconds spent sharing the whole copy. */
   seedingSeconds: number;
+  /** Bytes a second going out. */
+  uploadSpeed?: number;
+  /** People connected who don't have the whole copy yet, and how many the trackers know of. */
+  peersConnected?: number;
+  peersKnown?: number;
+  /** Bytes fetched and shared so far. */
+  downloaded?: number;
+  uploaded?: number;
+  /** When qBittorrent added it and finished it (ms); null when not finished. */
+  addedOn?: number | null;
+  completedOn?: number | null;
+  /** The tracker it's talking to right now (its address, which may carry a key: never sent to the browser as-is). */
+  tracker?: string;
+  tags?: string[];
+  /** Seconds it has been running. */
+  activeSeconds?: number;
 }
 
 export interface QbitFile {
   name: string;
   size: number;
+  /** 0 to 1, when qBittorrent says. */
+  progress?: number;
 }
 
 /** What to add: the .torrent file's bytes, or a magnet link. */
@@ -168,6 +186,8 @@ export class QbitClient implements QbitApi {
     type T = {
       hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string;
       dlspeed?: number; eta?: number; num_seeds?: number; num_complete?: number; content_path?: string; ratio?: number; seeding_time?: number;
+      upspeed?: number; num_leechs?: number; num_incomplete?: number; downloaded?: number; uploaded?: number; added_on?: number; completion_on?: number;
+      tracker?: string; tags?: string; time_active?: number;
     };
     const rows = await this.json<T[]>(`/torrents/info?hashes=${hashes.map((h) => h.toLowerCase()).join('|')}`);
     return rows.map((r) => ({
@@ -185,12 +205,22 @@ export class QbitClient implements QbitApi {
       contentPath: r.content_path ?? r.save_path,
       ratio: r.ratio ?? 0,
       seedingSeconds: r.seeding_time ?? 0,
+      uploadSpeed: r.upspeed ?? 0,
+      peersConnected: r.num_leechs ?? 0,
+      peersKnown: Math.max(r.num_incomplete ?? 0, 0),
+      downloaded: r.downloaded ?? 0,
+      uploaded: r.uploaded ?? 0,
+      addedOn: r.added_on && r.added_on > 0 ? r.added_on * 1000 : null,
+      completedOn: r.completion_on && r.completion_on > 0 ? r.completion_on * 1000 : null,
+      tracker: r.tracker ?? '',
+      tags: (r.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+      activeSeconds: r.time_active ?? 0,
     }));
   }
 
   async files(hash: string): Promise<QbitFile[]> {
-    const rows = await this.json<{ name: string; size: number }[]>(`/torrents/files?hash=${hash.toLowerCase()}`);
-    return rows.map((f) => ({ name: f.name, size: f.size }));
+    const rows = await this.json<{ name: string; size: number; progress?: number }[]>(`/torrents/files?hash=${hash.toLowerCase()}`);
+    return rows.map((f) => ({ name: f.name, size: f.size, progress: f.progress }));
   }
 
   /** qBittorrent 5 renamed pause/resume to stop/start; try the new name first. */

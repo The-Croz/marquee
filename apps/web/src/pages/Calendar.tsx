@@ -8,8 +8,9 @@ import { Button, Notice, cx } from '../components/ui';
 import { PageHeader } from '../components/Page';
 
 /**
- * The airing calendar: episodes of the shows in your library, day by day,
- * each saying whether it's here, on the way, missing or still to come.
+ * The calendar: episodes of the shows in your library and Wanted movies
+ * coming out (in cinemas, to stream or buy, on disc), day by day, each saying
+ * whether it's here, on the way, missing or still to come.
  */
 
 const DAY = 86_400_000;
@@ -37,12 +38,32 @@ export function CalendarPage() {
   const v = q.data;
   const shift = (days: number) => setFrom(iso(Date.parse(from) + days * DAY));
 
+  const [only, setOnly] = useState<'all' | 'episode' | 'movie'>('all');
   const days = new Map<string, CalendarItem[]>();
-  for (const i of v?.items ?? []) days.set(i.airDate, [...(days.get(i.airDate) ?? []), i]);
+  for (const i of v?.items ?? []) if (only === 'all' || i.kind === only) days.set(i.airDate, [...(days.get(i.airDate) ?? []), i]);
 
   return (
     <>
-      <PageHeader title="Calendar" back={{ to: "/", label: "Home" }} info="New episodes of the shows in your library, by the day they air. Dates come from TMDB and are checked twice a day." />
+      <PageHeader title="Calendar" back={{ to: "/", label: "Home" }} info="New episodes of the shows in your library and the Wanted movies coming out, by day. Dates come from TMDB and are checked twice a day." />
+      <div role="group" aria-label="Show" className="flex flex-wrap gap-2">
+        {(
+          [
+            ['all', 'Everything'],
+            ['episode', 'Shows'],
+            ['movie', 'Movies'],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={only === v}
+            onClick={() => setOnly(v)}
+            className={cx('h-11 rounded-full border px-4 text-sm font-medium', only === v ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => shift(-14)}>
           ← Earlier
@@ -58,7 +79,7 @@ export function CalendarPage() {
       {!v && !q.error && <p className="text-muted">Loading…</p>}
       {v && days.size === 0 && (
         <p className="m-0 text-muted">
-          Nothing airs between these dates. Shows in your library appear here once TMDB lists their next episodes; add shows from <Link to="/library/shows">Library</Link>.
+          Nothing comes out between these dates. Shows in your library appear here once TMDB lists their next episodes, and Wanted movies once TMDB has their dates; add titles from <Link to="/library">Library</Link>.
         </p>
       )}
       {[...days].map(([day, items]) => (
@@ -68,15 +89,24 @@ export function CalendarPage() {
           </h2>
           <ul className="m-0 flex list-none flex-col p-0">
             {items.map((i) => (
-              <li key={`${i.seriesId}:${i.season}:${i.episode}`} className="flex items-center gap-4 border-t border-line py-3">
+              <li key={i.kind === 'movie' ? `m${i.movieId}:${i.title}` : `${i.seriesId}:${i.season}:${i.episode}`} className="flex items-center gap-4 border-t border-line py-3">
                 <Poster title={i.show} path={i.posterPath} size="w185" className="w-12 flex-none rounded-md [&_span]:hidden" />
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <Link to={`/shows/${i.seriesId}`} className="flex min-h-11 items-center self-start text-body font-semibold">
+                  <Link to={i.kind === 'movie' ? `/movies/${i.movieId}` : `/shows/${i.seriesId}`} className="flex min-h-11 items-center self-start text-body font-semibold">
                     {i.show}
                   </Link>
                   <span className="text-sm text-soft">
-                    {i.season === 0 ? 'Special' : `S${i.season} E${i.episode}`}
-                    {i.title ? ` · ${i.title}` : ''}
+                    {i.kind === 'movie' ? (
+                      <>
+                        <span className="mr-1.5 rounded bg-raised px-1.5 py-0.5 text-caption font-semibold tracking-wide text-muted uppercase">Movie</span>
+                        {i.title}
+                      </>
+                    ) : (
+                      <>
+                        {i.season === 0 ? 'Special' : `S${i.season} E${i.episode}`}
+                        {i.title ? ` · ${i.title}` : ''}
+                      </>
+                    )}
                   </span>
                 </div>
                 <div className="flex max-w-[45%] flex-col items-end gap-0.5 text-right">

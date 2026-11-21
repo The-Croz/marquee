@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import { Hono } from 'hono';
-import { count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { HomeAttention, HomeData, HomeHero, HomeTitle, NowPlayingView, SetupStep } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { mediaFiles, movies, scanItems, series, users, type User } from '../db/schema.js';
+import { episodes, mediaFiles, movies, scanItems, series, users, type User } from '../db/schema.js';
 import { readDownloader } from '../downloads/service.js';
 import { readMediaServer } from '../library/mediaServers.js';
 import { comingUp } from '../library/airing.js';
@@ -12,7 +12,7 @@ import { sharedMonitor } from '../downloads/monitor.js';
 import { lastWantedRuns, lookingForWanted } from '../downloads/wanted.js';
 import { lastWantedTvRuns } from '../downloads/wantedTv.js';
 import { listRequests } from '../requests/service.js';
-import { KID_MOVIE_RATINGS, KID_TV_RATINGS, qualityLabel } from './library.js';
+import { KID_MOVIE_RATINGS, KID_TV_RATINGS, qualityLabel, scanSources } from './library.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
 
 /**
@@ -37,8 +37,9 @@ homeRoutes.get('/', async (c) => {
     watching: [],
     onItsWay: [],
     myRequests: [],
+    recentRequests: listRequests(db, user, isAdmin ? 'all' : 'mine', now()).slice(0, 12),
     recent: recentTitles(db, isKid),
-    upcoming: db.select({ id: series.id }).from(series).limit(1).get() ? comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined) : [],
+    upcoming: comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined, isKid ? KID_MOVIE_RATINGS : undefined),
     stats: libraryStats(db, isKid),
     hero: null,
     setup: null,
@@ -53,8 +54,48 @@ homeRoutes.get('/', async (c) => {
       .slice(0, 6);
   }
   data.hero = pickHero(db, data, now());
+  if (data.hero) await addFacts(c, data.hero);
   return c.json(data);
 });
+
+/**
+ * The banner's year, age rating, length, genres and description from the
+ * library, and the review score from TMDB (cached). A TMDB problem just
+ * leaves the score out.
+ */
+async function addFacts(c: Ctx, hero: HomeHero): Promise<void> {
+  const { db } = c.get('deps');
+  const m = hero.href?.match(/^\/(movies|shows)\/(\d+)$/);
+  if (!m) return;
+  const id = Number(m[2]);
+  let tmdbId: number;
+  let kind: 'movie' | 'series';
+  if (m[1] === 'movies') {
+    const row = db.select().from(movies).where(eq(movies.id, id)).get();
+    if (!row) return;
+    Object.assign(hero, { year: row.year, rating: row.certification, runtime: row.runtime, genres: (JSON.parse(row.genres) as string[]).slice(0, 3), overview: row.overview || null, kindLabel: 'Movie' });
+    tmdbId = row.tmdbId;
+    kind = 'movie';
+  } else {
+    const row = db.select().from(series).where(eq(series.id, id)).get();
+    if (!row) return;
+    const seasons = db.select({ s: sql<number>`count(distinct ${episodes.season})` }).from(episodes).where(and(eq(episodes.seriesId, id), sql`${episodes.season} > 0`)).get()?.s ?? 0;
+    const label = ['Show', seasons ? `${seasons} ${seasons === 1 ? 'season' : 'seasons'}` : null, row.status === 'Ended' || row.status === 'Canceled' ? 'Ended' : null].filter(Boolean).join(' · ');
+    Object.assign(hero, { year: row.year, rating: row.certification, genres: (JSON.parse(row.genres) as string[]).slice(0, 3), overview: row.overview || null, kindLabel: label });
+    tmdbId = row.tmdbId;
+    kind = 'series';
+  }
+  try {
+    const extras = await scanSources(c).tmdb.extras(kind, tmdbId);
+    hero.score = extras.score;
+    hero.votes = extras.votes || null;
+    if (kind === 'movie' && !hero.runtime) hero.runtime = extras.runtime;
+  } catch {
+    /* No TMDB key or TMDB is down: the banner shows without a score. */
+  }
+}
+
+const noFacts = { year: null, rating: null, runtime: null, genres: [], score: null, votes: null, overview: null, kindLabel: null } satisfies Partial<HomeHero>;
 
 /**
  * "Get set up": what a new install still needs, in the order to do it. Shown to
@@ -90,12 +131,12 @@ function pickHero(db: Db, data: HomeData, now: number): HomeHero | null {
   const ready = data.myRequests.find((r) => r.state === 'ready' && r.href);
   if (ready) {
     const art = artFor(db, ready.href);
-    return { kind: 'ready', eyebrow: 'Ready to watch · you asked for it', title: ready.title, chips: ready.year ? [String(ready.year)] : [], href: ready.href, backdropPath: art.backdrop, posterPath: art.poster ?? ready.posterPath, color: art.color, progress: null, note: null };
+    return { kind: 'ready', eyebrow: 'Ready to watch · you asked for it', title: ready.title, chips: [], href: ready.href, backdropPath: art.backdrop, posterPath: art.poster ?? ready.posterPath, color: art.color, progress: null, note: null, ...noFacts, year: ready.year };
   }
   const fresh = data.recent[0];
   if (fresh && now - fresh.addedAt < 3 * DAY) {
     const art = artFor(db, fresh.href);
-    return { kind: 'arrived', eyebrow: `Just arrived · ${ago(now - fresh.addedAt)}`, title: fresh.title, chips: [fresh.sub], href: fresh.href, backdropPath: art.backdrop, posterPath: art.poster ?? fresh.posterPath, color: art.color ?? fresh.posterColor, progress: null, note: null };
+    return { kind: 'arrived', eyebrow: `Just arrived · ${ago(now - fresh.addedAt)}`, title: fresh.title, chips: [fresh.sub.replace(/^Movie · /, '')], href: fresh.href, backdropPath: art.backdrop, posterPath: art.poster ?? fresh.posterPath, color: art.color ?? fresh.posterColor, progress: null, note: null, ...noFacts };
   }
   return null;
 }
@@ -114,6 +155,7 @@ function watchingHero(db: Db, w: NowPlayingView, total: number): HomeHero {
     color: art.color,
     progress: Math.round(w.progress * 100),
     note: w.subtitle,
+    ...noFacts,
   };
 }
 

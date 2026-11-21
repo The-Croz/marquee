@@ -7,6 +7,7 @@ import { GENRES, SERVICES, TmdbError, type TmdbApi, type TmdbCard } from '../lib
 import { prettyDate, requestView, showCoverage, titleStates } from '../requests/service.js';
 import { isKidSafe } from './kids.js';
 import { watchedTitles } from './seeds.js';
+import { StreamingTopError, type StreamingTopApi } from './streamingTop.js';
 
 /**
  * Discover: what's new and popular, what's on each streaming service, and
@@ -19,6 +20,10 @@ export interface DiscoverDeps {
   db: Db;
   tmdb: TmdbApi;
   now: () => number;
+  /** The services' own Top 10s; null without a Streaming Availability key. */
+  top?: StreamingTopApi | null;
+  /** Shows admins what to do when the Top 10 isn't the real one. */
+  isAdmin?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -136,7 +141,8 @@ const mix = (...lists: TmdbCard[][]): TmdbCard[] => lists.flat().sort((a, b) => 
 export async function discoverPage(deps: DiscoverDeps, user: User, opts: { type: 'all' | 'movie' | 'series'; service: string; genre: string | null }): Promise<DiscoverPage> {
   const { db, tmdb, now } = deps;
   const prefs = readPrefs(db, user.id);
-  const services = SERVICES.filter((s) => !prefs.hiddenServices.includes(s.key)).map((s) => ({ key: s.key, name: s.name }));
+  const mine = SERVICES.filter((s) => !prefs.hiddenServices.includes(s.key));
+  const services = mine.map((s) => ({ key: s.key, name: s.name }));
   const kinds: ('movie' | 'series')[] = opts.type === 'all' ? ['movie', 'series'] : [opts.type];
   const today = iso(now());
   const monthAgo = iso(now() - 30 * DAY);
@@ -159,13 +165,23 @@ export async function discoverPage(deps: DiscoverDeps, user: User, opts: { type:
     tasks.push(add('genre-top', `Top rated in ${g}`, 'The best reviewed', kinds.filter(genreFor).map((k) => tmdb.discover(k, { genre: genreFor(k)!, sort: 'vote_average.desc' }))));
     tasks.push(add('genre-new', `New in ${g}`, 'Out in the last few months', kinds.filter(genreFor).map((k) => tmdb.discover(k, { genre: genreFor(k)!, sort: 'date.desc', from: iso(now() - 120 * DAY), to: today }))));
   } else if (service) {
-    const p = service.id;
+    const p = service.ids;
     tasks.push(add('svc-popular', `Popular on ${service.name}`, null, kinds.map((k) => tmdb.discover(k, { provider: p }))));
     tasks.push(add('svc-new', `New on ${service.name}`, 'Out in the last month', kinds.map((k) => tmdb.discover(k, { provider: p, sort: 'date.desc', from: monthAgo, to: today }))));
     tasks.push(add('svc-top', `Top rated on ${service.name}`, 'The best reviewed', kinds.map((k) => tmdb.discover(k, { provider: p, sort: 'vote_average.desc' }))));
     for (const k of kinds) tasks.push(add(`svc-${k}`, `${service.name} ${label(k)}`, null, [tmdb.discover(k, { provider: p, sort: 'date.desc', to: today })], 1));
   } else {
     tasks.push(add('trending', 'Trending this week', null, kinds.map((k) => tmdb.list(k, 'trending'))));
+    // Latest releases: movies out to stream or buy in the last month, and new shows on your services.
+    const yours = mine.flatMap((s) => [...s.ids]);
+    tasks.push(
+      add(
+        'latest',
+        'Latest releases',
+        kinds.length === 2 ? 'Movies out to stream or buy, and new shows, in the last month' : kinds[0] === 'movie' ? 'Out to stream or buy in the last month' : 'New on your services in the last month',
+        kinds.map((k) => (k === 'movie' ? tmdb.discover('movie', { releaseType: 'digital', from: monthAgo, to: today }) : tmdb.discover('series', { provider: yours.length ? yours : undefined, from: monthAgo, to: today }))),
+      ),
+    );
     if (kinds.includes('movie')) tasks.push(add('now-playing', 'In cinemas now', null, [tmdb.list('movie', 'now_playing')]));
     if (kinds.includes('series')) tasks.push(add('airing', 'On the air', 'Shows with new episodes', [tmdb.list('series', 'on_the_air')]));
     for (const k of kinds) tasks.push(add(`popular-${k}`, `Popular ${label(k)}`, null, [tmdb.list(k, 'popular')]));
@@ -207,7 +223,8 @@ export async function discoverPage(deps: DiscoverDeps, user: User, opts: { type:
   }
 
   // Put everything through the kid rule, then attach each title's state.
-  const rows: RawRow[] = [...personal, ...raw.sort((a, b) => rank(a.id) - rank(b.id))];
+  // The everyday rows first; the "made for you" ones after them.
+  const rows: RawRow[] = [...raw.sort((a, b) => rank(a.id) - rank(b.id)), ...personal];
   const cleaned = await Promise.all(rows.map(async (r) => ({ ...r, cards: await forUser(deps, user, dedupe(r.cards)) })));
   const states = new Map<string, { state: CardState; libraryId: number | null }>();
   for (const k of ['movie', 'series'] as const) {
@@ -238,7 +255,7 @@ export async function discoverPage(deps: DiscoverDeps, user: User, opts: { type:
 
 /** The order rows appear on the page. */
 function rank(id: string): number {
-  const order = ['trending', 'now-playing', 'airing', 'popular-movie', 'popular-series', 'upcoming', 'top-movie', 'top-series'];
+  const order = ['trending', 'latest', 'now-playing', 'airing', 'popular-movie', 'popular-series', 'upcoming', 'top-movie', 'top-series'];
   const i = order.indexOf(id);
   return i === -1 ? 99 : i;
 }
@@ -372,18 +389,99 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
 }
 
 
-/** The top 10 movies and shows on one service, for the row of service chips. */
+/**
+ * The top 10 movies and shows on one service. With a Streaming Availability
+ * key these are the service's own Top 10 (numbered on screen). Without one, or
+ * for a service it has no list for, TMDB's "popular on it" stands in, shown
+ * without numbers: TMDB ranks by popularity everywhere, so its list isn't the
+ * service's own and repeats titles that are on several services.
+ */
 export async function serviceTop(deps: DiscoverDeps, user: User, serviceKey: string): Promise<ServiceTop> {
   const { db, tmdb, now } = deps;
   const service = SERVICES.find((s) => s.key === serviceKey);
   if (!service) throw new HttpError(400, 'invalid_input', 'No such service.');
   const today = iso(now());
-  const one = async (kind: 'movie' | 'series') => {
-    const cards = await soft(tmdb.discover(kind, { provider: service.id }), [] as TmdbCard[]);
+  const finish = async (kind: 'movie' | 'series', cards: TmdbCard[]) => {
     const safe = (await forUser(deps, user, dedupe(cards))).filter((c) => !!c.posterPath).slice(0, 10);
     const states = titleStates(db, kind, safe.map((c) => c.tmdbId), user.id, now());
     return safe.map((c) => toCard(c, states.get(c.tmdbId) ?? { state: 'none', libraryId: null }, today));
   };
+
+  let note: string | null = null;
+  if (deps.top && service.top) {
+    try {
+      const [m, s] = await Promise.all([deps.top.top(service.top, 'movie'), deps.top.top(service.top, 'series')]);
+      if (m.length || s.length) {
+        const [movies, shows] = await Promise.all([finish('movie', await topCards(tmdb, 'movie', m.map((t) => t.tmdbId))), finish('series', await topCards(tmdb, 'series', s.map((t) => t.tmdbId)))]);
+        return { service: serviceKey, movies, shows, ranked: true, note: null };
+      }
+      note = `Streaming Availability has no Top 10 for ${service.name} right now, so this is what’s popular on it.`;
+    } catch (err) {
+      if (!(err instanceof StreamingTopError)) throw err;
+      note = err.message;
+    }
+  } else if (deps.top) {
+    note = `${service.name} doesn’t share a Top 10, so this is what’s popular on it.`;
+  } else {
+    note = 'These are popular on the service, not its own Top 10. Add a Streaming Availability key in Settings → Services to see each service’s real Top 10.';
+  }
+
+  const one = async (kind: 'movie' | 'series') => finish(kind, await soft(tmdb.discover(kind, { provider: service.ids }), [] as TmdbCard[]));
   const [movies, shows] = await Promise.all([one('movie'), one('series')]);
-  return { service: serviceKey, movies, shows };
+  return { service: serviceKey, movies, shows, ranked: false, note: deps.isAdmin ? note : null };
+}
+
+/** List cards for TMDB ids, in the given order. A title TMDB can't find is left out. */
+async function topCards(tmdb: TmdbApi, kind: 'movie' | 'series', ids: number[]): Promise<TmdbCard[]> {
+  const cards = await mapLimit(ids, 5, async (id): Promise<TmdbCard | null> => {
+    try {
+      const t = kind === 'movie' ? await tmdb.movie(id) : await tmdb.show(id);
+      const date = kind === 'movie' ? (t as { releaseDate: string | null }).releaseDate : null;
+      const genreIds = t.genres.map((n) => GENRES[kind].find((g) => g.name === n)?.id).filter((x): x is number => !!x);
+      return { tmdbId: id, kind, title: t.title, year: t.year, posterPath: t.posterPath, backdropPath: t.backdropPath, overview: t.overview ?? '', score: 0, genreIds, date: date ?? (t.year ? `${t.year}-01-01` : null), popularity: 0 };
+    } catch (err) {
+      if (err instanceof TmdbError && err.status === 401) throw err;
+      return null;
+    }
+  });
+  return cards.filter((c): c is TmdbCard => c !== null);
+}
+
+/**
+ * Discover's search: movies and shows on TMDB matching the words, the more
+ * popular first, each with where it stands for you. Kids only get titles with
+ * a kid-safe US rating.
+ */
+export async function discoverSearch(deps: DiscoverDeps, user: User, q: string, type: 'all' | 'movie' | 'series'): Promise<DiscoverCard[]> {
+  const { db, tmdb, now } = deps;
+  const today = iso(now());
+  const [m, s] = await Promise.all([
+    type !== 'series' ? soft(tmdb.searchMovie(q), []) : Promise.resolve([]),
+    type !== 'movie' ? soft(tmdb.searchShow(q), []) : Promise.resolve([]),
+  ]);
+  let cards: TmdbCard[] = [
+    ...m.map((r) => ({ ...r, kind: 'movie' as const })),
+    ...s.map((r) => ({ ...r, kind: 'series' as const })),
+  ]
+    .filter((r) => !!r.posterPath)
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 24)
+    .map((r) => ({ tmdbId: r.tmdbId, kind: r.kind, title: r.title, year: r.year, posterPath: r.posterPath, backdropPath: null, overview: r.overview ?? '', score: 0, genreIds: [], date: r.year ? `${r.year}-01-01` : null, popularity: r.popularity }));
+  if (user.role === 'kid') {
+    const checked = await mapLimit(cards, 6, async (c) => {
+      try {
+        const cert = c.kind === 'movie' ? (await tmdb.movie(c.tmdbId)).certification : (await tmdb.show(c.tmdbId)).certification;
+        return isKidSafe(c.kind, cert) ? c : null;
+      } catch {
+        return null;
+      }
+    });
+    cards = checked.filter((c): c is TmdbCard => c !== null);
+  }
+  const states = new Map<string, { state: CardState; libraryId: number | null }>();
+  for (const k of ['movie', 'series'] as const) {
+    for (const [id, st] of titleStates(db, k, cards.filter((c) => c.kind === k).map((c) => c.tmdbId), user.id, now())) states.set(`${k}${id}`, st);
+  }
+  // Search results have no release date beyond the year, so no New / Coming badge.
+  return cards.map((c) => ({ ...toCard(c, states.get(`${c.kind}${c.tmdbId}`) ?? { state: 'none', libraryId: null }, today), badge: null }));
 }

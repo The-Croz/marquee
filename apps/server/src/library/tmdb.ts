@@ -40,6 +40,10 @@ export interface TmdbMovie {
   /** Studios (movies) or networks and studios (TV). */
   companies: string[];
   keywords: string[];
+  /** US release dates by kind, "2026-12-20": in cinemas, out to stream or buy, on disc. */
+  cinemaRelease?: string | null;
+  digitalRelease?: string | null;
+  physicalRelease?: string | null;
 }
 
 export interface TmdbShow {
@@ -92,8 +96,10 @@ export type TmdbList = 'trending' | 'popular' | 'top_rated' | 'upcoming' | 'now_
 
 export interface TmdbDiscoverQuery {
   genre?: number;
-  /** TMDB watch-provider id (Netflix = 8…), US flat-rate catalogue. */
-  provider?: number;
+  /** TMDB watch-provider ids (Netflix = 8…), any of them, US flat-rate catalogue. */
+  provider?: readonly number[];
+  /** Movies: only those released this way (digital = out to stream or buy) between `from` and `to`. */
+  releaseType?: 'digital';
   sort?: 'popularity.desc' | 'vote_average.desc' | 'date.desc';
   /** Release (or first air) date range, "2026-11-18". */
   from?: string;
@@ -176,16 +182,23 @@ export const GENRES: Record<'movie' | 'series', { id: number; name: string }[]> 
   ],
 };
 
-/** US streaming services Discover has a chip for (TMDB watch-provider ids). */
+/**
+ * US streaming services Discover has a chip for. `ids` are TMDB watch-provider
+ * ids: a service can have several (plans with and without ads, or an old id
+ * TMDB still uses for part of the catalogue), and a title on any of them counts.
+ * Paramount+ moved most titles to its Essential and Premium ids, so asking for
+ * the old one alone found only a few. `top` is the service's id at Streaming
+ * Availability, which has the services' own Top 10 lists; null when it has none.
+ */
 export const SERVICES = [
-  { key: 'netflix', name: 'Netflix', id: 8 },
-  { key: 'max', name: 'Max', id: 1899 },
-  { key: 'disney', name: 'Disney+', id: 337 },
-  { key: 'apple', name: 'Apple TV+', id: 350 },
-  { key: 'prime', name: 'Prime Video', id: 9 },
-  { key: 'hulu', name: 'Hulu', id: 15 },
-  { key: 'paramount', name: 'Paramount+', id: 531 },
-  { key: 'peacock', name: 'Peacock', id: 386 },
+  { key: 'netflix', name: 'Netflix', ids: [8, 1796], top: 'netflix' },
+  { key: 'max', name: 'HBO Max', ids: [1899, 384], top: 'hbo' },
+  { key: 'disney', name: 'Disney+', ids: [337], top: 'disney' },
+  { key: 'apple', name: 'Apple TV', ids: [350], top: 'apple' },
+  { key: 'prime', name: 'Prime Video', ids: [9, 2100], top: 'prime' },
+  { key: 'hulu', name: 'Hulu', ids: [15], top: 'hulu' },
+  { key: 'paramount', name: 'Paramount+', ids: [531, 2303, 2616], top: 'paramount' },
+  { key: 'peacock', name: 'Peacock', ids: [386, 387], top: null },
 ] as const;
 
 export class TmdbError extends Error {
@@ -278,9 +291,15 @@ export class TmdbClient implements TmdbApi {
       original_language?: string;
       production_companies?: { name: string }[];
       keywords?: { keywords?: { name: string }[] };
-      release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number }[] }[] };
+      release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number; release_date?: string }[] }[] };
     };
     const m = await this.get<R>(`/movie/${id}`, { append_to_response: 'release_dates,keywords' });
+    // The first US date of each kind (TMDB types: 2 limited, 3 theatrical, 4 digital, 5 physical).
+    const first = (types: number[]) =>
+      (m.release_dates?.results.find((r) => r.iso_3166_1 === 'US')?.release_dates ?? [])
+        .filter((d) => types.includes(d.type) && d.release_date)
+        .map((d) => d.release_date!.slice(0, 10))
+        .sort()[0] ?? null;
     const us = m.release_dates?.results.find((r) => r.iso_3166_1 === 'US');
     // Prefer the theatrical (3) rating, then any non-empty one.
     const cert = us?.release_dates.find((d) => d.type === 3 && d.certification)?.certification ?? us?.release_dates.find((d) => d.certification)?.certification ?? null;
@@ -291,6 +310,9 @@ export class TmdbClient implements TmdbApi {
       originalTitle: m.original_title,
       year: yearOf(m.release_date),
       releaseDate: m.release_date || null,
+      cinemaRelease: first([2, 3]),
+      digitalRelease: first([4]),
+      physicalRelease: first([5]),
       overview: m.overview,
       posterPath: m.poster_path,
       backdropPath: m.backdrop_path,
@@ -399,16 +421,20 @@ export class TmdbClient implements TmdbApi {
   async discover(kind: 'movie' | 'series', q: TmdbDiscoverQuery): Promise<TmdbCard[]> {
     const dateKey = kind === 'movie' ? 'primary_release_date' : 'first_air_date';
     const sort = q.sort === 'date.desc' ? `${dateKey}.desc` : (q.sort ?? 'popularity.desc');
+    const digital = kind === 'movie' && q.releaseType === 'digital';
     const r = await this.get<{ results: RawCard[] }>(
       `/discover/${kind === 'movie' ? 'movie' : 'tv'}`,
       {
         sort_by: sort,
         with_genres: q.genre,
-        with_watch_providers: q.provider,
-        watch_region: q.provider ? 'US' : undefined,
-        with_watch_monetization_types: q.provider ? 'flatrate' : undefined,
-        [`${dateKey}.gte`]: q.from,
-        [`${dateKey}.lte`]: q.to,
+        with_watch_providers: q.provider?.length ? q.provider.join('|') : undefined,
+        watch_region: q.provider?.length ? 'US' : undefined,
+        with_watch_monetization_types: q.provider?.length ? 'flatrate' : undefined,
+        // A digital release date (US) instead of the first release anywhere.
+        with_release_type: digital ? '4' : undefined,
+        region: digital ? 'US' : undefined,
+        [`${digital ? 'release_date' : dateKey}.gte`]: q.from,
+        [`${digital ? 'release_date' : dateKey}.lte`]: q.to,
         // Newest-first lists are mostly obscure without a vote floor.
         'vote_count.gte': q.sort === 'vote_average.desc' ? 300 : q.sort === 'date.desc' ? 20 : undefined,
         include_adult: 'false',

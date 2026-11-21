@@ -84,7 +84,7 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const destinations: Destination[] = [
     ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page' })),
-    { to: '/calendar', label: 'Calendar', group: 'Page', keywords: 'episodes airing schedule' },
+    { to: '/calendar', label: 'Calendar', group: 'Page', keywords: 'episodes airing schedule movies releases' },
     ...(user.role === 'admin' ? [] : [{ to: '/history', label: 'My history', group: 'Page' }]),
     ...settingsGroups(user.role)
       .flatMap((g) => g.items)
@@ -102,7 +102,7 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
     <ToastProvider>
     <div className="flex min-h-screen flex-col bg-ink md:flex-row md:items-start">
       {/* Desktop sidebar */}
-      <nav aria-label="Main" className="sticky top-0 hidden h-screen w-[232px] flex-none flex-col px-3 py-6 md:flex">
+      <nav aria-label="Main" className="sticky top-0 z-30 hidden h-screen w-[232px] flex-none flex-col px-3 py-6 md:flex">
         <div className="flex items-center gap-2.5 px-3 pb-6">
           <Wordmark />
           <Bell />

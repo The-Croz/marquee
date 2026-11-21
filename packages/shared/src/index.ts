@@ -68,9 +68,11 @@ export interface HomeData {
   onItsWay: HomeDownload[];
   /** Members and kids: their own requests that aren't in the library yet. */
   myRequests: RequestView[];
+  /** The newest requests, whatever their state (admins: everyone's; others: their own). */
+  recentRequests: RequestView[];
   /** The newest titles in the library (kids: only ones for them). */
   recent: HomeTitle[];
-  /** Episodes airing in the next 7 days. `href` is the show's page. */
+  /** Episodes airing and Wanted movies coming out in the next 7 days. `href` is the title’s page. */
   upcoming: { day: string; title: string; note: string; href?: string }[];
   /** One quiet line of library numbers. `to` is where each one leads. */
   stats: { label: string; value: string; to?: string }[];
@@ -105,6 +107,19 @@ export interface HomeHero {
   progress: number | null;
   /** "1 h 01 of 2 h 46" style line, or who's watching. */
   note: string | null;
+  /** About the title, when Marquee knows it. */
+  year: number | null;
+  /** US age rating, "PG-13", "TV-MA". */
+  rating: string | null;
+  /** Minutes (movies). */
+  runtime: number | null;
+  genres: string[];
+  /** TMDB's 0–10 review score and how many votes it's from. */
+  score: number | null;
+  votes: number | null;
+  overview: string | null;
+  /** "Movie" or "Show · 3 seasons", "Ended". */
+  kindLabel: string | null;
 }
 
 export interface HomeAttention {
@@ -148,6 +163,8 @@ export interface HomeTitle {
 
 export interface ServicesView {
   tmdb: { configured: boolean; fromEnvironment: boolean };
+  /** Streaming Availability key for real Top 10s (never sent back). */
+  streamingTop: { configured: boolean };
   radarr: { url: string | null; configured: boolean };
   sonarr: { url: string | null; configured: boolean };
   moviesRoot: string;
@@ -182,6 +199,7 @@ export interface MediaLibrariesResult {
 
 export interface ServicesUpdate {
   tmdbApiKey?: string | null;
+  streamingTopKey?: string | null;
   radarrUrl?: string | null;
   radarrApiKey?: string | null;
   sonarrUrl?: string | null;
@@ -683,6 +701,51 @@ export interface DownloadView {
   canRemoveShared: boolean;
   /** The library files it became. */
   importedPaths: string[] | null;
+  /** From qBittorrent's last check; null before the first one. */
+  speed: number | null;
+  uploadSpeed: number | null;
+  /** Seconds left, when qBittorrent knows. */
+  eta: number | null;
+  /** People sharing the whole copy, and others connected. */
+  seeds: number | null;
+  peers: number | null;
+  ratio: number | null;
+  uploaded: number | null;
+  finishedAt: number | null;
+  /** The profile it was picked for ("4K Quality"). */
+  profileName: string | null;
+}
+
+/** What qBittorrent says about one download right now (Downloads → a row's details). */
+export interface DownloadDetails {
+  id: number;
+  /** Null when qBittorrent couldn't be asked or no longer has it; `note` says why. */
+  live: {
+    savePath: string;
+    contentPath: string;
+    category: string | null;
+    tags: string[];
+    /** The tracker's host name only. */
+    tracker: string | null;
+    size: number;
+    progress: number;
+    downloaded: number | null;
+    uploaded: number | null;
+    ratio: number;
+    downloadSpeed: number;
+    uploadSpeed: number;
+    eta: number | null;
+    seedsConnected: number;
+    seedsKnown: number;
+    peersConnected: number;
+    peersKnown: number;
+    addedAt: number | null;
+    completedAt: number | null;
+    activeSeconds: number | null;
+    seedingSeconds: number;
+    files: { name: string; size: number; progress: number | null }[];
+  } | null;
+  note: string | null;
 }
 
 export interface DownloadStatus {
@@ -825,11 +888,19 @@ export interface AutomationKind {
 // ---- Calendar ----
 
 export interface CalendarItem {
-  seriesId: number;
+  /** An episode of a show, or a movie coming out. */
+  kind: 'episode' | 'movie';
+  /** Episodes: the show. Movies: null. */
+  seriesId: number | null;
+  /** Movies: the movie. Episodes: null. */
+  movieId: number | null;
+  /** The show's or movie's name. */
   show: string;
   posterPath: string | null;
+  /** Episodes only (0 for movies). */
   season: number;
   episode: number;
+  /** Episodes: the episode's name. Movies: how it comes out ("In cinemas", "Out to stream or buy", "On disc"). */
   title: string | null;
   /** "2026-11-18" */
   airDate: string;
@@ -1018,6 +1089,10 @@ export interface ServiceTop {
   service: string;
   movies: DiscoverCard[];
   shows: DiscoverCard[];
+  /** True when these are the service's own Top 10 (from Streaming Availability); false for TMDB's "popular on it", shown without numbers. */
+  ranked: boolean;
+  /** Admins: why the list isn't the real Top 10 and what to do, in plain words. Null when it is. */
+  note: string | null;
 }
 
 export interface DiscoverPrefs {

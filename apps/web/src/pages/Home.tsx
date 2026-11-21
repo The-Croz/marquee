@@ -37,7 +37,7 @@ export function HomePage() {
         </div>
       )}
 
-      {data.myRequests.length > 0 && <MyRequests items={data.myRequests} />}
+      {data.recentRequests.length > 0 && <RecentRequests items={data.recentRequests} everyone={role === 'admin'} />}
 
       {data.recent.length > 0 && <Shelf id="recent" title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} more={{ to: '/library', label: 'Library' }} />}
 
@@ -125,7 +125,9 @@ function Hero({ hero }: { hero: HomeHero }) {
             {hero.eyebrow}
           </div>
           <h1 className="m-0 font-display text-display leading-[0.95] font-normal text-balance sm:text-display-lg">{hero.title}</h1>
+          <HeroFacts hero={hero} />
           {hero.note && <p className="m-0 text-soft">{hero.note}</p>}
+          {hero.overview && <p className="m-0 line-clamp-3 max-w-[560px] text-body leading-relaxed text-soft">{hero.overview}</p>}
           {hero.chips.length > 0 && (
             <div className="flex flex-wrap gap-2 text-label">
               {hero.chips.map((c, i) => (
@@ -151,6 +153,29 @@ function Hero({ hero }: { hero: HomeHero }) {
         </div>
       </div>
     </section>
+  );
+}
+
+const hm = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min` : `${min} min`);
+
+/** Year · rating · length · genres, and the review score, under the banner's title. */
+function HeroFacts({ hero }: { hero: HomeHero }) {
+  const facts = [hero.kindLabel, hero.year ? String(hero.year) : null, hero.runtime ? hm(hero.runtime) : null, hero.genres.length ? hero.genres.join(', ') : null].filter((x): x is string => !!x);
+  if (!facts.length && !hero.rating && hero.score === null) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-soft">
+      {hero.score !== null && (
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-ink/70 px-2 py-0.5 font-semibold text-text" title={hero.votes ? `TMDB review score, from ${hero.votes.toLocaleString()} votes` : 'TMDB review score'}>
+          <span aria-hidden="true" className="text-amber">
+            ★
+          </span>
+          {hero.score.toFixed(1)}
+          <span className="font-normal text-muted">TMDB{hero.votes ? ` · ${hero.votes >= 1000 ? `${Math.round(hero.votes / 100) / 10}k` : hero.votes} votes` : ''}</span>
+        </span>
+      )}
+      {hero.rating && <span className="rounded border border-white/35 px-1.5 py-px text-caption font-semibold tracking-wide text-text">{hero.rating}</span>}
+      {facts.length > 0 && <span>{facts.join(' · ')}</span>}
+    </div>
   );
 }
 
@@ -253,38 +278,35 @@ function OnItsWay({ items }: { items: HomeData['onItsWay'] }) {
   );
 }
 
-function MyRequests({ items }: { items: HomeData['myRequests'] }) {
+/**
+ * The newest requests as a row of posters, each saying where it stands:
+ * ready, approved, downloading, waiting for an OK or turned down.
+ */
+function RecentRequests({ items, everyone }: { items: HomeData['recentRequests']; everyone: boolean }) {
   return (
-    <section aria-labelledby="mine-h" className="flex flex-col gap-2">
+    <section aria-labelledby="requests-h" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="mine-h" className="m-0 text-lg font-semibold">
-          Your requests
+        <h2 id="requests-h" className="m-0 text-lg font-semibold">
+          {everyone ? 'Recent requests' : 'Your requests'}
         </h2>
         <Link to="/requests" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
-          All →
+          All requests →
         </Link>
       </div>
-      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-0">
+      <ul className="-mx-4 m-0 flex list-none snap-x gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {items.map((r) => {
           const st = REQUEST_STATE[r.state];
-          const body = (
-            <>
-              <Poster title={r.title} path={r.posterPath} size="w185" className="w-11 flex-none rounded-md" />
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <span className="truncate font-medium">{r.title}</span>
-                <span className={cx('self-start rounded-full px-2 py-0.5 text-xs font-medium', st.tone)}>{st.label}</span>
-              </div>
-            </>
-          );
+          const to = r.href ?? `/discover/${r.kind}/${r.tmdbId}`;
           return (
-            <li key={r.id}>
-              {r.href ? (
-                <Link to={r.href} className="flex items-center gap-3 rounded-xl border border-line bg-panel p-2.5 text-text no-underline hover:border-line-strong hover:text-text">
-                  {body}
-                </Link>
-              ) : (
-                <div className="flex items-center gap-3 rounded-xl border border-line bg-panel p-2.5">{body}</div>
-              )}
+            <li key={r.id} className="w-[132px] flex-none snap-start">
+              <Link to={to} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+                <div className="relative transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
+                  <Poster title={r.title} path={r.posterPath} size="w185" className={cx(r.state === 'declined' && 'opacity-50')} />
+                </div>
+                <span className="truncate text-label font-semibold">{r.title}</span>
+                <span className={cx('-mt-1 self-start rounded-md px-2 py-0.5 text-caption leading-snug font-medium', st.tone)}>{st.label}</span>
+                {everyone && r.requestedBy && <span className="-mt-1 truncate text-caption text-dim">{r.requestedBy.name}</span>}
+              </Link>
             </li>
           );
         })}
@@ -424,7 +446,7 @@ function Week({ items }: { items: HomeData['upcoming'] }) {
           Full calendar →
         </Link>
       </div>
-      {days.length === 0 && <p className="m-0 text-sm text-muted">Nothing new airs in the next seven days.</p>}
+      {days.length === 0 && <p className="m-0 text-sm text-muted">Nothing new comes out in the next seven days.</p>}
       <ol className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-0">
         {days.map((d, i) => (
           <li key={d.day} className={cx('flex flex-col gap-2.5 rounded-xl border bg-panel p-3.5', i === 0 ? 'border-amber/45' : 'border-line')}>

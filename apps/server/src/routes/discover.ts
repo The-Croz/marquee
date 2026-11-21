@@ -1,15 +1,20 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { DiscoverPage, DiscoverPrefs, DiscoverTitle, ServiceTop } from '@marquee/shared';
-import { discoverPage, discoverTitle, readPrefs, serviceTop, writePrefs, type DiscoverDeps } from '../discover/service.js';
+import type { DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverTitle, ServiceTop } from '@marquee/shared';
+import { discoverPage, discoverSearch, discoverTitle, readPrefs, serviceTop, writePrefs, type DiscoverDeps } from '../discover/service.js';
 import { SERVICES } from '../library/tmdb.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
 import { scanSources } from './library.js';
+import { readServices } from '../library/services.js';
 
 /** Discover: rows, a title's page, and each person's choices (services to hide, trailers). */
 export const discoverRoutes = new Hono<Env>();
 
-const deps = (c: Ctx): DiscoverDeps => ({ db: c.get('deps').db, tmdb: scanSources(c).tmdb, now: c.get('deps').now });
+const deps = (c: Ctx): DiscoverDeps => {
+  const { db, config, clients, now } = c.get('deps');
+  const key = readServices(db, config).streamingTopKey;
+  return { db, tmdb: scanSources(c).tmdb, now, top: key ? clients.streamingTop(key) : null, isAdmin: c.get('user')?.role === 'admin' };
+};
 
 const pageQuery = z.object({
   type: z.enum(['all', 'movie', 'series']).default('all'),
@@ -21,6 +26,12 @@ discoverRoutes.get('/', async (c) => {
   const user = requireUser(c);
   const q = pageQuery.parse(c.req.query());
   return c.json<DiscoverPage>(await discoverPage(deps(c), user, { type: q.type, service: q.service, genre: q.genre ?? null }));
+});
+
+discoverRoutes.get('/search', async (c) => {
+  const user = requireUser(c);
+  const q = z.object({ q: z.string().trim().min(1, 'Type something to look for.').max(200), type: z.enum(['all', 'movie', 'series']).default('all') }).parse(c.req.query());
+  return c.json<{ results: DiscoverCard[] }>({ results: await discoverSearch(deps(c), user, q.q, q.type) });
 });
 
 discoverRoutes.get('/top', async (c) => {

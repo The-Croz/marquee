@@ -74,6 +74,10 @@ export const movies = sqliteTable('movies', {
   /** JSON string[]: TMDB keywords. */
   keywords: text('keywords').notNull().default('[]'),
   releaseDate: text('release_date'),
+  /** First US dates in cinemas, out to stream or buy, and on disc (TMDB). Null when unknown. */
+  cinemaRelease: text('cinema_release'),
+  digitalRelease: text('digital_release'),
+  physicalRelease: text('physical_release'),
   /** Folder on disk; null for a wanted movie with nothing downloaded yet. */
   path: text('path').unique(),
   monitored: integer('monitored', { mode: 'boolean' }).notNull().default(true),
@@ -368,6 +372,10 @@ export const downloads = sqliteTable('downloads', {
   speed: integer('speed'),
   eta: integer('eta'),
   seeds: integer('seeds'),
+  /** Bytes a second going out, people connected who don't have it all yet, and bytes shared so far. */
+  uploadSpeed: integer('upload_speed'),
+  peers: integer('peers'),
+  uploaded: integer('uploaded'),
   /** The file list has been checked for programs and fakes. */
   filesChecked: integer('files_checked', { mode: 'boolean' }).notNull().default(false),
   checkedAt: integer('checked_at'),

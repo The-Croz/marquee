@@ -10,6 +10,7 @@ import { PlexClient, plexClientId } from './auth/plex.js';
 import { RateLimiter } from './auth/rateLimit.js';
 import { purgeExpiredSessions } from './auth/sessions.js';
 import { TmdbClient } from './library/tmdb.js';
+import { StreamingAvailabilityClient } from './discover/streamingTop.js';
 import { ArrClient } from './library/arr.js';
 import { LibraryScanner } from './library/scanner.js';
 import { TorznabClient } from './sources/torznab.js';
@@ -40,6 +41,7 @@ const clientId = plexClientId(db);
 
 const clients = {
   tmdb: (key: string) => new TmdbClient(key, db),
+  streamingTop: (key: string) => new StreamingAvailabilityClient(key, db),
   arr: (kind: 'radarr' | 'sonarr', url: string, key: string) => new ArrClient(kind, url, key),
   torznab: (url: string, key: string, timeoutMs: number) => new TorznabClient(url, key, timeoutMs),
   prowlarr: (url: string, key: string) => new ProwlarrClient(url, key),

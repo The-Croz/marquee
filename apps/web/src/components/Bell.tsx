@@ -17,6 +17,8 @@ const ago = (ms: number) => {
 /** The bell: what Marquee has told you, newest first. */
 export function Bell({ up = false }: { up?: boolean }) {
   const [open, setOpen] = useState(false);
+  // Which way the panel opens: towards whichever side of the bell has room, so it never runs off the screen.
+  const [side, setSide] = useState<'left' | 'right'>('right');
   const box = useRef<HTMLDivElement>(null);
   const { data } = useQuery({ queryKey: ['notifications'], queryFn: () => api<{ items: NotificationInboxItem[]; unread: number }>('/notifications'), refetchInterval: 30_000 });
   const unread = data?.unread ?? 0;
@@ -44,14 +46,18 @@ export function Bell({ up = false }: { up?: boolean }) {
         type="button"
         aria-label={unread ? `Notifications, ${unread} new` : 'Notifications'}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          const r = box.current?.getBoundingClientRect();
+          if (r) setSide(r.right < Math.min(360, window.innerWidth - 32) + 16 ? 'left' : 'right');
+          setOpen(!open);
+        }}
         className="relative flex size-11 items-center justify-center rounded-lg text-muted hover:bg-raised hover:text-text"
       >
         <Icon name="bell" />
         {unread > 0 && <span className="absolute top-1.5 right-1.5 flex min-w-[18px] items-center justify-center rounded-full bg-amber px-1 text-caption font-bold text-amber-ink">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Notifications" className={cx(up ? "bottom-12 left-0" : "top-12 right-0", "absolute z-30 flex max-h-[70vh] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line-strong bg-panel shadow-2xl")}>
+        <div role="dialog" aria-label="Notifications" className={cx(up ? 'bottom-12' : 'top-12', side === 'left' ? 'left-0' : 'right-0', "absolute z-30 flex max-h-[70vh] w-[min(360px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line-strong bg-panel shadow-2xl")}>
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <span className="font-semibold">Notifications</span>
             <button type="button" onClick={markAll} disabled={!unread} className="min-h-11 text-sm font-medium text-amber disabled:opacity-40">

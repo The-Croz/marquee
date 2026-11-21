@@ -3,9 +3,9 @@ import { z } from 'zod';
 import type { CalendarView } from '@marquee/shared';
 import { calendar } from '../library/airing.js';
 import { requireUser, type Env } from '../http.js';
-import { KID_TV_RATINGS } from './library.js';
+import { KID_MOVIE_RATINGS, KID_TV_RATINGS } from './library.js';
 
-/** The airing calendar: episodes of shows in your library, by day. Kids only see kids' shows. */
+/** The calendar: episodes of shows in your library and Wanted movies coming out, by day. Kids only see kids' titles. */
 export const calendarRoutes = new Hono<Env>();
 
 const DAY = 86_400_000;
@@ -22,6 +22,6 @@ calendarRoutes.get('/', (c) => {
     .parse(c.req.query());
   const start = q.from ? Date.parse(`${q.from}T00:00:00Z`) : now() - 7 * DAY;
   return c.json<CalendarView>(
-    calendar(db, { from: isoDay(start), to: isoDay(start + (q.days - 1) * DAY), now: now(), kidRatings: user.role === 'kid' ? KID_TV_RATINGS : undefined }),
+    calendar(db, { from: isoDay(start), to: isoDay(start + (q.days - 1) * DAY), now: now(), kidRatings: user.role === 'kid' ? KID_TV_RATINGS : undefined, kidMovieRatings: user.role === 'kid' ? KID_MOVIE_RATINGS : undefined }),
   );
 });

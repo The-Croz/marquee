@@ -25,6 +25,7 @@ import { LibraryScanner } from '../src/library/scanner.js';
 import { colorPosters } from '../src/library/posterColor.js';
 import sharp from 'sharp';
 import { FakeTmdb } from '../test/fakes/tmdb.js';
+import { FakeStreamingTop } from '../test/fakes/streamingTop.js';
 import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
@@ -216,7 +217,13 @@ web.on('GET', 'https://priv.test/browse.php', (req) =>
 );
 const solver = new FakeSolver(web);
 
+// Demo Top 10s, so Discover shows numbered lists without a real key.
+const streamingTop = new FakeStreamingTop();
+streamingTop.lists = { hbo: { movie: [693134, 603], series: [502] }, disney: { movie: [1241982, 1022789, 14160], series: [82728] }, apple: { series: [95396] }, netflix: { series: [66732] }, hulu: { movie: [1064213], series: [136315] } };
+setSetting(db, 'services.streaming_top_key', 'good-top-key');
+
 const clients = {
+  streamingTop: (key: string) => streamingTop.as(key),
   plexServer: (url: string, token: string) => plex.as(url, token),
   jellyfin: (url: string, key: string) => jellyfin.as(url, key),
   // Demo Jellyfin sign-in: "sam" / "jellyfin-pass".

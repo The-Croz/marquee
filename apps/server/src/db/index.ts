@@ -463,6 +463,14 @@ const migrations: string[] = [
   ALTER TABLE series ADD COLUMN poster_color TEXT;
   ALTER TABLE series ADD COLUMN poster_color_for TEXT;
   `,
+  /* 24: movies' US cinema, digital and disc dates for the calendar; more of what qBittorrent says about a download */ `
+  ALTER TABLE movies ADD COLUMN cinema_release TEXT;
+  ALTER TABLE movies ADD COLUMN digital_release TEXT;
+  ALTER TABLE movies ADD COLUMN physical_release TEXT;
+  ALTER TABLE downloads ADD COLUMN upload_speed INTEGER;
+  ALTER TABLE downloads ADD COLUMN peers INTEGER;
+  ALTER TABLE downloads ADD COLUMN uploaded INTEGER;
+  `,
 ];
 
 export function openDb(file: string): Db {

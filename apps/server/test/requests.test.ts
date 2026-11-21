@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { DiscoverPage, DiscoverTitle, NotificationInboxItem, RequestView } from '@marquee/shared';
+import type { DiscoverPage, DiscoverTitle, NotificationInboxItem, RequestView, ServiceTop } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { FakeQbit, fakeFetchTorrent } from './fakes/qbittorrent.js';
 import { FakeSites, release } from './fakes/sources.js';
 import { FakeTmdb } from './fakes/tmdb.js';
+import { FakeStreamingTop } from './fakes/streamingTop.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
 const GB = 1024 ** 3;
@@ -15,8 +16,10 @@ async function setup() {
   sites.feed('http://tpb.test/api', { releases: [release(DUNE, { size: 25 * GB }), release(BLUEY, { size: 1 * GB })] });
   const qbit = new FakeQbit();
   const pushed: { kind: string; title: string; body: string }[] = [];
+  const top = new FakeStreamingTop();
   const t = makeApp({
     clients: {
+      streamingTop: (key) => top.as(key),
       torznab: sites.torznab,
       qbittorrent: (u, n, p) => qbit.as(u, n, p),
       fetchTorrent: fakeFetchTorrent(),
@@ -37,7 +40,7 @@ async function setup() {
   const sam = await person('sam', 'member');
   const ask = (cookie: string, body: object) => call(t.app, 'POST', '/api/requests', body, cookie);
   const inbox = async (cookie: string) => (await call(t.app, 'GET', '/api/notifications', undefined, cookie)).body as { items: NotificationInboxItem[]; unread: number };
-  return { ...t, admin, jessie, kiddo, sam, qbit, pushed, ask, inbox };
+  return { ...t, admin, jessie, kiddo, sam, qbit, pushed, ask, inbox, top };
 }
 
 describe('Requests', () => {
@@ -344,7 +347,7 @@ describe('Discover', () => {
     const t = await setup();
     await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
     const dune = (await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.jessie)).body as DiscoverTitle;
-    expect(dune).toMatchObject({ trailerKey: 'duneTrailer', providers: ['Max'], canRequest: false, note: 'Approved. Marquee is looking for it.' });
+    expect(dune).toMatchObject({ trailerKey: 'duneTrailer', providers: ['HBO Max'], canRequest: false, note: 'Approved. Marquee is looking for it.' });
     await call(t.app, 'PUT', '/api/discover/prefs', { hiddenServices: [], trailers: false }, t.jessie);
     expect(((await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.jessie)).body as DiscoverTitle).trailerKey).toBeNull();
     const sev = (await call(t.app, 'GET', '/api/discover/title/series/95396', undefined, t.jessie)).body as DiscoverTitle;
@@ -389,5 +392,89 @@ describe('Top 10 on a service', () => {
     expect(kid.movies).toEqual([]);
     expect(kid.shows.map((m) => m.title)).toEqual(['Sesame Street']);
     expect((await call(t.app, 'GET', '/api/discover/top?service=nope', undefined, t.admin)).status).toBe(400);
+  });
+
+  const topOf = async (t: Awaited<ReturnType<typeof setup>>, service: string, cookie: string) => (await call(t.app, 'GET', `/api/discover/top?service=${service}`, undefined, cookie)).body as ServiceTop;
+
+  it('without a Streaming Availability key it isn’t numbered, and admins are told how to get the real one', async () => {
+    const t = await setup();
+    const admin = await topOf(t, 'disney', t.admin);
+    expect(admin.ranked).toBe(false);
+    expect(admin.note).toMatch(/Streaming Availability key in Settings → Services/);
+    expect((await topOf(t, 'disney', t.jessie)).note).toBeNull();
+  });
+
+  it('with a key it is the service’s own Top 10, in its order, kept to kid-safe titles for kids', async () => {
+    const t = await setup();
+    t.top.lists = { disney: { movie: [1241982, 1022789], series: [82728] }, hbo: { movie: [603], series: [502] } };
+    expect((await call(t.app, 'PUT', '/api/settings/services', { streamingTopKey: 'good-top-key' }, t.admin)).status).toBe(200);
+    const disney = await topOf(t, 'disney', t.admin);
+    expect(disney).toMatchObject({ ranked: true, note: null });
+    expect(disney.movies.map((m) => m.title)).toEqual(['Moana 2', 'Inside Out 2']);
+    expect(disney.shows.map((m) => m.title)).toEqual(['Bluey']);
+    // HBO Max asks Streaming Availability for "hbo"; nothing on its list is for kids.
+    const kid = await topOf(t, 'max', t.kiddo);
+    expect(kid.ranked).toBe(true);
+    expect(kid.movies).toEqual([]);
+    expect(t.top.calls).toContain('hbo:movie');
+  });
+
+  it('a service with no Top 10 there, or a key turned down, falls back to popular titles and says why', async () => {
+    const t = await setup();
+    await call(t.app, 'PUT', '/api/settings/services', { streamingTopKey: 'good-top-key' }, t.admin);
+    const peacock = await topOf(t, 'peacock', t.admin);
+    expect(peacock.ranked).toBe(false);
+    expect(peacock.note).toMatch(/Peacock doesn’t share a Top 10/);
+    expect(t.top.calls.some((c) => c.startsWith('peacock'))).toBe(false);
+    expect(peacock.movies.length).toBeGreaterThan(0);
+    await call(t.app, 'PUT', '/api/settings/services', { streamingTopKey: 'wrong' }, t.admin);
+    const bad = await topOf(t, 'disney', t.admin);
+    expect(bad.ranked).toBe(false);
+    expect(bad.note).toMatch(/turned the key down/);
+    expect(bad.movies.map((m) => m.title)).toContain('Inside Out 2');
+  });
+
+  it('Paramount+ counts every TMDB id it has, not just the old one', async () => {
+    const t = await setup();
+    const p = await topOf(t, 'paramount', t.admin);
+    expect(p.movies.map((m) => m.title)).toContain('Gladiator II');
+  });
+
+  it('tests the Streaming Availability key from Settings → Services', async () => {
+    const t = await setup();
+    const ok = await call(t.app, 'POST', '/api/settings/services/test', { service: 'streamingTop', apiKey: 'good-top-key' }, t.admin);
+    expect(ok.body).toMatchObject({ ok: true });
+    const bad = await call(t.app, 'POST', '/api/settings/services/test', { service: 'streamingTop', apiKey: 'nope-nope' }, t.admin);
+    expect(bad.body).toMatchObject({ ok: false, message: expect.stringMatching(/turned the key down/) });
+    const view = (await call(t.app, 'GET', '/api/settings/services', undefined, t.admin)).body as { streamingTop: { configured: boolean } };
+    expect(view.streamingTop.configured).toBe(false);
+  });
+});
+
+describe('Discover search', () => {
+  it('finds movies and shows with where they stand, and keeps kids to kid-safe ones', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    const r = (await call(t.app, 'GET', '/api/discover/search?q=dune', undefined, t.jessie)).body as { results: { title: string; state: string; kind: string }[] };
+    expect(r.results.find((x) => x.title === 'Dune: Part Two')).toMatchObject({ kind: 'movie', state: 'downloading' });
+    const kid = (await call(t.app, 'GET', '/api/discover/search?q=dune', undefined, t.kiddo)).body as { results: unknown[] };
+    expect(kid.results).toEqual([]);
+    expect((await call(t.app, 'GET', '/api/discover/search?q=', undefined, t.jessie)).status).toBe(400);
+  });
+});
+
+describe('Discover row order', () => {
+  it('puts the everyday rows first, Latest releases right after Trending, and the “because you…” rows last', async () => {
+    const t = await setup();
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 });
+    await t.ask(t.admin, { kind: 'movie', tmdbId: 1022789 });
+    await t.ask(t.admin, { kind: 'series', tmdbId: 95396 });
+    const page = (await call(t.app, 'GET', '/api/discover', undefined, t.admin)).body as DiscoverPage;
+    const ids = page.rows.map((r) => r.id);
+    const personal = ids.map((id, i) => (id.startsWith('because') || id === 'top-picks' ? i : -1)).filter((i) => i >= 0);
+    const everyday = ids.map((id, i) => (id.startsWith('because') || id === 'top-picks' ? -1 : i)).filter((i) => i >= 0);
+    expect(personal.length).toBeGreaterThan(0);
+    expect(Math.min(...personal)).toBeGreaterThan(Math.max(...everyday));
+    if (ids.includes('latest')) expect(ids.indexOf('latest')).toBe(ids.indexOf('trending') + 1);
   });
 });
