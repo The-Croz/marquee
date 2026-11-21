@@ -6,7 +6,7 @@ import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes, posterTransition } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { PageHeader, Tabs } from '../components/Page';
-import { useToast } from '../components/Overlay';
+import { Menu, MenuDivider, menuItemClass, useToast } from '../components/Overlay';
 import { refreshLibrary } from '../components/Wanted';
 import { SearchBox } from './Search';
 
@@ -20,8 +20,8 @@ const PHASE: Record<ScanStatusView['phase'], string> = {
   failed: 'Scan failed',
 };
 
-/** Scan button + live progress. Admins only. */
-export function ScanPanel() {
+/** The library scan: its status, the folders needing a match, and a way to start one. */
+function useScan() {
   const [error, setError] = useState<string | null>(null);
   const { data: status } = useQuery({
     queryKey: ['scan'],
@@ -46,54 +46,57 @@ export function ScanPanel() {
       await api('/library/scan', { body: {} });
       await queryClient.invalidateQueries({ queryKey: ['scan'] });
     } catch (e) {
-      setError(e instanceof ApiFailure ? e.message : "Couldn't start the scan.");
+      setError(e instanceof ApiFailure ? e.message : "Couldn't start the scan. Try again in a moment.");
     }
   }
+  return { status, needMatch: unmatched?.items.length ?? 0, scan, error };
+}
 
-  const pct = status && status.total > 0 ? Math.round((status.processed / status.total) * 100) : 0;
-  const needMatch = unmatched?.items.length ?? 0;
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-4 sm:flex-row sm:items-center sm:gap-5">
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-body font-semibold">{status ? PHASE[status.phase] : 'Library'}</span>
-          {status?.running && (
-            <span className="text-sm text-muted">
-              {status.processed} of {status.total} folders · {status.matched} matched
-            </span>
-          )}
-          {!status?.running && status?.phase === 'done' && (
-            <span className="text-sm text-muted">
-              {status.matched} matched{status.unmatched ? ` · ${status.unmatched} ${status.unmatched === 1 ? 'needs' : 'need'} a match` : ''}
-              {status.finishedAt ? ` · ${new Date(status.finishedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
-            </span>
-          )}
-          {needMatch > 0 && (
-            <Link to="/library/unmatched" className="text-sm font-semibold">
-              {needMatch} {needMatch === 1 ? 'folder needs' : 'folders need'} a match →
-            </Link>
-          )}
-        </div>
-        {status?.running && <Progress value={pct} />}
-        {status?.error && <span className="text-sm text-warn">{status.error}</span>}
-        {!status?.running && (status?.warnings.length ?? 0) > 0 && (
-          <details className="text-sm text-muted">
-            <summary className="cursor-pointer text-warn">{status!.warnings.length} warning{status!.warnings.length > 1 ? 's' : ''}</summary>
-            <ul className="mt-2 flex flex-col gap-1 pl-4">
-              {status!.warnings.map((w) => (
-                <li key={w} className="list-disc break-words">
-                  {w}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-        {error && <span className="text-sm text-warn">{error}</span>}
+/**
+ * The scan only takes room on the page when there's something to say: it
+ * has never run, it's running, it failed, or it left warnings. Otherwise
+ * "Scan for new files" lives in the ⋯ menu.
+ */
+function ScanStatusLine({ scan }: { scan: ReturnType<typeof useScan> }) {
+  const { status, error } = scan;
+  if (!status) return null;
+  const pct = status.total > 0 ? Math.round((status.processed / status.total) * 100) : 0;
+  if (status.phase === 'idle') {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel p-4">
+        <span className="flex-1 text-sm text-soft">Marquee hasn’t read your library folders yet. It doesn’t move or change anything.</span>
+        <Button onClick={scan.scan}>Scan library</Button>
       </div>
-      <Button onClick={scan} disabled={status?.running} variant={status?.phase === 'idle' ? 'primary' : 'ghost'}>
-        {status?.running ? 'Scanning…' : status?.phase === 'idle' ? 'Scan library' : 'Scan again'}
-      </Button>
+    );
+  }
+  const warnings = !status.running ? status.warnings : [];
+  if (!status.running && !status.error && !error && warnings.length === 0) return null;
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-xl border border-line bg-panel px-4 py-3 text-sm">
+      {status.running && (
+        <>
+          <span className="text-soft">
+            {PHASE[status.phase]} {status.processed} of {status.total} folders · {status.matched} matched
+          </span>
+          <Progress value={pct} />
+        </>
+      )}
+      {status.error && <span className="text-warn">{status.error} Try “Scan for new files” in the ⋯ menu again.</span>}
+      {error && <span className="text-warn">{error}</span>}
+      {warnings.length > 0 && (
+        <details className="text-muted">
+          <summary className="cursor-pointer text-warn">
+            The last scan left {warnings.length} warning{warnings.length > 1 ? 's' : ''}
+          </summary>
+          <ul className="mt-2 flex flex-col gap-1 pl-4">
+            {warnings.map((w) => (
+              <li key={w} className="list-disc break-words">
+                {w}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }
@@ -135,6 +138,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
   const toast = useToast();
+  const scan = useScan();
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
   const { data, isLoading } = useQuery({
     queryKey: ['library', kind, q, filter, sort, wantedFilter],
@@ -205,7 +209,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
         ]}
       />
 
-      {user.role === 'admin' && <ScanPanel />}
+      {isAdmin && <ScanStatusLine scan={scan} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <label htmlFor="lib-q" className="sr-only">
@@ -254,18 +258,63 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               <option value="yes">Wanted</option>
               <option value="no">Not wanted</option>
             </select>
-            <Button
+            {selecting && (
+              <Button type="button" variant="ghost" onClick={() => (setSelecting(false), setPicked(new Set()))}>
+                Done choosing
+              </Button>
+            )}
+          </>
+        )}
+        {isAdmin && (
+          <Menu
+            label={`More for ${title.toLowerCase()}`}
+            className="ml-auto w-auto"
+            trigger={
+              <span className="flex h-11 items-center gap-2 rounded-xl border border-line bg-panel px-3.5 text-sm font-medium text-soft">
+                {scan.status?.running ? 'Scanning…' : 'More'}
+                <span aria-hidden="true" className="text-lg leading-none">
+                  ⋯
+                </span>
+              </span>
+            }
+          >
+            <button type="button" role="menuitem" className={menuItemClass} disabled={scan.status?.running} onClick={() => void scan.scan()}>
+              {scan.status?.running ? 'Scanning your folders…' : 'Scan for new files'}
+            </button>
+            {scan.status?.finishedAt && !scan.status.running && (
+              <span className="px-3 pb-1.5 text-caption text-dim">
+                Last scan {new Date(scan.status.finishedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {scan.status.matched} matched
+              </span>
+            )}
+            <Link to="/library/unmatched" role="menuitem" className={menuItemClass}>
+              {scan.needMatch > 0 ? `${scan.needMatch} ${scan.needMatch === 1 ? 'folder needs' : 'folders need'} a match` : 'Folders that need a match'}
+            </Link>
+            <MenuDivider />
+            <button
               type="button"
-              variant="ghost"
-              aria-pressed={selecting}
+              role="menuitem"
+              className={menuItemClass}
               onClick={() => {
                 setSelecting(!selecting);
                 setPicked(new Set());
               }}
             >
-              {selecting ? 'Done' : 'Choose several'}
-            </Button>
-          </>
+              {selecting ? 'Stop choosing' : 'Choose several…'}
+            </button>
+            <Link to={`/search?kind=${kind}`} role="menuitem" className={menuItemClass}>
+              {kind === 'movie' ? 'Add a movie' : 'Add a show'}
+            </Link>
+            <Link to="/calendar" role="menuitem" className={menuItemClass}>
+              What’s coming out
+            </Link>
+            <MenuDivider />
+            <Link to="/settings/quality" role="menuitem" className={menuItemClass}>
+              Quality profiles
+            </Link>
+            <Link to="/settings/services" role="menuitem" className={menuItemClass}>
+              Library folders and file names
+            </Link>
+          </Menu>
         )}
       </div>
       {selecting && (

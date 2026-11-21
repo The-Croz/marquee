@@ -287,6 +287,9 @@ export class LibraryScanner {
       companies: JSON.stringify(d.companies),
       keywords: JSON.stringify(d.keywords),
       releaseDate: d.releaseDate,
+      cinemaRelease: d.cinemaRelease ?? null,
+      digitalRelease: d.digitalRelease ?? null,
+      physicalRelease: d.physicalRelease ?? null,
       refreshedAt: this.now(),
     };
     const current = this.db.select().from(movies).where(eq(movies.tmdbId, tmdbId)).get();

@@ -27,6 +27,9 @@ export function makeApp(opts: TestOptions = {}) {
     arr: () => {
       throw new Error('no Radarr/Sonarr in this test');
     },
+    streamingTop: () => {
+      throw new Error('no Streaming Availability in this test');
+    },
     torznab: () => {
       throw new Error('no Torznab feeds in this test');
     },

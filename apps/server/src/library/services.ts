@@ -11,6 +11,8 @@ import { DEFAULT_MOVIE_PATTERN, DEFAULT_TV_PATTERN } from './naming.js';
 
 export interface ServiceSettings {
   tmdbApiKey: string | null;
+  /** Streaming Availability (RapidAPI or Movie of the Night), for the services' own Top 10s. Optional. */
+  streamingTopKey: string | null;
   radarrUrl: string | null;
   radarrApiKey: string | null;
   sonarrUrl: string | null;
@@ -21,6 +23,7 @@ export interface ServiceSettings {
 
 const KEYS = {
   tmdbApiKey: 'services.tmdb_api_key',
+  streamingTopKey: 'services.streaming_top_key',
   radarrUrl: 'services.radarr_url',
   radarrApiKey: 'services.radarr_api_key',
   sonarrUrl: 'services.sonarr_url',
@@ -33,6 +36,7 @@ export function readServices(db: Db, config: Config): ServiceSettings {
   const get = (k: keyof ServiceSettings) => getSetting(db, KEYS[k]) || null;
   return {
     tmdbApiKey: get('tmdbApiKey') ?? config.tmdbApiKey,
+    streamingTopKey: get('streamingTopKey'),
     radarrUrl: get('radarrUrl'),
     radarrApiKey: get('radarrApiKey'),
     sonarrUrl: get('sonarrUrl'),

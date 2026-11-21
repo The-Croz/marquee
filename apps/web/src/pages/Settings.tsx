@@ -418,7 +418,7 @@ function UsersAdmin({ status }: Ctx) {
 
 // ---------------- Services (admin) ----------------
 
-function ServiceTest({ service, getValues }: { service: 'tmdb' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
+function ServiceTest({ service, getValues }: { service: 'tmdb' | 'streamingTop' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
   const [result, setResult] = useState<ServiceTestResult | null>(null);
   const [busy, setBusy] = useState(false);
   async function test() {
@@ -599,7 +599,7 @@ function ServicesAdmin() {
       if (d.has(k)) body[k] = String(d.get(k) ?? '');
     }
     // Blank secret fields mean "keep what's saved".
-    for (const k of ['tmdbApiKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
+    for (const k of ['tmdbApiKey', 'streamingTopKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
       const v = String(d.get(k) ?? '').trim();
       if (v) body[k] = v;
     }
@@ -607,6 +607,7 @@ function ServicesAdmin() {
     try {
       await api('/settings/services', { method: 'PUT', body });
       await queryClient.invalidateQueries({ queryKey: ['services'] });
+      await queryClient.invalidateQueries({ queryKey: ['discover'] });
       (e.target as HTMLFormElement).querySelectorAll<HTMLInputElement>('input[type=password]').forEach((i) => (i.value = ''));
       setMessage({ tone: 'success', text: 'Saved.' });
     } catch (err) {
@@ -618,6 +619,13 @@ function ServicesAdmin() {
     await api('/settings/services', { method: 'PUT', body: kind === 'plex' ? { plexUrl: null, plexToken: null } : { jellyfinUrl: null, jellyfinApiKey: null } });
     await queryClient.invalidateQueries({ queryKey: ['services'] });
     setMessage({ tone: 'success', text: `${kind === 'plex' ? 'Plex' : 'Jellyfin'} disconnected.` });
+  }
+
+  async function clearTop() {
+    await api('/settings/services', { method: 'PUT', body: { streamingTopKey: null } });
+    await queryClient.invalidateQueries({ queryKey: ['services'] });
+    await queryClient.invalidateQueries({ queryKey: ['discover'] });
+    setMessage({ tone: 'success', text: 'Key removed. Discover shows what’s popular on each service instead.' });
   }
 
   async function clear(field: 'radarr' | 'sonarr') {
@@ -649,6 +657,29 @@ function ServicesAdmin() {
           hint={data.tmdb.fromEnvironment ? 'Using the key from the container settings. Enter one here to override it.' : savedHint(data.tmdb.configured)}
         />
         <ServiceTest service="tmdb" getValues={() => ({ apiKey: val('tmdbApiKey') })} />
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">
+            Streaming Top 10s <span className="text-sm font-normal text-dim">optional</span>
+          </h2>
+          <p className="m-0 mt-1 text-sm text-muted">
+            Discover’s Top 10s for Netflix, HBO Max, Disney+, Apple TV, Prime Video, Hulu and Paramount+ come from Streaming Availability. Without a key Discover shows what’s popular on each service instead, without numbers.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About Streaming Top 10s">
+              TMDB only knows what’s popular overall, so its “popular on a service” repeats the same big titles everywhere. Streaming Availability has each service’s own list. Get a free key at movieofthenight.com or on RapidAPI (either works). Marquee keeps each list 12 hours, so it uses a few dozen calls a day at most. Peacock doesn’t share a Top 10.
+            </InfoTip>
+          </p>
+        </div>
+        <Field label="API key" name="streamingTopKey" id="streamingTopKey" type="password" autoComplete="off" placeholder={data.streamingTop.configured ? '••••••••••••' : ''} hint={savedHint(data.streamingTop.configured)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <ServiceTest service="streamingTop" getValues={() => ({ apiKey: val('streamingTopKey') })} />
+          {data.streamingTop.configured && (
+            <button type="button" onClick={clearTop} className="h-11 text-sm font-medium text-warn">
+              Remove the key
+            </button>
+          )}
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-4">

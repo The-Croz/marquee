@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { DiscoverCard, DiscoverPage, DiscoverPrefs, ServiceChip, ServiceTop } from '@marquee/shared';
@@ -26,7 +26,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-function Ranked({ title, cards, trailers }: { title: string; cards: DiscoverCard[]; trailers: boolean }) {
+function Ranked({ title, cards, trailers, numbered }: { title: string; cards: DiscoverCard[]; trailers: boolean; numbered: boolean }) {
   const scroller = useRef<HTMLDivElement>(null);
   if (!cards.length) return null;
   return (
@@ -36,9 +36,11 @@ function Ranked({ title, cards, trailers }: { title: string; cards: DiscoverCard
         {cards.map((c, i) => (
           <div key={`${c.kind}${c.tmdbId}`} className="relative flex-none">
             <TitleCard card={c} trailers={trailers} />
-            <span aria-hidden="true" className="pointer-events-none absolute bottom-14 left-1 font-display text-display-lg leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.9)]">
-              {i + 1}
-            </span>
+            {numbered && (
+              <span aria-hidden="true" className="pointer-events-none absolute bottom-14 left-1 font-display text-display-lg leading-none text-white [text-shadow:0_2px_14px_rgba(0,0,0,.9)]">
+                {i + 1}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -46,7 +48,11 @@ function Ranked({ title, cards, trailers }: { title: string; cards: DiscoverCard
   );
 }
 
-/** Small chips for each streaming service; pick one to see its top 10 movies and top 10 shows. */
+/**
+ * Small chips for each streaming service; pick one to see its Top 10 movies
+ * and shows. Numbered only when they're the service's own Top 10; otherwise
+ * it's TMDB's "popular on it", and admins are told how to get the real one.
+ */
 function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: 'all' | 'movie' | 'series'; trailers: boolean }) {
   const saved = (() => {
     try {
@@ -69,7 +75,7 @@ function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: '
   return (
     <section aria-labelledby="top10" className="flex flex-col gap-3">
       <h2 id="top10" className="m-0 text-xl font-semibold">
-        Top 10 on your services
+        {data && !data.ranked ? 'Popular on your services' : 'Top 10 on your services'}
       </h2>
       <div role="group" aria-label="Streaming service" className="-mx-5 flex gap-1 overflow-x-auto px-5 sm:-mx-10 sm:px-10">
         {services.map((s) => (
@@ -79,8 +85,20 @@ function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: '
         ))}
       </div>
       {isLoading && <div className="h-[260px] animate-pulse rounded-xl bg-panel" />}
-      {data && type !== 'series' && <Ranked title={`Top 10 movies on ${svc.name}`} cards={data.movies} trailers={trailers} />}
-      {data && type !== 'movie' && <Ranked title={`Top 10 shows on ${svc.name}`} cards={data.shows} trailers={trailers} />}
+      {data?.note && (
+        <p className="m-0 max-w-[720px] text-sm text-muted">
+          {data.note}
+          {/Settings → Services/.test(data.note) && (
+            <>
+              {' '}
+              <Link to="/settings/services">Open Settings → Services</Link>
+            </>
+          )}
+        </p>
+      )}
+      {data && type !== 'series' && <Ranked title={`${data.ranked ? 'Top 10' : 'Popular'} movies on ${svc.name}`} cards={data.movies} trailers={trailers} numbered={data.ranked} />}
+      {data && type !== 'movie' && <Ranked title={`${data.ranked ? 'Top 10' : 'Popular'} shows on ${svc.name}`} cards={data.shows} trailers={trailers} numbered={data.ranked} />}
+      {data && data.movies.length === 0 && data.shows.length === 0 && <p className="m-0 text-sm text-muted">Nothing to show for {svc.name} right now. Try another service.</p>}
     </section>
   );
 }
@@ -103,10 +121,66 @@ function Loading() {
   );
 }
 
+/** Search results: posters you can open and ask for. */
+function Results({ q, type, trailers }: { q: string; type: 'all' | 'movie' | 'series'; trailers: boolean }) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['discover', 'search', q, type],
+    queryFn: () => api<{ results: DiscoverCard[] }>(`/discover/search?${new URLSearchParams({ q, type })}`),
+    staleTime: 5 * 60_000,
+  });
+  return (
+    <section aria-labelledby="results-h" className="flex flex-col gap-4">
+      <h2 id="results-h" className="m-0 text-xl font-semibold">
+        Results for “{q}”
+      </h2>
+      {error && <Notice tone="error">{error instanceof ApiFailure ? error.message : 'Search didn’t work. Try again.'}</Notice>}
+      {isLoading && <p className="m-0 text-muted">Searching…</p>}
+      {data && data.results.length === 0 && <p className="m-0 text-muted">Nothing found for that. Try fewer words, or check the spelling.</p>}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-[18px] gap-y-6">
+        {data?.results.map((c) => (
+          <TitleCard key={`${c.kind}${c.tmdbId}`} card={c} trailers={trailers} className="w-auto" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DiscoverSearch({ q, onSearch }: { q: string; onSearch: (q: string) => void }) {
+  const [text, setText] = useState(q);
+  useEffect(() => setText(q), [q]);
+  return (
+    <form
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSearch(text.trim());
+      }}
+      className="flex w-full min-w-0 gap-2 sm:w-[420px]"
+    >
+      <label htmlFor="discover-q" className="sr-only">
+        Search movies and shows
+      </label>
+      <input
+        id="discover-q"
+        type="search"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          // Clearing the box goes back to the rows.
+          if (!e.target.value) onSearch('');
+        }}
+        placeholder="Search movies and shows"
+        className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-panel px-[18px] text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
+      />
+    </form>
+  );
+}
+
 export function DiscoverPageView() {
   const [params, setParams] = useSearchParams();
   const type = (params.get('type') ?? 'all') as 'all' | 'movie' | 'series';
   const genre = params.get('genre') ?? '';
+  const q = params.get('q') ?? '';
   const set = (k: string, v: string) => {
     const next = new URLSearchParams(params);
     if (v && v !== 'all') next.set(k, v);
@@ -123,7 +197,7 @@ export function DiscoverPageView() {
 
   return (
     <>
-      <PageHeader title="Discover" />
+      <PageHeader title="Discover" actions={<DiscoverSearch q={q} onSearch={(v) => set('q', v)} />} />
 
       <div className="flex flex-col gap-3">
         <div role="group" aria-label="Show" className="flex flex-wrap gap-2">
@@ -135,7 +209,7 @@ export function DiscoverPageView() {
           <label htmlFor="genre" className="sr-only">
             Genre
           </label>
-          <select id="genre" value={genre} onChange={(e) => set('genre', e.target.value)} className="h-11 rounded-full border border-line bg-panel px-4 text-sm text-text">
+          <select id="genre" hidden={!!q} value={genre} onChange={(e) => set('genre', e.target.value)} className="h-11 rounded-full border border-line bg-panel px-4 text-sm text-text">
             <option value="">Any genre</option>
             {(data?.genres ?? []).map((g) => (
               <option key={g} value={g}>
@@ -146,17 +220,22 @@ export function DiscoverPageView() {
         </div>
       </div>
 
-      {error && <Notice tone="error">{error instanceof ApiFailure ? error.message : 'Discover couldn’t load.'}{error instanceof ApiFailure && error.code === 'tmdb_missing' && <> <Link to="/settings/services">Settings → Services</Link></>}</Notice>}
-      {isLoading && <Loading />}
-      {data && (
+      {q && <Results q={q} type={type} trailers={trailers} />}
+      {!q && error && <Notice tone="error">{error instanceof ApiFailure ? error.message : 'Discover couldn’t load.'}{error instanceof ApiFailure && error.code === 'tmdb_missing' && <> <Link to="/settings/services">Settings → Services</Link></>}</Notice>}
+      {!q && isLoading && <Loading />}
+      {!q && data && (
         <>
           {data.hero.length > 0 && <Hero items={data.hero} />}
           {data.rows.length === 0 && <Notice>Nothing to show for this mix yet. Try another genre.</Notice>}
-          {data.rows.slice(0, 1).map((r) => (
+          {/* Trending, then the services' Top 10s, then Latest releases, then the rest ("because you…" rows come last from the server). */}
+          {data.rows.filter((r) => r.id !== 'latest').slice(0, 1).map((r) => (
             <Row key={r.id} row={r} trailers={trailers} />
           ))}
           {!genre && data.services.length > 0 && <TopTen services={data.services} type={type} trailers={trailers} />}
-          {data.rows.slice(1).map((r) => (
+          {data.rows.filter((r) => r.id === 'latest').map((r) => (
+            <Row key={r.id} row={r} trailers={trailers} />
+          ))}
+          {data.rows.filter((r) => r.id !== 'latest').slice(1).map((r) => (
             <Row key={r.id} row={r} trailers={trailers} />
           ))}
           <p className="m-0 text-xs text-dim">Movie and show information from TMDB. Where to watch comes from JustWatch through TMDB.</p>

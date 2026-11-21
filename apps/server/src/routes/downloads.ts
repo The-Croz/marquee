@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { DownloadActionResult, DownloadsView, SendResult } from '@marquee/shared';
+import type { DownloadActionResult, DownloadDetails, DownloadsView, SendResult } from '@marquee/shared';
 import { requireAdmin, type Ctx, type Env } from '../http.js';
 import { sendCopy } from '../downloads/send.js';
 import { sharedMonitor, type DownloadMonitor } from '../downloads/monitor.js';
@@ -27,6 +27,11 @@ downloadRoutes.post('/', async (c) => {
   const { db, copies, clients, now } = c.get('deps');
   const result = await sendCopy({ db, copies, now, qbittorrent: clients.qbittorrent, fetchTorrent: clients.fetchTorrent }, input, user.id);
   return c.json<SendResult>(result, 201);
+});
+
+downloadRoutes.get('/:id{[0-9]+}', async (c) => {
+  requireAdmin(c);
+  return c.json<DownloadDetails>(await monitorFor(c).details(id(c)));
 });
 
 downloadRoutes.post('/:id{[0-9]+}/pause', async (c) => {

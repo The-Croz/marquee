@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { DownloadStatus, DownloadView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { movies, series, type Download } from '../db/schema.js';
+import { movies, profiles, series, type Download } from '../db/schema.js';
 import { readDownloader } from './service.js';
 import { seedRule, sharingProgress, type SeedRule } from './seeding.js';
 
@@ -111,6 +111,7 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
     titleName = `${sh?.title ?? 'A show'}${which}`;
     titleLink = `/shows/${d.seriesId}`;
   }
+  const active = d.state === 'sent' || d.state === 'downloading';
   return {
     id: d.id,
     kind: d.kind,
@@ -137,5 +138,15 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
     canImport: !d.adopted && d.state === 'done' && !d.importedAt,
     canRemoveShared: !d.adopted && d.state === 'done' && !!d.importedAt,
     importedPaths: d.importedPaths ? (JSON.parse(d.importedPaths) as string[]) : null,
+    // Speeds and time left only mean something while it's coming in.
+    speed: active ? d.speed : null,
+    uploadSpeed: d.state === 'removed' || d.state === 'failed' ? null : d.uploadSpeed,
+    eta: active && d.eta !== null && d.eta < 8640000 ? d.eta : null,
+    seeds: d.seeds,
+    peers: d.peers,
+    ratio: d.ratio,
+    uploaded: d.uploaded,
+    finishedAt: d.finishedAt,
+    profileName: d.profile ? (db.select({ name: profiles.name }).from(profiles).where(and(eq(profiles.key, d.profile), eq(profiles.kind, d.kind))).get()?.name ?? d.profile) : null,
   };
 }

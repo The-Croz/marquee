@@ -7,6 +7,7 @@ import type { OidcProvider } from './auth/oidc.js';
 import type { PlexClient } from './auth/plex.js';
 import type { RateLimiter } from './auth/rateLimit.js';
 import { SESSION_COOKIE, SESSION_TTL, createSession } from './auth/sessions.js';
+import type { StreamingTopApi } from './discover/streamingTop.js';
 import type { TmdbApi } from './library/tmdb.js';
 import type { ArrApi } from './library/arr.js';
 import type { LibraryScanner } from './library/scanner.js';
@@ -21,6 +22,8 @@ import type { PushClient } from './notify/push.js';
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
   tmdb(apiKey: string): TmdbApi;
+  /** The streaming services' own Top 10s (Streaming Availability). */
+  streamingTop(apiKey: string): StreamingTopApi;
   arr(kind: 'radarr' | 'sonarr', url: string, apiKey: string): ArrApi;
   /** qBittorrent (Web API v2). */
   qbittorrent(url: string, username: string, password: string): QbitApi;

@@ -5,12 +5,12 @@ import { markReady, tellNewEpisodes } from '../requests/service.js';
 import path from 'node:path';
 import { and, eq, inArray, isNotNull, isNull, or, lt } from 'drizzle-orm';
 import fs from 'node:fs/promises';
-import type { DownloadActionResult, DownloadsView } from '@marquee/shared';
+import type { DownloadActionResult, DownloadDetails, DownloadsView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { downloads, movies, neverPick, series, type Download } from '../db/schema.js';
 import { HttpError, type Clients } from '../http.js';
 import type { SourceService } from '../sources/service.js';
-import { QbitError, type QbitApi, type QbitFile } from './qbittorrent.js';
+import { QbitError, type QbitApi, type QbitFile, type QbitTorrent } from './qbittorrent.js';
 import { bestPick, searchTitle } from './search.js';
 import { sendFromSearch } from './send.js';
 import { DOWNLOADER_TEXT, readDownloader } from './service.js';
@@ -56,6 +56,23 @@ export function fakeReason(files: QbitFile[]): string | null {
   if (files.some((f) => VIDEO.test(f.name))) return null;
   if (files.some((f) => ARCHIVE.test(f.name))) return 'It only holds archives and no video. Real copies almost never do; this is usually a fake.';
   return 'There’s no video in it.';
+}
+
+/** The swarm and sharing numbers saved on each check, for the Downloads table. */
+const swarm = (t: QbitTorrent) => ({
+  uploadSpeed: t.uploadSpeed ?? null,
+  peers: t.peersConnected === undefined ? null : Math.max(t.peersConnected, t.peersKnown ?? 0),
+  uploaded: t.uploaded ?? null,
+});
+
+/** A tracker's host name only: tracker addresses often carry a private key in the path. */
+export function trackerHost(tracker: string | undefined): string | null {
+  if (!tracker) return null;
+  try {
+    return new URL(tracker).hostname || null;
+  } catch {
+    return null;
+  }
 }
 
 export class DownloadMonitor {
@@ -126,7 +143,10 @@ export class DownloadMonitor {
         continue;
       }
       if (row.state === 'done') {
-        db.update(downloads).set({ savePath: t.savePath, qbitState: t.state, ratio: t.ratio, seedingSeconds: t.seedingSeconds, checkedAt: now() }).where(eq(downloads.id, row.id)).run();
+        db.update(downloads)
+          .set({ savePath: t.savePath, qbitState: t.state, ratio: t.ratio, seedingSeconds: t.seedingSeconds, ...swarm(t), checkedAt: now() })
+          .where(eq(downloads.id, row.id))
+          .run();
         if (!row.importedAt) await this.putInLibrary(row.id);
         else {
           if (row.scanPending && now() - (row.scanTriedAt ?? 0) >= IMPORT_RETRY_MS) await this.tellServers(row.id);
@@ -144,6 +164,8 @@ export class DownloadMonitor {
           speed: t.downloadSpeed,
           eta: t.eta,
           seeds: Math.max(t.seedsConnected, t.seedsKnown),
+          ...swarm(t),
+          ratio: t.ratio,
           savePath: t.savePath,
           checkedAt: now(),
           // Waiting, paused and checking don't count towards "stuck".
@@ -218,6 +240,50 @@ export class DownloadMonitor {
     } catch (err) {
       if (err instanceof QbitError) throw new HttpError(502, 'downloader_failed', `${DOWNLOADER_TEXT[err.kind === 'error' ? 'error' : err.kind].label}: ${err.message}`);
       throw err;
+    }
+  }
+
+  /** Everything qBittorrent says about one download right now, finished or not. Never throws for qBittorrent trouble. */
+  async details(id: number): Promise<DownloadDetails> {
+    const row = this.row(id);
+    const qbit = this.qbit();
+    if (!qbit) return { id, live: null, note: 'qBittorrent isn’t set up, so there’s nothing more to show. Add it in Settings → Downloader.' };
+    try {
+      const [t] = await qbit.torrents([row.infoHash]);
+      if (!t) return { id, live: null, note: 'qBittorrent doesn’t have this one any more, so there’s nothing more to show. The library file, if any, stays.' };
+      const files = await qbit.files(row.infoHash).catch(() => [] as QbitFile[]);
+      return {
+        id,
+        note: null,
+        live: {
+          savePath: t.savePath,
+          contentPath: t.contentPath,
+          category: t.category || null,
+          tags: t.tags ?? [],
+          tracker: trackerHost(t.tracker),
+          size: t.size,
+          progress: t.progress,
+          downloaded: t.downloaded ?? null,
+          uploaded: t.uploaded ?? null,
+          ratio: t.ratio,
+          downloadSpeed: t.downloadSpeed,
+          uploadSpeed: t.uploadSpeed ?? 0,
+          eta: t.eta < 8640000 ? t.eta : null,
+          seedsConnected: t.seedsConnected,
+          seedsKnown: t.seedsKnown,
+          peersConnected: t.peersConnected ?? 0,
+          peersKnown: t.peersKnown ?? 0,
+          addedAt: t.addedOn ?? null,
+          completedAt: t.completedOn ?? null,
+          activeSeconds: t.activeSeconds ?? null,
+          seedingSeconds: t.seedingSeconds,
+          files: files.map((f) => ({ name: f.name, size: f.size, progress: f.progress ?? null })),
+        },
+      };
+    } catch (err) {
+      if (!(err instanceof QbitError)) throw err;
+      const text = DOWNLOADER_TEXT[err.kind === 'error' ? 'error' : err.kind];
+      return { id, live: null, note: `qBittorrent: ${text.label}. ${text.fix ?? ''}`.trim() };
     }
   }
 

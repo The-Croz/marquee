@@ -171,8 +171,8 @@ export class FakeTmdb implements TmdbApi {
   }
   async discover(kind: 'movie' | 'series', q: TmdbDiscoverQuery): Promise<TmdbCard[]> {
     this.check(`discover:${kind}:${JSON.stringify(q)}`);
-    const key = q.provider ? SERVICES.find((x) => x.id === q.provider)?.key : undefined;
-    let out = this.all(kind).filter((c) => (!q.genre || c.genreIds.includes(q.genre)) && (!key || (DISC[c.tmdbId]?.providers ?? []).includes(key)));
+    const keys = q.provider ? SERVICES.filter((x) => x.ids.some((id) => q.provider!.includes(id))).map((x) => x.key as string) : null;
+    let out = this.all(kind).filter((c) => (!q.genre || c.genreIds.includes(q.genre)) && (!keys || (DISC[c.tmdbId]?.providers ?? []).some((p) => keys.includes(p))));
     if (q.from) out = out.filter((c) => (c.date ?? '') >= q.from!);
     if (q.to) out = out.filter((c) => (c.date ?? '') <= q.to!);
     const by = q.sort ?? 'popularity.desc';
