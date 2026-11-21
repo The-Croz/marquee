@@ -61,27 +61,87 @@ export function readTop(body: unknown, kind: 'movie' | 'series'): TopTitle[] {
   return out.slice(0, 10);
 }
 
+/**
+ * Free keys allow only about one call a second, so every client in the app
+ * shares one line: calls go one at a time with a gap. Marquee makes a new
+ * client per request, so which address a key works on, and a short pause
+ * after being asked to slow down, are kept here too.
+ */
+const shared = {
+  line: Promise.resolve() as Promise<unknown>,
+  lastAt: 0,
+  host: new Map<string, number>(),
+  pausedUntil: new Map<string, number>(),
+};
+
+/** Forgets the shared state (tests). */
+export function resetStreamingTop(): void {
+  shared.line = Promise.resolve();
+  shared.lastAt = 0;
+  shared.host.clear();
+  shared.pausedUntil.clear();
+}
+
+const SLOW_DOWN = 'Streaming Availability asked Marquee to slow down. It tries again in a few minutes; until then Discover shows what’s popular on each service.';
+
+export interface StreamingTopOptions {
+  /** Time between calls, ms. */
+  gapMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
 export class StreamingAvailabilityClient implements StreamingTopApi {
-  /** Which host this key works on, once one has answered. */
-  private hostIndex: number | null = null;
+  private readonly gapMs: number;
+  private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(
     private readonly apiKey: string,
     private readonly db: Db,
     private readonly now: () => number = Date.now,
     private readonly fetchImpl: typeof fetch = fetch,
-  ) {}
+    opts: StreamingTopOptions = {},
+  ) {
+    this.gapMs = opts.gapMs ?? 1_100;
+    this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  }
+
+  /** Runs `fn` when it's this call's turn, at least `gapMs` after the last one. */
+  private inLine<T>(fn: () => Promise<T>): Promise<T> {
+    const run = shared.line.then(async () => {
+      const wait = shared.lastAt + this.gapMs - this.now();
+      if (wait > 0) await this.sleep(wait);
+      try {
+        return await fn();
+      } finally {
+        shared.lastAt = this.now();
+      }
+    });
+    shared.line = run.catch(() => undefined);
+    return run;
+  }
+
+  private send(i: number, path: string): Promise<Response> {
+    const h = HOSTS[i]!;
+    const headers: Record<string, string> = { [h.header]: this.apiKey, accept: 'application/json' };
+    if (h.host) headers['X-RapidAPI-Host'] = h.host;
+    return this.inLine(() => this.fetchImpl(`${h.base}${path}`, { headers, signal: AbortSignal.timeout(15_000) }));
+  }
 
   private async call(path: string): Promise<unknown> {
-    const order = this.hostIndex === null ? [0, 1] : [this.hostIndex];
+    if ((shared.pausedUntil.get(this.apiKey) ?? 0) > this.now()) throw new StreamingTopError('limit', SLOW_DOWN);
+    const known = shared.host.get(this.apiKey);
+    const order = known === undefined ? [0, 1] : [known];
     let last: StreamingTopError | null = null;
     for (const i of order) {
-      const h = HOSTS[i]!;
       let res: Response;
       try {
-        const headers: Record<string, string> = { [h.header]: this.apiKey, accept: 'application/json' };
-        if (h.host) headers['X-RapidAPI-Host'] = h.host;
-        res = await this.fetchImpl(`${h.base}${path}`, { headers, signal: AbortSignal.timeout(15_000) });
+        res = await this.send(i, path);
+        if (res.status === 429) {
+          // Usually "too many a second": wait as asked (a few seconds at most) and try once more.
+          const after = Number(res.headers.get('retry-after'));
+          await this.sleep(Math.min(Number.isFinite(after) && after > 0 ? after * 1000 : 2_000, 10_000));
+          res = await this.send(i, path);
+        }
       } catch {
         last = new StreamingTopError('down', 'Streaming Availability didn’t answer. Marquee tries again later.');
         continue;
@@ -90,11 +150,17 @@ export class StreamingAvailabilityClient implements StreamingTopApi {
         last = new StreamingTopError('key', 'Streaming Availability turned the key down. Check it in Settings → Services.');
         continue;
       }
-      if (res.status === 429) throw new StreamingTopError('limit', 'Streaming Availability says the key has used up its calls for now. Marquee shows TMDB’s popular list until it can ask again.');
+      if (res.status === 429) {
+        // The other address may be the one this key belongs to.
+        last = new StreamingTopError('limit', SLOW_DOWN);
+        if (known === undefined) continue;
+        break;
+      }
       if (!res.ok) throw new StreamingTopError('down', `Streaming Availability answered ${res.status}. Marquee tries again later.`);
-      this.hostIndex = i;
+      shared.host.set(this.apiKey, i);
       return res.json();
     }
+    if (last?.kind === 'limit') shared.pausedUntil.set(this.apiKey, this.now() + 5 * 60_000);
     throw last ?? new StreamingTopError('down', 'Streaming Availability didn’t answer.');
   }
 
