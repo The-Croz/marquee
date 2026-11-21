@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { CalendarView, DownloadDetails, DownloadsView, HomeData } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
-import { StreamingAvailabilityClient, readTop } from '../src/discover/streamingTop.js';
+import { StreamingAvailabilityClient, readTop, resetStreamingTop } from '../src/discover/streamingTop.js';
 import { trackerHost } from '../src/downloads/monitor.js';
 import { SERVICES, TmdbClient } from '../src/library/tmdb.js';
 import { comingUp } from '../src/library/airing.js';
@@ -57,6 +57,8 @@ describe('TMDB: services and release kinds', () => {
 });
 
 describe('Streaming Availability client', () => {
+  beforeEach(() => resetStreamingTop());
+  const quick = { gapMs: 0, sleep: async () => {} };
   it('reads TMDB ids from a top list, keeping its order and only the asked-for kind', () => {
     const body = [{ tmdbId: 'tv/1399', title: 'A' }, { tmdbId: 'movie/550', title: 'B' }, { tmdbId: 'movie/551', title: 'C' }, { tmdbId: 'movie/550', title: 'B again' }, { tmdbId: 'odd' }];
     expect(readTop(body, 'movie').map((t) => t.tmdbId)).toEqual([550, 551]);
@@ -75,7 +77,7 @@ describe('Streaming Availability client', () => {
       if (u.startsWith('https://streaming-availability.p.rapidapi.com')) return new Response('{}', { status: 403 });
       return new Response(JSON.stringify([{ tmdbId: 'movie/550' }, { tmdbId: 'movie/603' }]));
     }) as typeof fetch;
-    const c = new StreamingAvailabilityClient('secret-key', t.db, () => now, fetchImpl);
+    const c = new StreamingAvailabilityClient('secret-key', t.db, () => now, fetchImpl, quick);
     expect((await c.top('netflix', 'movie')).map((x) => x.tmdbId)).toEqual([550, 603]);
     expect(seen.map((s) => new URL(s.url).host)).toEqual(['streaming-availability.p.rapidapi.com', 'api.movieofthenight.com']);
     expect(seen[1]!.headers['X-API-Key']).toBe('secret-key');
@@ -90,8 +92,52 @@ describe('Streaming Availability client', () => {
 
   it('says plainly when the key is turned down', async () => {
     const t = makeApp();
-    const c = new StreamingAvailabilityClient('bad', t.db, () => NOW, (async () => new Response('{}', { status: 401 })) as typeof fetch);
+    const c = new StreamingAvailabilityClient('bad', t.db, () => NOW, (async () => new Response('{}', { status: 401 })) as typeof fetch, quick);
     await expect(c.top('netflix', 'series')).rejects.toThrow(/turned the key down/);
+  });
+
+  it('asks one call at a time with a gap, since free keys allow about one a second', async () => {
+    const t = makeApp();
+    let now = NOW;
+    const at: number[] = [];
+    const waits: number[] = [];
+    const fetchImpl = (async (u: string) => {
+      at.push(now);
+      if (u.includes('rapidapi')) return new Response('{}', { status: 403 });
+      return new Response(JSON.stringify([{ tmdbId: 'movie/1' }, { tmdbId: 'tv/2' }]));
+    }) as typeof fetch;
+    const sleep = async (ms: number) => void (waits.push(ms), (now += ms));
+    const c = new StreamingAvailabilityClient('k', t.db, () => now, fetchImpl, { gapMs: 1100, sleep });
+    await Promise.all([c.top('netflix', 'movie'), c.top('netflix', 'series')]);
+    // RapidAPI turned it down, then Movie of the Night answered; never two at once.
+    for (let i = 1; i < at.length; i++) expect(at[i]! - at[i - 1]!).toBeGreaterThanOrEqual(1100);
+    // A new client (Marquee makes one per request) remembers which address the key works on.
+    at.length = 0;
+    const again = new StreamingAvailabilityClient('k', t.db, () => now, fetchImpl, { gapMs: 1100, sleep });
+    await again.top('hbo', 'movie');
+    expect(at).toHaveLength(1);
+  });
+
+  it('a 429 is waited out and tried once more; two in a row pause it for a few minutes with a plain reason', async () => {
+    const t = makeApp();
+    const now = NOW;
+    let busy = 1;
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      if (busy-- > 0) return new Response('{}', { status: 429, headers: { 'retry-after': '1' } });
+      return new Response(JSON.stringify([{ tmdbId: 'movie/7' }]));
+    }) as typeof fetch;
+    const c = new StreamingAvailabilityClient('k2', t.db, () => now, fetchImpl, quick);
+    expect((await c.top('disney', 'movie')).map((x) => x.tmdbId)).toEqual([7]);
+    expect(calls).toBe(2);
+
+    busy = 99;
+    calls = 0;
+    await expect(c.top('disney', 'series')).rejects.toThrow(/asked Marquee to slow down/);
+    const before = calls;
+    await expect(c.top('hulu', 'series')).rejects.toThrow(/slow down/);
+    expect(calls).toBe(before);
   });
 });
 
