@@ -9,6 +9,7 @@ import { LibraryScanner } from '../src/library/scanner.js';
 import type { Clients } from '../src/http.js';
 import { SourceService } from '../src/sources/service.js';
 import type { LogBook } from '../src/system/logs.js';
+import { FakeUnpacker } from './fakes/unpack.js';
 
 export interface TestOptions {
   config?: Partial<Config>;
@@ -67,6 +68,8 @@ export function makeApp(opts: TestOptions = {}) {
     fetchCatalogue: () => {
       throw new Error('no site catalogue in this test');
     },
+    // A fake 7-Zip, so no test depends on one being installed.
+    unpacker: new FakeUnpacker(),
     ...opts.clients,
   };
   const now = opts.now ?? Date.now;

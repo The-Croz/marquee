@@ -185,7 +185,11 @@ describe('spotting fakes', () => {
     expect(fakeReason([])).toBeNull();
     expect(fakeReason([{ name: 'Movie/Movie.mkv', size: 1 }, { name: 'Movie/Sample/sample.mkv', size: 1 }])).toBeNull();
     expect(fakeReason([{ name: 'Movie/Movie.mkv.exe', size: 1 }])).toMatch(/program \(Movie\.mkv\.exe\)/);
-    expect(fakeReason([{ name: 'a.rar', size: 1 }, { name: 'a.r00', size: 1 }, { name: 'password.txt', size: 1 }])).toMatch(/only holds archives/);
+    // A .rar set is unpacked when it finishes (and checked then); other archives alone are still a fake.
+    expect(fakeReason([{ name: 'a.rar', size: 1 }, { name: 'a.r00', size: 1 }, { name: 'password.txt', size: 1 }])).toBeNull();
+    expect(fakeReason([{ name: 'a.part1.rar', size: 1 }, { name: 'a.part2.rar', size: 1 }])).toBeNull();
+    expect(fakeReason([{ name: 'a.r00', size: 1 }, { name: 'a.r01', size: 1 }])).toMatch(/only holds archives that aren’t a \.rar set/);
+    expect(fakeReason([{ name: 'a.zip', size: 1 }, { name: 'password.txt', size: 1 }])).toMatch(/only holds archives/);
     expect(fakeReason([{ name: 'a.txt', size: 1 }])).toMatch(/no video/);
   });
 });

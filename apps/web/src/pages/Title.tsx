@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, MediaFileView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView } from '@marquee/shared';
+import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MediaFileView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView } from '@marquee/shared';
 import { api, ApiFailure, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { DownloadList, useDownloads } from '../components/Downloads';
+import { NeverPickList, copyFacts, useNeverPick } from '../components/History';
 import { Row, Trailer, useRequest } from '../components/Discover';
 import { WantedToggle } from '../components/Wanted';
 import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/Poster';
@@ -165,7 +166,8 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
 
       {info && info.cast.length > 0 && <Cast cast={info.cast} />}
       {info && <Details info={info} kind={kind} />}
-      {admin && lib && <History kind={kind} lib={lib} downloads={dl.filter((d) => !ACTIVE(d))} />}
+      {admin && lib && <History kind={kind} lib={lib} />}
+      {admin && lib && <NeverPick kind={kind} lib={lib} />}
       {info?.similar && <Row row={info.similar} trailers={prefs?.trailers ?? true} />}
       {lib?.path && <p className="m-0 text-xs break-all text-dim">Folder on disk: {lib.path}</p>}
 
@@ -629,19 +631,21 @@ interface Moment {
   tone: 'good' | 'bad' | 'quiet' | 'watch';
 }
 
-/** Downloads, plays and when it arrived, newest first, in one short timeline. */
-function History({ kind, lib, downloads }: { kind: 'movie' | 'series'; lib: MovieDetail | ShowDetail; downloads: DownloadView[] }) {
+/** Downloads (from the History), plays and when it arrived, newest first, in one short timeline. */
+function History({ kind, lib }: { kind: 'movie' | 'series'; lib: MovieDetail | ShowDetail }) {
   const [all, setAll] = useState(false);
+  const filter = kind === 'movie' ? `movieId=${lib.id}` : `seriesId=${lib.id}`;
   const watchers = useQuery({ queryKey: ['watchers', kind === 'movie' ? 'movie' : 'tv', lib.id], queryFn: () => api<WatchersView>(`/activity/watchers?kind=${kind === 'movie' ? 'movie' : 'tv'}&id=${lib.id}`) });
+  const history = useQuery({ queryKey: ['history', `title-${filter}`], queryFn: () => api<HistoryView>(`/history?${filter}&limit=50`), refetchInterval: 30_000 });
+  const tone = { good: 'good', bad: 'bad', quiet: 'quiet', busy: 'quiet' } as const;
   const moments: Moment[] = [
-    ...downloads.map((d): Moment => {
-      const what = kind === 'series' ? d.titleName.split(' · ').slice(1).join(' · ') || null : null;
-      const ok = d.state === 'done';
+    ...(history.data?.items ?? []).map((h): Moment => {
+      const what = kind === 'series' ? h.titleName.split(' · ').slice(1).join(' · ') || null : null;
       return {
-        at: d.addedAt,
-        text: ok ? `Downloaded ${d.quality ?? 'a copy'}${what ? ` of ${what}` : ''}` : d.state === 'failed' ? `A download failed${what ? ` (${what})` : ''}` : `A download was removed${what ? ` (${what})` : ''}`,
-        detail: ok ? [d.sourceName && `from ${d.sourceName}`, d.size && formatBytes(d.size)].filter(Boolean).join(', ') || null : d.status.label,
-        tone: ok ? 'good' : d.state === 'failed' ? 'bad' : 'quiet',
+        at: h.at,
+        text: `${h.label}${what ? ` · ${what}` : ''}`,
+        detail: (h.event === 'sent' ? copyFacts(h) : h.detail) ?? null,
+        tone: tone[h.tone],
       };
     }),
     ...(watchers.data?.watchers ?? []).map(
@@ -676,7 +680,30 @@ function History({ kind, lib, downloads }: { kind: 'movie' | 'series'; lib: Movi
           {all ? 'Show less' : `Show all ${moments.length}`}
         </button>
       )}
-      {kind === 'movie' && downloads.length === 0 && (watchers.data?.watchers.length ?? 0) === 0 && <p className="m-0 text-sm text-dim">Nothing else has happened to it yet.</p>}
+      {kind === 'movie' && (history.data?.items.length ?? 0) === 0 && (watchers.data?.watchers.length ?? 0) === 0 && <p className="m-0 text-sm text-dim">Nothing else has happened to it yet.</p>}
+      {(history.data?.items.length ?? 0) > 0 && (
+        <Link to={`/downloads/history?${filter}`} className="flex min-h-11 items-center self-start text-sm">
+          Every download of it, in the History
+        </Link>
+      )}
+    </section>
+  );
+}
+
+/** Copies turned down for this title, which searches skip, with Remove from list. Only shown when there are some. */
+function NeverPick({ kind, lib }: { kind: 'movie' | 'series'; lib: MovieDetail | ShowDetail }) {
+  const q = useNeverPick(kind === 'movie' ? { movieId: lib.id } : { seriesId: lib.id });
+  const items = q.data?.items ?? [];
+  if (!items.length) return null;
+  return (
+    <section aria-labelledby="never-h" className="flex flex-col gap-2">
+      <h2 id="never-h" className="m-0 text-lg font-semibold">
+        Never pick
+      </h2>
+      <p className="m-0 max-w-[640px] text-sm text-muted">
+        {items.length === 1 ? 'A copy' : `${items.length} copies`} Marquee turned down for this {kind === 'movie' ? 'movie' : 'show'}. Searches skip {items.length === 1 ? 'it' : 'them'}; Remove from list lets Marquee pick {items.length === 1 ? 'it' : 'one'} again.
+      </p>
+      <NeverPickList items={items} showTitle={false} />
     </section>
   );
 }

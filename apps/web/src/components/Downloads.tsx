@@ -127,6 +127,7 @@ function DownloadRow({ d, showTitle }: { d: DownloadView; showTitle: boolean }) 
       {(d.canImport || d.canRemoveShared || (d.canControl && paused)) && !confirmRemove && (
         <div className="flex flex-wrap gap-2">
           {d.canImport && small('Try again', () => act('import'))}
+          {d.canImport && d.canTryAnother && small('Try another copy', () => act('try-another'))}
           {d.canRemoveShared && small('Remove from qBittorrent', () => act('remove', { deleteFiles: true }))}
           {d.canControl && paused && small('Resume', () => act('resume'))}
         </div>
@@ -344,7 +345,7 @@ function TableRow({ d, open, onToggle, cols }: { d: DownloadView; open: boolean;
   const active = d.state === 'sent' || d.state === 'downloading';
   const paused = d.status.label === 'Paused';
   const pct = Math.floor(d.progress * 100);
-  const hasMenu = d.canControl || d.canImport || d.canRemoveShared;
+  const hasMenu = d.canControl || d.canImport || d.canRemoveShared || d.canTryAnother;
   const td = 'px-2 py-2 align-middle';
   return (
     <>
@@ -408,14 +409,14 @@ function TableRow({ d, open, onToggle, cols }: { d: DownloadView; open: boolean;
                     Pause
                   </button>
                 ))}
-              {d.canControl && (
+              {d.canTryAnother && (
                 <button type="button" role="menuitem" className={menuItemClass} disabled={busy} onClick={() => act('try-another')}>
                   Try another copy
                 </button>
               )}
               {d.canImport && (
                 <button type="button" role="menuitem" className={menuItemClass} disabled={busy} onClick={() => act('import')}>
-                  Put it in the library again
+                  Try again
                 </button>
               )}
               {d.canRemoveShared && (

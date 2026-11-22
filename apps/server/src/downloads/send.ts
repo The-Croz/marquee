@@ -1,5 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { DownloadView, SendResult } from '@marquee/shared';
+import { recordHistory } from './history.js';
 import { describeDownload } from './view.js';
 import type { Db } from '../db/index.js';
 import { downloads, type Download } from '../db/schema.js';
@@ -126,6 +127,7 @@ export async function sendFromSearch(
     throw err;
   }
   const saved = db.insert(downloads).values(row).returning().get();
+  recordHistory(db, 'sent', saved, now(), { userId });
   return { download: describeDownload(db, saved, now()), message: `Sent to qBittorrent. It’s in the “${settings.category}” category.` };
 }
 

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { DownloadView } from '@marquee/shared';
-import { ApiFailure } from '../api';
+import { ApiFailure, useAuthStatus } from '../api';
 import { DownloadTable, useDownloads } from '../components/Downloads';
 import { formatBytes } from '../components/Poster';
 import { Notice, cx } from '../components/ui';
-import { PageHeader } from '../components/Page';
+import { PageHeader, Tabs } from '../components/Page';
 
 /**
  * Downloads: everything Marquee sent to qBittorrent (or follows for another
@@ -22,9 +22,26 @@ const SHOW = [
 type Show = (typeof SHOW)[number][0];
 
 const onTheWay = (d: DownloadView) => d.state === 'sent' || d.state === 'downloading';
-const trouble = (d: DownloadView) => d.status.tone === 'bad' || d.status.tone === 'warn' || d.canImport;
+// Finished but not in the library needs a look, unless Marquee is busy with it (putting it there, or unpacking it).
+const trouble = (d: DownloadView) => d.status.tone === 'bad' || d.status.tone === 'warn' || (d.canImport && d.status.tone !== 'busy');
 const matches = (d: DownloadView, show: Show) =>
   show === 'all' ? true : show === 'now' ? onTheWay(d) : show === 'done' ? d.state === 'done' : trouble(d);
+
+/** Downloads, History and Never pick: three views of the same downloads. Admins see all three. */
+export function DownloadsTabs() {
+  const admin = useAuthStatus().data?.user?.role === 'admin';
+  if (!admin) return null;
+  return (
+    <Tabs
+      label="Downloads views"
+      items={[
+        { value: 'now', label: 'Downloads', to: '/downloads' },
+        { value: 'history', label: 'History', to: '/downloads/history' },
+        { value: 'never', label: 'Never pick', to: '/downloads/never-pick' },
+      ]}
+    />
+  );
+}
 
 export function DownloadsPage() {
   const q = useDownloads();
@@ -63,6 +80,7 @@ export function DownloadsPage() {
           </>
         }
       />
+      <DownloadsTabs />
       {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Downloads didn’t load. It tries again by itself every 10 seconds.'}</Notice>}
       {v?.problem && (
         <Notice tone="error">

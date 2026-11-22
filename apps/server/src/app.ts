@@ -17,6 +17,7 @@ import { profileRoutes } from './routes/profiles.js';
 import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { downloaderRoutes } from './routes/downloader.js';
 import { downloadRoutes } from './routes/downloads.js';
+import { historyRoutes, neverPickRoutes } from './routes/history.js';
 import { ActivityMonitor } from './activity/live.js';
 import { activityRoutes } from './routes/activity.js';
 import { watchSyncRoutes } from './routes/watchSync.js';
@@ -91,6 +92,8 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   app.route('/api/settings/profiles', profileRoutes);
   app.route('/api/settings/downloader', downloaderRoutes);
   app.route('/api/downloads', downloadRoutes);
+  app.route('/api/history', historyRoutes);
+  app.route('/api/never-pick', neverPickRoutes);
   app.route('/api/automation', automationRoutes);
   app.route('/api/activity', activityRoutes);
   app.route('/api/watch-sync', watchSyncRoutes);

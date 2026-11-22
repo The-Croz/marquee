@@ -702,6 +702,10 @@ export interface DownloadView {
   canImport: boolean;
   /** In the library and still in qBittorrent: can be removed from qBittorrent (the library file stays). */
   canRemoveShared: boolean;
+  /** "Try another copy" turns this one down and sends the next best: on the way, or finished but not in the library. */
+  canTryAnother: boolean;
+  /** The library file was unpacked from .rar files, so it's its own file rather than a hardlink. */
+  unpacked: boolean;
   /** The library files it became. */
   importedPaths: string[] | null;
   /** From qBittorrent's last check; null before the first one. */
@@ -766,6 +770,56 @@ export interface DownloadsView {
   /** qBittorrent couldn't be checked: its health label and what to do. Null when it answered. */
   problem: { label: string; fix: string | null } | null;
   checkedAt: number | null;
+}
+
+/** What happened to a download, for the History page and a title's History. */
+export type HistoryEvent = 'sent' | 'in_library' | 'upgraded' | 'replaced' | 'removed' | 'import_failed' | 'allowed_again';
+
+export interface HistoryItem {
+  id: number;
+  at: number;
+  event: HistoryEvent;
+  /** "Sent to qBittorrent", "Upgraded"… */
+  label: string;
+  tone: 'good' | 'bad' | 'quiet' | 'busy';
+  kind: 'movie' | 'tv';
+  movieId: number | null;
+  seriesId: number | null;
+  /** "Dune: Part Two (2024)" or "Severance · S02E03". */
+  titleName: string;
+  /** Its page, or null when it's no longer in the library. */
+  titleLink: string | null;
+  /** The copy's name. */
+  copy: string | null;
+  source: string | null;
+  quality: string | null;
+  size: number | null;
+  /** Why, or what else happened. */
+  detail: string | null;
+  /** Who did it, when a person did. */
+  who: string | null;
+}
+
+export interface HistoryView {
+  items: HistoryItem[];
+  /** Pass as `before` for the next (older) page; null when there's no more. */
+  next: string | null;
+}
+
+/** A copy turned down for a title: searches skip it. */
+export interface NeverPickItem {
+  id: number;
+  at: number;
+  kind: 'movie' | 'tv';
+  titleName: string;
+  titleLink: string | null;
+  /** The copy's name. */
+  copy: string;
+  reason: string;
+}
+
+export interface NeverPickView {
+  items: NeverPickItem[];
 }
 
 export interface DownloadActionResult {

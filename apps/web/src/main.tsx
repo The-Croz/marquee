@@ -12,6 +12,7 @@ import { AboutPage, AccountPage, ServicesPage, SettingsLayout, UsersPage } from 
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
 import { DownloadsPage } from './pages/Downloads';
+import { DownloadHistoryPage, NeverPickPage } from './pages/DownloadHistory';
 import { ActivityPage } from './pages/Activity';
 import { MyHistoryPage, PersonPage } from './pages/Person';
 import { CalendarPage } from './pages/Calendar';
@@ -65,6 +66,8 @@ const router = createBrowserRouter([
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },
+      { path: 'downloads/history', element: <RequireUser render={(s) => <AdminOnly status={s}><DownloadHistoryPage /></AdminOnly>} /> },
+      { path: 'downloads/never-pick', element: <RequireUser render={(s) => <AdminOnly status={s}><NeverPickPage /></AdminOnly>} /> },
       { path: 'activity/people/:name', element: <RequireUser render={(s) => <AdminOnly status={s}><PersonPage /></AdminOnly>} /> },
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
       { path: 'quality', element: <Navigate to="/settings/quality" replace /> },

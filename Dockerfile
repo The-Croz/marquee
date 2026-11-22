@@ -41,6 +41,21 @@ RUN apt-get update \
  && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 ENV MARQUEE_SOLVER_BIN=/opt/flaresolverr/flaresolverr
 
+# Unpacks copies that come as .rar files (what Unpackerr did): 7-Zip's
+# official build, 7zz (LGPL with the unRAR restriction; reads RAR 4, RAR5 and
+# sets split into parts). Keep the version and checksum in step with ci.yml.
+ARG SEVENZIP_VERSION=26.06
+ARG SEVENZIP_FILE=7z2606-linux-x64.tar.xz
+ARG SEVENZIP_SHA256=2b539cf067b2ad48e1baa5093dbaa8818b73542d1222a0ffde9dc5f2922ea62e
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+ && curl -fsSL -o /tmp/7z.tar.xz "https://github.com/ip7z/7zip/releases/download/${SEVENZIP_VERSION}/${SEVENZIP_FILE}" \
+ && echo "${SEVENZIP_SHA256}  /tmp/7z.tar.xz" | sha256sum -c - \
+ && tar -xJf /tmp/7z.tar.xz -C /usr/local/bin 7zz && chmod 755 /usr/local/bin/7zz && rm /tmp/7z.tar.xz \
+ && 7zz i | head -n 3 \
+ && apt-get purge -y curl xz-utils && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+ENV MARQUEE_UNPACK_BIN=/usr/local/bin/7zz
+
 WORKDIR /app
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/package.json ./package.json
