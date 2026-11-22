@@ -16,13 +16,13 @@ import { ActivityPage } from './pages/Activity';
 import { MyHistoryPage, PersonPage } from './pages/Person';
 import { CalendarPage } from './pages/Calendar';
 import { DiscoverPageView } from './pages/Discover';
-import { DiscoverTitlePage } from './pages/DiscoverTitle';
 import { RequestsPage } from './pages/Requests';
 import { WatchSyncPage } from './pages/WatchSync';
 import { AutomationPage } from './pages/Automation';
 import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
 import { LibraryHome, LibraryPage, LibraryRedirect } from './pages/Library';
-import { MovieDetailPage, ShowDetailPage } from './pages/TitleDetail';
+import { DiscoverTitlePage, MovieDetailPage, ShowDetailPage } from './pages/Title';
+import { TmdbPersonPage } from './pages/TmdbPerson';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
@@ -51,6 +51,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'discover', element: <DiscoverPageView /> },
+      { path: 'discover/person/:id', element: <TmdbPersonPage /> },
       { path: 'discover/:kind/:id', element: <DiscoverTitlePage /> },
       { path: 'library', element: <LibraryHome /> },
       { path: 'library/movies', element: <RequireUser render={(s) => <LibraryPage key="movies" kind="movie" user={s.user} />} /> },

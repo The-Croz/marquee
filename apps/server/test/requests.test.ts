@@ -6,6 +6,7 @@ import { FakeSites, release } from './fakes/sources.js';
 import { FakeTmdb } from './fakes/tmdb.js';
 import { FakeStreamingTop } from './fakes/streamingTop.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
+import { searchesSettled } from '../src/requests/service.js';
 
 const GB = 1024 ** 3;
 const DUNE = 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX';
@@ -40,7 +41,7 @@ async function setup() {
   const sam = await person('sam', 'member');
   const ask = (cookie: string, body: object) => call(t.app, 'POST', '/api/requests', body, cookie);
   const inbox = async (cookie: string) => (await call(t.app, 'GET', '/api/notifications', undefined, cookie)).body as { items: NotificationInboxItem[]; unread: number };
-  return { ...t, admin, jessie, kiddo, sam, qbit, pushed, ask, inbox, top };
+  return { ...t, admin, jessie, kiddo, sam, qbit, pushed, ask, inbox, top, sites };
 }
 
 describe('Requests', () => {
@@ -54,6 +55,20 @@ describe('Requests', () => {
     const movie = t.db.select().from(schema.movies).all()[0]!;
     expect(movie.monitored).toBe(true);
     expect(t.db.select().from(schema.downloads).all().map((d) => d.title)).toEqual([DUNE]);
+  });
+
+  it('a slow first search answers “searching” at once, then moves on by itself', async () => {
+    const t = await setup();
+    let open!: () => void;
+    t.sites.feeds.get('http://tpb.test/api')!.gate = new Promise<void>((r) => (open = r));
+    const r = (await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 })).body as RequestView;
+    expect(r).toMatchObject({ state: 'searching', stateText: 'Approved. Marquee is searching for a copy now.' });
+    const card = ((await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.admin)).body as DiscoverTitle).request;
+    expect(card?.state).toBe('searching');
+    open();
+    await searchesSettled();
+    const [after] = ((await call(t.app, 'GET', '/api/requests', undefined, t.admin)).body as { items: RequestView[] }).items;
+    expect(after).toMatchObject({ state: 'downloading', stateText: 'Found a copy. The download is starting.' });
   });
 
   it('a member’s request waits, tells the admins, and nothing is downloaded', async () => {
@@ -367,7 +382,7 @@ describe('Not out yet', () => {
     const t = await setup();
     const r = (await t.ask(t.admin, { kind: 'movie', tmdbId: 990001 })).body as RequestView;
     expect(r.state).toBe('unreleased');
-    expect(r.stateText).toBe('Approved. It comes out Jun 1, 2027, and Marquee will look for it then.');
+    expect(r.stateText).toBe('Approved. It comes out in cinemas Jun 1, 2027. Marquee looks for it once it’s out to stream or buy, around Aug 30, 2027.');
     expect(t.db.select().from(schema.downloads).all()).toEqual([]);
     const page = (await call(t.app, 'GET', '/api/discover/title/movie/990001', undefined, t.jessie)).body as DiscoverTitle;
     expect(page.details).toMatchObject({ released: false, releaseDate: '2027-11-24' });

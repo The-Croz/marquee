@@ -32,7 +32,7 @@ function Ranked({ title, cards, trailers, numbered }: { title: string; cards: Di
   return (
     <section aria-label={title} className="flex flex-col gap-3">
       <h3 className="m-0 text-heading font-semibold">{title}</h3>
-      <div ref={scroller} className="-mx-5 flex snap-x gap-[18px] overflow-x-auto px-5 pb-2 sm:-mx-10 sm:px-10">
+      <div ref={scroller} className="-mx-4 flex snap-x scroll-px-4 sm:scroll-px-10 gap-[18px] overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {cards.map((c, i) => (
           <div key={`${c.kind}${c.tmdbId}`} className="relative flex-none">
             <TitleCard card={c} trailers={trailers} />
@@ -77,7 +77,7 @@ function TopTen({ services, type, trailers }: { services: ServiceChip[]; type: '
       <h2 id="top10" className="m-0 text-xl font-semibold">
         {data && !data.ranked ? 'Popular on your services' : 'Top 10 on your services'}
       </h2>
-      <div role="group" aria-label="Streaming service" className="-mx-5 flex gap-1 overflow-x-auto px-5 sm:-mx-10 sm:px-10">
+      <div role="group" aria-label="Streaming service" className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:-mx-10 sm:px-10">
         {services.map((s) => (
           <button key={s.key} type="button" aria-pressed={svc.key === s.key} onClick={() => choose(s.key)} className="flex h-11 flex-none items-center">
             <span className={cx('rounded-full border px-3 py-1 text-label font-medium whitespace-nowrap', svc.key === s.key ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}>{s.name}</span>
@@ -121,23 +121,42 @@ function Loading() {
   );
 }
 
-/** Search results: posters you can open and ask for. */
-function Results({ q, type, trailers }: { q: string; type: 'all' | 'movie' | 'series'; trailers: boolean }) {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['discover', 'search', q, type],
-    queryFn: () => api<{ results: DiscoverCard[] }>(`/discover/search?${new URLSearchParams({ q, type })}`),
-    staleTime: 5 * 60_000,
-  });
+/** Everything / Movies / Shows, for search results and a genre. */
+function KindSwitch({ value, onChange }: { value: 'all' | 'movie' | 'series'; onChange: (v: 'all' | 'movie' | 'series') => void }) {
   return (
-    <section aria-labelledby="results-h" className="flex flex-col gap-4">
-      <h2 id="results-h" className="m-0 text-xl font-semibold">
-        Results for “{q}”
-      </h2>
+    <div role="group" aria-label="Show" className="flex gap-2">
+      {TYPES.map(([v, label]) => (
+        <Chip key={v} active={value === v} onClick={() => onChange(v)}>
+          {label}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+/** Search results as you type: posters you can open and ask for. */
+function Results({ q, type, onType, trailers }: { q: string; type: 'all' | 'movie' | 'series'; onType: (v: 'all' | 'movie' | 'series') => void; trailers: boolean }) {
+  const { data, isFetching, error } = useQuery({
+    queryKey: ['discover', 'search', q],
+    queryFn: () => api<{ results: DiscoverCard[] }>(`/discover/search?${new URLSearchParams({ q, type: 'all' })}`),
+    staleTime: 5 * 60_000,
+    placeholderData: (prev) => prev,
+  });
+  const all = data?.results ?? [];
+  const shown = all.filter((c) => type === 'all' || c.kind === type);
+  const movies = all.filter((c) => c.kind === 'movie').length;
+  return (
+    <section aria-labelledby="results-h" aria-busy={isFetching} className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="results-h" className="m-0 text-xl font-semibold">
+          {isFetching && !data ? 'Searching…' : `${shown.length} ${shown.length === 1 ? 'result' : 'results'} for “${q}”`}
+        </h2>
+        {movies > 0 && movies < all.length && <KindSwitch value={type} onChange={onType} />}
+      </div>
       {error && <Notice tone="error">{error instanceof ApiFailure ? error.message : 'Search didn’t work. Try again.'}</Notice>}
-      {isLoading && <p className="m-0 text-muted">Searching…</p>}
-      {data && data.results.length === 0 && <p className="m-0 text-muted">Nothing found for that. Try fewer words, or check the spelling.</p>}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-[18px] gap-y-6">
-        {data?.results.map((c) => (
+      {data && shown.length === 0 && <p className="m-0 text-muted">Nothing found for that. Try fewer words, or check the spelling.</p>}
+      <div className={cx('grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-[18px] gap-y-6 transition-opacity', isFetching && 'opacity-60')}>
+        {shown.map((c) => (
           <TitleCard key={`${c.kind}${c.tmdbId}`} card={c} trailers={trailers} className="w-auto" />
         ))}
       </div>
@@ -145,9 +164,17 @@ function Results({ q, type, trailers }: { q: string; type: 'all' | 'movie' | 'se
   );
 }
 
+/** Searches as you type (after a short pause), and Escape clears it. */
 function DiscoverSearch({ q, onSearch }: { q: string; onSearch: (q: string) => void }) {
   const [text, setText] = useState(q);
   useEffect(() => setText(q), [q]);
+  useEffect(() => {
+    const t = text.trim();
+    if (t === q) return;
+    const timer = setTimeout(() => onSearch(t), t ? 350 : 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
   return (
     <form
       role="search"
@@ -164,15 +191,43 @@ function DiscoverSearch({ q, onSearch }: { q: string; onSearch: (q: string) => v
         id="discover-q"
         type="search"
         value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          // Clearing the box goes back to the rows.
-          if (!e.target.value) onSearch('');
-        }}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => e.key === 'Escape' && setText('')}
         placeholder="Search movies and shows"
         className="h-12 min-w-0 flex-1 rounded-xl border border-line bg-panel px-[18px] text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
       />
     </form>
+  );
+}
+
+/** A hue for each genre's tile, so the grid reads at a glance. */
+const GENRE_HUE: Record<string, number> = {
+  Action: 18, 'Action & Adventure': 18, Adventure: 38, Animation: 190, Comedy: 48, Crime: 0, Documentary: 150, Drama: 260, Family: 120, Fantasy: 285,
+  History: 30, Horror: 350, Kids: 160, Music: 320, Mystery: 230, Reality: 60, Romance: 335, 'Science Fiction': 205, 'Sci-Fi & Fantasy': 205, Soap: 300,
+  Thriller: 215, War: 80, 'War & Politics': 80, Western: 25,
+};
+
+function GenreTiles({ genres, onPick }: { genres: string[]; onPick: (g: string) => void }) {
+  return (
+    <section aria-labelledby="genres-h" className="flex flex-col gap-3">
+      <h2 id="genres-h" className="m-0 text-xl font-semibold">
+        Browse by genre
+      </h2>
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 p-0">
+        {genres.map((g) => (
+          <li key={g}>
+            <button
+              type="button"
+              onClick={() => onPick(g)}
+              style={{ '--h': GENRE_HUE[g] ?? 40 } as React.CSSProperties}
+              className="flex h-20 w-full items-end rounded-xl border border-line bg-[linear-gradient(135deg,hsl(var(--h)_45%_22%),hsl(var(--h)_30%_11%))] px-4 pb-3 text-left font-display text-xl leading-none text-cream hover:border-line-strong hover:brightness-125 focus-visible:brightness-125"
+            >
+              {g}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -181,61 +236,58 @@ export function DiscoverPageView() {
   const type = (params.get('type') ?? 'all') as 'all' | 'movie' | 'series';
   const genre = params.get('genre') ?? '';
   const q = params.get('q') ?? '';
-  const set = (k: string, v: string) => {
+  const set = (changes: Record<string, string>) => {
     const next = new URLSearchParams(params);
-    if (v && v !== 'all') next.set(k, v);
-    else next.delete(k);
+    for (const [k, v] of Object.entries(changes)) {
+      if (v && v !== 'all') next.set(k, v);
+      else next.delete(k);
+    }
     setParams(next, { replace: true });
   };
+  // The front page is always everything; a genre can narrow to movies or shows.
+  const pageType = genre ? type : 'all';
   const { data, isLoading, error } = useQuery({
-    queryKey: ['discover', 'page', type, genre],
-    queryFn: () => api<DiscoverPage>(`/discover?${new URLSearchParams({ type, ...(genre ? { genre } : {}) })}`),
+    queryKey: ['discover', 'page', pageType, genre],
+    queryFn: () => api<DiscoverPage>(`/discover?${new URLSearchParams({ type: pageType, ...(genre ? { genre } : {}) })}`),
     staleTime: 5 * 60_000,
   });
   const { data: prefs } = useQuery({ queryKey: ['discover', 'prefs'], queryFn: () => api<DiscoverPrefs>('/discover/prefs') });
   const trailers = prefs?.trailers ?? true;
+  const genres = useQuery({ queryKey: ['discover', 'page', 'all', ''], queryFn: () => api<DiscoverPage>('/discover?type=all'), staleTime: 5 * 60_000, enabled: !!genre }).data?.genres ?? data?.genres ?? [];
 
   return (
     <>
-      <PageHeader title="Discover" actions={<DiscoverSearch q={q} onSearch={(v) => set('q', v)} />} />
+      <PageHeader title={genre && !q ? genre : 'Discover'} actions={<DiscoverSearch q={q} onSearch={(v) => set({ q: v, ...(v ? {} : { type: genre ? type : '' }) })} />} />
 
-      <div className="flex flex-col gap-3">
-        <div role="group" aria-label="Show" className="flex flex-wrap gap-2">
-          {TYPES.map(([v, label]) => (
-            <Chip key={v} active={type === v} onClick={() => set('type', v)}>
-              {label}
-            </Chip>
-          ))}
-          <label htmlFor="genre" className="sr-only">
-            Genre
-          </label>
-          <select id="genre" hidden={!!q} value={genre} onChange={(e) => set('genre', e.target.value)} className="h-11 rounded-full border border-line bg-panel px-4 text-sm text-text">
-            <option value="">Any genre</option>
-            {(data?.genres ?? []).map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+      {q && <Results q={q} type={type} onType={(v) => set({ type: v })} trailers={trailers} />}
+
+      {!q && genre && (
+        <div className="-mt-2 flex flex-wrap items-center justify-between gap-3">
+          <button type="button" onClick={() => set({ genre: '', type: '' })} className="flex min-h-11 items-center text-sm text-muted hover:text-text">
+            ← All of Discover
+          </button>
+          <KindSwitch value={type} onChange={(v) => set({ type: v })} />
         </div>
-      </div>
-
-      {q && <Results q={q} type={type} trailers={trailers} />}
+      )}
       {!q && error && <Notice tone="error">{error instanceof ApiFailure ? error.message : 'Discover couldn’t load.'}{error instanceof ApiFailure && error.code === 'tmdb_missing' && <> <Link to="/settings/services">Settings → Services</Link></>}</Notice>}
       {!q && isLoading && <Loading />}
       {!q && data && (
         <>
           {data.hero.length > 0 && <Hero items={data.hero} />}
-          {data.rows.length === 0 && <Notice>Nothing to show for this mix yet. Try another genre.</Notice>}
+          {data.rows.length === 0 && <Notice>Nothing to show here yet. Try another genre.</Notice>}
           {/* Trending, then the services' Top 10s, then Latest releases, then the rest ("because you…" rows come last from the server). */}
           {data.rows.filter((r) => r.id !== 'latest').slice(0, 1).map((r) => (
             <Row key={r.id} row={r} trailers={trailers} />
           ))}
-          {!genre && data.services.length > 0 && <TopTen services={data.services} type={type} trailers={trailers} />}
+          {!genre && data.services.length > 0 && <TopTen services={data.services} type="all" trailers={trailers} />}
           {data.rows.filter((r) => r.id === 'latest').map((r) => (
             <Row key={r.id} row={r} trailers={trailers} />
           ))}
-          {data.rows.filter((r) => r.id !== 'latest').slice(1).map((r) => (
+          {data.rows.filter((r) => r.id !== 'latest').slice(1, genre ? undefined : 4).map((r) => (
+            <Row key={r.id} row={r} trailers={trailers} />
+          ))}
+          {!genre && genres.length > 0 && <GenreTiles genres={genres} onPick={(g) => { set({ genre: g, type: '' }); window.scrollTo({ top: 0 }); }} />}
+          {!genre && data.rows.filter((r) => r.id !== 'latest').slice(4).map((r) => (
             <Row key={r.id} row={r} trailers={trailers} />
           ))}
           <p className="m-0 text-xs text-dim">Movie and show information from TMDB. Where to watch comes from JustWatch through TMDB.</p>

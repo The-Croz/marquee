@@ -42,6 +42,7 @@ servicesRoutes.get('/', (c) => {
   const view: ServicesView = {
     tmdb: { configured: !!s.tmdbApiKey, fromEnvironment: !getSetting(db, 'services.tmdb_api_key') && !!config.tmdbApiKey },
     streamingTop: { configured: !!s.streamingTopKey },
+    omdb: { configured: !!s.omdbKey },
     radarr: { url: s.radarrUrl, configured: !!(s.radarrUrl && s.radarrApiKey) },
     sonarr: { url: s.sonarrUrl, configured: !!(s.sonarrUrl && s.sonarrApiKey) },
     moviesRoot: s.moviesRoot,
@@ -59,6 +60,7 @@ servicesRoutes.put('/', async (c) => {
     .object({
       tmdbApiKey: secret.nullable().optional(),
       streamingTopKey: secret.nullable().optional(),
+      omdbKey: secret.nullable().optional(),
       radarrUrl: url.nullable().optional(),
       radarrApiKey: secret.nullable().optional(),
       sonarrUrl: url.nullable().optional(),
@@ -150,7 +152,7 @@ servicesRoutes.post('/test', async (c) => {
   requireAdmin(c);
   const { db, config, clients } = c.get('deps');
   const input = z
-    .object({ service: z.enum(['tmdb', 'streamingTop', 'radarr', 'sonarr', 'plex', 'jellyfin']), url: url.optional(), apiKey: secret.optional() })
+    .object({ service: z.enum(['tmdb', 'streamingTop', 'omdb', 'radarr', 'sonarr', 'plex', 'jellyfin']), url: url.optional(), apiKey: secret.optional() })
     .parse(await c.req.json());
   const saved = readServices(db, config);
   const result = async (): Promise<ServiceTestResult> => {
@@ -165,6 +167,12 @@ servicesRoutes.post('/test', async (c) => {
       if (!key) return { ok: false, message: 'Enter your Streaming Availability key first.' };
       await clients.streamingTop(key).ping();
       return { ok: true, message: 'Connected to Streaming Availability. Discover shows each service’s own Top 10.' };
+    }
+    if (input.service === 'omdb') {
+      const key = input.apiKey || saved.omdbKey;
+      if (!key) return { ok: false, message: 'Enter your OMDb key first.' };
+      await clients.omdb(key).ping();
+      return { ok: true, message: 'Connected to OMDb. Title pages show IMDb and Rotten Tomatoes scores.' };
     }
     if (input.service === 'plex' || input.service === 'jellyfin') {
       const api = mediaServerFor(c, input.service, { url: input.url, secret: input.apiKey });

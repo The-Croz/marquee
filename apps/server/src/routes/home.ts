@@ -40,7 +40,7 @@ homeRoutes.get('/', async (c) => {
     recentRequests: listRequests(db, user, isAdmin ? 'all' : 'mine', now()).slice(0, 12),
     recent: recentTitles(db, isKid),
     upcoming: comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined, isKid ? KID_MOVIE_RATINGS : undefined),
-    stats: libraryStats(db, isKid),
+    stats: libraryStats(db, isKid, now()),
     hero: null,
     setup: null,
   };
@@ -279,13 +279,20 @@ function recentTitles(db: Db, kid: boolean): HomeTitle[] {
   return out;
 }
 
-function libraryStats(db: Db, kid: boolean): HomeData['stats'] {
+function libraryStats(db: Db, kid: boolean, now: number): HomeData['stats'] {
   if (kid) return [];
   const movieCount = db.select({ n: sql<number>`count(distinct ${mediaFiles.movieId})` }).from(mediaFiles).where(isNotNull(mediaFiles.movieId)).get()?.n ?? 0;
   const showCount = db.select({ n: sql<number>`count(distinct ${mediaFiles.seriesId})` }).from(mediaFiles).where(isNotNull(mediaFiles.seriesId)).get()?.n ?? 0;
+  const files = db.select({ n: count(), size: sql<number>`coalesce(sum(${mediaFiles.size}), 0)` }).from(mediaFiles).get();
+  const epCount = db.select({ n: sql<number>`count(*)` }).from(mediaFiles).where(isNotNull(mediaFiles.seriesId)).get()?.n ?? 0;
+  const weekAgo = now - 7 * 86_400_000;
+  const newThisWeek = db.select({ n: count() }).from(mediaFiles).where(sql`${mediaFiles.addedAt} >= ${weekAgo}`).get()?.n ?? 0;
   return [
     { label: movieCount === 1 ? 'movie' : 'movies', value: String(movieCount), to: '/library/movies' },
     { label: showCount === 1 ? 'show' : 'shows', value: String(showCount), to: '/library/shows' },
+    { label: epCount === 1 ? 'episode file' : 'episode files', value: String(epCount), to: '/library/shows' },
+    { label: 'added this week', value: String(newThisWeek) },
+    ...(files && files.size > 0 ? [{ label: 'in your library', value: bytes(files.size) }] : []),
   ];
 }
 

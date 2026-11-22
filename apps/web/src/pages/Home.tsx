@@ -5,8 +5,8 @@ import type { DiscoverPage, HomeAttention, HomeData, HomeHero, SetupStep } from 
 import { ApiFailure, api, queryClient, useAuthStatus } from '../api';
 import { Bulbs } from '../components/Bulbs';
 import { Notice, Progress, cx } from '../components/ui';
+import { Sheet } from '../components/Overlay';
 import { Poster, posterTransition, tmdbImage } from '../components/Poster';
-import { SearchBox } from './Search';
 import { STATE as REQUEST_STATE } from './Requests';
 
 /** Home: what's happening, what needs you, what's new and what's next. */
@@ -19,27 +19,29 @@ export function HomePage() {
   if (error || !data) return <Notice tone="error">Couldn’t load Home. It tries again by itself every 30 seconds.</Notice>;
 
   const problems = data.needsYou.filter((n) => n.tone === 'problem').length;
+  const status = role === 'admin' ? <StatusPill needs={data.needsYou} arriving={data.onItsWay} problems={problems} /> : null;
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        {role !== 'kid' && <SearchBox />}
-        {role === 'admin' && <StatusPill needs={data.needsYou.length} problems={problems} arriving={data.onItsWay.length} />}
-      </div>
-
       {data.setup && <GetSetUp steps={data.setup} />}
 
-      {data.hero ? <Hero hero={data.hero} /> : role === 'kid' && <h1 className="m-0 font-display text-[44px] leading-none font-normal">Hi {auth?.user?.displayName}</h1>}
-
-      {role === 'admin' && (data.needsYou.length > 0 || data.onItsWay.length > 0) && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <NeedsYou items={data.needsYou} />
-          {data.onItsWay.length > 0 && <OnItsWay items={data.onItsWay} />}
+      {data.hero ? (
+        <Hero hero={data.hero} corner={status} />
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {role === 'kid' ? <h1 className="m-0 font-display text-[44px] leading-none font-normal">Hi {auth?.user?.displayName}</h1> : <span />}
+          {status}
         </div>
       )}
 
-      {data.recentRequests.length > 0 && <RecentRequests items={data.recentRequests} everyone={role === 'admin'} />}
-
       {data.recent.length > 0 && <Shelf id="recent" title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} more={{ to: '/library', label: 'Library' }} />}
+
+      {data.upcoming.length > 0 ? <Week items={data.upcoming} /> : (
+        <p className="m-0 text-sm text-muted">
+          Nothing new comes out in the next seven days. <Link to="/calendar">Open the calendar</Link>
+        </p>
+      )}
+
+      {data.recentRequests.length > 0 && <RecentRequests items={data.recentRequests} everyone={role === 'admin'} />}
 
       {role !== 'admin' && <ForYou big={role === 'kid'} />}
 
@@ -53,8 +55,6 @@ export function HomePage() {
         </section>
       )}
 
-      <Week items={data.upcoming} />
-
       {data.recent.length === 0 && !data.hero && !data.setup && data.needsYou.length === 0 && role !== 'kid' && (
         <section className="flex flex-col items-start gap-3 py-6">
           <h2 className="m-0 text-xl font-semibold">Nothing here yet</h2>
@@ -67,45 +67,76 @@ export function HomePage() {
         </section>
       )}
 
-      {data.stats.length > 0 && (
-        <footer className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-4 text-sm text-dim">
-          {data.stats.map((s) => {
-            const body = (
-              <>
-                <b className="font-semibold text-soft tabular-nums">{s.value}</b> {s.label}
-              </>
-            );
-            return s.to ? (
-              <Link key={s.label} to={s.to} className="text-dim no-underline hover:text-text">
-                {body}
-              </Link>
-            ) : (
-              <span key={s.label}>{body}</span>
-            );
-          })}
-        </footer>
-      )}
+      {data.stats.length > 0 && <Stats stats={data.stats} />}
     </>
   );
 }
 
-function StatusPill({ needs, problems, arriving }: { needs: number; problems: number; arriving: number }) {
-  const parts = [needs ? `${needs} ${needs === 1 ? 'needs' : 'need'} you` : 'All good', arriving ? `${arriving} on the way` : null].filter(Boolean);
+/** Library numbers as a row of tiles; each opens where it's from. */
+function Stats({ stats }: { stats: HomeData['stats'] }) {
   return (
-    <span role="status" className="inline-flex h-12 items-center gap-2.5 rounded-xl border border-line bg-panel px-4 text-sm whitespace-nowrap text-soft">
-      <span aria-hidden="true" className={cx('size-2 rounded-full', problems ? 'bg-warn' : needs ? 'bg-amber' : 'bg-teal')} />
-      {parts.join(' · ')}
-    </span>
+    <section aria-labelledby="stats-h" className="flex flex-col gap-3">
+      <h2 id="stats-h" className="m-0 text-lg font-semibold">
+        Your library in numbers
+      </h2>
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 p-0">
+        {stats.map((s) => {
+          const body = (
+            <>
+              <span className="font-display text-[34px] leading-none text-text tabular-nums">{s.value}</span>
+              <span className="text-sm text-muted">{s.label}</span>
+            </>
+          );
+          return (
+            <li key={s.label}>
+              {s.to ? (
+                <Link to={s.to} className="flex h-full min-h-[92px] flex-col justify-between gap-2 rounded-xl border border-line bg-panel px-4 py-3.5 no-underline hover:border-line-strong">
+                  {body}
+                </Link>
+              ) : (
+                <div className="flex h-full min-h-[92px] flex-col justify-between gap-2 rounded-xl border border-line bg-panel px-4 py-3.5">{body}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
-function Hero({ hero }: { hero: HomeHero }) {
+/** "2 need you · 3 on the way": opens a panel with what needs you and what's downloading. */
+function StatusPill({ needs, arriving, problems }: { needs: HomeAttention[]; arriving: HomeData['onItsWay']; problems: number }) {
+  const [open, setOpen] = useState(false);
+  const parts = [needs.length ? `${needs.length} ${needs.length === 1 ? 'needs' : 'need'} you` : 'All good', arriving.length ? `${arriving.length} on the way` : null].filter(Boolean);
+  const quiet = !needs.length && !arriving.length;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={quiet}
+        className="inline-flex h-11 items-center gap-2.5 rounded-full border border-white/15 bg-ink/70 px-4 text-sm whitespace-nowrap text-soft backdrop-blur hover:text-text disabled:cursor-default"
+      >
+        <span aria-hidden="true" className={cx('size-2 rounded-full', problems ? 'bg-warn' : needs.length ? 'bg-amber' : arriving.length ? 'bg-blue' : 'bg-teal')} />
+        {parts.join(' · ')}
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="What’s going on" className="sm:w-[min(720px,calc(100vw-48px))]">
+        <div className="flex flex-col gap-6 p-5 sm:p-6">
+          {needs.length > 0 && <NeedsYou items={needs} />}
+          {arriving.length > 0 && <OnItsWay items={arriving} />}
+        </div>
+      </Sheet>
+    </>
+  );
+}
+
+function Hero({ hero, corner }: { hero: HomeHero; corner?: React.ReactNode }) {
   const bg = tmdbImage(hero.backdropPath, 'w1280');
   const live = hero.kind === 'watching';
   return (
     <section
       aria-label={hero.eyebrow}
-      className="relative isolate flex min-h-[300px] overflow-hidden rounded-2xl bg-raised sm:min-h-[360px]"
+      className="relative isolate flex min-h-[360px] overflow-hidden rounded-2xl bg-raised sm:min-h-[460px]"
       // The poster's own colour tints the glow; amber when Marquee hasn't picked one yet.
       style={{ '--tint': hero.color ?? 'var(--color-amber)' } as React.CSSProperties}
     >
@@ -117,6 +148,7 @@ function Hero({ hero }: { hero: HomeHero }) {
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/75 to-ink/5" />
       {bg && <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(70%_90%_at_0%_100%,color-mix(in_oklab,var(--tint)_30%,transparent),transparent_70%)]" />}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
+      {corner && <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">{corner}</div>}
       <div className="flex w-full items-end gap-6 px-6 py-8 sm:px-10 sm:py-10">
         {hero.posterPath && !bg && <Poster title={hero.title} path={hero.posterPath} color={hero.color} className="hidden w-[150px] flex-none shadow-2xl sm:block" />}
         <div className="flex max-w-[600px] flex-col gap-3.5">
@@ -293,19 +325,21 @@ function RecentRequests({ items, everyone }: { items: HomeData['recentRequests']
           All requests →
         </Link>
       </div>
-      <ul className="-mx-4 m-0 flex list-none snap-x gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
+      <ul className="-mx-4 m-0 flex list-none snap-x scroll-px-4 sm:scroll-px-10 gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {items.map((r) => {
           const st = REQUEST_STATE[r.state];
           const to = r.href ?? `/discover/${r.kind}/${r.tmdbId}`;
           return (
-            <li key={r.id} className="w-[132px] flex-none snap-start">
+            <li key={r.id} className="w-[140px] flex-none snap-start">
               <Link to={to} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
                 <div className="relative transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
                   <Poster title={r.title} path={r.posterPath} size="w185" className={cx(r.state === 'declined' && 'opacity-50')} />
                 </div>
                 <span className="truncate text-label font-semibold">{r.title}</span>
-                <span className={cx('-mt-1 self-start rounded-md px-2 py-0.5 text-caption leading-snug font-medium', st.tone)}>{st.label}</span>
-                {everyone && r.requestedBy && <span className="-mt-1 truncate text-caption text-dim">{r.requestedBy.name}</span>}
+                <span className="-mt-1 flex min-w-0 items-center gap-1.5 text-caption">
+                  <span className={cx('flex-none rounded-md px-2 py-0.5 font-medium whitespace-nowrap', st.tone)}>{st.label}</span>
+                  {everyone && r.requestedBy && <span className="truncate text-dim">{r.requestedBy.name}</span>}
+                </span>
               </Link>
             </li>
           );
@@ -337,7 +371,7 @@ function Shelf({ id, title, items, big, more }: { id: string; title: string; ite
       // The row picks up its first poster's colour as a faint wash behind it.
       style={tint ? ({ '--tint': tint } as React.CSSProperties) : undefined}
     >
-      {tint && <div aria-hidden="true" className="absolute -inset-x-6 -inset-y-5 -z-10 rounded-3xl bg-[radial-gradient(70%_100%_at_15%_0%,color-mix(in_oklab,var(--tint)_16%,transparent),transparent_75%)]" />}
+      {tint && <div aria-hidden="true" className="absolute -inset-x-4 -inset-y-5 sm:-inset-x-6 -z-10 rounded-3xl bg-[radial-gradient(70%_100%_at_15%_0%,color-mix(in_oklab,var(--tint)_16%,transparent),transparent_75%)]" />}
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={`${id}-h`} className="m-0 text-lg font-semibold">
           {title}
@@ -348,9 +382,9 @@ function Shelf({ id, title, items, big, more }: { id: string; title: string; ite
           </Link>
         )}
       </div>
-      <div className={cx('grid gap-4', big ? 'grid-cols-[repeat(auto-fill,minmax(170px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(130px,1fr))]')}>
+      <div className="-mx-4 flex snap-x scroll-px-4 sm:scroll-px-10 gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {items.map((p) => (
-          <Link key={p.href} to={p.href} viewTransition={ownTitle(p.href)} className="group flex flex-col gap-2 text-text no-underline hover:text-text">
+          <Link key={p.href} to={p.href} viewTransition={ownTitle(p.href)} className={cx('group flex flex-none snap-start flex-col gap-2 text-text no-underline hover:text-text', big ? 'w-[170px]' : 'w-[140px]')}>
             <div className="relative transition-transform duration-200 group-hover:-translate-y-1 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
               <Poster title={p.title} path={p.posterPath} color={p.posterColor} transition={ownTitle(p.href) ? posterTransition(p.href) : undefined} />
               {p.addedAt !== undefined && Date.now() - p.addedAt < 86_400_000 && (
@@ -429,13 +463,8 @@ function GetSetUp({ steps }: { steps: SetupStep[] }) {
   );
 }
 
+/** The next seven days as a row of pictures, each with its day. */
 function Week({ items }: { items: HomeData['upcoming'] }) {
-  const days: { day: string; items: HomeData['upcoming'] }[] = [];
-  for (const u of items) {
-    const last = days.at(-1);
-    if (last && last.day === u.day) last.items.push(u);
-    else days.push({ day: u.day, items: [u] });
-  }
   return (
     <section aria-labelledby="week-h" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
@@ -443,28 +472,36 @@ function Week({ items }: { items: HomeData['upcoming'] }) {
           This week
         </h2>
         <Link to="/calendar" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
-          Full calendar →
+          Full calendar
         </Link>
       </div>
-      {days.length === 0 && <p className="m-0 text-sm text-muted">Nothing new comes out in the next seven days.</p>}
-      <ol className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 p-0">
-        {days.map((d, i) => (
-          <li key={d.day} className={cx('flex flex-col gap-2.5 rounded-xl border bg-panel p-3.5', i === 0 ? 'border-amber/45' : 'border-line')}>
-            <span className={cx('text-caption font-semibold tracking-[0.12em] uppercase', i === 0 ? 'text-amber' : 'text-dim')}>{d.day}</span>
-            {d.items.map((u) => (
-              <div key={u.title} className="flex flex-col gap-0.5 text-sm">
-                {u.href ? (
-                  <Link to={u.href} className="font-medium text-text no-underline hover:underline">
-                    {u.title}
-                  </Link>
-                ) : (
-                  <span className="font-medium">{u.title}</span>
-                )}
-                <span className="text-xs text-dim">{u.note}</span>
+      <ol className="-mx-4 m-0 flex list-none snap-x scroll-px-4 sm:scroll-px-10 gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
+        {items.map((u, i) => {
+          const img = tmdbImage(u.backdropPath, 'w780') ?? tmdbImage(u.posterPath, 'w342');
+          const today = u.day === 'Today';
+          const body = (
+            <>
+              <div className="relative aspect-video overflow-hidden rounded-xl bg-raised">
+                {img && <img src={img} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} className="size-full object-cover transition duration-200 group-hover:scale-[1.03] motion-reduce:transition-none" />}
+                <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent" />
+                <span className={cx('absolute top-2.5 left-2.5 rounded-md px-2 py-0.5 text-caption font-semibold', today ? 'bg-amber text-amber-ink' : 'bg-ink/80 text-soft')}>{u.day}</span>
+                <span className="absolute right-3 bottom-2.5 left-3 line-clamp-2 text-body leading-tight font-semibold text-text">{u.title}</span>
               </div>
-            ))}
-          </li>
-        ))}
+              <span className="line-clamp-2 text-xs text-dim">{u.note}</span>
+            </>
+          );
+          return (
+            <li key={`${u.day}${u.title}${i}`} className="flex w-[260px] flex-none snap-start flex-col">
+              {u.href ? (
+                <Link to={u.href} className="group flex flex-col gap-2 no-underline">
+                  {body}
+                </Link>
+              ) : (
+                <div className="flex flex-col gap-2">{body}</div>
+              )}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

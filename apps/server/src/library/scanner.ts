@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { and, eq, inArray, like, lt } from 'drizzle-orm';
-import type { Db } from '../db/index.js';
+import { and, eq, inArray, isNotNull, like, lt } from 'drizzle-orm';
+import { getSetting, setSetting, type Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
 import { TmdbError, type TmdbApi, type TmdbSearchResult } from './tmdb.js';
 import type { ArrApi, ArrTitle } from './arr.js';
@@ -131,6 +131,9 @@ function unmatchedReason(dead: string[], candidates: TmdbSearchResult[]): string
   return candidates.length ? 'No result had exactly this title and year.' : 'TMDB found nothing for this name.';
 }
 
+/** When the last scan finished, kept across restarts. */
+const LAST_SCAN = 'library.last_scan_at';
+
 export class LibraryScanner {
   status: ScanStatus = { running: false, phase: 'idle', startedAt: null, finishedAt: null, processed: 0, total: 0, matched: 0, unmatched: 0, warnings: [], error: null };
   private current: Promise<void> | null = null;
@@ -138,7 +141,13 @@ export class LibraryScanner {
   constructor(
     private readonly db: Db,
     private readonly now: () => number = Date.now,
-  ) {}
+  ) {
+    // The status lives in memory, so after a restart remember that a scan has
+    // run before (or that files are already known) instead of asking again.
+    const last = Number(getSetting(db, LAST_SCAN) || 0);
+    const known = last > 0 || !!db.select({ id: mediaFiles.id }).from(mediaFiles).limit(1).get() || !!db.select({ id: movies.id }).from(movies).where(isNotNull(movies.path)).limit(1).get() || !!db.select({ id: series.id }).from(series).where(isNotNull(series.path)).limit(1).get();
+    if (known) this.status = { ...this.status, phase: 'done', finishedAt: last || null };
+  }
 
   /** Resolves when the current scan (if any) finishes. */
   wait(): Promise<void> {
@@ -154,6 +163,7 @@ export class LibraryScanner {
     this.current = this.run(sources)
       .then(() => {
         this.status.phase = 'done';
+        setSetting(this.db, LAST_SCAN, String(this.now()));
       })
       .catch((err: Error) => {
         this.status.phase = 'failed';

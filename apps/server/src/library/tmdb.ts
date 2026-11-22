@@ -107,6 +107,47 @@ export interface TmdbDiscoverQuery {
   page?: number;
 }
 
+export interface TmdbCastMember {
+  /** TMDB person id. */
+  id: number | null;
+  name: string;
+  character: string | null;
+  profilePath: string | null;
+}
+
+/** A person (actor, director…) and what they've been in. */
+export interface TmdbPerson {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  /** "Acting", "Directing"… */
+  knownFor: string | null;
+  /** Movies and shows, the more popular first, each with their part. */
+  credits: (TmdbCard & { role: string | null })[];
+}
+
+/**
+ * Streaming add-ons ("HBO Max Amazon Channel", "Cinemax Apple TV Channel",
+ * "Netflix Standard with Ads") fold into the service's own name, and repeats go.
+ */
+export function cleanProviders<T extends { name: string }>(list: T[]): T[] {
+  const base = (n: string) =>
+    n
+      .replace(/\s+(Amazon|Apple TV|Roku Premium|Prime Video)\s+Channels?$/i, '')
+      .replace(/\s+(Standard|Basic|Premium|Essential)?\s*with Ads$/i, '')
+      .trim();
+  const out: T[] = [];
+  for (const p of list) {
+    const name = base(p.name);
+    if (!out.some((o) => o.name.toLowerCase() === name.toLowerCase())) out.push({ ...p, name });
+  }
+  return out;
+}
+
 /** What a title's page needs beyond its list card. */
 export interface TmdbExtras {
   /** Release date (movies) or first air date (shows), "2026-12-20". */
@@ -140,9 +181,13 @@ export interface TmdbExtras {
   genres: string[];
   /** YouTube video key of the best trailer. */
   trailerKey: string | null;
-  cast: { name: string; character: string | null }[];
-  /** Names of US services streaming it (flat rate). */
+  cast: TmdbCastMember[];
+  /** Names of US services streaming it (flat rate), one per service (add-on channels folded in). */
   providers: string[];
+  /** The same services with their logos. */
+  watchOn: { name: string; logoPath: string | null }[];
+  /** "tt1234567", for outside ratings. */
+  imdbId: string | null;
   status: string | null;
   /** Shows: real seasons (not specials) with their episode count. */
   seasons: { season: number; episodeCount: number }[];
@@ -165,6 +210,7 @@ export interface TmdbApi {
   /** "People who liked this also liked…" */
   recommendations(kind: 'movie' | 'series', id: number): Promise<TmdbCard[]>;
   extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras>;
+  person(id: number): Promise<TmdbPerson>;
 }
 
 /** TMDB's genre ids, which don't change. */
@@ -459,7 +505,8 @@ export class TmdbClient implements TmdbApi {
       status?: string | null;
       genres?: { name: string }[];
       videos?: { results: { site: string; type: string; key: string; official?: boolean; iso_639_1?: string }[] };
-      credits?: { cast: { name: string; character?: string }[]; crew?: { name: string; job: string }[] };
+      credits?: { cast: { id?: number; name: string; character?: string; profile_path?: string | null }[]; crew?: { name: string; job: string }[] };
+      external_ids?: { imdb_id?: string | null };
       release_date?: string;
       first_air_date?: string;
       last_air_date?: string | null;
@@ -480,14 +527,14 @@ export class TmdbClient implements TmdbApi {
       number_of_seasons?: number;
       number_of_episodes?: number;
       next_episode_to_air?: { air_date?: string | null } | null;
-      'watch/providers'?: { results?: { US?: { flatrate?: { provider_name: string }[] } } };
+      'watch/providers'?: { results?: { US?: { flatrate?: { provider_name: string; logo_path?: string | null }[] } } };
       release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number; release_date?: string }[] }[] };
       content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
       seasons?: { season_number: number; episode_count: number }[];
     };
     const r = await this.get<R>(
       `/${kind === 'movie' ? 'movie' : 'tv'}/${id}`,
-      { append_to_response: `videos,credits,watch/providers,${kind === 'movie' ? 'release_dates' : 'content_ratings'}`, include_video_language: 'en,null', language: 'en-US' },
+      { append_to_response: `videos,credits,external_ids,watch/providers,${kind === 'movie' ? 'release_dates' : 'content_ratings'}`, include_video_language: 'en,null', language: 'en-US' },
       DAY,
     );
     const trailers = (r.videos?.results ?? []).filter((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
@@ -529,10 +576,53 @@ export class TmdbClient implements TmdbApi {
       certification: cert,
       genres: (r.genres ?? []).map((g) => g.name),
       trailerKey: trailer?.key ?? null,
-      cast: (r.credits?.cast ?? []).slice(0, 8).map((c) => ({ name: c.name, character: c.character || null })),
-      providers: (r['watch/providers']?.results?.US?.flatrate ?? []).map((p) => p.provider_name),
+      cast: (r.credits?.cast ?? []).slice(0, 20).map((c) => ({ id: c.id ?? null, name: c.name, character: c.character || null, profilePath: c.profile_path ?? null })),
+      ...(() => {
+        const watchOn = cleanProviders((r['watch/providers']?.results?.US?.flatrate ?? []).map((p) => ({ name: p.provider_name, logoPath: p.logo_path ?? null })));
+        return { watchOn, providers: watchOn.map((p) => p.name) };
+      })(),
+      imdbId: r.external_ids?.imdb_id || null,
       status: r.status ?? null,
       seasons: (r.seasons ?? []).filter((x) => x.season_number > 0).map((x) => ({ season: x.season_number, episodeCount: x.episode_count })),
+    };
+  }
+
+  async person(id: number): Promise<TmdbPerson> {
+    type Credit = RawCard & { media_type?: string; character?: string; job?: string };
+    const r = await this.get<{
+      id: number;
+      name: string;
+      profile_path?: string | null;
+      biography?: string;
+      birthday?: string | null;
+      deathday?: string | null;
+      place_of_birth?: string | null;
+      known_for_department?: string;
+      combined_credits?: { cast?: Credit[]; crew?: Credit[] };
+    }>(`/person/${id}`, { append_to_response: 'combined_credits', language: 'en-US' }, DAY);
+    const seen = new Map<string, TmdbCard & { role: string | null }>();
+    for (const c of [...(r.combined_credits?.cast ?? []), ...(r.combined_credits?.crew ?? [])]) {
+      const kind = c.media_type === 'movie' ? 'movie' : c.media_type === 'tv' ? 'series' : null;
+      if (!kind) continue;
+      const [card] = this.cards(kind, [c]);
+      if (!card) continue;
+      const k = `${kind}${card.tmdbId}`;
+      const role = c.character || c.job || null;
+      const had = seen.get(k);
+      if (had) {
+        if (role && had.role && !had.role.includes(role)) had.role = `${had.role}, ${role}`;
+      } else seen.set(k, { ...card, role });
+    }
+    return {
+      id: r.id,
+      name: r.name,
+      profilePath: r.profile_path ?? null,
+      biography: r.biography || null,
+      birthday: r.birthday ?? null,
+      deathday: r.deathday ?? null,
+      placeOfBirth: r.place_of_birth ?? null,
+      knownFor: r.known_for_department ?? null,
+      credits: [...seen.values()].sort((a, b) => b.popularity - a.popularity),
     };
   }
 }

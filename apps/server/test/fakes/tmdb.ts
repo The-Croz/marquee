@@ -1,4 +1,4 @@
-import type { TmdbApi, TmdbCard, TmdbDiscoverQuery, TmdbEpisode, TmdbExtras, TmdbList, TmdbMovie, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
+import type { TmdbApi, TmdbCard, TmdbDiscoverQuery, TmdbEpisode, TmdbExtras, TmdbList, TmdbMovie, TmdbPerson, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
 import { GENRES, SERVICES, TmdbError } from '../../src/library/tmdb.js';
 import { normalizeTitle } from '../../src/library/parse.js';
 
@@ -183,6 +183,13 @@ export class FakeTmdb implements TmdbApi {
     const pool = new Set((kind === 'movie' ? MOVIES : SHOWS).map((x) => x.tmdbId));
     return (DISC[id]?.recs ?? []).filter((r) => pool.has(r)).map((r) => this.card(kind, r));
   }
+  /** Everyone in the fakes is "A. Actor" (id 501), in every movie and show. */
+  async person(id: number): Promise<TmdbPerson> {
+    this.check(`person:${id}`);
+    if (id !== 501) throw new TmdbError(404, 'not found');
+    const credits = [...this.all('movie'), ...this.all('series')].sort((a, b) => b.popularity - a.popularity).map((c) => ({ ...c, role: 'Lead' }));
+    return { id, name: 'A. Actor', profilePath: '/actor.jpg', biography: 'Plays the lead in everything.', birthday: '1980-01-01', deathday: null, placeOfBirth: 'Somewhere', knownFor: 'Acting', credits };
+  }
   async extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras> {
     this.check(`extras:${kind}:${id}`);
     const t = kind === 'movie' ? MOVIES.find((x) => x.tmdbId === id) : SHOWS.find((x) => x.tmdbId === id);
@@ -214,8 +221,10 @@ export class FakeTmdb implements TmdbApi {
       certification: t.certification,
       genres: t.genres ?? ['Drama'],
       trailerKey: d?.trailer ?? null,
-      cast: [{ name: 'A. Actor', character: 'Lead' }],
+      cast: [{ id: 501, name: 'A. Actor', character: 'Lead', profilePath: '/actor.jpg' }],
       providers: (d?.providers ?? []).map((k) => SERVICES.find((s) => s.key === k)!.name),
+      watchOn: (d?.providers ?? []).map((k) => ({ name: SERVICES.find((s) => s.key === k)!.name, logoPath: null })),
+      imdbId: kind === 'movie' ? `tt${String(id).padStart(7, '0')}` : null,
       status: null,
       seasons,
     };

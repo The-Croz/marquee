@@ -418,7 +418,7 @@ function UsersAdmin({ status }: Ctx) {
 
 // ---------------- Services (admin) ----------------
 
-function ServiceTest({ service, getValues }: { service: 'tmdb' | 'streamingTop' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
+function ServiceTest({ service, getValues }: { service: 'tmdb' | 'streamingTop' | 'omdb' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
   const [result, setResult] = useState<ServiceTestResult | null>(null);
   const [busy, setBusy] = useState(false);
   async function test() {
@@ -599,7 +599,7 @@ function ServicesAdmin() {
       if (d.has(k)) body[k] = String(d.get(k) ?? '');
     }
     // Blank secret fields mean "keep what's saved".
-    for (const k of ['tmdbApiKey', 'streamingTopKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
+    for (const k of ['tmdbApiKey', 'streamingTopKey', 'omdbKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
       const v = String(d.get(k) ?? '').trim();
       if (v) body[k] = v;
     }
@@ -626,6 +626,13 @@ function ServicesAdmin() {
     await queryClient.invalidateQueries({ queryKey: ['services'] });
     await queryClient.invalidateQueries({ queryKey: ['discover'] });
     setMessage({ tone: 'success', text: 'Key removed. Discover shows what’s popular on each service instead.' });
+  }
+
+  async function clearOmdb() {
+    await api('/settings/services', { method: 'PUT', body: { omdbKey: null } });
+    await queryClient.invalidateQueries({ queryKey: ['services'] });
+    await queryClient.invalidateQueries({ queryKey: ['discover'] });
+    setMessage({ tone: 'success', text: 'Key removed. Title pages show TMDB’s score only.' });
   }
 
   async function clear(field: 'radarr' | 'sonarr') {
@@ -676,6 +683,29 @@ function ServicesAdmin() {
           <ServiceTest service="streamingTop" getValues={() => ({ apiKey: val('streamingTopKey') })} />
           {data.streamingTop.configured && (
             <button type="button" onClick={clearTop} className="h-11 text-sm font-medium text-warn">
+              Remove the key
+            </button>
+          )}
+        </div>
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">
+            IMDb and Rotten Tomatoes scores <span className="text-sm font-normal text-dim">optional</span>
+          </h2>
+          <p className="m-0 mt-1 text-sm text-muted">
+            Title pages always show TMDB’s score. With a free OMDb key they also show IMDb, Rotten Tomatoes and Metacritic.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About OMDb">
+              Get a free key at omdbapi.com (the free plan allows 1,000 lookups a day). Marquee keeps each title’s scores for 3 days, so a normal day uses far fewer. If OMDb is down or the day’s limit is used up, pages show TMDB’s score and try again later.
+            </InfoTip>
+          </p>
+        </div>
+        <Field label="OMDb key" name="omdbKey" id="omdbKey" type="password" autoComplete="off" placeholder={data.omdb.configured ? '••••••••••••' : ''} hint={savedHint(data.omdb.configured)} />
+        <div className="flex flex-wrap items-center gap-3">
+          <ServiceTest service="omdb" getValues={() => ({ apiKey: val('omdbKey') })} />
+          {data.omdb.configured && (
+            <button type="button" onClick={clearOmdb} className="h-11 text-sm font-medium text-warn">
               Remove the key
             </button>
           )}

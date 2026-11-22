@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { CopiesResult, CopyView, ProfileKind, ProfilesView, SendResult } from '@marquee/shared';
 import { ApiFailure, api, queryClient } from '../api';
@@ -162,13 +162,19 @@ export interface CopiesProps {
   byHand: boolean;
   /** Shows: seasons with their episode numbers. */
   seasons?: { season: number; episodes: number[] }[];
+  /** Start on this season and episode (a show page's season or episode row). */
+  start?: { season: number; episode?: number };
+  /** Search as soon as it opens. */
+  autoSearch?: boolean;
+  /** Inside a sheet that has its own title: no card or heading. */
+  bare?: boolean;
 }
 
-export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesProps) {
+export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, autoSearch, bare }: CopiesProps) {
   const base = kind === 'movie' ? `/movies/${titleId}` : `/shows/${titleId}`;
   const firstSeason = seasons?.find((s) => s.season > 0) ?? seasons?.[0];
-  const [season, setSeason] = useState(firstSeason?.season ?? 1);
-  const [episode, setEpisode] = useState<number | 'all'>('all');
+  const [season, setSeason] = useState(start?.season ?? firstSeason?.season ?? 1);
+  const [episode, setEpisode] = useState<number | 'all'>(start?.episode ?? 'all');
   const [showAllDown, setShowAllDown] = useState(false);
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api<ProfilesView>('/settings/profiles') });
   const mine = profiles.data?.profiles.filter((p) => p.kind === kind) ?? [];
@@ -185,6 +191,14 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
     },
   });
 
+  const searched = useRef(false);
+  useEffect(() => {
+    if (autoSearch && !searched.current) {
+      searched.current = true;
+      search.mutate();
+    }
+  }, [autoSearch, search]);
+
   const r = search.data;
   const accepted = r?.copies.filter((c) => c.accepted) ?? [];
   const down = r?.copies.filter((c) => !c.accepted) ?? [];
@@ -192,11 +206,12 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
   const failed = r?.sources.filter((s) => s.status === 'failed' || (s.status === 'skipped' && !/^(Paused|Not used)/.test(s.message ?? ''))) ?? [];
   const episodes = seasons?.find((s) => s.season === season)?.episodes ?? [];
 
+  const Wrap = bare ? 'div' : Card;
   return (
-    <Card aria-label="Copies we found" className="flex flex-col gap-4">
+    <Wrap aria-label="Copies we found" className={cx('flex flex-col gap-4', bare && 'p-0')}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-xl font-semibold">Copies we found</h2>
+          {!bare && <h2 className="m-0 text-xl font-semibold">Copies we found</h2>}
           <p className="m-0 text-label text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads until you press “Download this”.</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -296,6 +311,6 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons }: CopiesP
           )}
         </>
       )}
-    </Card>
+    </Wrap>
   );
 }

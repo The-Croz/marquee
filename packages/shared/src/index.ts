@@ -73,7 +73,7 @@ export interface HomeData {
   /** The newest titles in the library (kids: only ones for them). */
   recent: HomeTitle[];
   /** Episodes airing and Wanted movies coming out in the next 7 days. `href` is the title’s page. */
-  upcoming: { day: string; title: string; note: string; href?: string }[];
+  upcoming: { day: string; title: string; note: string; href?: string; posterPath?: string | null; backdropPath?: string | null }[];
   /** One quiet line of library numbers. `to` is where each one leads. */
   stats: { label: string; value: string; to?: string }[];
   /** The big picture at the top: what's playing, what's ready for you, or what just arrived. Null when there's nothing. */
@@ -165,6 +165,8 @@ export interface ServicesView {
   tmdb: { configured: boolean; fromEnvironment: boolean };
   /** Streaming Availability key for real Top 10s (never sent back). */
   streamingTop: { configured: boolean };
+  /** OMDb key for IMDb and Rotten Tomatoes scores (never sent back). */
+  omdb: { configured: boolean };
   radarr: { url: string | null; configured: boolean };
   sonarr: { url: string | null; configured: boolean };
   moviesRoot: string;
@@ -200,6 +202,7 @@ export interface MediaLibrariesResult {
 export interface ServicesUpdate {
   tmdbApiKey?: string | null;
   streamingTopKey?: string | null;
+  omdbKey?: string | null;
   radarrUrl?: string | null;
   radarrApiKey?: string | null;
   sonarrUrl?: string | null;
@@ -1060,6 +1063,42 @@ export interface TitleDetails {
   episodeCount: number | null;
   lastAirDate: string | null;
   nextAirDate: string | null;
+  /** Movies: not out anywhere yet, only in cinemas, or out to stream or buy. Shows are always "out". */
+  stage: 'announced' | 'cinemas' | 'out';
+  /** Movies: when it's out to stream or buy. `known` is false when it's a guess (cinema date + 90 days). */
+  homeRelease: { date: string; known: boolean } | null;
+}
+
+/** Scores from TMDB and, with an OMDb key, IMDb, Rotten Tomatoes and Metacritic. */
+export interface TitleRatings {
+  tmdb: { score: number; votes: number } | null;
+  imdb: { score: number; votes: number } | null;
+  /** Critics' Tomatometer, 0–100. */
+  rottenTomatoes: number | null;
+  metacritic: number | null;
+  imdbId: string | null;
+}
+
+export interface CastMember {
+  /** TMDB person id; opens their page. */
+  id: number | null;
+  name: string;
+  character: string | null;
+  profilePath: string | null;
+}
+
+/** An actor or director on TMDB and what they've been in. */
+export interface PersonDetail {
+  id: number;
+  name: string;
+  profilePath: string | null;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  knownFor: string | null;
+  /** Movies and shows, the more popular first; `role` is their part. */
+  credits: (DiscoverCard & { role: string | null })[];
 }
 
 export interface DiscoverTitle {
@@ -1071,8 +1110,12 @@ export interface DiscoverTitle {
   genres: string[];
   /** YouTube video key; null when there's no trailer or the person turned trailers off. */
   trailerKey: string | null;
-  cast: { name: string; character: string | null }[];
+  cast: CastMember[];
+  /** Services streaming it in the US, one per service. */
   providers: string[];
+  /** The same, with logos. */
+  watchOn: { name: string; logoPath: string | null }[];
+  ratings: TitleRatings;
   /** Shows: each season with where it stands. */
   seasons: { season: number; episodeCount: number; state: CardState }[];
   similar: DiscoverRow | null;
@@ -1102,7 +1145,7 @@ export interface DiscoverPrefs {
   all?: ServiceChip[];
 }
 
-export type RequestState = 'pending' | 'unreleased' | 'looking' | 'downloading' | 'ready' | 'declined';
+export type RequestState = 'pending' | 'unreleased' | 'searching' | 'looking' | 'downloading' | 'ready' | 'declined';
 
 export interface RequestView {
   id: number;

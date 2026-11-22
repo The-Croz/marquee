@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { DownloadActionResult, DownloadDetails, DownloadsView, SendResult } from '@marquee/shared';
-import { requireAdmin, type Ctx, type Env } from '../http.js';
+import { and, inArray, isNull, or, eq } from 'drizzle-orm';
+import { downloads } from '../db/schema.js';
+import { requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
 import { sendCopy } from '../downloads/send.js';
 import { sharedMonitor, type DownloadMonitor } from '../downloads/monitor.js';
 
@@ -19,6 +21,18 @@ downloadRoutes.get('/', async (c) => {
   requireAdmin(c);
   const q = z.object({ movieId: z.coerce.number().int().optional(), seriesId: z.coerce.number().int().optional() }).parse(c.req.query());
   return c.json<DownloadsView>(await monitorFor(c).view(10_000, q));
+});
+
+/** The number on the menu: downloads on their way (sent, downloading, or done and waiting to go in the library). */
+downloadRoutes.get('/summary', (c) => {
+  requireUser(c);
+  const active = c
+    .get('deps')
+    .db.select({ id: downloads.id })
+    .from(downloads)
+    .where(or(inArray(downloads.state, ['sent', 'downloading']), and(eq(downloads.state, 'done'), isNull(downloads.importedAt))))
+    .all().length;
+  return c.json({ active });
 });
 
 downloadRoutes.post('/', async (c) => {
