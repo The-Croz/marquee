@@ -1,6 +1,6 @@
 # Marquee
 
-Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Tautulli, with a companion iPhone app. One person (Josh, GitHub `The-Croz`) builds it with Claude, so keep things simple, explicit and well-tested.
+Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr, Tautulli, WatchState and Profilarr, with a companion iPhone app. One person (Josh, GitHub `The-Croz`) builds it with Claude, so keep things simple, explicit and well-tested.
 
 **Read `docs/PLAN.md` first.** It has the milestones, what's done, and the next tasks. Update it when you finish something.
 
@@ -8,9 +8,9 @@ Self-hosted, all-in-one replacement for Sonarr, Radarr, Prowlarr, Seerr and Taut
 
 - Movies and TV only. **No anime** support.
 - **Torrents only**, through **qBittorrent** (Web API v2). No Usenet.
-- Quality profiles built on the TRaSH Guides, explained in plain English. Profiles are stored in the database, editable in the app, and assigned per title; never hard-code profile behavior. Seeded presets: **Cinema** (4K HDR, efficient sizes, 1080p fallback; skip remuxes), **Everyday HD** (1080p), **Kids & Cartoons** (720p).
+- Quality profiles built on **Dictionarry** (Profilarr's database; Josh prefers space-efficient encodes that keep quality) by default, with the **TRaSH Guides** still available, explained in plain English. (Changed from TRaSH-first on 2026-11-22; see `docs/design/replacement-audit-2026-11.md` P3.) Profiles are stored in the database, editable in the app, and assigned per title; never hard-code profile behavior. Seeded presets: **4K Quality** (key `cinema`; 4K HDR, efficient sizes, 1080p fallback; skip remuxes), **Everyday HD** (1080p), **Kids & Cartoons** (720p).
 - No automatic deletion for now.
-- Roles: `admin`, `member` (requests go straight through), `kid` (kids-only Discover; requests need approval).
+- Roles: `admin` (requests go straight through), `member` and `kid` (kids-only Discover); members' and kids' requests wait for an admin. Planned (audit R4): a per-person "requests skip approval" switch (for kids, kid-safe titles only).
 - Sign-in: username and password always; optional OIDC (Pocket ID) and Plex.
 - Watches **both Plex and Jellyfin**.
 - Rollout plan: run beside the existing arrs first (read-only import, then "decide but don't download" comparison), then take over movies, then TV.
