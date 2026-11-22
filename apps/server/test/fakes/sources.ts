@@ -38,6 +38,8 @@ export interface FakeFeed {
   fail?: TorznabError;
   /** Remembers each search. */
   searches?: SearchQuery[];
+  /** Searches wait for this before answering (a slow site). */
+  gate?: Promise<void>;
 }
 
 /** A set of fake feeds keyed by URL, plus a Prowlarr that lists them. */
@@ -65,6 +67,7 @@ export class FakeSites {
       search: async (query) => {
         const f = feed();
         f.searches!.push(query);
+        if (f.gate) await f.gate;
         return f.releases ?? [];
       },
     };

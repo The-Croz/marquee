@@ -190,7 +190,7 @@ function movieDates(db: Db, opts: { from: string; to: string; kidMovieRatings?: 
 }
 
 /** "Coming up this week" on Home: the next 7 days, one line per show and day. */
-export function comingUp(db: Db, now: number, kidRatings?: string[], kidMovieRatings?: string[]): { day: string; title: string; note: string; href: string }[] {
+export function comingUp(db: Db, now: number, kidRatings?: string[], kidMovieRatings?: string[]): { day: string; title: string; note: string; href: string; posterPath: string | null; backdropPath: string | null }[] {
   const view = calendar(db, { from: isoDay(now), to: isoDay(now + 6 * DAY), now, kidRatings, kidMovieRatings });
   const lines = new Map<string, { day: string; title: string; note: string; href: string; eps: number[]; season: number; movie: boolean }>();
   for (const i of view.items) {
@@ -211,10 +211,19 @@ export function comingUp(db: Db, now: number, kidRatings?: string[], kidMovieRat
       movie: i.kind === 'movie',
     });
   }
+  // Artwork for each line, so the week reads as pictures.
+  const ids = (prefix: string) => [...lines.values()].filter((l) => l.href.startsWith(prefix)).map((l) => Number(l.href.split('/').pop()));
+  const mIds = ids('/movies/');
+  const sIds = ids('/shows/');
+  const art = new Map<string, { posterPath: string | null; backdropPath: string | null }>();
+  if (mIds.length) for (const r of db.select({ id: movies.id, posterPath: movies.posterPath, backdropPath: movies.backdropPath }).from(movies).where(inArray(movies.id, mIds)).all()) art.set(`/movies/${r.id}`, r);
+  if (sIds.length) for (const r of db.select({ id: series.id, posterPath: series.posterPath, backdropPath: series.backdropPath }).from(series).where(inArray(series.id, sIds)).all()) art.set(`/shows/${r.id}`, r);
   return [...lines.values()].map((l) => ({
     day: l.day,
     title: l.movie ? l.title : `${l.title} · S${l.season} ${l.eps.length > 1 ? `E${l.eps[0]}–${l.eps.at(-1)}` : `E${l.eps[0]}`}`,
     note: l.note,
     href: l.href,
+    posterPath: art.get(l.href)?.posterPath ?? null,
+    backdropPath: art.get(l.href)?.backdropPath ?? null,
   }));
 }

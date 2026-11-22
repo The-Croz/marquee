@@ -14,6 +14,7 @@ import { ProfileService } from '../releases/profiles.js';
 import { notifyAdmins, tell, type NotifyDeps } from '../notify/service.js';
 import { posterUrl, requestVars } from '../notify/vars.js';
 import { isKidSafe } from '../discover/kids.js';
+import { movieHomeDate, movieStage } from '../library/availability.js';
 
 /**
  * Requests, like Seerr's. An admin's request goes straight through: the title
@@ -30,7 +31,16 @@ export interface RequestDeps {
   sources: SourceService;
   notify: NotifyDeps;
   now: () => number;
+  /** How long an approval waits for its first search before answering "searching" (ms). */
+  firstSearchWait?: number;
 }
+
+/** First searches still running after their approval answered, by "movie:12" / "series:3". */
+const searching = new Map<string, Promise<void>>();
+const searchKey = (kind: 'movie' | 'series', id: number) => `${kind}:${id}`;
+export const isSearching = (kind: 'movie' | 'series', id: number) => searching.has(searchKey(kind, id));
+/** Resolves once every first search has finished (for tests and shutdown). */
+export const searchesSettled = () => Promise.all([...searching.values()]).then(() => undefined);
 
 const seasonsOf = (r: Pick<RequestRow, 'seasons'>): number[] | null => (r.seasons ? (JSON.parse(r.seasons) as number[]) : null);
 
@@ -96,7 +106,8 @@ export function titleStates(db: Db, kind: 'movie' | 'series', tmdbIds: number[],
 const STATE_TEXT: Record<RequestState, string> = {
   pending: 'Waiting for an admin to approve it.',
   unreleased: 'Approved. It isn’t out yet, so Marquee will look for it when it is.',
-  looking: 'Approved. Marquee is looking for a copy.',
+  searching: 'Approved. Marquee is searching for a copy now.',
+  looking: 'Approved. No good copy has turned up yet. Marquee keeps looking.',
   downloading: 'Downloading now.',
   ready: 'Ready to watch.',
   declined: 'Turned down.',
@@ -108,20 +119,25 @@ export function approvedState(db: Db, r: RequestRow, now: number): RequestState 
   if (r.kind === 'movie') {
     if (db.select({ id: mediaFiles.id }).from(mediaFiles).where(eq(mediaFiles.movieId, r.titleId)).get()) return 'ready';
     if (activeDownload(db, 'movie', r.titleId)) return 'downloading';
+    if (isSearching('movie', r.titleId)) return 'searching';
     return isReleased(db, 'movie', r.titleId, now) ? 'looking' : 'unreleased';
   }
   const cov = showCoverage(db, r.titleId, seasonsOf(r), todayOf(now));
   if (cov.aired > 0 && cov.have >= cov.aired) return 'ready';
   if (activeDownload(db, 'series', r.titleId)) return 'downloading';
+  if (isSearching('series', r.titleId)) return 'searching';
   return cov.aired === 0 ? 'unreleased' : 'looking';
 }
 
-/** A movie is out once its release date has come (no date counts as out). */
+/** A movie is out once it can be streamed or bought, not just seen in cinemas (no dates counts as out). */
 export function isReleased(db: Db, kind: 'movie' | 'series', id: number, now: number): boolean {
   if (kind !== 'movie') return true;
-  const date = db.select({ d: movies.releaseDate }).from(movies).where(eq(movies.id, id)).get()?.d;
-  return !date || date <= todayOf(now);
+  const m = movieDates(db, id);
+  return !m || movieStage(m, todayOf(now)) === 'out';
 }
+
+const movieDates = (db: Db, id: number) =>
+  db.select({ releaseDate: movies.releaseDate, cinemaRelease: movies.cinemaRelease, digitalRelease: movies.digitalRelease, physicalRelease: movies.physicalRelease }).from(movies).where(eq(movies.id, id)).get();
 
 /** "Dec 20, 2026" from "2026-12-20". */
 export const prettyDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -135,15 +151,36 @@ function comesOut(db: Db, r: RequestRow): string | null {
   return dates.sort()[0] ?? null;
 }
 
-function stateText(db: Db, r: RequestRow, state: RequestState): string {
+function stateText(db: Db, r: RequestRow, state: RequestState, now: number): string {
   if (state === 'declined' && r.reason) return `Turned down: ${r.reason}`;
   if (state === 'unreleased') {
+    if (r.kind === 'movie') return r.titleId !== null ? movieWaitText(db, r.titleId, now) : STATE_TEXT.unreleased;
     const date = comesOut(db, r);
-    return r.kind === 'movie'
-      ? `Approved. It comes out ${date ? prettyDate(date) : 'later'}, and Marquee will look for it then.`
-      : `Approved. The first episode ${date ? `airs ${prettyDate(date)}` : 'hasn’t aired yet'}, and Marquee will look for it then.`;
+    return `Approved. The first episode ${date ? `airs ${prettyDate(date)}` : 'hasn’t aired yet'}, and Marquee will look for it then.`;
+  }
+  if (state === 'downloading' && r.titleId !== null) {
+    const d = db
+      .select({ state: downloads.state, progress: downloads.progress })
+      .from(downloads)
+      .where(and(r.kind === 'movie' ? eq(downloads.movieId, r.titleId) : eq(downloads.seriesId, r.titleId), inArray(downloads.state, ['sent', 'downloading'])))
+      .orderBy(desc(downloads.addedAt))
+      .get();
+    if (d && d.progress > 0) return `Downloading now · ${Math.floor(d.progress * 100)}%.`;
+    if (d) return 'Found a copy. The download is starting.';
   }
   return STATE_TEXT[state];
+}
+
+/** "Approved. It's in cinemas now; Marquee looks for it once it's out to stream or buy, around Feb 18, 2027." */
+function movieWaitText(db: Db, id: number, now: number): string {
+  const m = movieDates(db, id);
+  if (!m) return STATE_TEXT.unreleased;
+  const home = movieHomeDate(m);
+  const when = home ? `, ${home.known ? 'on' : 'around'} ${prettyDate(home.date)}` : '';
+  const cinema = m.cinemaRelease ?? m.releaseDate;
+  return movieStage(m, todayOf(now)) === 'cinemas'
+    ? `Approved. It’s in cinemas now. Marquee looks for it once it’s out to stream or buy${when}.`
+    : `Approved. It comes out${cinema ? ` in cinemas ${prettyDate(cinema)}` : ' later'}. Marquee looks for it once it’s out to stream or buy${when}.`;
 }
 
 export function requestView(db: Db, r: RequestRow, now: number): RequestView {
@@ -161,7 +198,7 @@ export function requestView(db: Db, r: RequestRow, now: number): RequestView {
     seasons: seasonsOf(r),
     requestedBy: by,
     state,
-    stateText: stateText(db, r, state),
+    stateText: stateText(db, r, state, now),
     profile,
     reason: r.reason,
     decidedBy: decider,
@@ -294,13 +331,24 @@ export async function approveRequest(deps: RequestDeps, id: number, admin: User,
     .get();
 
   // Look for it now; ongoing looking is Automatic searching's job. Never fails the approval.
-  try {
-    const wanted = { db, clients: deps.clients, sources: deps.sources, now, only: { id: titleId }, manual: true };
-    if (r.kind === 'movie') await lookForWanted(wanted, 'missing', 1);
-    else await lookForWantedTv(wanted, 'missing', 50);
-  } catch (err) {
-    console.error('[requests] first search failed:', (err as Error).message);
-  }
+  // A quick search answers with what it found; a slow one carries on in the background
+  // while the request says "searching", so the app isn't left waiting.
+  const key = searchKey(r.kind, titleId);
+  const search = (async () => {
+    try {
+      const wanted = { db, clients: deps.clients, sources: deps.sources, now, only: { id: titleId }, manual: true };
+      if (r.kind === 'movie') await lookForWanted(wanted, 'missing', 1);
+      else await lookForWantedTv(wanted, 'missing', 50);
+    } catch (err) {
+      console.error('[requests] first search failed:', (err as Error).message);
+    } finally {
+      searching.delete(key);
+    }
+  })();
+  searching.set(key, search);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([search, new Promise<void>((resolve) => (timer = setTimeout(resolve, deps.firstSearchWait ?? 1500)))]);
+  clearTimeout(timer);
 
   if (r.requestedBy !== null && r.requestedBy !== admin.id) {
     tell(deps.notify, r.requestedBy, 'request_approved', { vars: { ...requestVars(r), by: admin.displayName }, link: '/requests' });

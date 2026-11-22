@@ -63,7 +63,7 @@ describe('Home', () => {
     const h = await t.home(ana);
     expect(h.myRequests).toMatchObject([{ title: 'Wicked', state: 'pending' }]);
     expect(h.needsYou).toEqual([]);
-    expect(h.stats.map((s) => s.label)).toEqual(['movies', 'shows']);
+    expect(h.stats.map((s) => s.label)).toEqual(['movies', 'shows', 'episode files', 'added this week']);
     // The admin sees Ana's request as something to approve.
     expect((await t.home()).needsYou.map((n) => n.title)).toContain('Ana asked for Wicked');
   });

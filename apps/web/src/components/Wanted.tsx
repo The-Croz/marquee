@@ -70,3 +70,54 @@ export function WantedCheck({ label, checked, path, disabled }: { label: string;
     </label>
   );
 }
+
+/**
+ * A small Wanted switch for a title's header, a season or an episode.
+ * On: Marquee looks for it by itself. Off: only when you search by hand.
+ */
+export function WantedToggle({ path, wanted, label, compact, disabled }: { path: string; wanted: boolean; label: string; compact?: boolean; disabled?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [shown, setShown] = useState(wanted);
+  if (!busy && shown !== wanted) setShown(wanted);
+  async function flip() {
+    const next = !shown;
+    setBusy(true);
+    setShown(next);
+    setError(null);
+    try {
+      await api(path, { method: 'PUT', body: { wanted: next } });
+      await refreshLibrary();
+    } catch (e) {
+      setShown(!next);
+      setError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <span className="inline-flex flex-col">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={shown}
+        aria-label={label}
+        disabled={busy || disabled}
+        onClick={flip}
+        title={shown ? 'Marquee looks for it by itself. Tap to stop.' : 'Marquee won’t look for it by itself. Tap to start.'}
+        className={cx(
+          'inline-flex min-h-11 items-center gap-2 rounded-full font-medium whitespace-nowrap disabled:opacity-50',
+          compact ? 'px-1.5 text-xs' : 'border px-4 text-sm',
+          !compact && (shown ? 'border-amber/50 bg-amber/12 text-amber-hi' : 'border-line-strong text-soft hover:text-text'),
+          compact && (shown ? 'text-amber-hi' : 'text-dim hover:text-text'),
+        )}
+      >
+        <span aria-hidden="true" className={cx('relative inline-block h-[18px] w-8 flex-none rounded-full transition-colors', shown ? 'bg-amber' : 'bg-line-strong')}>
+          <span className={cx('absolute top-[3px] size-3 rounded-full bg-ink transition-[left]', shown ? 'left-[17px]' : 'left-[3px]')} />
+        </span>
+        {compact ? (shown ? 'Wanted' : 'Skip') : shown ? 'Wanted' : 'Not wanted'}
+      </button>
+      {error && <span className="text-xs text-warn">{error}</span>}
+    </span>
+  );
+}

@@ -2,13 +2,35 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CardState, DiscoverCard, DiscoverRow, DiscoverTitle } from '@marquee/shared';
+import type { CardState, DiscoverCard, DiscoverRow, DiscoverTitle, RequestState, RequestView } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, tmdbImage } from './Poster';
 import { Button, cx } from './ui';
 
-/** Where a card goes: the title's page (which links to the library copy when there is one). */
-export const cardHref = (c: Pick<DiscoverCard, 'kind' | 'tmdbId'>) => `/discover/${c.kind}/${c.tmdbId}`;
+/** Where a card goes: its library page once it's in the library (or asked for and approved), otherwise its Discover page. */
+export const cardHref = (c: Pick<DiscoverCard, 'kind' | 'tmdbId'> & { libraryId?: number | null }) =>
+  c.libraryId ? `/${c.kind === 'movie' ? 'movies' : 'shows'}/${c.libraryId}` : `/discover/${c.kind}/${c.tmdbId}`;
+
+/** A request's state as a card shows it. */
+const CARD_STATE: Record<RequestState, CardState> = { pending: 'pending', unreleased: 'approved', searching: 'approved', looking: 'approved', downloading: 'downloading', ready: 'in_library', declined: 'declined' };
+
+/** Changes one title's state in everything already loaded (Discover rows, search, Home), so it shows at once. */
+function patchCards(kind: 'movie' | 'series', tmdbId: number, state: CardState, libraryId: number | null) {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== 'object') return v;
+    const o = v as Record<string, unknown>;
+    const next: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(o)) next[k] = walk(x);
+    if (o.kind === kind && o.tmdbId === tmdbId && 'state' in o && typeof o.state === 'string' && o.state in CARD_STATE_SET) {
+      next.state = state;
+      if ('libraryId' in o && libraryId !== null) next.libraryId = libraryId;
+    }
+    return next;
+  };
+  queryClient.setQueriesData({ queryKey: ['discover'] }, walk);
+}
+const CARD_STATE_SET: Record<CardState, true> = { in_library: true, downloading: true, approved: true, pending: true, declined: true, none: true };
 
 export const STATE_LABEL: Record<CardState, string | null> = {
   in_library: 'In your library',
@@ -42,12 +64,15 @@ export function useRequest() {
     setBusy(c.tmdbId);
     setMessage(null);
     try {
-      await api('/requests', { body: { kind: c.kind, tmdbId: c.tmdbId, ...(seasons ? { seasons } : {}) } });
-      await Promise.all([queryClient.invalidateQueries({ queryKey: ['discover'] }), queryClient.invalidateQueries({ queryKey: ['requests'] }), queryClient.invalidateQueries({ queryKey: ['library'] })]);
-      return true;
+      const r = await api<RequestView>('/requests', { body: { kind: c.kind, tmdbId: c.tmdbId, ...(seasons ? { seasons } : {}) } });
+      const libraryId = r.href ? Number(r.href.split('/').pop()) : null;
+      patchCards(c.kind, c.tmdbId, CARD_STATE[r.state], libraryId);
+      // Then reload in the background: TMDB-backed pages can take a few seconds.
+      for (const key of [['discover'], ['requests'], ['library'], ['home'], ['downloads']]) void queryClient.invalidateQueries({ queryKey: key });
+      return r;
     } catch (e) {
       setMessage(e instanceof ApiFailure ? e.message : 'That didn’t go through. Try again.');
-      return false;
+      return null;
     } finally {
       setBusy(null);
     }
@@ -243,7 +268,7 @@ export function Row({ row, trailers }: { row: DiscoverRow; trailers: boolean }) 
           ))}
         </div>
       </div>
-      <div ref={scroller} className="-mx-5 flex snap-x gap-[18px] overflow-x-auto px-5 pb-2 sm:-mx-10 sm:px-10">
+      <div ref={scroller} className="-mx-4 flex snap-x scroll-px-4 sm:scroll-px-10 gap-[18px] overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {row.items.map((c) => (
           <TitleCard key={`${c.kind}${c.tmdbId}`} card={c} trailers={trailers} />
         ))}

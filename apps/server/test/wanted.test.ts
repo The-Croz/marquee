@@ -172,11 +172,22 @@ describe('Preview and the daily limit', () => {
 });
 
 describe('Movies that aren’t out yet', () => {
-  it('are left alone until their release date, and requests say so', async () => {
+  it('are left alone until they’re out to stream or buy', async () => {
     const t = await setup();
-    t.db.update(schema.movies).set({ releaseDate: '2026-12-20', monitored: true }).where(eq(schema.movies.id, t.up.id)).run();
+    t.db.update(schema.movies).set({ releaseDate: '2026-12-20', digitalRelease: '2026-12-20', monitored: true }).where(eq(schema.movies.id, t.up.id)).run();
     expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(0);
     t.later(40 * 86_400_000);
+    expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(1);
+  });
+
+  it('in cinemas isn’t out: without a digital date Marquee waits 90 days after the cinema date', async () => {
+    const t = await setup();
+    const today = new Date(t.deps().now()).toISOString().slice(0, 10);
+    const daysAgo = (n: number) => new Date(t.deps().now() - n * 86_400_000).toISOString().slice(0, 10);
+    t.db.update(schema.movies).set({ releaseDate: daysAgo(10), cinemaRelease: daysAgo(10), digitalRelease: null, monitored: true }).where(eq(schema.movies.id, t.up.id)).run();
+    expect(today > daysAgo(10)).toBe(true);
+    expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(0);
+    t.later(81 * 86_400_000);
     expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(1);
   });
 });

@@ -11,11 +11,12 @@ const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something
 const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['requests'] }), queryClient.invalidateQueries({ queryKey: ['discover'] }), queryClient.invalidateQueries({ queryKey: ['library'] })]);
 
 export const STATE: Record<RequestState, { label: string; tone: string }> = {
-  pending: { label: 'Waiting for approval', tone: 'bg-amber/16 text-amber-hi' },
-  unreleased: { label: 'Approved · not out yet', tone: 'bg-blue/18 text-blue-hi' },
-  looking: { label: 'Approved · looking for it', tone: 'bg-blue/18 text-blue-hi' },
-  downloading: { label: 'Downloading', tone: 'bg-blue/18 text-blue-hi' },
-  ready: { label: 'Ready to watch', tone: 'bg-teal/15 text-teal-hi' },
+  pending: { label: 'Waiting for OK', tone: 'bg-amber/16 text-amber-hi' },
+  unreleased: { label: 'Not out yet', tone: 'bg-white/8 text-soft' },
+  searching: { label: 'Searching…', tone: 'bg-blue/18 text-blue-hi' },
+  looking: { label: 'Looking', tone: 'bg-blue/18 text-blue-hi' },
+  downloading: { label: 'Downloading', tone: 'bg-blue/30 text-blue-hi' },
+  ready: { label: 'Ready', tone: 'bg-teal/15 text-teal-hi' },
   declined: { label: 'Turned down', tone: 'bg-warn/15 text-warn' },
 };
 

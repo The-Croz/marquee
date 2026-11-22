@@ -1,11 +1,13 @@
 import { and, desc, eq, or } from 'drizzle-orm';
-import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle, ServiceTop } from '@marquee/shared';
+import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle, PersonDetail, ServiceTop, TitleRatings } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { movies, requests, series, userPrefs, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
 import { GENRES, SERVICES, TmdbError, type TmdbApi, type TmdbCard } from '../library/tmdb.js';
 import { prettyDate, requestView, showCoverage, titleStates } from '../requests/service.js';
 import { isKidSafe } from './kids.js';
+import { movieHomeDate, movieStage } from '../library/availability.js';
+import type { OmdbApi, OutsideRatings } from '../library/omdb.js';
 import { watchedTitles } from './seeds.js';
 import { StreamingTopError, type StreamingTopApi } from './streamingTop.js';
 
@@ -24,6 +26,8 @@ export interface DiscoverDeps {
   top?: StreamingTopApi | null;
   /** Shows admins what to do when the Top 10 isn't the real one. */
   isAdmin?: boolean;
+  /** IMDb and Rotten Tomatoes scores; null without an OMDb key. */
+  omdb?: OmdbApi | null;
 }
 
 const DAY = 86_400_000;
@@ -321,7 +325,13 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
     }
     return { ...s, state };
   });
-  const released = !extras.releaseDate || extras.releaseDate <= today;
+  const dated = (k: string) => extras.releases.find((r) => r.kind === k)?.date ?? null;
+  const dates = { releaseDate: extras.releaseDate, cinemaRelease: dated('Theatrical') ?? dated('Limited') ?? dated('Premiere'), digitalRelease: dated('Digital'), physicalRelease: dated('Physical') };
+  const stage = kind === 'movie' ? movieStage(dates, today) : 'out';
+  const home = kind === 'movie' ? movieHomeDate(dates) : null;
+  const released = kind === 'movie' ? stage === 'out' : !extras.releaseDate || extras.releaseDate <= today;
+  const homeText = home ? `${home.known ? '' : 'around '}${prettyDate(home.date)}` : null;
+  const waitText = stage === 'cinemas' ? `It’s in cinemas now and out to stream or buy ${homeText ?? 'later'}` : `It comes out${dates.cinemaRelease ? ` in cinemas ${prettyDate(dates.cinemaRelease)}` : ` ${extras.releaseDate ? prettyDate(extras.releaseDate) : 'later'}`}${homeText ? `, and to stream or buy ${homeText}` : ''}`;
   let canRequest = true;
   let note: string | null = null;
   if (kind === 'movie') {
@@ -331,9 +341,9 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
       note = open.some((r) => r.status === 'approved')
         ? released
           ? 'Approved. Marquee is looking for it.'
-          : `Approved. It comes out ${prettyDate(extras.releaseDate!)}, and Marquee will look for it then.`
+          : `Approved. ${waitText}. Marquee looks for it then.`
         : 'Someone has already asked for it.';
-    } else if (!released) note = `Not out yet. It comes out ${prettyDate(extras.releaseDate!)}. You can ask now; Marquee starts looking when it’s out.`;
+    } else if (!released) note = `Not out to stream or buy yet. ${waitText}. You can ask now; Marquee starts looking when it’s out.`;
   } else if (seasons.length && seasons.every((s) => s.state !== 'none')) {
     canRequest = false;
     note = seasons.every((s) => s.state === 'in_library') ? 'Already in your library.' : 'Every season is here or already asked for.';
@@ -344,7 +354,7 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
 
   const mine = open.find((r) => r.requestedBy === user.id) ?? db.select().from(requests).where(and(eq(requests.kind, kind), eq(requests.tmdbId, tmdbId), eq(requests.requestedBy, user.id))).orderBy(desc(requests.createdAt)).get();
 
-  const recs = await soft(tmdb.recommendations(kind, tmdbId), [] as TmdbCard[]);
+  const [recs, outside] = await Promise.all([soft(tmdb.recommendations(kind, tmdbId), [] as TmdbCard[]), outsideRatings(deps.omdb, extras.imdbId)]);
   const safeRecs = (await forUser(deps, user, dedupe(recs))).filter((c) => !!c.posterPath);
   const states = titleStates(db, kind, safeRecs.map((c) => c.tmdbId), user.id, now());
   const similar: DiscoverRow | null = safeRecs.length >= 2 ? { id: 'similar', title: 'More like this', subtitle: null, items: safeRecs.slice(0, ROW_MAX).map((c) => toCard(c, states.get(c.tmdbId) ?? { state: 'none', libraryId: null }, today)) } : null;
@@ -371,6 +381,8 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
       episodeCount: extras.episodeCount,
       lastAirDate: extras.lastAirDate,
       nextAirDate: extras.nextAirDate,
+      stage,
+      homeRelease: home,
     },
     card,
     tagline: extras.tagline,
@@ -380,6 +392,8 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
     trailerKey: prefs.trailers ? extras.trailerKey : null,
     cast: extras.cast,
     providers: extras.providers,
+    watchOn: extras.watchOn,
+    ratings: { tmdb: extras.score !== null ? { score: extras.score, votes: extras.votes } : null, ...outside, imdbId: extras.imdbId },
     seasons,
     similar,
     request: mine ? requestView(db, mine, now()) : null,
@@ -388,6 +402,49 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
   };
 }
 
+
+const NO_RATINGS: OutsideRatings = { imdb: null, rottenTomatoes: null, metacritic: null };
+
+/** IMDb and Rotten Tomatoes scores when there's an OMDb key; a failure just leaves them out. */
+async function outsideRatings(omdb: OmdbApi | null | undefined, imdbId: string | null): Promise<Omit<TitleRatings, 'tmdb' | 'imdbId'>> {
+  if (!omdb || !imdbId) return NO_RATINGS;
+  try {
+    return await omdb.ratings(imdbId);
+  } catch (err) {
+    console.warn('[omdb]', (err as Error).message);
+    return NO_RATINGS;
+  }
+}
+
+/** An actor or director and what they've been in, each with where it stands for you. Kids see only kid-safe titles. */
+export async function discoverPerson(deps: DiscoverDeps, user: User, personId: number): Promise<PersonDetail> {
+  const { db, tmdb, now } = deps;
+  let p;
+  try {
+    p = await tmdb.person(personId);
+  } catch (err) {
+    if (err instanceof TmdbError && err.status === 404) throw new HttpError(404, 'not_found', 'TMDB doesn’t have that person.');
+    throw new HttpError(502, 'tmdb_failed', 'TMDB didn’t answer. Try again in a moment.');
+  }
+  const today = iso(now());
+  const roles = new Map(p.credits.map((c) => [`${c.kind}${c.tmdbId}`, c.role]));
+  const safe = (await forUser(deps, user, dedupe(p.credits.slice(0, 80)))).filter((c) => !!c.posterPath);
+  const states = new Map<string, { state: CardState; libraryId: number | null }>();
+  for (const k of ['movie', 'series'] as const) {
+    for (const [id, st] of titleStates(db, k, safe.filter((c) => c.kind === k).map((c) => c.tmdbId), user.id, now())) states.set(`${k}${id}`, st);
+  }
+  return {
+    id: p.id,
+    name: p.name,
+    profilePath: p.profilePath,
+    biography: p.biography,
+    birthday: p.birthday,
+    deathday: p.deathday,
+    placeOfBirth: p.placeOfBirth,
+    knownFor: p.knownFor,
+    credits: safe.map((c) => ({ ...toCard(c, states.get(`${c.kind}${c.tmdbId}`) ?? { state: 'none', libraryId: null }, today), role: roles.get(`${c.kind}${c.tmdbId}`) ?? null })),
+  };
+}
 
 /**
  * The top 10 movies and shows on one service. With a Streaming Availability

@@ -77,6 +77,9 @@ function useActive() {
 export function Shell({ user }: { user: SessionUser; version?: string }) {
   const { data: summary } = useQuery({ queryKey: ['requests', 'summary'], queryFn: () => api<{ pending: number }>('/requests/summary'), refetchInterval: 30_000, enabled: user.role === 'admin' });
   const pending = summary?.pending ?? 0;
+  // Downloads on their way: the menu lights up with a count when one starts.
+  const { data: dl } = useQuery({ queryKey: ['downloads', 'summary'], queryFn: () => api<{ active: number }>('/downloads/summary'), refetchInterval: 15_000, enabled: user.role !== 'kid' });
+  const active = dl?.active ?? 0;
   const isActive = useActive();
   const items = GROUPS.flatMap((g) => g.items).filter((n) => allowed(n, user.role));
   const tabs = TABS[user.role].map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n);
@@ -95,6 +98,10 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
     n.to === '/requests' && pending > 0 ? (
       <span aria-label={`${pending} waiting`} className="rounded-full bg-amber px-1.5 text-caption font-bold text-amber-ink">
         {pending}
+      </span>
+    ) : n.to === '/downloads' && active > 0 ? (
+      <span aria-label={`${active} on the way`} className="rounded-full bg-blue px-1.5 text-caption font-bold text-blue-ink">
+        {active}
       </span>
     ) : null;
 
@@ -170,6 +177,11 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
             <Icon name={n.icon} />
             {n.label}
             {n.to === '/requests' && pending > 0 && <span className="absolute top-1.5 left-[calc(50%+6px)] size-2 rounded-full bg-amber" aria-label={`${pending} waiting`} />}
+            {n.to === '/downloads' && active > 0 && (
+              <span className="absolute top-1 left-[calc(50%+4px)] min-w-4 rounded-full bg-blue px-1 text-center text-[10px] leading-4 font-bold text-blue-ink" aria-label={`${active} on the way`}>
+                {active}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

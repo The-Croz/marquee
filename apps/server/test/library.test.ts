@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ArrApi } from '../src/library/arr.js';
-import { pickMatch } from '../src/library/scanner.js';
+import { LibraryScanner, pickMatch } from '../src/library/scanner.js';
 import { ADMIN, call, makeApp, setupAdmin } from './helpers.js';
 import { FakeTmdb } from './fakes/tmdb.js';
 
@@ -149,6 +149,14 @@ describe('library scan', () => {
     expect(byTitle['Inside Out 2']).toMatchObject({ badge: '1080p', sizeBytes: 6 * GB });
     expect(byTitle['The Matrix'].badge).toBe('1080p');
     expect(byTitle['Blade Runner 2049'].badge).toBe('4K');
+  });
+
+  it('remembers after a restart that the library has been read, so it doesn’t ask again', async () => {
+    const { db, scanner } = await scannedApp();
+    expect(scanner.status.phase).toBe('done');
+    const restarted = new LibraryScanner(db);
+    expect(restarted.status).toMatchObject({ phase: 'done', running: false });
+    expect(restarted.status.finishedAt).toBeGreaterThan(0);
   });
 
   it('dates "added" from the files, not from the scan', async () => {
