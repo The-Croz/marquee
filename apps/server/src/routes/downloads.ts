@@ -59,14 +59,15 @@ downloadRoutes.post('/:id{[0-9]+}/resume', async (c) => {
 });
 
 downloadRoutes.post('/:id{[0-9]+}/remove', async (c) => {
-  requireAdmin(c);
+  const user = requireAdmin(c);
   const { deleteFiles } = z.object({ deleteFiles: z.boolean() }).parse(await c.req.json());
-  return c.json<DownloadActionResult>(await monitorFor(c).remove(id(c), deleteFiles));
+  return c.json<DownloadActionResult>(await monitorFor(c).remove(id(c), deleteFiles, user.id));
 });
 
+/** Try again: puts a finished download in the library (unpacking it first when it came as .rar files). */
 downloadRoutes.post('/:id{[0-9]+}/import', async (c) => {
   requireAdmin(c);
-  return c.json<DownloadActionResult>(await monitorFor(c).putInLibrary(id(c)));
+  return c.json<DownloadActionResult>(await monitorFor(c).putInLibrary(id(c), true));
 });
 
 downloadRoutes.post('/:id{[0-9]+}/try-another', async (c) => {

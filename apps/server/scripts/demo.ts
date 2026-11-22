@@ -11,6 +11,7 @@
  * with any address under For experts), ExampleJSON, and ExamplePrivate (josh / hunter2). Prowlarr's
  * fake sites can be brought over too.
  * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
+ * Copies whose name ends in -SCENE finish as .rar files, so Downloads shows them unpacking (a fake 7-Zip, a few seconds).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -37,6 +38,7 @@ import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr } from '../test/fakes/radarr.js';
 import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
 import { FakeMediaServer } from '../test/fakes/mediaServers.js';
+import { FakeUnpacker, fakeRar } from '../test/fakes/unpack.js';
 import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
 import { refreshCatalogue } from '../src/sources/sites/catalogue.js';
 
@@ -103,6 +105,7 @@ const dune = [
   release('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { seeders: 290, size: 25 * GB, infoHash: 'a2' }),
   release('Dune.Part.Two.2024.2160p.MA.WEB-DL.DDP5.1.HDR.H.265-HONE', { seeders: 41, size: 20 * GB, infoHash: 'a3' }),
   release('Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264-FLUX', { seeders: 260, size: 7 * GB, infoHash: 'a4' }),
+  release('Dune.Part.Two.2024.1080p.BluRay.DDP5.1.x264-SCENE', { seeders: 75, size: 9 * GB, infoHash: 'a10' }),
   release('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { seeders: 88, size: 72 * GB, infoHash: 'a5' }),
   release('Dune.Part.Two.2024.1080p.WEBRip.x265.10bit-LAMA', { seeders: 900, size: 2 * GB, infoHash: 'a6' }),
   release('Dune.Part.Two.2024.2160p.WEB-DL.H.265-TINY', { seeders: 12, size: 3 * GB, infoHash: 'a7' }),
@@ -165,8 +168,19 @@ setInterval(() => {
       // Finished: put a (sparse) file where qBittorrent would have saved it, so Marquee can put it in the library.
       t.name = qbitNames.get(t.hash) ?? t.name;
       t.size = 3 * GB;
-      file(`torrents/${t.name}/${t.name}.mkv`, t.size, 0);
       t.savePath = path.join(root, 'torrents');
+      if (/-SCENE$/.test(t.name)) {
+        // A scene copy: a .rar set (a fake one: its text says what's inside), which Marquee unpacks.
+        const base = t.name.toLowerCase();
+        const parts = { [`${t.name}/${base}.rar`]: fakeRar([{ name: `${t.name}.mkv`, size: t.size }, { name: `${base}.nfo`, size: 2000 }]), [`${t.name}/${base}.r00`]: 'part 2', [`${t.name}/${base}.r01`]: 'part 3' };
+        for (const [rel, text] of Object.entries(parts)) {
+          fs.mkdirSync(path.dirname(path.join(root, 'torrents', rel)), { recursive: true });
+          fs.writeFileSync(path.join(root, 'torrents', rel), text);
+        }
+        qbit.fileLists.set(t.hash, Object.keys(parts).map((name) => ({ name, size: t.size / 3 })));
+      } else {
+        file(`torrents/${t.name}/${t.name}.mkv`, t.size, 0);
+      }
     }
     Object.assign(t, { downloadSpeed: 6.5 * 1024 ** 2, eta: Math.round(((1 - t.progress) / 0.02) * 3), seedsConnected: 40, state: t.progress >= 1 ? 'stalledUP' : 'downloading' });
   }
@@ -256,6 +270,8 @@ const clients = {
   fetchCatalogue: async () => catalogue,
   // Settings → Health: plenty of room everywhere (lower it under For experts to see a full disk).
   disk: async () => ({ free: 1.4 * 1024 ** 4, total: 4 * 1024 ** 4 }),
+  // A fake 7-Zip that takes a few seconds, so "Finished · unpacking" can be seen.
+  unpacker: Object.assign(new FakeUnpacker(), { delayMs: 8000 }),
 };
 
 const app = createApp({

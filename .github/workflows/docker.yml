@@ -67,6 +67,13 @@ jobs:
           curl -fsS -b /tmp/jar -X PUT -H 'Content-Type: application/json' -d '{"enabled":true}' http://localhost:9797/api/settings/sources/solver
           curl -fsS -m 150 -b /tmp/jar -H 'Content-Type: application/json' -d '{}' http://localhost:9797/api/settings/sources/solver/test | tee /tmp/solver.json
           grep -q '"ok":true' /tmp/solver.json
+          # 7-Zip unpacks real .rar sets inside the image (RAR5 split the new way, RAR 4 the old way), and Health says it's ready
+          docker cp apps/server/test/fixtures/archives mq:/tmp/archives
+          docker exec mq 7zz x -y -o/tmp/unpacked /tmp/archives/split.part1.rar
+          docker exec mq 7zz x -y -o/tmp/unpacked-old /tmp/archives/old.rar
+          docker exec mq cmp /tmp/unpacked/Movie.2024.1080p.BluRay.x264-GRP.mkv /tmp/unpacked-old/Movie.2024.1080p.BluRay.x264-GRP.mkv
+          curl -fsS -b /tmp/jar http://localhost:9797/api/system/health > /tmp/health.json
+          jq -e '.connections[] | select(.key == "unpacker") | .state == "Ready"' /tmp/health.json
           docker logs mq
       - name: Publish
         if: github.event_name == 'push'

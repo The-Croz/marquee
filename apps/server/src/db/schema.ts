@@ -400,11 +400,46 @@ export const downloads = sqliteTable('downloads', {
   /** Which media servers were told, or why one couldn't be. */
   scanMessage: text('scan_message'),
   scanTriedAt: integer('scan_tried_at'),
+  /**
+   * For a copy that came packed in .rar files: unpacking now, unpacked and
+   * ready to go in the library, failed (tried again by itself), or broken
+   * (damaged or missing parts: waits for you).
+   */
+  unpackState: text('unpack_state', { enum: ['unpacking', 'unpacked', 'failed', 'broken'] }),
+  unpackStartedAt: integer('unpack_started_at'),
+  /** The library file was unpacked from .rar files, so it's its own file rather than a hardlink. */
+  importUnpacked: integer('import_unpacked', { mode: 'boolean' }).notNull().default(false),
 });
 
 export type Download = typeof downloads.$inferSelect;
 
 /** Copies never to pick again for a title ("Never pick"), with the reason. */
+/** Everything that happened to Marquee's downloads, for the History page. Only ever added to. */
+export const history = sqliteTable('history', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  at: integer('at').notNull(),
+  event: text('event', { enum: ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again'] }).notNull(),
+  kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'set null' }),
+  seriesId: integer('series_id').references(() => series.id, { onDelete: 'set null' }),
+  season: integer('season'),
+  /** JSON array of episode numbers; null for a whole season or a movie. */
+  episodes: text('episodes'),
+  downloadId: integer('download_id').references(() => downloads.id, { onDelete: 'set null' }),
+  /** The copy's name. */
+  copy: text('copy'),
+  /** The title's name when it happened, kept for titles no longer in the library. */
+  title: text('title').notNull(),
+  source: text('source'),
+  quality: text('quality'),
+  size: integer('size'),
+  /** Why, or what else happened, in plain words. */
+  detail: text('detail'),
+  /** Who did it, when a person did. */
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+});
+export type HistoryRow = typeof history.$inferSelect;
+
 export const neverPick = sqliteTable('never_pick', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),

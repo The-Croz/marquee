@@ -20,6 +20,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The same 7-Zip as the Docker image, so the real-unpacking tests run (keep in step with the Dockerfile).
+      - name: Install 7-Zip
+        run: |
+          curl -fsSL -o /tmp/7z.tar.xz https://github.com/ip7z/7zip/releases/download/26.06/7z2606-linux-x64.tar.xz
+          echo "2b539cf067b2ad48e1baa5093dbaa8818b73542d1222a0ffde9dc5f2922ea62e  /tmp/7z.tar.xz" | sha256sum -c -
+          sudo tar -xJf /tmp/7z.tar.xz -C /usr/local/bin 7zz
+          7zz i | head -n 3
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

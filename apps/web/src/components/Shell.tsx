@@ -88,7 +88,12 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   const destinations: Destination[] = [
     ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page' })),
     { to: '/calendar', label: 'Calendar', group: 'Page', keywords: 'episodes airing schedule movies releases' },
-    ...(user.role === 'admin' ? [] : [{ to: '/history', label: 'My history', group: 'Page' }]),
+    ...(user.role === 'admin'
+      ? [
+          { to: '/downloads/history', label: 'Download history', group: 'Page', keywords: 'sent imported upgraded replaced removed failed log' },
+          { to: '/downloads/never-pick', label: 'Never pick', group: 'Page', keywords: 'turned down copies fakes' },
+        ]
+      : [{ to: '/history', label: 'My history', group: 'Page' }]),
     ...settingsGroups(user.role)
       .flatMap((g) => g.items)
       .map((i) => ({ to: i.to, label: i.label, group: 'Settings', keywords: `${i.blurb} ${KEYWORDS[i.to] ?? ''}` })),

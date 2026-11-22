@@ -20,6 +20,11 @@ import { mapPath, readDownloader } from './service.js';
  * Nothing is ever deleted. A file it replaces (an upgrade) is moved into a
  * hidden ".marquee-replaced" folder in the same library folder, where Plex
  * and Jellyfin don't look.
+ *
+ * A copy that came packed in .rar files is unpacked first (see unpack.ts)
+ * into Marquee's own folder; its files come from there instead, and once
+ * they're in the library that folder is removed, so the library file is
+ * the only one left (moved, not a hardlink to the download).
  */
 
 export class ImportError extends Error {}
@@ -29,6 +34,13 @@ export interface ImportResult {
   /** Copied rather than linked, because the download and the library are on different disks. */
   copied: boolean;
   replaced: string[];
+  /** The files came from unpacking .rar files rather than from the download itself. */
+  unpacked: boolean;
+}
+
+export interface ImportFrom {
+  /** Take the files from this folder (Marquee's unpack folder), not from qBittorrent's. `files` are relative to it. */
+  folder?: string;
 }
 
 /** Swappable for tests: link, then copy if linking across disks isn't possible. */
@@ -67,7 +79,15 @@ function inFolder(rel: string, root: string, existing: string | null): string {
   return path.join(existing, ...(rest.length ? rest : [rel]));
 }
 
-async function exists(p: string): Promise<boolean> {
+/** Marquee can't see a downloaded file: usually qBittorrent and Marquee name the download folder differently. */
+export function cantSee(file: string, qbitFolder: string, hasPairs: boolean): string {
+  const hint = hasPairs
+    ? 'Check the folder pairs in Settings → Downloader → For experts.'
+    : `If qBittorrent sees its download folder under a different name than Marquee does, add a folder pair in Settings → Downloader → For experts (qBittorrent's folder: ${qbitFolder}).`;
+  return `Marquee can't see the downloaded file at ${file}. ${hint}`;
+}
+
+export async function exists(p: string): Promise<boolean> {
   return fs.stat(p).then(
     () => true,
     () => false,
@@ -89,7 +109,7 @@ async function setAside(file: string, root: string): Promise<string | null> {
  * different disks) only goes ahead when it leaves the minimum free on the
  * library's disk; a hardlink takes no space, so it always can.
  */
-export async function importDownload(db: Db, d: Download, files: QbitFile[], now: number, ops: FileOps = realOps, disk?: DiskProbe): Promise<ImportResult> {
+export async function importDownload(db: Db, d: Download, files: QbitFile[], now: number, ops: FileOps = realOps, disk?: DiskProbe, from: ImportFrom = {}): Promise<ImportResult> {
   if (d.adopted) throw new ImportError('Another app sent this download, so that app puts it in your library.');
   const settings = readDownloader(db);
   const roots = libraryRoots(db);
@@ -97,16 +117,11 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
   if (!d.savePath) throw new ImportError('qBittorrent hasn’t said where it saved this download yet. Marquee tries again shortly.');
   const picked = videoFiles(files);
   if (!picked.length) throw new ImportError('There’s no video file in this download. Press Try another copy.');
-  const source = (f: QbitFile) => mapPath(path.posix.join(d.savePath!, f.name), settings.folderPairs);
+  const source = (f: QbitFile) => (from.folder ? path.join(from.folder, f.name) : mapPath(path.posix.join(d.savePath!, f.name), settings.folderPairs));
 
   // Can Marquee see the download at all?
   const first = source(picked[0]!);
-  if (!(await exists(first))) {
-    const hint = settings.folderPairs.length
-      ? 'Check the folder pairs in Settings → Downloader → For experts.'
-      : `If qBittorrent sees its download folder under a different name than Marquee does, add a folder pair in Settings → Downloader → For experts (qBittorrent's folder: ${d.savePath}).`;
-    throw new ImportError(`Marquee can't see the downloaded file at ${first}. ${hint}`);
-  }
+  if (!(await exists(first))) throw new ImportError(cantSee(first, d.savePath, settings.folderPairs.length > 0));
 
   const fromName = parseRelease(d.title);
   type Plan = { src: string; size: number; dest: string; season: number | null; episodes: number[] };
@@ -217,5 +232,5 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
   const id = d.kind === 'movie' ? d.movieId! : d.seriesId!;
   const had = db.select({ path: table.path }).from(table).where(eq(table.id, id)).get();
   if (!had?.path) db.update(table).set({ path: top }).where(eq(table.id, id)).run();
-  return { paths: done, copied, replaced };
+  return { paths: done, copied, replaced, unpacked: !!from.folder };
 }

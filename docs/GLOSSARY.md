@@ -77,5 +77,22 @@ A failing Source is skipped and tried again by itself: 1 minute after the first 
 | **Seeding rule** | How long a download keeps sharing: a ratio or a number of days, whichever comes first. Older apps call it seed ratio / seed time. |
 | **… · copied** | Copied, not linked, because the download folder and the library are on different disks. |
 | **Couldn’t put it in your library** | Says why and what to do; tried again every 15 minutes. |
+| **Finished · unpacking** | The copy came packed in .rar files; Marquee is unpacking it into its own folder next to the download (the download stays as it is and keeps sharing). |
+| **… · unpacked** | In the library from .rar files: the video is its own file, not a hardlink, so it takes space of its own while the .rar files keep sharing. |
+| **Couldn’t unpack it** | Says why and what to do. Damaged or missing parts wait for you (Force recheck in qBittorrent, then Try again); no room or no 7-Zip are tried again every 15 minutes. A password or no video inside means a fake, which is replaced. |
 | **Replaced** | Marquee turned the copy down (stuck, fake, or you asked) and sent the next best. |
-| **Never pick** | A copy turned down for a title, with the reason; searches skip it. |
+| **Never pick** | A copy turned down for a title, with the reason; searches skip it. Listed on the title page and in Downloads → Never pick; **Remove from list** lets Marquee pick it again. |
+
+## History
+
+Downloads → History, and each title's History. Only ever added to.
+
+| Shown as | Meaning |
+|---|---|
+| **Sent to qBittorrent** | Marquee sent a copy (older apps: grabbed). |
+| **In your library** | The download went in the library (older apps: imported). |
+| **Upgraded** | It went in the library and replaced an older file, which is kept in `.marquee-replaced`. |
+| **Replaced** | The copy was turned down (stuck, a fake, or you asked) and the next best sent. |
+| **Removed from qBittorrent** | By you, by the seeding rule, or in qBittorrent itself. The library file stays. |
+| **Couldn’t put it in your library** | An import that didn’t work, once per new reason. |
+| **Taken off Never pick** | Someone pressed Remove from list. |

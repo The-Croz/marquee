@@ -472,6 +472,55 @@ export const migrations: string[] = [
   ALTER TABLE downloads ADD COLUMN peers INTEGER;
   ALTER TABLE downloads ADD COLUMN uploaded INTEGER;
   `,
+  /* 25: unpacking copies that come as .rar files; one history of what happened to every download */ `
+  ALTER TABLE downloads ADD COLUMN unpack_state TEXT;
+  ALTER TABLE downloads ADD COLUMN unpack_started_at INTEGER;
+  ALTER TABLE downloads ADD COLUMN import_unpacked INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    event TEXT NOT NULL CHECK (event IN ('sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again')),
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE SET NULL,
+    series_id INTEGER REFERENCES series (id) ON DELETE SET NULL,
+    season INTEGER,
+    episodes TEXT,
+    download_id INTEGER REFERENCES downloads (id) ON DELETE SET NULL,
+    copy TEXT,
+    title TEXT NOT NULL,
+    source TEXT,
+    quality TEXT,
+    size INTEGER,
+    detail TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  CREATE INDEX history_at ON history (at);
+  CREATE INDEX history_movie ON history (movie_id);
+  CREATE INDEX history_series ON history (series_id);
+  -- What the downloads so far already say.
+  CREATE TEMP VIEW history_base AS
+    SELECT d.*, COALESCE(
+      (SELECT m.title || COALESCE(' (' || m.year || ')', '') FROM movies m WHERE m.id = d.movie_id),
+      (SELECT s.title FROM series s WHERE s.id = d.series_id),
+      d.title) AS name
+    FROM downloads d WHERE d.adopted = 0;
+  INSERT INTO history (at, event, kind, movie_id, series_id, season, episodes, download_id, copy, title, source, quality, size, detail, user_id)
+    SELECT added_at, 'sent', kind, movie_id, series_id, season, episodes, id, title, name, source_name, quality, size, NULL, requested_by FROM history_base;
+  INSERT INTO history (at, event, kind, movie_id, series_id, season, episodes, download_id, copy, title, source, quality, size, detail, user_id)
+    SELECT imported_at, 'in_library', kind, movie_id, series_id, season, episodes, id, title, name, source_name, quality, size,
+      CASE WHEN import_copied = 1 THEN 'Copied, not linked: the download folder and the library are on different disks.' END, NULL
+    FROM history_base WHERE imported_at IS NOT NULL;
+  INSERT INTO history (at, event, kind, movie_id, series_id, season, episodes, download_id, copy, title, source, quality, size, detail, user_id)
+    SELECT COALESCE(checked_at, added_at), 'replaced', kind, movie_id, series_id, season, episodes, id, title, name, source_name, quality, size, message, NULL
+    FROM history_base WHERE state = 'failed';
+  INSERT INTO history (at, event, kind, movie_id, series_id, season, episodes, download_id, copy, title, source, quality, size, detail, user_id)
+    SELECT MAX(COALESCE(checked_at, 0), COALESCE(imported_at, 0), added_at), 'removed', kind, movie_id, series_id, season, episodes, id, title, name, source_name, quality, size, message, NULL
+    FROM history_base WHERE state = 'removed';
+  INSERT INTO history (at, event, kind, movie_id, series_id, season, episodes, download_id, copy, title, source, quality, size, detail, user_id)
+    SELECT COALESCE(import_tried_at, finished_at, added_at), 'import_failed', kind, movie_id, series_id, season, episodes, id, title, name, source_name, quality, size, import_error, NULL
+    FROM history_base WHERE import_error IS NOT NULL AND imported_at IS NULL;
+  DROP VIEW history_base;
+  `,
 ];
 
 export function openDb(file: string): Db {

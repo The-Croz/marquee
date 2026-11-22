@@ -7,6 +7,7 @@ import { checkDownloader, readDownloader, DOWNLOADER_TEXT } from '../downloads/s
 import { readMediaServer } from '../library/mediaServers.js';
 import { readServices } from '../library/services.js';
 import { diskViews, readDiskSettings, realDiskProbe } from './disk.js';
+import { sevenZip } from '../downloads/unpack.js';
 
 /**
  * The Health page: every connection Marquee depends on, each with a plain
@@ -83,9 +84,23 @@ function solverRow(deps: Pick<Deps, 'db' | 'sources'>): ConnectionView {
   return { ...base, tone: 'problem', state: v.state === 'missing' ? 'Not in this install' : 'Didn’t start', fix: v.message };
 }
 
+/** 7-Zip, which unpacks copies that come as .rar files. */
+async function unpackerRow(deps: Pick<Deps, 'clients'>): Promise<ConnectionView> {
+  const base = { key: 'unpacker', group: 'Downloader' as const, name: 'Unpacking .rar copies', to: '/downloads' };
+  const r = await withTimeout((deps.clients.unpacker ?? sevenZip()).check()).catch((err: Error) => ({ ok: false as const, message: err.message }));
+  if (r.ok) return { ...base, tone: 'ok', state: 'Ready', fix: null, detail: r.version };
+  return {
+    ...base,
+    tone: 'problem',
+    state: 'Not in this install',
+    fix: 'Copies that come packed in .rar files can’t go in your library until this works. The Marquee Docker image has 7-Zip built in; if you run Marquee another way, install 7-Zip so the 7zz command works, or set MARQUEE_UNPACK_BIN.',
+    detail: r.message,
+  };
+}
+
 export async function healthView(deps: Deps): Promise<HealthView> {
-  const [downloader, servers, tmdb, disks] = await Promise.all([downloaderRow(deps), mediaServerRows(deps), tmdbRow(deps), diskViews(deps.db, deps.clients.disk ?? realDiskProbe)]);
-  const connections = [...sourceRows(deps), downloader, ...servers, tmdb, solverRow(deps)];
+  const [downloader, unpacker, servers, tmdb, disks] = await Promise.all([downloaderRow(deps), unpackerRow(deps), mediaServerRows(deps), tmdbRow(deps), diskViews(deps.db, deps.clients.disk ?? realDiskProbe)]);
+  const connections = [...sourceRows(deps), downloader, unpacker, ...servers, tmdb, solverRow(deps)];
   const jobs = deps.jobs.list();
   const problems = connections.filter((c) => c.tone === 'problem').length + disks.filter((d) => d.tone === 'problem').length + jobs.filter((j) => j.tone === 'problem').length;
   return { checkedAt: deps.now(), problems, connections, disks, disk: readDiskSettings(deps.db), jobs };

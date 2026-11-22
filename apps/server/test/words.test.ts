@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { STATE_TEXT } from '../src/sources/service.js';
 import { DOWNLOADER_TEXT } from '../src/downloads/service.js';
+import { unpackText, type UnpackProblem } from '../src/downloads/unpack.js';
 
 /**
  * Screens use Marquee's own words (docs/GLOSSARY.md), not the jargon older
@@ -60,7 +61,8 @@ describe('word check', () => {
   });
 
   it('server messages shown on screen use them too', () => {
-    const messages = [...Object.values(STATE_TEXT), ...Object.values(DOWNLOADER_TEXT)].flatMap((t) => [t.label, t.fix ?? '']);
+    const unpack: UnpackProblem[] = ['password', 'no_video', 'unsafe', 'missing_part', 'broken', 'no_tool', 'no_room', 'failed'];
+    const messages = [...Object.values(STATE_TEXT), ...Object.values(DOWNLOADER_TEXT)].flatMap((t) => [t.label, t.fix ?? '']).concat(unpack.map((k) => unpackText(k, 'detail')));
     for (const m of messages) for (const b of BANNED) expect(m).not.toMatch(b.word);
   });
 });

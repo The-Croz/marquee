@@ -20,6 +20,7 @@ import type { MediaServerApi } from './library/mediaServers.js';
 import type { ActivityMonitor } from './activity/live.js';
 import type { PushClient } from './notify/push.js';
 import type { DiskProbe } from './system/disk.js';
+import type { Unpacker } from './downloads/unpack.js';
 import type { Jobs } from './system/jobs.js';
 import type { LogBook } from './system/logs.js';
 
@@ -46,6 +47,8 @@ export interface Clients extends SourceClients {
   push: PushClient;
   /** Free space on a folder's disk. Tests fake it; left out, Marquee asks the system. */
   disk?: DiskProbe;
+  /** Unpacks copies that come as .rar files. Tests fake it; left out, Marquee uses 7-Zip (7zz). */
+  unpacker?: Unpacker;
 }
 
 export interface Deps {

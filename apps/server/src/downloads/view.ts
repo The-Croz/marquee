@@ -46,10 +46,21 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
     if (d.importedAt) {
       const [label, shared] = inLibrary(d, rule);
       const detail = d.scanMessage ? `${shared} ${d.scanMessage}` : shared;
+      if (d.importUnpacked) {
+        return s(
+          `${label} · unpacked`,
+          'done',
+          `${detail} It came packed in .rar files, so Marquee unpacked it and moved the video into your library: it’s its own file, not a hardlink, and takes space of its own while qBittorrent keeps sharing the .rar files.`,
+        );
+      }
       return d.importCopied
         ? s(`${label} · copied`, 'warn', `${detail} It’s a copy, not a hardlink, because the download folder and the library are on different disks, so it takes twice the space. Put both under one share (like /data).`)
         : s(label, 'done', detail);
     }
+    if (d.unpackState === 'unpacking') {
+      return s('Finished · unpacking', 'busy', 'It came packed in .rar files. Marquee is unpacking it into a folder of its own next to the download (the download stays as it is, so qBittorrent keeps sharing it), then puts it in your library.');
+    }
+    if (d.importError && (d.unpackState === 'failed' || d.unpackState === 'broken')) return s('Couldn’t unpack it', 'bad', d.importError);
     if (d.importError) return s('Couldn’t put it in your library', 'bad', `${d.importError} Marquee tries again every 15 minutes, or press Try again.`);
     return s('Finished · putting it in your library', 'busy', null);
   }
@@ -137,6 +148,8 @@ export function describeDownload(db: Db, d: Download, now: number): DownloadView
     canControl: !d.adopted && (d.state === 'sent' || d.state === 'downloading'),
     canImport: !d.adopted && d.state === 'done' && !d.importedAt,
     canRemoveShared: !d.adopted && d.state === 'done' && !!d.importedAt,
+    canTryAnother: !d.adopted && (d.state === 'sent' || d.state === 'downloading' || (d.state === 'done' && !d.importedAt)) && d.unpackState !== 'unpacking',
+    unpacked: d.importUnpacked,
     importedPaths: d.importedPaths ? (JSON.parse(d.importedPaths) as string[]) : null,
     // Speeds and time left only mean something while it's coming in.
     speed: active ? d.speed : null,

@@ -42,9 +42,9 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| D1 | **Blocklist page** (every copy turned down, with reason, remove from it) | Radarr, Sonarr | 🟡 `never_pick` exists per title; no page to see or undo it | Add (on the title page + one list) | ✅ Add *(suggested)* |
-| D2 | **History page** across everything (grabbed, imported, failed, upgraded, deleted) with filters | Radarr, Sonarr, Prowlarr | 🟡 per-title History; Downloads shows current ones | Add (one overall page) | ✅ Add *(suggested)* |
-| D3 | **Unpack archives** (.rar copies, common on private sites / scene) | Unpackerr | ❌ a rar-only copy counts as a fake | **Add** (otherwise IPTorrents scene copies fail) | ✅ Add (Josh runs Unpackerr) |
+| D1 | **Blocklist page** (every copy turned down, with reason, remove from it) | Radarr, Sonarr | ✅ Never pick on the title page and Downloads → Never pick, with Remove from list | Add (on the title page + one list) | ✅ **Done** (round 2) |
+| D2 | **History page** across everything (grabbed, imported, failed, upgraded, deleted) with filters | Radarr, Sonarr, Prowlarr | ✅ Downloads → History, filter by kind, words and days | Add (one overall page) | ✅ **Done** (round 2) |
+| D3 | **Unpack archives** (.rar copies, common on private sites / scene) | Unpackerr | ✅ unpacked with 7-Zip next to the download, then moved into the library | **Add** (otherwise IPTorrents scene copies fail) | ✅ **Done** (round 2) |
 | D4 | **Manual search across all Sources** by free text, grab straight to qBittorrent | Prowlarr | ❌ search is always for a title | Ask | ⛔ Skip |
 | D5 | **Source stats**: searches, grabs, failures, response time per site over time | Prowlarr | 🟡 health, today's count, timing; no history chart | Later | ⏸ Later *(suggested)* |
 | D6 | Per-site **proxy** (HTTP/SOCKS) | Prowlarr | ❌ (already listed as later) | Skip unless a site needs it | ⛔ Skip *(suggested)* |
@@ -136,7 +136,7 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - S2 Logs page: recent lines, filter by level, download (secrets scrubbed)
    - S3 + S4 one **Health** page: every background job (last/next run, Run now) and every connection's state with its fix
    - S5 + L20 disk space per folder; don't import or send when the disk is nearly full, and say so
-2. **Downloads that don't fail quietly** (before cutover)
+2. ✅ **Downloads that don't fail quietly** (before cutover). Done: unpacking, Downloads → History and Never pick; see PLAN.md.
    - D3 Unpack `.rar` copies (Unpackerr's job), then import as usual; the unpacked file is the only one that isn't a hardlink, and the row says so
    - D1 "Never pick" list on the title page and in one place, with Remove from list
    - D2 one **History** page across everything (sent, in the library, upgraded, replaced, removed), filterable

@@ -325,7 +325,8 @@ describe('backups', () => {
     const file = path.join(t.dataDir, 'backups', b.name);
     const old = new Database(file);
     old.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
-    for (const [table, col] of [['movies', 'cinema_release'], ['movies', 'digital_release'], ['movies', 'physical_release'], ['downloads', 'upload_speed'], ['downloads', 'peers'], ['downloads', 'uploaded']]) {
+    old.exec('DROP TABLE history');
+    for (const [table, col] of [['downloads', 'unpack_state'], ['downloads', 'unpack_started_at'], ['downloads', 'import_unpacked']]) {
       old.exec(`ALTER TABLE ${table} DROP COLUMN ${col}`);
     }
     old.close();
@@ -334,7 +335,7 @@ describe('backups', () => {
     const v = t.db.$client.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number };
     expect(v.v).toBe(migrations.length);
     const cols = (t.db.$client.prepare('PRAGMA table_info(downloads)').all() as { name: string }[]).map((c) => c.name);
-    expect(cols).toContain('uploaded');
+    expect(cols).toContain('import_unpacked');
   });
 
   it('won’t restore a backup from a newer Marquee, or a file that isn’t one', async () => {
