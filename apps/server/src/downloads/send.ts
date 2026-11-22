@@ -3,6 +3,7 @@ import type { DownloadView, SendResult } from '@marquee/shared';
 import { describeDownload } from './view.js';
 import type { Db } from '../db/index.js';
 import { downloads, type Download } from '../db/schema.js';
+import { noRoomReason, type DiskProbe } from '../system/disk.js';
 import { HttpError } from '../http.js';
 import type { CachedSearch, CopyCache } from './cache.js';
 import { QbitError, type QbitApi } from './qbittorrent.js';
@@ -22,6 +23,8 @@ export interface SendDeps {
   copies: CopyCache;
   qbittorrent(url: string, username: string, password: string): QbitApi;
   fetchTorrent(url: string, headers?: Record<string, string>): Promise<FetchedTorrent>;
+  /** Free space on a folder's disk; left out, Marquee asks the system. */
+  disk?: DiskProbe;
   now: () => number;
 }
 
@@ -65,6 +68,10 @@ export async function sendFromSearch(
   const busy = db.select().from(downloads).where(and(sameTitle, inArray(downloads.state, [...ACTIVE]))).all();
   const clash = busy.find((b) => t.kind === 'movie' || overlaps(b, t.episode));
   if (clash) throw new HttpError(409, 'already_downloading', `Marquee is already downloading “${clash.title}” for this. Wait for it, or remove it from the Downloads page first.`);
+
+  // Keep the minimum free on the downloads disk (Settings → Health → For experts).
+  const noRoom = await noRoomReason(db, 'downloads', d.copy.size ?? 0, deps.disk);
+  if (noRoom) throw new HttpError(409, 'no_room', noRoom);
 
   let torrent: FetchedTorrent;
   try {

@@ -8,12 +8,15 @@ import type { PlexClient } from '../src/auth/plex.js';
 import { LibraryScanner } from '../src/library/scanner.js';
 import type { Clients } from '../src/http.js';
 import { SourceService } from '../src/sources/service.js';
+import type { LogBook } from '../src/system/logs.js';
 
 export interface TestOptions {
   config?: Partial<Config>;
   plex?: Partial<PlexClient>;
   clients?: Partial<Clients>;
   now?: () => number;
+  /** The log book behind Settings → Logs. */
+  logs?: LogBook;
 }
 
 export function makeApp(opts: TestOptions = {}) {
@@ -79,6 +82,7 @@ export function makeApp(opts: TestOptions = {}) {
     clients,
     scanner,
     sources,
+    ...(opts.logs ? { logs: opts.logs } : {}),
     now,
   });
   return { app, db, config, scanner, sources, activity };

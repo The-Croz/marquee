@@ -150,6 +150,24 @@ describe('putting a download in the library', () => {
     expect(fs.statSync(r.paths[0]!).size).toBe(5000);
   });
 
+  it('waits to copy when it would leave the library disk under the minimum, but hardlinks anyway', async () => {
+    const w = world();
+    w.write('torrents/marquee/dune.mkv', 5000);
+    const tight = async () => ({ free: 15 * 1024 ** 3, total: 1000 * 1024 ** 3 }); // under the 20 GB default
+    let copied = false;
+    const copyOps = { link: async () => {}, copy: async () => void (copied = true), sameDisk: async () => false };
+    const err = await importDownload(w.db, w.download(), [{ name: 'dune.mkv', size: 5000 }], 1, copyOps, tight).catch((e) => e);
+    expect(err).toBeInstanceOf(ImportError);
+    expect(err.message).toMatch(/^Not enough room on the Movies disk .*15\.0 GB free.*keeps 20 GB spare.*tries again by itself\.$/);
+    expect(copied).toBe(false);
+    expect(w.db.select().from(schema.mediaFiles).all()).toEqual([]);
+
+    // A hardlink takes no space, so the same import goes ahead on one disk.
+    const r = await importDownload(w.db, w.download(), [{ name: 'dune.mkv', size: 5000 }], 1, undefined, tight);
+    expect(r.copied).toBe(false);
+    expect(r.paths).toHaveLength(1);
+  });
+
   it('puts each episode of a season pack in its place, skipping the rest', async () => {
     const w = world();
     for (const n of ['Severance.S02E01.1080p.WEB-DL.mkv', 'Severance.S02E02.1080p.WEB-DL.mkv']) w.write(`torrents/marquee/Severance.S02/${n}`, 2000);

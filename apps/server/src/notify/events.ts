@@ -103,6 +103,12 @@ export const EVENTS: NotificationEventInfo[] = [
     title: '{{server}} stopped answering', body: '{{error}} Marquee tries again by itself.', image: '',
   },
 
+  {
+    key: 'disk_low', group: 'Problems', audience: 'admins', label: 'A disk is nearly full', description: 'A downloads or library folder has less free than the minimum, so Marquee holds off on new downloads or copies.',
+    vars: [v('folder', 'Which folder', 'Downloads'), v('path', 'Where', '/data/torrents'), v('free', 'Free space', '12.4 GB'), v('minimum', 'Minimum kept free', '20 GB')],
+    title: '{{folder}} disk is nearly full', body: '{{free}} free on {{path}}; Marquee keeps {{minimum}} spare, so it’s waiting. Free up some space and it carries on by itself.', image: '',
+  },
+
   // Watching
   { key: 'stream_started', group: 'Watching', audience: 'admins', label: 'Someone started watching', description: 'A movie or episode started playing on Plex or Jellyfin.', quiet: true, vars: stream, title: '{{user}} started {{title}}', body: streamBody, image: '{{poster}}' },
   {

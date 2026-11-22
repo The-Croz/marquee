@@ -7,6 +7,7 @@ import { readMediaServer } from '../library/mediaServers.js';
 import { checkDownloader, readDownloader, DOWNLOADER_TEXT } from '../downloads/service.js';
 import { STATE_TEXT } from '../sources/service.js';
 import { notifyAdmins, type NotifyDeps } from './service.js';
+import { diskViews, readDiskSettings, realDiskProbe, size } from '../system/disk.js';
 
 /**
  * Watches for things worth telling an admin about, and tells them once.
@@ -25,7 +26,7 @@ function changed(db: Db, k: string, now: string | null): boolean {
   return now !== null;
 }
 
-export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'qbittorrent'> & Partial<Pick<Clients, 'plexServer' | 'jellyfin'>> }): Promise<void> {
+export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'qbittorrent'> & Partial<Pick<Clients, 'plexServer' | 'jellyfin' | 'disk'>> }): Promise<void> {
   const { db, clients, now } = deps;
 
   for (const s of db.select().from(sources).where(eq(sources.enabled, true)).all()) {
@@ -59,6 +60,15 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     if (changed(db, `server.${kind}`, down ? 'down' : null)) {
       const name = kind === 'plex' ? 'Plex' : 'Jellyfin';
       await notifyAdmins(deps, 'media_server_problem', { vars: { server: name, error: down }, link: '/settings/services' });
+    }
+  }
+
+  // Disks under the minimum free (Settings → Health): told once per folder until it clears.
+  const { minFreeGb } = readDiskSettings(db);
+  for (const d of await diskViews(db, deps.clients.disk ?? realDiskProbe)) {
+    const low = d.free !== null && d.tone === 'problem';
+    if (changed(db, `disk.${d.key}`, low ? 'low' : null)) {
+      await notifyAdmins(deps, 'disk_low', { vars: { folder: d.label, path: d.path, free: size(d.free!), minimum: `${minFreeGb} GB` }, link: '/settings/health' });
     }
   }
 

@@ -172,7 +172,7 @@ function betterUnits(deps: WantedDeps, today: string, lib: Library): Unit[] {
 }
 
 async function trySend(deps: WantedDeps, run: WantedRun, lib: Library, show: Series, search: Parameters<typeof deliver>[2], pick: number): Promise<void> {
-  const copy = await deliver({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, search, pick);
+  const copy = await deliver({ db: deps.db, now: deps.now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, disk: deps.clients.disk, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, search, pick);
   if (copy === null) return;
   lib.sent(search.target);
   run.sent.push({ href: `/shows/${show.id}`, title: label(show, search.target.season!, search.target.episode), copy });

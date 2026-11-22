@@ -37,7 +37,7 @@ export const IMPORT_RETRY_MS = 15 * 60_000;
 
 export interface MonitorDeps {
   db: Db;
-  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin'>;
+  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin' | 'disk'>;
   sources: SourceService;
   now: () => number;
   /** Tells people about finished, imported and problem downloads (and what they asked for being ready). */
@@ -316,7 +316,7 @@ export class DownloadMonitor {
     if (!qbit) throw new HttpError(409, 'no_downloader', 'Connect qBittorrent first, in Settings → Downloader.');
     try {
       const files = await this.call(() => qbit.files(row.infoHash));
-      const r = await importDownload(db, row, files, now());
+      const r = await importDownload(db, row, files, now(), undefined, this.deps.clients.disk);
       db.update(downloads)
         .set({ importedAt: now(), importedPaths: JSON.stringify(r.paths), importCopied: r.copied, importError: null, importTriedAt: now(), scanPending: true })
         .where(eq(downloads.id, id))
@@ -430,7 +430,7 @@ export class DownloadMonitor {
       db.update(downloads).set({ message: note }).where(eq(downloads.id, id)).run();
       return { message: `Turned that copy down. No other copy suits ${found.profile.name} right now; search again later, or pick one yourself.`, next: null };
     }
-    const sent = await sendFromSearch({ db, now, qbittorrent: this.deps.clients.qbittorrent, fetchTorrent: this.deps.clients.fetchTorrent }, found.search, pick, userId ?? row.requestedBy, false);
+    const sent = await sendFromSearch({ db, now, qbittorrent: this.deps.clients.qbittorrent, fetchTorrent: this.deps.clients.fetchTorrent, disk: this.deps.clients.disk }, found.search, pick, userId ?? row.requestedBy, false);
     db.update(downloads).set({ message: `${reason} Replaced by ${sent.download.title}.` }).where(eq(downloads.id, id)).run();
     return { message: `Turned that copy down and sent the next best: ${sent.download.title}.`, next: sent.download };
   }

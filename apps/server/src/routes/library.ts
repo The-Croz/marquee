@@ -16,7 +16,7 @@ import { episodes, mediaFiles, movies, scanItems, series, type MediaFile, type U
 import { setEpisodeWanted, setMoviesWanted, setSeasonWanted, setShowsWanted } from '../library/wanted.js';
 import { readServices } from '../library/services.js';
 import type { ScanSources } from '../library/scanner.js';
-import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
+import { HttpError, requireAdmin, requireUser, type Ctx, type Deps, type Env } from '../http.js';
 import { ProfileService } from '../releases/profiles.js';
 import { useRules } from '../releases/choose.js';
 
@@ -45,7 +45,10 @@ const isKid = (u: User) => u.role === 'kid';
 
 /** Everything a library scan needs, or a plain-English reason it can't run yet. */
 export function scanSources(c: Ctx): ScanSources {
-  const { db, config, clients } = c.get('deps');
+  return scanSourcesFor(c.get('deps'));
+}
+
+export function scanSourcesFor({ db, config, clients }: Pick<Deps, 'db' | 'config' | 'clients'>): ScanSources {
   const s = readServices(db, config);
   if (!s.tmdbApiKey) throw new HttpError(400, 'tmdb_missing', 'Add your TMDB API key in Settings → Services first.');
   return {
@@ -55,6 +58,24 @@ export function scanSources(c: Ctx): ScanSources {
     moviesRoot: s.moviesRoot,
     tvRoot: s.tvRoot,
   };
+}
+
+/** The library scan on the Health page: only when you ask (or press Scan in Library). */
+export function addScanJob(deps: Deps): void {
+  if (deps.jobs.has('scan')) return;
+  deps.jobs.add({
+    id: 'scan',
+    label: 'Read the library folders',
+    description: 'Finds new movie and show files on disk and works out what each one is. Never changes a file.',
+    everyMs: null,
+    off: () => (readServices(deps.db, deps.config).tmdbApiKey ? null : 'Add your TMDB API key in Settings → Services first.'),
+    run: async () => {
+      await deps.scanner.start(scanSourcesFor(deps));
+      const st = deps.scanner.status;
+      if (st.error) throw new Error(st.error);
+      return `${st.matched} matched, ${st.unmatched} need a match${st.warnings.length ? `, ${st.warnings.length} warnings` : ''}`;
+    },
+  });
 }
 
 export const libraryRoutes = new Hono<Env>();

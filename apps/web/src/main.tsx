@@ -26,6 +26,7 @@ import { TmdbPersonPage } from './pages/TmdbPerson';
 import { UnmatchedPage } from './pages/Unmatched';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
+import { BackupsPage, HealthPage, LogsPage } from './pages/System';
 import './styles.css';
 
 /** Sends people to setup or sign-in as needed, then renders the app shell. */
@@ -92,6 +93,9 @@ const router = createBrowserRouter([
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
           { path: 'automation', element: <RequireUser render={(st) => <AdminOnly status={st}><AutomationPage /></AdminOnly>} /> },
+          { path: 'health', element: <RequireUser render={(st) => <AdminOnly status={st}><HealthPage /></AdminOnly>} /> },
+          { path: 'backups', element: <RequireUser render={(st) => <AdminOnly status={st}><BackupsPage /></AdminOnly>} /> },
+          { path: 'logs', element: <RequireUser render={(st) => <AdminOnly status={st}><LogsPage /></AdminOnly>} /> },
           { path: 'watched-sync', element: <RequireUser render={(st) => <AdminOnly status={st}><WatchSyncPage /></AdminOnly>} /> },
         ],
       },

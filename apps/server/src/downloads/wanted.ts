@@ -46,7 +46,7 @@ export function lastWantedRuns(db: Db): WantedRun[] {
 
 export interface WantedDeps {
   db: Db;
-  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent'>;
+  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'disk'>;
   sources: SourceService;
   now: () => number;
   /** Search as usual but send nothing and don't remember the run. */
@@ -100,7 +100,7 @@ export async function lookForWanted(deps: WantedDeps, kind: 'missing' | 'better'
       const found = await searchTitle({ db, sources: deps.sources, now }, { kind: 'movie', movieId: m.id });
       const pick = bestPick(found.search);
       if (pick === null) continue;
-      const copy = await deliver({ db, now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, found.search, pick);
+      const copy = await deliver({ db, now, qbittorrent: deps.clients.qbittorrent, fetchTorrent: deps.clients.fetchTorrent, disk: deps.clients.disk, ...(deps.preview ? { preview: true } : {}), ...(deps.manual ? { manual: true } : {}) }, run, found.search, pick);
       if (copy !== null) run.sent.push({ href: `/movies/${m.id}`, title: m.year ? `${m.title} (${m.year})` : m.title, copy });
     } catch (err) {
       run.problems.push(`${m.title}: ${(err as Error).message}`);
