@@ -11,7 +11,8 @@ export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Data
  * Schema changes, applied in order and recorded in `schema_migrations`.
  * Never edit a migration that has shipped: add a new one.
  */
-const migrations: string[] = [
+/** Every migration, in order. Exported so a restored backup can be checked against this version. */
+export const migrations: string[] = [
   /* 1: accounts and sign-in */ `
   CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -481,6 +482,11 @@ export function openDb(file: string): Db {
   sqlite.pragma('busy_timeout = 5000');
   migrate(sqlite);
   return drizzle(sqlite, { schema }) as Db;
+}
+
+/** Brings the database up to this version (used after restoring an older backup). */
+export function migrateNow(db: Db): void {
+  migrate(db.$client);
 }
 
 function migrate(sqlite: Database.Database): void {

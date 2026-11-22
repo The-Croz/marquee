@@ -39,7 +39,7 @@ downloadRoutes.post('/', async (c) => {
   const user = requireAdmin(c);
   const input = z.object({ searchId: z.string().min(1).max(100), copyId: z.string().min(1).max(10), anyway: z.boolean().optional() }).parse(await c.req.json());
   const { db, copies, clients, now } = c.get('deps');
-  const result = await sendCopy({ db, copies, now, qbittorrent: clients.qbittorrent, fetchTorrent: clients.fetchTorrent }, input, user.id);
+  const result = await sendCopy({ db, copies, now, qbittorrent: clients.qbittorrent, fetchTorrent: clients.fetchTorrent, disk: clients.disk }, input, user.id);
   return c.json<SendResult>(result, 201);
 });
 

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { diskViews, realDiskProbe } from '../system/disk.js';
 import { Hono } from 'hono';
 import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { HomeAttention, HomeData, HomeHero, HomeTitle, NowPlayingView, SetupStep } from '@marquee/shared';
@@ -228,6 +229,15 @@ async function household(c: Ctx, user: User, data: HomeData): Promise<void> {
   for (const [i, p] of live.problems.entries()) needs.push({ key: `media-${i}`, tone: 'problem', title: p, detail: null, to: '/settings/services', action: 'Fix' });
   data.watching = live.sessions;
 
+  // Disks under the minimum free, and background jobs whose last run failed (Settings → Health).
+  for (const d of await diskViews(db, clients.disk ?? realDiskProbe)) {
+    if (d.tone === 'problem' && d.free !== null) needs.push({ key: `disk-${d.key}`, tone: 'problem', title: `${d.label} disk is nearly full`, detail: d.fix, to: '/settings/health', action: 'Look' });
+  }
+  const failedJobs = c.get('deps').jobs.list().filter((j) => j.tone === 'problem');
+  if (failedJobs.length) {
+    needs.push({ key: 'jobs', tone: 'problem', title: failedJobs.length === 1 ? `${failedJobs[0]!.label} failed` : `${failedJobs.length} background jobs failed`, detail: failedJobs.length === 1 ? failedJobs[0]!.lastMessage : failedJobs.map((j) => j.label).join(' · '), to: '/settings/health', action: 'Look' });
+  }
+
   // Folders the scanner couldn't match.
   const unmatched = db.select({ n: count() }).from(scanItems).where(eq(scanItems.status, 'unmatched')).get()?.n ?? 0;
   if (unmatched) {
@@ -240,7 +250,7 @@ async function household(c: Ctx, user: User, data: HomeData): Promise<void> {
   // Footer: free space and when Marquee last looked by itself.
   try {
     const st = await fs.statfs(readServices(db, config).moviesRoot);
-    data.stats.push({ label: 'free', value: bytes(st.bavail * st.bsize), to: '/settings/services' });
+    data.stats.push({ label: 'free', value: bytes(st.bavail * st.bsize), to: '/settings/health' });
   } catch {
     /* folder not mounted: leave it out */
   }

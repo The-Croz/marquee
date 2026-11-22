@@ -19,6 +19,9 @@ import type { CopyCache } from './downloads/cache.js';
 import type { MediaServerApi } from './library/mediaServers.js';
 import type { ActivityMonitor } from './activity/live.js';
 import type { PushClient } from './notify/push.js';
+import type { DiskProbe } from './system/disk.js';
+import type { Jobs } from './system/jobs.js';
+import type { LogBook } from './system/logs.js';
 
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
@@ -41,6 +44,8 @@ export interface Clients extends SourceClients {
   jellyfinLogin(url: string, username: string, password: string): Promise<{ id: string; name: string } | null>;
   /** Pushover and ntfy. */
   push: PushClient;
+  /** Free space on a folder's disk. Tests fake it; left out, Marquee asks the system. */
+  disk?: DiskProbe;
 }
 
 export interface Deps {
@@ -56,6 +61,10 @@ export interface Deps {
   copies: CopyCache;
   /** Follows what is playing on Plex and Jellyfin. Made by createApp when not given. */
   activity: ActivityMonitor;
+  /** Every background job, for the Health page. Made by createApp when not given. */
+  jobs: Jobs;
+  /** Recent server log lines, for the Logs page. Made by createApp when not given. */
+  logs: LogBook;
   now: () => number;
 }
 

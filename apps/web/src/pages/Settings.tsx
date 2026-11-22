@@ -56,7 +56,24 @@ export function settingsGroups(role: Role): SettingsGroup[] {
           },
         ]
       : []),
-    { title: 'Marquee', items: [{ to: '/settings/about', label: 'About', blurb: 'Version and where to get help' }] },
+    {
+      title: 'Marquee',
+      items: [
+        ...(admin
+          ? [
+              {
+                to: '/settings/health',
+                label: 'Health',
+                blurb: 'Connections, free space and background jobs',
+                info: 'Everything Marquee depends on in one place, each with what to do when it isn’t working, plus free space on each folder and every job Marquee runs by itself, with Run now.',
+              },
+              { to: '/settings/backups', label: 'Backups', blurb: 'Nightly backups, download one, or restore' },
+              { to: '/settings/logs', label: 'Logs', blurb: 'What Marquee has been doing, for a bug report' },
+            ]
+          : []),
+        { to: '/settings/about', label: 'About', blurb: 'Version and where to get help' },
+      ],
+    },
   ];
 }
 

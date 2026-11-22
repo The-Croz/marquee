@@ -1387,3 +1387,130 @@ export interface WatchSyncStatus {
   last: WatchSyncRun | null;
   runs: { at: number; ticks: number; undone: number; items: { person: string; title: string; server: string }[] }[];
 }
+
+// ---------------- Running Marquee: Health, backups, logs ----------------
+
+/** A background job on the Health page. */
+export interface JobView {
+  id: string;
+  label: string;
+  description: string;
+  /** "Every 5 minutes", "Only when you ask". */
+  every: string;
+  /** ok: last run went fine (or hasn't run yet) · busy: running now · problem: last run failed · off: switched off. */
+  tone: 'ok' | 'busy' | 'problem' | 'off';
+  running: boolean;
+  /** Why it's off, in plain words (and where to turn it on). */
+  off: string | null;
+  lastStartedAt: number | null;
+  lastFinishedAt: number | null;
+  /** null while running or before the first run. */
+  lastOk: boolean | null;
+  /** What the last run did, or what went wrong. */
+  lastMessage: string | null;
+  /** When it runs by itself next; null when off or only by hand. */
+  nextAt: number | null;
+}
+
+/** One thing Marquee depends on (a Source, qBittorrent, Plex, TMDB…) and how it is. */
+export interface ConnectionView {
+  key: string;
+  group: 'Sources' | 'Downloader' | 'Media servers' | 'Services';
+  name: string;
+  tone: 'ok' | 'attention' | 'problem' | 'off';
+  /** Plain state, e.g. "Working", "Key turned down". */
+  state: string;
+  /** What to do about it, or null when nothing's needed. */
+  fix: string | null;
+  /** What it said, when that helps. Never holds secrets. */
+  detail: string | null;
+  /** The page where it's fixed. */
+  to: string;
+}
+
+/** Free space on one folder Marquee writes to. */
+export interface DiskView {
+  key: 'downloads' | 'movies' | 'tv';
+  label: string;
+  path: string;
+  /** Bytes; null when Marquee can't see the folder. */
+  free: number | null;
+  total: number | null;
+  tone: 'ok' | 'problem';
+  state: string;
+  fix: string | null;
+}
+
+export interface DiskSettingsView {
+  /** Where downloads land, as Marquee sees it. */
+  downloadsFolder: string;
+  /** false: worked out from the downloader's folder pairs (or /data/torrents). */
+  downloadsFolderSet: boolean;
+  /** Marquee keeps at least this much free on each disk. */
+  minFreeGb: number;
+  defaultMinFreeGb: number;
+}
+
+export interface DiskSettingsUpdate {
+  /** null or "" works it out again. */
+  downloadsFolder?: string | null;
+  /** null puts the default back. */
+  minFreeGb?: number | null;
+}
+
+export interface HealthView {
+  checkedAt: number;
+  /** How many rows need you. */
+  problems: number;
+  connections: ConnectionView[];
+  disks: DiskView[];
+  disk: DiskSettingsView;
+  jobs: JobView[];
+}
+
+export type BackupKind = 'nightly' | 'by_hand' | 'before_restore';
+
+export interface BackupView {
+  /** File name; also its id in the API. */
+  name: string;
+  size: number;
+  createdAt: number;
+  kind: BackupKind;
+}
+
+export interface BackupsView {
+  /** Where backups are kept, inside Marquee's data folder. */
+  folder: string;
+  keepDays: number;
+  /** Newest first. */
+  backups: BackupView[];
+  lastNightly: number | null;
+  nextNightly: number | null;
+}
+
+export interface RestoreResult {
+  restored: BackupView;
+  /** The backup taken just before, to undo the restore. */
+  safety: BackupView;
+  message: string;
+}
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface LogLine {
+  id: number;
+  at: number;
+  level: LogLevel;
+  /** The part of Marquee it came from ("sources", "downloads"), when it said. */
+  area: string | null;
+  message: string;
+}
+
+export interface LogsView {
+  /** Oldest first. */
+  lines: LogLine[];
+  /** Lines kept in memory right now (all levels). */
+  kept: number;
+  /** The most Marquee keeps. */
+  keepMax: number;
+}

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { noRoomReason, type DiskProbe } from '../system/disk.js';
 import path from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
@@ -34,6 +35,8 @@ export interface ImportResult {
 export interface FileOps {
   link(src: string, dest: string): Promise<void>;
   copy(src: string, dest: string): Promise<void>;
+  /** Whether a file and a folder are on the same disk (so a hardlink works). Left out, Marquee compares the disks itself. */
+  sameDisk?(src: string, destDir: string): Promise<boolean>;
 }
 const realOps: FileOps = { link: (a, b) => fs.link(a, b), copy: (a, b) => fs.copyFile(a, b, fs.constants.COPYFILE_FICLONE) };
 
@@ -81,7 +84,12 @@ async function setAside(file: string, root: string): Promise<string | null> {
   return free;
 }
 
-export async function importDownload(db: Db, d: Download, files: QbitFile[], now: number, ops: FileOps = realOps): Promise<ImportResult> {
+/**
+ * Puts a finished download in the library. A copy (download and library on
+ * different disks) only goes ahead when it leaves the minimum free on the
+ * library's disk; a hardlink takes no space, so it always can.
+ */
+export async function importDownload(db: Db, d: Download, files: QbitFile[], now: number, ops: FileOps = realOps, disk?: DiskProbe): Promise<ImportResult> {
   if (d.adopted) throw new ImportError('Another app sent this download, so that app puts it in your library.');
   const settings = readDownloader(db);
   const roots = libraryRoots(db);
@@ -160,6 +168,12 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
       if (b && a.ino === b.ino && a.dev === b.dev) {
         done.push(p.dest); // already linked, e.g. a retry
         continue;
+      }
+      // Before touching anything: a copy needs room.
+      const same = ops.sameDisk ? await ops.sameDisk(p.src, dir) : (await fs.stat(dir)).dev === a.dev;
+      if (!same) {
+        const noRoom = await noRoomReason(db, d.kind === 'movie' ? 'movies' : 'tv', a.size, disk);
+        if (noRoom) throw new ImportError(`${noRoom} Marquee tries again by itself.`);
       }
       if (b) {
         const moved = await setAside(p.dest, root);

@@ -54,6 +54,20 @@ describe('Marquee looks for wanted movies', () => {
     expect((await lookForWanted(t.deps(), 'missing')).searched).toBe(0);
   });
 
+  it('sends nothing when the downloads disk would go under the minimum free, and says why', async () => {
+    const t = await setup();
+    await t.connect();
+    const full = async () => ({ free: 30 * GB, total: 4000 * GB });
+    const run = await lookForWanted({ ...t.deps(), clients: { ...t.deps().clients, disk: full } }, 'missing');
+    expect(t.qbit.added).toHaveLength(0);
+    expect(run.sent).toEqual([]);
+    expect(run.problems.join(' ')).toMatch(/Not enough room on the downloads disk \(\/data\/torrents\): 30\.0 GB free, this needs 25\.0 GB, and Marquee keeps 20 GB spare/);
+    // Lower the minimum (For experts) and it goes.
+    await call(t.app, 'PUT', '/api/system/disk', { minFreeGb: 1 }, t.cookie);
+    const again = await lookForWanted({ ...t.deps(), clients: { ...t.deps().clients, disk: full } }, 'missing');
+    expect(again.sent.map((s) => s.copy).sort()).toEqual([DUNE_4K, UP_4K].sort());
+  });
+
   it('checks movies you have and sends a copy only when it beats your file', async () => {
     const t = await setup();
     await t.connect();

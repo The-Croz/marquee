@@ -17,6 +17,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from '../src/app.js';
+import { Jobs } from '../src/system/jobs.js';
+import { captureConsole, serverLog, watchSecrets } from '../src/system/logs.js';
+import { KEEP_DAYS, nightlyBackup } from '../src/system/backups.js';
+import { checkHealth } from '../src/notify/health.js';
 import { loadConfig } from '../src/config.js';
 import { openDb, setSetting } from '../src/db/index.js';
 import { RateLimiter } from '../src/auth/rateLimit.js';
@@ -60,6 +64,9 @@ file('tv/Bluey (2018) {tvdb-353546}/Season 1/Bluey.S01E01-E03.720p.WEBRip.mkv', 
 
 const config = { ...loadConfig(), dataDir: root, webDir: process.env.MARQUEE_WEB_DIR ?? path.resolve('../web/dist') };
 const db = openDb(':memory:');
+captureConsole(serverLog);
+watchSecrets(db);
+const jobs = new Jobs(db, Date.now);
 setSetting(db, 'services.tmdb_api_key', 'good-key');
 setSetting(db, 'library.movies_root', path.join(root, 'movies'));
 setSetting(db, 'library.tv_root', path.join(root, 'tv'));
@@ -247,6 +254,8 @@ const clients = {
   siteFetch: web.fetch,
   solver: () => solver,
   fetchCatalogue: async () => catalogue,
+  // Settings → Health: plenty of room everywhere (lower it under For experts to see a full disk).
+  disk: async () => ({ free: 1.4 * 1024 ** 4, total: 4 * 1024 ** 4 }),
 };
 
 const app = createApp({
@@ -258,6 +267,8 @@ const app = createApp({
   clients,
   scanner: new LibraryScanner(db),
   sources: new SourceService(db, clients),
+  jobs,
+  logs: serverLog,
   now: Date.now,
 });
 void refreshCatalogue({ db, dataDir: root, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
@@ -268,6 +279,13 @@ const demoPoster = (url: string) => {
   for (const ch of url) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return sharp({ create: { width: 8, height: 12, channels: 3, background: DEMO_POSTER_COLORS[h % DEMO_POSTER_COLORS.length]! } }).png().toBuffer();
 };
-setInterval(() => void colorPosters(db, demoPoster).catch(() => {}), 5_000).unref();
+// Settings → Health lists these jobs, with Run now.
+jobs
+  .add({ id: 'posters', label: 'Poster colours', description: 'Picks each new or changed poster’s main colour for the pages’ glow.', everyMs: 60_000, firstAfterMs: 5_000, run: async () => { const r = await colorPosters(db, demoPoster); return `Coloured ${r.colored}`; } })
+  .add({ id: 'health', label: 'Check connections', description: 'Tells admins once when a Source, qBittorrent, Plex, Jellyfin or a disk has a problem.', everyMs: 5 * 60_000, firstAfterMs: 30_000, run: async () => { await checkHealth({ db, clients, push: clients.push, now: Date.now, baseUrl: () => null }); } })
+  .add({ id: 'backup', label: 'Nightly backup', description: `Backs up Marquee’s database once a day and keeps ${KEEP_DAYS} days of backups.`, everyMs: 60 * 60_000, firstAfterMs: 10_000, run: () => nightlyBackup(db, root, Date.now()) })
+  .add({ id: 'sources', label: 'Sync Prowlarr and tidy Source history', description: 'Brings Prowlarr’s sites up to date (when linked).', everyMs: 6 * 60 * 60_000, firstAfterMs: 20_000, run: async () => 'Tidied; Prowlarr isn’t linked' });
+jobs.start();
+console.warn('[demo] this is demo mode: nothing here is real');
 
 serve({ fetch: app.fetch, port: config.port }, (i) => console.log(`Marquee demo on http://localhost:${i.port} (library at ${root})`));

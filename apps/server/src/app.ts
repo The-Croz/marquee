@@ -28,12 +28,18 @@ import { channelRoutes, notificationRoutes } from './routes/notifications.js';
 import { CopyCache } from './downloads/cache.js';
 import { seedProfiles } from './releases/profiles.js';
 import { seedChoices } from './releases/choose.js';
+import { Jobs } from './system/jobs.js';
+import { LogBook } from './system/logs.js';
+import { systemRoutes } from './routes/system.js';
+import { addScanJob } from './routes/library.js';
 
 import { VERSION } from './version.js';
 
-export function createApp(given: Omit<Deps, 'copies' | 'activity'> & { copies?: CopyCache; activity?: ActivityMonitor }) {
+export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'logs'> & { copies?: CopyCache; activity?: ActivityMonitor; jobs?: Jobs; logs?: LogBook }) {
   const deps: Deps = {
     ...given,
+    jobs: given.jobs ?? new Jobs(given.db, given.now),
+    logs: given.logs ?? new LogBook(),
     copies: given.copies ?? new CopyCache(given.now),
     activity:
       given.activity ??
@@ -42,6 +48,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity'> & { copies?: 
   const app = new Hono<Env>();
   seedProfiles(deps.db, deps.now());
   seedChoices(deps.db);
+  addScanJob(deps);
 
   app.use(
     '*',
@@ -92,6 +99,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity'> & { copies?: 
   app.route('/api/requests', requestRoutes);
   app.route('/api/notifications', notificationRoutes);
   app.route('/api/settings/notifications', channelRoutes);
+  app.route('/api/system', systemRoutes);
   app.route('/api/library', libraryRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);
