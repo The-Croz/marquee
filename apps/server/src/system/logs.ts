@@ -1,7 +1,7 @@
 import { format } from 'node:util';
 import type { LogLevel, LogLine } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { notificationChannels, settings, sources } from '../db/schema.js';
+import { notificationChannels, settings, sources, users } from '../db/schema.js';
 
 /**
  * The Logs page: the server's recent lines, kept in memory (the newest
@@ -39,6 +39,7 @@ export function secretsIn(db: Db): string[] {
     out.push(...secretValues(s.site));
   }
   for (const c of db.select({ config: notificationChannels.config }).from(notificationChannels).all()) out.push(...secretValues(c.config));
+  for (const u of db.select({ token: users.plexToken }).from(users).all()) if (u.token) out.push(u.token);
   // Very short values would hide ordinary words; real keys and passwords are longer.
   return [...new Set(out.map((v) => v.trim()).filter((v) => v.length >= 6))].sort((a, b) => b.length - a.length);
 }

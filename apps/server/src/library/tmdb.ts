@@ -44,6 +44,27 @@ export interface TmdbMovie {
   cinemaRelease?: string | null;
   digitalRelease?: string | null;
   physicalRelease?: string | null;
+  /** The collection it's part of ("The Matrix Collection"), if any. */
+  collection?: { tmdbId: number; name: string } | null;
+}
+
+export interface TmdbCollectionPart {
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  releaseDate: string | null;
+  posterPath: string | null;
+  overview: string;
+}
+
+/** A TMDB movie collection, films oldest first. */
+export interface TmdbCollection {
+  tmdbId: number;
+  name: string;
+  overview: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  parts: TmdbCollectionPart[];
 }
 
 export interface TmdbShow {
@@ -211,6 +232,7 @@ export interface TmdbApi {
   recommendations(kind: 'movie' | 'series', id: number): Promise<TmdbCard[]>;
   extras(kind: 'movie' | 'series', id: number): Promise<TmdbExtras>;
   person(id: number): Promise<TmdbPerson>;
+  collection(id: number): Promise<TmdbCollection>;
 }
 
 /** TMDB's genre ids, which don't change. */
@@ -338,6 +360,7 @@ export class TmdbClient implements TmdbApi {
       production_companies?: { name: string }[];
       keywords?: { keywords?: { name: string }[] };
       release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string; type: number; release_date?: string }[] }[] };
+      belongs_to_collection?: { id: number; name: string } | null;
     };
     const m = await this.get<R>(`/movie/${id}`, { append_to_response: 'release_dates,keywords' });
     // The first US date of each kind (TMDB types: 2 limited, 3 theatrical, 4 digital, 5 physical).
@@ -368,6 +391,7 @@ export class TmdbClient implements TmdbApi {
       originalLanguage: m.original_language || null,
       companies: (m.production_companies ?? []).map((c) => c.name),
       keywords: (m.keywords?.keywords ?? []).map((k) => k.name),
+      collection: m.belongs_to_collection ? { tmdbId: m.belongs_to_collection.id, name: m.belongs_to_collection.name } : null,
     };
   }
 
@@ -585,6 +609,15 @@ export class TmdbClient implements TmdbApi {
       status: r.status ?? null,
       seasons: (r.seasons ?? []).filter((x) => x.season_number > 0).map((x) => ({ season: x.season_number, episodeCount: x.episode_count })),
     };
+  }
+
+  async collection(id: number): Promise<TmdbCollection> {
+    type Part = { id: number; title: string; release_date?: string; poster_path: string | null; overview?: string };
+    const c = await this.get<{ id: number; name: string; overview?: string; poster_path: string | null; backdrop_path: string | null; parts: Part[] }>(`/collection/${id}`);
+    const parts = c.parts
+      .map((p) => ({ tmdbId: p.id, title: p.title, year: yearOf(p.release_date), releaseDate: p.release_date || null, posterPath: p.poster_path, overview: p.overview ?? '' }))
+      .sort((a, b) => (a.releaseDate ?? '9999').localeCompare(b.releaseDate ?? '9999'));
+    return { tmdbId: c.id, name: c.name, overview: c.overview ?? '', posterPath: c.poster_path, backdropPath: c.backdrop_path, parts };
   }
 
   async person(id: number): Promise<TmdbPerson> {

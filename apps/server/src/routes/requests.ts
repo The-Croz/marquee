@@ -30,14 +30,16 @@ requestRoutes.get('/summary', (c) => {
 requestRoutes.post('/', async (c) => {
   const user = requireUser(c);
   const body = z
-    .object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().positive()).max(100).optional() })
+    .object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().positive()).max(100).optional(), preset: z.enum(['all', 'future', 'latest', 'first', 'none']).optional() })
     .parse(await c.req.json());
   return c.json<RequestView>(await createRequest(deps(c), user, body), 201);
 });
 
 requestRoutes.post('/:id{[0-9]+}/approve', async (c) => {
   const admin = requireAdmin(c);
-  const body = z.object({ profile: z.string().min(1).max(60).optional(), seasons: z.array(z.number().int().positive()).max(100).nullable().optional() }).parse(await c.req.json());
+  const body = z
+    .object({ profile: z.string().min(1).max(60).optional(), seasons: z.array(z.number().int().positive()).max(100).nullable().optional(), preset: z.enum(['all', 'future', 'latest', 'first']).optional() })
+    .parse(await c.req.json());
   return c.json<RequestView>(await approveRequest(deps(c), Number(c.req.param('id')), admin, body));
 });
 

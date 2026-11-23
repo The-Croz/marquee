@@ -15,6 +15,7 @@ import { notifyAdmins, tell, type NotifyDeps } from '../notify/service.js';
 import { posterUrl, requestVars } from '../notify/vars.js';
 import { isKidSafe } from '../discover/kids.js';
 import { movieHomeDate, movieStage } from '../library/availability.js';
+import { applyShowPreset, type ShowPreset } from '../library/showPresets.js';
 
 /**
  * Requests, like Seerr's. An admin's request goes straight through: the title
@@ -275,7 +276,7 @@ export async function createRequest(deps: RequestDeps, user: User, input: NewReq
     .values({ kind: input.kind, tmdbId: input.tmdbId, title, year, posterPath, seasons: seasonList ? JSON.stringify(seasonList) : null, requestedBy: user.id, createdAt: now() })
     .returning()
     .get();
-  if (user.role === 'admin') return approveRequest(deps, row.id, user, {});
+  if (user.role === 'admin') return approveRequest(deps, row.id, user, input.preset && input.kind === 'series' ? { preset: input.preset } : {});
   await notifyAdmins(deps.notify, 'request_pending', { vars: { ...requestVars(row), user: user.displayName }, link: '/requests' });
   return requestView(db, row, now());
 }
@@ -296,6 +297,8 @@ export interface Approval {
   profile?: string | undefined;
   /** Shows: change which seasons to take (null/undefined keeps what was asked). */
   seasons?: number[] | null | undefined;
+  /** Shows: which episodes, as one choice (every episode, only new ones…); wins over `seasons`. */
+  preset?: ShowPreset | undefined;
 }
 
 export async function approveRequest(deps: RequestDeps, id: number, admin: User, a: Approval): Promise<RequestView> {
@@ -315,7 +318,8 @@ export async function approveRequest(deps: RequestDeps, id: number, admin: User,
       const show = await scanner.upsertSeries(tmdb, r.tmdbId, null, now());
       titleId = show.id;
       if (!show.monitored) db.update(episodes).set({ monitored: false }).where(eq(episodes.seriesId, titleId)).run();
-      if (seasons === null) setShowsWanted(db, [titleId], true);
+      if (a.preset) applyShowPreset(db, titleId, a.preset === 'none' ? 'all' : a.preset, todayOf(now()));
+      else if (seasons === null) setShowsWanted(db, [titleId], true);
       else for (const s of seasons) try { setSeasonWanted(db, titleId, s, true); } catch { /* a season TMDB hasn't listed yet */ }
     }
   } catch (err) {

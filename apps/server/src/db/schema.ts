@@ -14,6 +14,8 @@ export const users = sqliteTable(
     role: text('role', { enum: ['admin', 'member', 'kid'] }).notNull().default('member'),
     plexId: text('plex_id').unique(),
     plexUsername: text('plex_username'),
+    /** Their own Plex sign-in token, kept from signing in with Plex, for their watchlist. Never sent to screens. */
+    plexToken: text('plex_token'),
     jellyfinId: text('jellyfin_id'),
     jellyfinUsername: text('jellyfin_username'),
     oidcIssuer: text('oidc_issuer'),
@@ -88,6 +90,8 @@ export const movies = sqliteTable('movies', {
   refreshedAt: integer('refreshed_at').notNull(),
   /** When Marquee last searched for it by itself. */
   lastSearchedAt: integer('last_searched_at'),
+  /** TMDB's collection it belongs to ("The Matrix Collection"), if any. */
+  collectionTmdbId: integer('collection_tmdb_id'),
 });
 
 export const series = sqliteTable('series', {
@@ -122,6 +126,8 @@ export const series = sqliteTable('series', {
   profileByHand: integer('profile_by_hand', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull(),
   refreshedAt: integer('refreshed_at').notNull(),
+  /** Seasons and episodes that appear later are wanted too (set by the show's "which episodes" choice). */
+  wantNew: integer('want_new', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const episodes = sqliteTable('episodes', {
@@ -656,4 +662,78 @@ export const watchSyncLog = sqliteTable('watch_sync_log', {
   itemRef: text('item_ref').notNull(),
   title: text('title').notNull(),
   undoneAt: integer('undone_at'),
+});
+
+/** TMDB movie collections ("The Matrix Collection"). Wanted ones get new films added by themselves. */
+export const collections = sqliteTable('collections', {
+  tmdbId: integer('tmdb_id').primaryKey(),
+  name: text('name').notNull(),
+  overview: text('overview').notNull().default(''),
+  posterPath: text('poster_path'),
+  backdropPath: text('backdrop_path'),
+  /** JSON CollectionPart[] from TMDB, oldest first. */
+  parts: text('parts').notNull().default('[]'),
+  /** Add films in it as they're announced, as Wanted. */
+  wanted: integer('wanted', { mode: 'boolean' }).notNull().default(false),
+  refreshedAt: integer('refreshed_at').notNull(),
+});
+
+/**
+ * Lists Marquee follows: each person's Plex watchlist (their additions become
+ * their requests) and Trakt, IMDb and Letterboxd lists (added as Wanted).
+ */
+export const importLists = sqliteTable('import_lists', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['plex_watchlist', 'trakt', 'imdb', 'letterboxd'] }).notNull(),
+  name: text('name').notNull(),
+  url: text('url'),
+  /** Plex watchlists: whose. */
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** A profile key for what it adds; null lets the profile rules choose. */
+  profile: text('profile'),
+  /** Shows it adds: which episodes (see library/showPresets.ts). */
+  showPreset: text('show_preset').notNull().default('all'),
+  lastSyncAt: integer('last_sync_at'),
+  lastOk: integer('last_ok', { mode: 'boolean' }),
+  lastMessage: text('last_message'),
+  createdAt: integer('created_at').notNull(),
+});
+
+/** Everything seen on a list, and what Marquee did with it (added, asked, already here, left out…). */
+export const listItems = sqliteTable(
+  'list_items',
+  {
+    listId: integer('list_id')
+      .notNull()
+      .references(() => importLists.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+    tmdbId: integer('tmdb_id').notNull(),
+    title: text('title').notNull(),
+    year: integer('year'),
+    seenAt: integer('seen_at').notNull(),
+    outcome: text('outcome').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.listId, t.kind, t.tmdbId] })],
+);
+
+/** Titles lists never add. */
+export const listExclusions = sqliteTable(
+  'list_exclusions',
+  {
+    kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+    tmdbId: integer('tmdb_id').notNull(),
+    title: text('title').notNull(),
+    year: integer('year'),
+    addedAt: integer('added_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.tmdbId] })],
+);
+
+/** Letterboxd film pages Marquee has read: their TMDB id, so each is fetched once. */
+export const letterboxdFilms = sqliteTable('letterboxd_films', {
+  slug: text('slug').primaryKey(),
+  tmdbId: integer('tmdb_id'),
+  kind: text('kind'),
+  seenAt: integer('seen_at').notNull(),
 });

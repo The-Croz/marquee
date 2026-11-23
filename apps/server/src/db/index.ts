@@ -593,6 +593,56 @@ export const migrations: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // 28: getting titles in: show presets, collections, lists (Plex watchlists, Trakt, IMDb, Letterboxd)
+  `
+  ALTER TABLE series ADD COLUMN want_new INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE movies ADD COLUMN collection_tmdb_id INTEGER;
+  ALTER TABLE users ADD COLUMN plex_token TEXT;
+  CREATE TABLE collections (
+    tmdb_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    overview TEXT NOT NULL DEFAULT '',
+    poster_path TEXT,
+    backdrop_path TEXT,
+    parts TEXT NOT NULL DEFAULT '[]',
+    wanted INTEGER NOT NULL DEFAULT 0,
+    refreshed_at INTEGER NOT NULL
+  );
+  CREATE TABLE import_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('plex_watchlist', 'trakt', 'imdb', 'letterboxd')),
+    name TEXT NOT NULL,
+    url TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    profile TEXT,
+    show_preset TEXT NOT NULL DEFAULT 'all',
+    last_sync_at INTEGER,
+    last_ok INTEGER,
+    last_message TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX import_lists_watchlist ON import_lists (user_id) WHERE kind = 'plex_watchlist';
+  CREATE TABLE list_items (
+    list_id INTEGER NOT NULL REFERENCES import_lists (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    seen_at INTEGER NOT NULL,
+    outcome TEXT NOT NULL,
+    PRIMARY KEY (list_id, kind, tmdb_id)
+  );
+  CREATE TABLE list_exclusions (
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (kind, tmdb_id)
+  );
+  CREATE TABLE letterboxd_films (slug TEXT PRIMARY KEY, tmdb_id INTEGER, kind TEXT, seen_at INTEGER NOT NULL);
+  `,
 ];
 
 export function openDb(file: string): Db {

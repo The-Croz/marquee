@@ -1,3 +1,4 @@
+import { addGettingInJobs, collectionRoutes, listRoutes, showPresetRoutes } from './routes/gettingIn.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Hono } from 'hono';
@@ -51,6 +52,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   seedProfiles(deps.db, deps.now());
   seedChoices(deps.db);
   addScanJob(deps);
+  addGettingInJobs(deps);
 
   app.use(
     '*',
@@ -112,6 +114,9 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   app.route('/api/shows', showCopyRoutes);
   app.route('/api/movies', movieCareRoutes);
   app.route('/api/shows', showCareRoutes);
+  app.route('/api/shows', showPresetRoutes);
+  app.route('/api/collections', collectionRoutes);
+  app.route('/api/lists', listRoutes);
   app.all('/api/*', (c) => c.json<ApiError>({ error: 'not_found', message: 'No such endpoint.' }, 404));
 
   app.onError((err, c) => {

@@ -399,6 +399,7 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
     request: mine ? requestView(db, mine, now()) : null,
     canRequest,
     note,
+    collection: kind === 'movie' ? ((core as { collection?: { tmdbId: number; name: string } | null }).collection ?? null) : null,
   };
 }
 

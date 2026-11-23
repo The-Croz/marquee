@@ -1,4 +1,5 @@
 import type { DictionarryFetch } from './releases/dictionarry.js';
+import type { ListFetch } from './library/lists.js';
 import type { Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Config } from './config.js';
@@ -52,6 +53,8 @@ export interface Clients extends SourceClients {
   unpacker?: Unpacker;
   /** Dictionarry's newest version, for rule updates. Tests fake it; left out, Marquee asks GitHub. */
   dictionarry?: DictionarryFetch;
+  /** Reads list pages and APIs (Plex watchlists, Trakt, IMDb, Letterboxd). Tests fake it; left out, Marquee uses fetch. */
+  listFetch?: ListFetch;
 }
 
 export interface Deps {

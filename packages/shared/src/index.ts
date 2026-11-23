@@ -1254,6 +1254,77 @@ export interface DiscoverTitle {
   canRequest: boolean;
   /** Plain words for why not. */
   note: string | null;
+  /** Movies: the collection it's part of. */
+  collection: { tmdbId: number; name: string } | null;
+}
+
+/** A movie collection ("The Matrix Collection") and where each film stands. */
+export interface CollectionView {
+  tmdbId: number;
+  name: string;
+  overview: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  /** New films in it are added as Wanted when they're announced. */
+  wanted: boolean;
+  parts: {
+    tmdbId: number;
+    title: string;
+    year: number | null;
+    posterPath: string | null;
+    overview: string;
+    /** In Marquee's library (with or without a file). */
+    libraryId: number | null;
+    /** Has a file. */
+    have: boolean;
+    wanted: boolean;
+    /** Out to stream or buy. */
+    released: boolean;
+  }[];
+}
+
+/** Which episodes of a show Marquee wants, in one choice. */
+export type ShowPreset = 'all' | 'future' | 'latest' | 'first' | 'none';
+
+// ---------------------------------------------------------------- Settings → Lists
+
+export type ListKind = 'plex_watchlist' | 'trakt' | 'imdb' | 'letterboxd';
+
+export interface ListView {
+  id: number;
+  kind: ListKind;
+  name: string;
+  url: string | null;
+  /** Plex watchlists: whose. */
+  owner: { id: number; name: string } | null;
+  enabled: boolean;
+  profile: string | null;
+  showPreset: ShowPreset;
+  lastSyncAt: number | null;
+  lastOk: boolean | null;
+  lastMessage: string | null;
+  /** Titles seen on it so far, and how many it added or asked for. */
+  seen: number;
+  added: number;
+}
+
+export interface ListItemView {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  seenAt: number;
+  outcome: string;
+  outcomeText: string;
+}
+
+export interface ListsView {
+  /** Trakt, IMDb and Letterboxd lists. */
+  lists: ListView[];
+  /** Everyone, with their Plex watchlist when it's followed. */
+  people: { userId: number; name: string; role: 'admin' | 'member' | 'kid'; plexLinked: boolean; canRead: boolean; watchlist: ListView | null }[];
+  exclusions: { kind: 'movie' | 'series'; tmdbId: number; title: string; year: number | null; addedAt: number }[];
+  traktKeySet: boolean;
 }
 
 /** The top 10 movies and top 10 shows on one streaming service. */
@@ -1304,6 +1375,8 @@ export interface NewRequest {
   tmdbId: number;
   /** Shows: which seasons; omit for the whole show. */
   seasons?: number[];
+  /** Shows, admins: which episodes, as one choice (instead of seasons). */
+  preset?: ShowPreset;
 }
 
 /** One bit of information a notification carries, for {{key}} in its wording. */

@@ -50,7 +50,7 @@ accountRoutes.delete('/links/:provider{plex|oidc}', (c) => {
   const updated = updateUser(
     c.get('deps').db,
     user.id,
-    provider === 'plex' ? { plexId: null, plexUsername: null } : { oidcIssuer: null, oidcSubject: null },
+    provider === 'plex' ? { plexId: null, plexUsername: null, plexToken: null } : { oidcIssuer: null, oidcSubject: null },
   );
   return c.json({ user: toSessionUser(updated) });
 });
