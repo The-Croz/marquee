@@ -4,16 +4,17 @@ import type { ProfileDetail, ProfileKind, ProfileRuleView, ProfilesView, Quality
 import { ApiFailure, api, queryClient } from '../api';
 import { Button, Card, Notice, cx } from '../components/ui';
 import { ProfileChoices } from '../components/ProfileChoices';
+import { MovedToDictionarry, OwnRules, RuleUpdates, TryName, points } from '../components/QualityTools';
 
 /**
  * Quality: the profiles that decide which copy Marquee picks for a title.
  * Everything in a profile can be changed here; the built-in ones are only
- * starting points and can be put back to TRaSH's values.
+ * starting points (on Dictionarry's rules) and can be put back to its values.
  */
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong.');
-const points = (n: number) => (n > 0 ? `+${n.toLocaleString()}` : n.toLocaleString().replace('-', '−'));
 const NEVER = -10000;
+const DB_NAME = { dictionarry: 'Dictionarry', trash: 'TRaSH' } as const;
 
 export function QualityPage() {
   const [kind, setKind] = useState<ProfileKind>('movie');
@@ -25,6 +26,7 @@ export function QualityPage() {
   return (
     <>
       {list.error && <Notice tone="error">{errMsg(list.error)}</Notice>}
+      {list.data?.notice && <MovedToDictionarry notice={list.data.notice} />}
       <div className="flex flex-wrap items-start gap-8">
         <section aria-label="Profiles" className="flex w-full flex-col gap-4 2xl:w-[300px] 2xl:flex-none">
           <div role="tablist" aria-label="Library" className="flex rounded-xl border border-line bg-panel p-1">
@@ -64,7 +66,7 @@ export function QualityPage() {
                   </span>
                 </span>
                 <span className="text-label text-muted">
-                  {p.titles} {kind === 'movie' ? (p.titles === 1 ? 'movie' : 'movies') : p.titles === 1 ? 'show' : 'shows'}
+                  {p.titles} {kind === 'movie' ? (p.titles === 1 ? 'movie' : 'movies') : p.titles === 1 ? 'show' : 'shows'} · {DB_NAME[p.database]}
                 </span>
               </button>
             ))}
@@ -74,6 +76,8 @@ export function QualityPage() {
         </section>
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
           {list.data && <ProfileChoices kind={kind} view={list.data} />}
+          <RuleUpdates />
+          {list.data && <OwnRules view={list.data} />}
           {current ? <ProfileEditor key={current.id} id={current.id} /> : list.isLoading ? <p className="text-muted">Loading…</p> : null}
         </div>
       </div>
@@ -86,13 +90,15 @@ function NewProfile({ kind, view, onCreated }: { kind: ProfileKind; view: Profil
   const [name, setName] = useState('');
   const options = [
     ...view.profiles.filter((p) => p.kind === kind).map((p) => ({ value: `copy:${p.id}`, label: `A copy of ${p.name}` })),
-    ...view.trashProfiles.filter((t) => t.kind === kind).map((t) => ({ value: `trash:${t.name}`, label: `TRaSH: ${t.name}` })),
+    ...view.starters.filter((t) => t.kind === kind && t.database === 'dictionarry').map((t) => ({ value: `dictionarry:${t.name}`, label: `Dictionarry: ${t.name}` })),
+    ...view.starters.filter((t) => t.kind === kind && t.database === 'trash').map((t) => ({ value: `trash:${t.name}`, label: `TRaSH: ${t.name}` })),
   ];
+  const starter = view.starters.find((t) => t.kind === kind && `${t.database}:${t.name}` === (from || options[0]?.value));
   const value = from && options.some((o) => o.value === from) ? from : (options[0]?.value ?? '');
   const create = useMutation({
     mutationFn: () => {
       const [how, what] = [value.slice(0, value.indexOf(':')), value.slice(value.indexOf(':') + 1)];
-      return api<ProfileDetail>('/settings/profiles', { body: { kind, name, ...(how === 'copy' ? { copyFrom: Number(what) } : { fromTrash: what }) } });
+      return api<ProfileDetail>('/settings/profiles', { body: { kind, name, ...(how === 'copy' ? { copyFrom: Number(what) } : how === 'dictionarry' ? { fromDictionarry: what } : { fromTrash: what }) } });
     },
     onSuccess: async (p) => {
       setName('');
@@ -123,6 +129,7 @@ function NewProfile({ kind, view, onCreated }: { kind: ProfileKind; view: Profil
           ))}
         </select>
       </label>
+      {starter && <p className="m-0 text-label text-dim">{starter.description}</p>}
       {create.error && <Notice tone="error">{errMsg(create.error)}</Notice>}
       <Button type="submit" variant="ghost" disabled={!name.trim() || create.isPending}>
         Create
@@ -174,6 +181,9 @@ interface Draft {
   cutoff: string;
   upgrades: boolean;
   minScore: number;
+  cutoffScore: number;
+  minUpgradeScore: number;
+  preferRepacks: boolean;
   rules: Record<string, { enabled: boolean; score: number }>;
   sizes: Record<string, { min: number; preferred: number; max: number }>;
   /** Sizes you touched (or had already changed), so only those are saved. */
@@ -188,6 +198,9 @@ function toDraft(p: ProfileDetail): Draft {
     cutoff: p.cutoff,
     upgrades: p.upgrades,
     minScore: p.minScore,
+    cutoffScore: p.cutoffScore,
+    minUpgradeScore: p.minUpgradeScore,
+    preferRepacks: p.preferRepacks,
     rules: Object.fromEntries(p.rules.map((r) => [r.trashId, { enabled: r.enabled, score: r.score }])),
     sizes: Object.fromEntries(p.sizes.map((s) => [s.quality, { min: s.min, preferred: s.preferred, max: s.max }])),
     sizesChanged: new Set(p.sizes.filter((s) => s.changed).map((s) => s.quality)),
@@ -217,6 +230,9 @@ function ProfileEditor({ id }: { id: number }) {
           cutoff: d.cutoff,
           upgrades: d.upgrades,
           minScore: d.minScore,
+          cutoffScore: d.cutoffScore,
+          minUpgradeScore: d.minUpgradeScore,
+          preferRepacks: d.preferRepacks,
           rules: Object.entries(d.rules).map(([trashId, r]) => ({ trashId, ...r })),
           sizes: Object.fromEntries([...d.sizesChanged].map((k) => [k, d.sizes[k]!])),
         },
@@ -227,6 +243,10 @@ function ProfileEditor({ id }: { id: number }) {
     },
   });
   const reset = useMutation({ mutationFn: () => api<ProfileDetail>(`/settings/profiles/${id}/reset`, { body: {} }), onSuccess: refresh });
+  const settle = useMutation({
+    mutationFn: (b: { trashId: string; use: 'theirs' | 'mine' }) => api<ProfileDetail>(`/settings/profiles/${id}/settle`, { body: b }),
+    onSuccess: refresh,
+  });
   const remove = useMutation({
     mutationFn: () => api(`/settings/profiles/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profiles'] }),
@@ -262,12 +282,17 @@ function ProfileEditor({ id }: { id: number }) {
             onChange={(e) => edit({ name: e.target.value })}
             className="h-11 max-w-[360px] rounded-lg border border-line-strong bg-panel px-3 text-xl font-semibold text-text focus:border-amber focus:outline-none"
           />
-          <span className="text-label text-dim">{p.preset ? 'Built in. Change anything; “Put back TRaSH’s values” undoes it.' : 'Your own profile.'}</span>
+          <span className="text-label text-dim">
+            {p.preset
+              ? `Built in, on ${DB_NAME[p.database]}${p.base ? `’s ${p.base}` : ''}. Change anything; “Put back Dictionarry’s values” undoes it.`
+              : `Your own profile, on ${DB_NAME[p.database]}${p.base ? `’s ${p.base}` : ''}.`}
+            {p.database === 'dictionarry' && p.base ? ' Rule updates change only what you haven’t.' : ''}
+          </span>
         </div>
         <div className="flex flex-wrap gap-2">
           {p.preset && (
-            <Button type="button" variant="ghost" disabled={reset.isPending} onClick={() => window.confirm(`Put ${p.name} back to TRaSH's values? Your changes to it are lost.`) && reset.mutate()}>
-              Put back TRaSH’s values
+            <Button type="button" variant="ghost" disabled={reset.isPending} onClick={() => window.confirm(`Put ${p.name} back to Dictionarry's values? Your changes to it are lost.`) && reset.mutate()}>
+              Put back Dictionarry’s values
             </Button>
           )}
           <Button type="button" variant="danger" disabled={remove.isPending} onClick={() => window.confirm(`Delete ${p.name}?`) && remove.mutate()}>
@@ -283,9 +308,12 @@ function ProfileEditor({ id }: { id: number }) {
       {remove.error && <Notice tone="error">{errMsg(remove.error)}</Notice>}
       {saved && !dirty && <Notice tone="success">Saved. The next search uses it.</Notice>}
 
+      {settle.error && <Notice tone="error">{errMsg(settle.error)}</Notice>}
+      <TryName profileId={p.id} profileName={p.name} />
       <Tiers draft={draft} labels={p.qualityLabels} edit={edit} />
-      <Rules saved={p.rules} draft={draft} edit={edit} />
-      <Sizes sizes={p.sizes} draft={draft} kind={p.kind} edit={edit} />
+      <Rules saved={p.rules} draft={draft} edit={edit} database={p.database} onSettle={(trashId, use) => settle.mutate({ trashId, use })} />
+      <Experts draft={draft} edit={edit} />
+      <Sizes sizes={p.sizes} draft={draft} kind={p.kind} database={p.database} edit={edit} />
       {dirty && (
         <div className="sticky bottom-4 flex justify-end">
           <Button type="submit" disabled={save.isPending} className="shadow-2xl">
@@ -299,7 +327,10 @@ function ProfileEditor({ id }: { id: number }) {
 
 function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, string>; edit: (c: Partial<Draft>) => void }) {
   const [showOff, setShowOff] = useState(false);
-  const tierLabel = (t: QualityTier) => (t.qualities.length === 1 ? labels[t.qualities[0]!] : `${labels[t.qualities[0]!]?.replace(/ web (download|capture)$/, ' web')} (download or capture)`) ?? t.name;
+  // A group of many qualities (Dictionarry's way) is named for itself; its points decide between them.
+  const tierLabel = (t: QualityTier) =>
+    (t.qualities.length === 1 ? labels[t.qualities[0]!] : t.qualities.length === 2 ? `${labels[t.qualities[0]!]?.replace(/ web (download|capture)$/, ' web')} (download or capture)` : `${t.name}: ${t.qualities.length} qualities`) ?? t.name;
+  const bigGroup = draft.tiers.find((t) => t.allowed && t.qualities.length > 2);
   const on = draft.tiers.filter((t) => t.allowed);
   const off = draft.tiers.filter((t) => !t.allowed);
   const move = (name: string, by: -1 | 1) => {
@@ -322,6 +353,11 @@ function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, s
         <h2 className="m-0 text-heading font-semibold">Qualities, best first</h2>
         <span className="text-label text-muted">Marquee takes the highest one it can find. Switch one off to never take it.</span>
       </div>
+      {bigGroup && (
+        <p className="m-0 text-label text-muted">
+          “{bigGroup.name}” takes {bigGroup.qualities.map((q) => labels[q] ?? q).join(', ')}. Within it, the rules’ points pick the best copy, so a trusted small encode can beat a bigger one.
+        </p>
+      )}
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
         {on.map((t, i) => (
           <li key={t.name} className="flex items-center gap-3 rounded-lg border border-line-strong bg-raised px-3 py-1.5">
@@ -376,18 +412,22 @@ function Tiers({ draft, labels, edit }: { draft: Draft; labels: Record<string, s
 }
 
 function groupName(r: ProfileRuleView): string {
+  if (r.conflict !== null) return 'Changed by a rule update · you choose';
   if (!r.enabled) return 'Optional · off until you turn them on';
   if (r.score <= NEVER) return 'Never pick';
   if (!r.group) return 'Always counted';
   return r.group.replace(/^\[[^\]]+\]\s*/, '');
 }
 
-function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft; edit: (c: Partial<Draft>) => void }) {
+const SOURCE_NAME = { dictionarry: 'Dictionarry', trash: 'TRaSH', own: 'Yours' } as const;
+
+function Rules(props: { saved: ProfileRuleView[]; draft: Draft; edit: (c: Partial<Draft>) => void; database: 'dictionarry' | 'trash'; onSettle: (trashId: string, use: 'theirs' | 'mine') => void }) {
+  const { saved, draft, edit } = props;
   const [find, setFind] = useState('');
   // Grouped by how the profile was last saved, so a rule doesn't jump around while you edit it.
   const groups = useMemo(() => {
     const out = new Map<string, ProfileRuleView[]>();
-    const order = (name: string) => (name === 'Never pick' ? 0 : name.startsWith('Optional') ? 2 : 1);
+    const order = (name: string) => (name.startsWith('Changed by') ? -1 : name === 'Never pick' ? 0 : name.startsWith('Optional') ? 2 : 1);
     for (const r of [...saved].sort((a, b) => order(groupName(a)) - order(groupName(b)) || b.score - a.score)) {
       const g = groupName(r);
       out.set(g, [...(out.get(g) ?? []), r]);
@@ -408,12 +448,15 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
             type="search"
             value={find}
             onChange={(e) => setFind(e.target.value)}
-            placeholder="Dolby Vision, AMZN, x265…"
+            placeholder="Dolby Vision, Netflix, x265…"
             className="h-11 w-[240px] rounded-lg border border-line-strong bg-raised px-3 text-sm text-text placeholder:text-dim focus:border-amber focus:outline-none"
           />
         </label>
       </div>
-      <p className="m-0 text-label text-muted">A copy’s points are the sum of the rules it matches; more points wins. A rule at −10,000 means never pick a copy that matches it.</p>
+      <p className="m-0 text-label text-muted">
+        A copy’s points are the sum of the rules it matches; more points wins. A rule at −10,000 or less means never pick a copy that matches it.
+        {props.database === 'dictionarry' && ' Dictionarry’s points run large on purpose: the big ones (hundreds of thousands) rank whole kinds of copy, the small ones break ties.'}
+      </p>
       {groups.map(([name, rules]) => {
         const visible = rules.filter(shown);
         if (!visible.length) return null;
@@ -425,7 +468,7 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
             <ul className="m-0 flex list-none flex-col p-0">
               {visible.map((r) => {
                 const d = draft.rules[r.trashId]!;
-                const changed = d.score !== r.trashScore;
+                const changed = r.databaseScore !== null && d.score !== r.databaseScore;
                 return (
                   <li key={r.trashId} className={cx('grid grid-cols-[44px_minmax(0,1fr)_120px] items-center gap-3 border-t border-line py-2', !d.enabled && 'text-muted')}>
                     <label className="flex size-11 items-center justify-center">
@@ -433,9 +476,25 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
                     </label>
                     <div className="min-w-0">
                       <div className={cx('text-sm font-semibold', d.enabled ? 'text-text' : 'text-soft')}>
-                        {r.label} <span className="text-xs font-normal text-dim">TRaSH: {r.name}{changed && ` · TRaSH gives ${points(r.trashScore)}`}</span>
+                        {r.label}{' '}
+                        <span className="text-xs font-normal text-dim">
+                          {SOURCE_NAME[r.source]}
+                          {r.source !== 'own' && `: ${r.name}`}
+                          {changed && r.databaseScore !== null && ` · ${SOURCE_NAME[r.source]} gives ${points(r.databaseScore)}`}
+                        </span>
                       </div>
                       {r.explain && <div className="text-label text-muted">{r.explain}</div>}
+                      {r.conflict !== null && (
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-label text-amber">
+                          A rule update made this {points(r.conflict)}; you’d set {points(r.score)}.
+                          <button type="button" className="h-11 rounded-lg px-2 font-semibold underline" onClick={() => props.onSettle(r.trashId, 'theirs')}>
+                            Use {points(r.conflict)}
+                          </button>
+                          <button type="button" className="h-11 rounded-lg px-2 font-semibold underline" onClick={() => props.onSettle(r.trashId, 'mine')}>
+                            Keep mine
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <input
                       type="number"
@@ -471,7 +530,40 @@ function Rules({ saved, draft, edit }: { saved: ProfileRuleView[]; draft: Draft;
   );
 }
 
-function Sizes({ sizes, draft, kind, edit }: { sizes: SizeLimitView[]; draft: Draft; kind: ProfileKind; edit: (c: Partial<Draft>) => void }) {
+function Experts({ draft, edit }: { draft: Draft; edit: (c: Partial<Draft>) => void }) {
+  const num = 'h-10 w-[130px] rounded-lg border border-line-strong bg-raised px-2.5 text-right text-sm font-semibold text-text';
+  return (
+    <details className="rounded-2xl border border-line bg-panel p-6">
+      <summary className="min-h-11 cursor-pointer text-heading font-semibold">For experts: points and fixed copies</summary>
+      <div className="mt-3 flex flex-col gap-4 text-sm text-soft">
+        <label className="flex flex-wrap items-center gap-3">
+          Good enough at
+          <input type="number" value={draft.cutoffScore} aria-label="Good enough at points" onChange={(e) => edit({ cutoffScore: Math.round(Number(e.target.value) || 0) })} className={num} />
+          points (with the “good enough” quality)
+        </label>
+        <p className="m-0 -mt-2 text-label text-muted">
+          {draft.cutoffScore >= 1_000_000
+            ? 'At 1,000,000 nothing is ever good enough by points: Marquee keeps checking for a better copy now and then (a few titles a day), as Dictionarry intends.'
+            : 'Once a copy has this many points at the good-enough quality, Marquee stops looking for a better one.'}
+        </p>
+        <label className="flex flex-wrap items-center gap-3">
+          Upgrade only for at least
+          <input type="number" min={1} value={draft.minUpgradeScore} aria-label="Smallest gain worth an upgrade" onChange={(e) => edit({ minUpgradeScore: Math.max(1, Math.round(Number(e.target.value) || 1)) })} className={num} />
+          more points
+        </label>
+        <label className="flex items-start gap-3">
+          <input type="checkbox" checked={draft.preferRepacks} onChange={(e) => edit({ preferRepacks: e.target.checked })} className="mt-0.5 size-5 accent-amber" />
+          <span>
+            A fixed copy (proper or repack) beats others of the same quality before points are counted
+            <span className="block text-label text-muted">Dictionarry turns this off and gives fixed copies a few points instead, so a fix never beats a better copy.</span>
+          </span>
+        </label>
+      </div>
+    </details>
+  );
+}
+
+function Sizes({ sizes, draft, kind, database, edit }: { sizes: SizeLimitView[]; draft: Draft; kind: ProfileKind; database: 'dictionarry' | 'trash'; edit: (c: Partial<Draft>) => void }) {
   const top = kind === 'movie' ? 2000 : 1000;
   const set = (quality: string, field: 'min' | 'preferred' | 'max', value: number) =>
     edit({ sizes: { ...draft.sizes, [quality]: { ...draft.sizes[quality]!, [field]: value } }, sizesChanged: new Set([...draft.sizesChanged, quality]) });
@@ -479,8 +571,8 @@ function Sizes({ sizes, draft, kind, edit }: { sizes: SizeLimitView[]; draft: Dr
     <details className="rounded-2xl border border-line bg-panel p-6">
       <summary className="min-h-11 cursor-pointer text-heading font-semibold">For experts: sizes per quality</summary>
       <p className="mt-3 mb-4 text-label text-muted">
-        In MB per minute of runtime, from TRaSH. Copies smaller than the smallest are usually poor or mislabeled. Among equal copies, the one closest to the preferred size wins. A largest of {top}{' '}
-        means no limit.
+        In MB per minute of runtime{database === 'trash' ? ', from TRaSH' : '. Dictionarry sets no limits: its rules already favour sensible sizes'}. Copies smaller than the smallest are usually poor or mislabeled. Among equal copies, the one
+        closest to the preferred size wins. A largest of {top} means no limit.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse text-sm">

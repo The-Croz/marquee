@@ -102,8 +102,8 @@ describe('Radarr matching rules', () => {
   });
 
   it('never claims a match on a test it cannot check', () => {
-    expect(matches(r([['YearSpecification', false, false, 2020]]), t)).toBe(false);
-    expect(unsupported(r([['YearSpecification', false, false, 2020]]))).toContain("aren't supported");
+    expect(matches(r([['EditionSpecification', false, false, 'IMAX']]), t)).toBe(false);
+    expect(unsupported(r([['EditionSpecification', false, false, 'IMAX']]))).toContain("aren't supported");
   });
 });
 

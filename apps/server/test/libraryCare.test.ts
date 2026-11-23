@@ -31,7 +31,7 @@ async function world() {
     { id: '1', name: 'Movies', kind: 'movie', locations: [`${root}/media/movies`] },
     { id: '2', name: 'TV Shows', kind: 'tv', locations: [`${root}/media/tv`] },
   ]);
-  const t = makeApp({ clients: { tmdb: () => tmdb, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent(), plexServer: (u, k) => plex.as(u, k), torznab: sites.torznab } });
+  const t = makeApp({ trashPresets: true, clients: { tmdb: () => tmdb, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent(), plexServer: (u, k) => plex.as(u, k), torznab: sites.torznab } });
   const admin = await setupAdmin(t.app);
   await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', moviesRoot: `${root}/media/movies`, tvRoot: `${root}/media/tv`, plexUrl: 'http://plex:32400', plexToken: 'plex-token' }, admin);
   await call(t.app, 'PUT', '/api/system/disk', { downloadsFolder: `${root}/torrents` }, admin);

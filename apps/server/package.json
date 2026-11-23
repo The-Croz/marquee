@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "demo": "tsx scripts/demo.ts",
-    "trash:update": "tsx scripts/update-trash.ts"
+    "trash:update": "tsx scripts/update-trash.ts",
+    "dictionarry:update": "tsx scripts/update-dictionarry.ts"
   },
   "devDependencies": {
     "@marquee/shared": "workspace:*",

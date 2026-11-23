@@ -567,6 +567,32 @@ export const migrations: string[] = [
   CREATE INDEX history_movie ON history (movie_id);
   CREATE INDEX history_series ON history (series_id);
   `,
+  // 27: profiles from Dictionarry or TRaSH, rule updates, your own rules
+  `
+  ALTER TABLE profiles ADD COLUMN database TEXT NOT NULL DEFAULT 'trash';
+  ALTER TABLE profiles ADD COLUMN base TEXT;
+  ALTER TABLE profiles ADD COLUMN prefer_repacks INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE profile_rules ADD COLUMN upstream_score INTEGER;
+  CREATE TABLE rule_database_versions (
+    name TEXT NOT NULL,
+    app TEXT NOT NULL CHECK (app IN ('radarr', 'sonarr')),
+    state TEXT NOT NULL CHECK (state IN ('applied', 'pending')),
+    commit_sha TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    data TEXT NOT NULL,
+    saved_at INTEGER NOT NULL,
+    PRIMARY KEY (name, app, state)
+  );
+  CREATE TABLE own_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv', 'both')),
+    match TEXT NOT NULL CHECK (match IN ('words', 'group', 'language', 'pattern')),
+    value TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {

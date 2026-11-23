@@ -31,7 +31,7 @@ async function setup(feed: Release[] = []) {
   const qbit = new FakeQbit();
   const sonarr = new FakeRadarr();
   let clock = Date.parse('2026-11-18T12:00:00Z');
-  const t = makeApp({
+  const t = makeApp({ trashPresets: true,
     now: () => clock,
     clients: {
       torznab: sites.torznab,

@@ -35,8 +35,8 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ❌ | Ask (Plex watchlist → request is the big one) | ✅ Add: Plex watchlist, Trakt, IMDb, Letterboxd |
 | L20 | **Minimum free space** before importing; checks free space on the download disk | Radarr, Sonarr | 🟡 "disk full" error after the fact | Add (cheap) | ✅ **Done** (round 1) |
 | L21 | **Delay before grabbing** (wait N hours for a better copy, preferred protocol) | Radarr, Sonarr | ❌ HolyArrs idea "Held copies" noted for later | Later | ⏸ Later *(suggested)* |
-| L22 | **Release must / must-not contain** words (release profiles) | Radarr, Sonarr | ❌ profiles hold TRaSH's rules only; no rule of your own ("never take copies with X in the name") | Ask | ✅ Add: own word/group rules with points |
-| L23 | Language preference per profile (e.g. original language, English audio) | Radarr, Sonarr | 🟡 TRaSH language rules exist; no simple setting | Ask | ✅ Folded into L22 ("prefer English audio" is an own rule) |
+| L22 | **Release must / must-not contain** words (release profiles) | Radarr, Sonarr | ✅ Settings → Quality → Your own rules: words, groups, a language or a pattern, with points per profile | Ask | ✅ **Done** (round 5) |
+| L23 | Language preference per profile (e.g. original language, English audio) | Radarr, Sonarr | ✅ an own rule "Has a language" (English, the title's own language…) | Ask | ✅ **Done** (round 5, with L22) |
 
 ## 2. Downloads and queue (Radarr / Sonarr / Prowlarr / helpers)
 
@@ -98,10 +98,10 @@ Profilarr (v2) keeps a shared database of profiles and rules (Dictionarry), lets
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
 | P1 | Edit profiles and rules in a UI | Profilarr | ✅ Quality page, every setting | — | ✅ Covered |
-| P2 | **Follow an upstream database** and get its updates, keeping your own changes (shows a conflict when both changed) | Profilarr | 🟡 TRaSH pinned per Marquee release; "put back to TRaSH's values" resets a whole profile | Ask | ✅ Add: check weekly, show what changed, you apply; your edited rules kept and flagged if upstream changed them too |
-| P3 | Choose the database: **TRaSH** or **Dictionarry** (Profilarr's own, e.g. its 1080p/2160p "Quality"/"Efficient" profiles) | Profilarr | 🟡 TRaSH only | Ask | ✅ Add, **Dictionarry is the default**, TRaSH kept as a choice. Josh prefers space-efficient encodes that keep quality. Check Dictionarry's licence first; then the presets (4K Quality, Everyday HD, Kids & Cartoons) are rebased on its efficient profiles, and the Radarr comparison rerun |
-| P4 | **Write your own rules** (regex on name, group, source, size…) and reuse patterns across rules | Profilarr | ❌ (= L22) | ✅ with L22 | ✅ Add (L22) |
-| P5 | **Test a copy name** against a profile: paste a name, see each rule's points and whether it'd be taken | Profilarr | 🟡 "Why?" on real search results; "Try a movie" checks which profile a title gets, not a name | Add *(suggested)* | ✅ Add *(suggested)* |
+| P2 | **Follow an upstream database** and get its updates, keeping your own changes (shows a conflict when both changed) | Profilarr | ✅ Rule updates: weekly check of Dictionarry, see what changes, Apply; your points kept, flagged with Use theirs / Keep mine when both changed | Ask | ✅ **Done** (round 5) |
+| P3 | Choose the database: **TRaSH** or **Dictionarry** (Profilarr's own, e.g. its 1080p/2160p "Quality"/"Efficient" profiles) | Profilarr | ✅ Dictionarry pinned (MIT, declared in its pcd.json) and the default; presets on 2160p Efficient, 1080p Efficient, 1080p Compact; TRaSH still a choice | Ask | ✅ Add, **Dictionarry is the default**, TRaSH kept as a choice. Josh prefers space-efficient encodes that keep quality. Check Dictionarry's licence first; then the presets (4K Quality, Everyday HD, Kids & Cartoons) are rebased on its efficient profiles. ✅ **Done** (round 5); Radarr comparison skipped (Josh) |
+| P4 | **Write your own rules** (regex on name, group, source, size…) and reuse patterns across rules | Profilarr | ✅ (= L22): one rule, points in any profile | ✅ with L22 | ✅ **Done** (round 5) |
+| P5 | **Test a copy name** against a profile: paste a name, see each rule's points and whether it'd be taken | Profilarr | ✅ Try a name on each profile | Add *(suggested)* | ✅ **Done** (round 5) |
 | P6 | **History of profile edits** with undo / versions | Profilarr | ❌ | Ask | ⛔ Skip: backups are enough |
 | P7 | Import/export a profile as a file (share or back up) | Profilarr | ❌ (backups S1 cover safety) | Later *(suggested)* | ⏸ Later *(suggested)* |
 | P8 | Sync to several Radarr/Sonarr instances | Profilarr | n/a: Marquee uses its own | — | ⛔ Skip |
@@ -153,8 +153,8 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - L8 Show presets when adding or approving: everything, future episodes only, latest season, first season, nothing
    - L7 Movie collections: collection page, want the whole collection, new films in it added
    - L19 + R2 Lists: **Plex watchlist** (each person's, becomes their request, approved by role as usual), Trakt, IMDb, Letterboxd; an exclusions list
-5. **Profiles** (replaces Profilarr)
-   - P3 **Dictionarry as the default database**, TRaSH still available: licence check, import its rules and profiles, rebase the three presets on its efficient encodes, rerun the Radarr comparison
+5. ✅ **Profiles** (replaces Profilarr). Done: see PLAN.md. The Radarr comparison was skipped (Josh, 2026-11-23).
+   - P3 **Dictionarry as the default database**, TRaSH still available: licence check, import its rules and profiles, rebase the three presets on its efficient encodes
    - P2 Rule updates in the app: weekly check, see what changed, apply; your edits kept and flagged on conflict
    - L22/P4 Your own rules: words, groups or patterns in the name, with points (covers L23 language preference)
    - P5 Paste a copy name and see how a profile judges it

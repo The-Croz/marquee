@@ -11,6 +11,10 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Points** | What a copy's rules add up to. More points wins. | Custom format score |
 | **Profile** | What you want for a title: which qualities, which rules and their points, sizes, and when it's good enough. | Quality profile |
 | **Good enough** | The quality where Marquee stops looking for a better copy. | Cutoff |
+| **Rule database** | Where a profile's rules and points come from: **Dictionarry** (the default, Profilarr's database) or **TRaSH**. | — |
+| **Rule update** | A newer version of Dictionarry, checked weekly and applied by you; points you changed are kept. | Profilarr sync |
+| **Your own rules** | Rules you write: words, groups, a language or a pattern in a copy's name, with points per profile. | Release profile (must / must not contain) |
+| **Try a name** | Paste a copy's name and see how a profile judges it. | Profilarr's "test" |
 | **Library folder** | Where finished movies or shows live, e.g. `/data/media/movies`. | Root folder |
 | **Wanted** | A movie or show you've told Marquee to look for by itself. Nothing is Wanted until you say so. Shows can leave out single seasons or episodes. | Monitored |
 | **Downloader** | The app that does the downloading (qBittorrent). | Download client |

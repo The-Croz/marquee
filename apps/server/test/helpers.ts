@@ -18,6 +18,8 @@ export interface TestOptions {
   now?: () => number;
   /** The log book behind Settings → Logs. */
   logs?: LogBook;
+  /** Built-in profiles on TRaSH, as before Dictionarry (for download tests with made-up copy names). */
+  trashPresets?: boolean;
 }
 
 export function makeApp(opts: TestOptions = {}) {
@@ -88,6 +90,7 @@ export function makeApp(opts: TestOptions = {}) {
     ...(opts.logs ? { logs: opts.logs } : {}),
     now,
   });
+  if (opts.trashPresets) useTrashPresets(db);
   return { app, db, config, scanner, sources, activity };
 }
 
@@ -130,4 +133,55 @@ export async function setupAdmin(app: App): Promise<string> {
   const res = await call(app, 'POST', '/api/auth/setup', ADMIN);
   if (res.status !== 201 || !res.cookie) throw new Error(`setup failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.cookie;
+}
+
+// ---------------------------------------------------------------- TRaSH profiles (the presets before Dictionarry)
+
+import { TRASH } from '../src/releases/formats.js';
+import { eq } from 'drizzle-orm';
+import { schema as dbSchema, type Db } from '../src/db/index.js';
+import { fromTrash, writeRules, type FullProfile, type Kind, type SizeLimit } from '../src/releases/profiles.js';
+
+/**
+ * The three presets as they were built on TRaSH before Dictionarry became the
+ * default, for tests about the decision engine's mechanics (sizes, ranking,
+ * TRaSH's points). TRaSH stays a choice for new profiles.
+ */
+export function trashPreset(kind: Kind, key: 'cinema' | 'everyday-hd' | 'kids'): FullProfile {
+  const kidsSizes = (): Record<string, SizeLimit> => {
+    const out: Record<string, SizeLimit> = {};
+    for (const q of ['WEBDL-1080p', 'WEBRip-1080p']) out[q] = { min: TRASH.radarr.sizes.find((s) => s.quality === q)!.min, preferred: 39, max: 40 };
+    return out;
+  };
+  const text = { name: key === 'cinema' ? '4K Quality' : key === 'kids' ? 'Kids & Cartoons' : 'Everyday HD', description: '' };
+  const v =
+    kind === 'movie'
+      ? key === 'cinema'
+        ? fromTrash('radarr', 'UHD Bluray + WEB', ['HD Bluray + WEB'], ['Bluray-2160p', 'WEB 2160p', 'Bluray-1080p', 'WEB 1080p'], 'Bluray-2160p', text)
+        : key === 'everyday-hd'
+          ? fromTrash('radarr', 'HD Bluray + WEB', [], ['Bluray-1080p', 'WEB 1080p', 'Bluray-720p'], 'Bluray-1080p', text)
+          : fromTrash('radarr', 'HD Bluray + WEB', [], ['Bluray-720p', 'WEB 720p', 'WEB 1080p'], 'Bluray-720p', text, kidsSizes())
+      : key === 'cinema'
+        ? fromTrash('sonarr', 'WEB-2160p', ['WEB-1080p'], ['WEB 2160p', 'WEB 1080p'], 'WEB 2160p', text)
+        : key === 'everyday-hd'
+          ? fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p'], 'WEB 1080p', text)
+          : fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p', 'WEB 720p', 'Bluray-720p', 'HDTV-720p', 'WEB 480p', 'DVD', 'SDTV'], 'WEB 1080p', text);
+  return { id: 0, kind, key: `trash-${key}`, preset: null, ...v };
+}
+
+/**
+ * Puts the six built-in profiles back on TRaSH, as they were before Dictionarry,
+ * for tests about downloading rather than profiles: their made-up copy names
+ * ("…-GROUP") are fine for TRaSH but not ranked by Dictionarry.
+ */
+export function useTrashPresets(db: Db): void {
+  for (const row of db.select().from(dbSchema.profiles).all()) {
+    if (!row.preset) continue;
+    const v = trashPreset(row.kind, row.preset as 'cinema' | 'everyday-hd' | 'kids');
+    db.update(dbSchema.profiles)
+      .set({ tiers: JSON.stringify(v.tiers), cutoff: v.cutoff, upgrades: v.upgrades, minScore: v.minScore, cutoffScore: v.cutoffScore, minUpgradeScore: v.minUpgradeScore, sizes: JSON.stringify(v.sizes), database: 'trash', base: v.base ?? null, preferRepacks: true })
+      .where(eq(dbSchema.profiles.id, row.id))
+      .run();
+    writeRules(db, row.id, v.rules);
+  }
 }

@@ -42,7 +42,7 @@ export interface Rejection {
 
 export interface ScoredRule {
   trashId: string;
-  /** TRaSH's name, for looking it up in the guides. */
+  /** The rule's name in its database (TRaSH or Dictionarry), for looking it up there; yours for your own. */
   name: string;
   label: string;
   explain: string;
@@ -72,7 +72,7 @@ export interface Decision {
   accepted: boolean;
 }
 
-/** Below this, a rule means "never pick" (TRaSH uses -10000). */
+/** At or below this, a rule means "never pick" (TRaSH uses -10000, Dictionarry -999999). */
 const NEVER = -10000;
 const MB = 1024 ** 2;
 
@@ -143,7 +143,7 @@ function judge(wanted: Wanted, group: FoundRelease[], profile: FullProfile): Dec
   if (seeders === 0) reject('no_seeders', 'Nobody is sharing it right now, so it would never finish.');
 
   // ---- rules and points
-  const info = ruleInfo(wanted.kind);
+  const info = profile.defs ?? ruleInfo(wanted.kind);
   const rules: ScoredRule[] = [];
   for (const setting of profile.rules) {
     if (!setting.enabled || setting.score === 0) continue;
@@ -267,7 +267,8 @@ function compare(a: Decision, b: Decision, wanted: Wanted, profile: FullProfile)
     Number(b.accepted) - Number(a.accepted) ||
     offTarget(a) - offTarget(b) ||
     (a.tierRank ?? Infinity) - (b.tierRank ?? Infinity) ||
-    revision(b.parsed) - revision(a.parsed) ||
+    // Dictionarry (like TRaSH's advice) doesn't prefer fixed copies outright: its Repack rules add a few points instead.
+    (profile.preferRepacks === false ? 0 : revision(b.parsed) - revision(a.parsed)) ||
     b.score - a.score ||
     a.copy.sourcePriority - b.copy.sourcePriority ||
     Number(b.copy.freeleech) - Number(a.copy.freeleech) ||

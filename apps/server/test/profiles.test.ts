@@ -38,20 +38,23 @@ describe('profile presets', () => {
     expect(db.select().from(schema.profiles).all()).toHaveLength(5);
   });
 
-  it('builds each preset from TRaSH: valid tiers, an allowed "good enough", and TRaSH’s points', () => {
+  it('builds each preset from Dictionarry: valid tiers, an allowed "good enough", and Dictionarry’s points', () => {
     for (const p of PRESETS) {
       const v = p.build();
       const qualities = v.tiers.flatMap((t) => t.qualities).sort();
       expect(qualities).toEqual(knownQualities(p.kind).sort());
       expect(v.tiers.find((t) => t.name === v.cutoff)?.allowed).toBe(true);
-      expect(v.rules.filter((r) => r.enabled).length).toBeGreaterThan(30);
-      expect(v.rules.some((r) => !r.enabled)).toBe(true);
+      expect(v.rules.filter((r) => r.enabled).length).toBeGreaterThan(100);
+      expect(v.database).toBe('dictionarry');
     }
     const cinema = PRESETS.find((p) => p.kind === 'movie' && p.key === 'cinema')!.build();
-    expect(cinema.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual(['Bluray-2160p', 'WEB 2160p', 'Bluray-1080p', 'WEB 1080p']);
-    const kids = PRESETS.find((p) => p.kind === 'movie' && p.key === 'kids')!.build();
-    expect(kids.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual(['Bluray-720p', 'WEB 720p', 'WEB 1080p']);
-    expect(kids.sizes['WEBDL-1080p']!.max).toBe(40);
+    expect(cinema.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual(['2160p Efficient']);
+    expect(cinema.tiers[0]!.qualities).toEqual(expect.arrayContaining(['Bluray-2160p', 'WEBDL-2160p', 'Bluray-1080p', 'WEBDL-1080p', 'DVD']));
+    expect(cinema.tiers[0]!.qualities).not.toContain('Remux-2160p');
+    const kids = PRESETS.find((p) => p.kind === 'tv' && p.key === 'kids')!.build();
+    // Older cartoons still turn up: Kids & Cartoons for TV goes down to DVD and SD.
+    expect(kids.tiers[0]!.qualities).toEqual(expect.arrayContaining(['WEBDL-1080p', 'WEBDL-720p', 'DVD', 'SDTV']));
+    expect(kids.sizes).toEqual({});
   });
 
   it('names qualities in each app’s words, and in plain English', () => {
@@ -76,11 +79,12 @@ describe('Settings → Quality API', () => {
     const res = await call(app, 'GET', `/api/settings/profiles/${list.profiles[0]!.id}`, undefined, cookie);
     expect(res.status).toBe(200);
     const p = res.body as ProfileDetail;
-    expect(p.name).toBe('4K Quality');
-    const lq = p.rules.find((r) => r.name === 'LQ')!;
-    expect(lq).toMatchObject({ label: 'Low-quality group', enabled: true, score: -10000, trashScore: -10000 });
-    expect(lq.group).toMatch(/Unwanted/);
-    expect(p.sizes.find((s) => s.quality === 'Bluray-2160p')).toMatchObject({ label: '4K Blu-ray', unlimited: true, changed: false });
+    expect(p).toMatchObject({ name: '4K Quality', database: 'dictionarry', base: '2160p Efficient', preferRepacks: false });
+    const banned = p.rules.find((r) => r.name === 'Banned Groups')!;
+    expect(banned).toMatchObject({ source: 'dictionarry', label: 'Group Dictionarry bans', enabled: true, score: -999999, databaseScore: -999999, conflict: null, group: 'Never pick' });
+    expect(p.rules.find((r) => r.name === 'NF')).toMatchObject({ label: 'From Netflix', group: 'Streaming services' });
+    // Dictionarry sets no size limits: its rules judge size.
+    expect(p.sizes.find((s) => s.quality === 'Bluray-2160p')).toMatchObject({ label: '4K Blu-ray', unlimited: true, changed: false, min: 0 });
     expect(p.qualityLabels['WEBRip-1080p']).toBe('1080p web capture');
     expect(JSON.stringify(p)).not.toMatch(/specifications/);
   });
@@ -90,25 +94,27 @@ describe('Settings → Quality API', () => {
     const list = (await call(app, 'GET', '/api/settings/profiles', undefined, cookie)).body as ProfilesView;
     const id = list.profiles.find((p) => p.kind === 'movie' && p.key === 'everyday-hd')!.id;
     const before = (await call(app, 'GET', `/api/settings/profiles/${id}`, undefined, cookie)).body as ProfileDetail;
-    const rules = before.rules.map((r) => ({ trashId: r.trashId, enabled: r.name === 'LQ' ? false : r.enabled, score: r.name === 'AMZN' ? 50 : r.score }));
+    const rules = before.rules.map((r) => ({ trashId: r.trashId, enabled: r.name === 'Banned Groups' ? false : r.enabled, score: r.name === 'AMZN' ? 50 : r.score }));
+    const tiers = before.tiers.map((t) => (t.name === 'Remux-1080p' ? { ...t, allowed: true } : t));
     const res = await call(
       app,
       'PATCH',
       `/api/settings/profiles/${id}`,
-      { name: 'Family HD', cutoff: 'WEB 1080p', minScore: 10, rules, sizes: { 'WEBDL-1080p': { min: 10, preferred: 30, max: 60 } } },
+      { name: 'Family HD', tiers, cutoff: 'Remux-1080p', minScore: 10, cutoffScore: 950000, preferRepacks: true, rules, sizes: { 'WEBDL-1080p': { min: 10, preferred: 30, max: 60 } } },
       cookie,
     );
     expect(res.status).toBe(200);
     const p = res.body as ProfileDetail;
-    expect(p).toMatchObject({ name: 'Family HD', key: 'everyday-hd', cutoff: 'WEB 1080p', minScore: 10 });
-    expect(p.rules.find((r) => r.name === 'LQ')!.enabled).toBe(false);
-    expect(p.rules.find((r) => r.name === 'AMZN')).toMatchObject({ score: 50 });
+    expect(p).toMatchObject({ name: 'Family HD', key: 'everyday-hd', cutoff: 'Remux-1080p', minScore: 10, cutoffScore: 950000, preferRepacks: true });
+    expect(p.rules.find((r) => r.name === 'Banned Groups')!.enabled).toBe(false);
+    expect(p.rules.find((r) => r.name === 'AMZN')).toMatchObject({ score: 50, databaseScore: 3000 });
     expect(p.sizes.find((s) => s.quality === 'WEBDL-1080p')).toMatchObject({ min: 10, max: 60, changed: true, unlimited: false });
 
-    // Reset puts TRaSH's values back but keeps the name.
+    // Reset puts Dictionarry's values back but keeps the name.
     const reset = (await call(app, 'POST', `/api/settings/profiles/${id}/reset`, {}, cookie)).body as ProfileDetail;
-    expect(reset).toMatchObject({ name: 'Family HD', cutoff: 'Bluray-1080p', minScore: 0 });
-    expect(reset.rules.find((r) => r.name === 'LQ')!.enabled).toBe(true);
+    expect(reset).toMatchObject({ name: 'Family HD', cutoff: '1080p Efficient', minScore: 200000, preferRepacks: false });
+    expect(reset.rules.find((r) => r.name === 'Banned Groups')!.enabled).toBe(true);
+    expect(reset.rules.find((r) => r.name === 'AMZN')!.score).toBe(3000);
     expect(reset.sizes.every((s) => !s.changed)).toBe(true);
   });
 
@@ -144,7 +150,7 @@ describe('Settings → Quality API', () => {
     const res = await call(app, 'POST', '/api/settings/profiles', { kind: 'movie', name: 'Cinema & Friends', copyFrom: cinema.id }, cookie);
     expect(res.status).toBe(201);
     const copy = res.body as ProfileDetail;
-    expect(copy).toMatchObject({ key: 'cinema-and-friends', preset: null, cutoff: 'Bluray-2160p' });
+    expect(copy).toMatchObject({ key: 'cinema-and-friends', preset: null, cutoff: '2160p Efficient', database: 'dictionarry', base: '2160p Efficient' });
     expect(copy.rules.length).toBe(((await call(app, 'GET', `/api/settings/profiles/${cinema.id}`, undefined, cookie)).body as ProfileDetail).rules.length);
     // A copy can't be reset; there's nothing to reset it to.
     expect((await call(app, 'POST', `/api/settings/profiles/${copy.id}/reset`, {}, cookie)).body.message).toMatch(/Only the built-in profiles/);
@@ -154,7 +160,7 @@ describe('Settings → Quality API', () => {
     const blank = (await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: '4K Quality' }, cookie));
     expect(blank.status).toBe(409);
     const tv = (await call(app, 'POST', '/api/settings/profiles', { kind: 'tv', name: 'Weekend' }, cookie)).body as ProfileDetail;
-    expect(tv.cutoff).toBe('WEB 1080p');
+    expect(tv.cutoff).toBe('1080p Efficient');
 
     // In use: can't delete.
     const movie = addMovie(db, 'cinema-and-friends');

@@ -272,6 +272,12 @@ export const profiles = sqliteTable(
     minUpgradeScore: integer('min_upgrade_score').notNull().default(1),
     /** JSON Record<quality, { min, preferred, max }> in MB per minute; overrides TRaSH's sizes. */
     sizes: text('sizes').notNull().default('{}'),
+    /** Where its rules come from: 'dictionarry' (the default) or 'trash'. */
+    database: text('database', { enum: ['dictionarry', 'trash'] }).notNull().default('trash'),
+    /** The database's profile it follows for rule updates, e.g. "2160p Efficient"; null for none. */
+    base: text('base'),
+    /** Rank a fixed copy (proper/repack) above others of the same quality, before points. Dictionarry gives points instead. */
+    preferRepacks: integer('prefer_repacks', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -306,9 +312,38 @@ export const profileRules = sqliteTable(
     trashId: text('trash_id').notNull(),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     score: integer('score').notNull(),
+    /** A rule update changed this rule's points while you'd changed them too: their new points. You kept yours. */
+    upstreamScore: integer('upstream_score'),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.trashId] })],
 );
+
+/** A rule database (Dictionarry) as applied, and a newer version waiting for you to apply it. */
+export const ruleDatabaseVersions = sqliteTable(
+  'rule_database_versions',
+  {
+    name: text('name').notNull(),
+    app: text('app', { enum: ['radarr', 'sonarr'] }).notNull(),
+    state: text('state', { enum: ['applied', 'pending'] }).notNull(),
+    commitSha: text('commit_sha').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    /** JSON DictionarryData. */
+    data: text('data').notNull(),
+    savedAt: integer('saved_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.name, t.app, t.state] })],
+);
+
+/** Rules you write yourself: words, groups, a language or a pattern in a copy's name. Points are set per profile. */
+export const ownRules = sqliteTable('own_rules', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  kind: text('kind', { enum: ['movie', 'tv', 'both'] }).notNull(),
+  match: text('match', { enum: ['words', 'group', 'language', 'pattern'] }).notNull(),
+  value: text('value').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
 /**
  * Comparison mode: each copy Radarr downloaded, and what Marquee would have

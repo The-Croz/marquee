@@ -80,11 +80,12 @@ describe('new profile from a TRaSH profile', () => {
     const t = makeApp();
     const cookie = await setupAdmin(t.app);
     const view = (await call(t.app, 'GET', '/api/settings/profiles', undefined, cookie)).body as ProfilesView;
-    expect(view.trashProfiles.map((p) => `${p.kind}:${p.name}`).sort()).toEqual(['movie:HD Bluray + WEB', 'movie:UHD Bluray + WEB', 'tv:WEB-1080p', 'tv:WEB-2160p']);
+    expect(view.starters.filter((p) => p.database === 'trash').map((p) => `${p.kind}:${p.name}`).sort()).toEqual(['movie:HD Bluray + WEB', 'movie:UHD Bluray + WEB', 'tv:WEB-1080p', 'tv:WEB-2160p']);
+    expect(view.starters.filter((p) => p.database === 'dictionarry' && p.kind === 'movie').map((p) => p.name)).toContain('2160p Efficient');
     const res = await call(t.app, 'POST', '/api/settings/profiles', { kind: 'tv', name: 'Plain 4K', fromTrash: 'WEB-2160p' }, cookie);
     expect(res.status).toBe(201);
     const p = res.body as ProfileDetail;
-    expect(p).toMatchObject({ cutoff: 'WEB 2160p', preset: null });
+    expect(p).toMatchObject({ cutoff: 'WEB 2160p', preset: null, database: 'trash', preferRepacks: true });
     expect(p.tiers.filter((x) => x.allowed).map((x) => x.name)).toEqual(['WEB 2160p']);
     expect((await call(t.app, 'POST', '/api/settings/profiles', { kind: 'movie', name: 'X', fromTrash: 'WEB-2160p' }, cookie)).body.message).toMatch(/no movie profile called/);
   });

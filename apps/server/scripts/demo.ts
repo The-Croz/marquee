@@ -43,6 +43,8 @@ import { FakeMediaServer } from '../test/fakes/mediaServers.js';
 import { FakeUnpacker, fakeRar } from '../test/fakes/unpack.js';
 import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
 import { refreshCatalogue } from '../src/sources/sites/catalogue.js';
+import { schema as dbSchema } from '../src/db/index.js';
+import { DICTIONARRY_SHIPPED } from '../src/releases/catalog.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -283,7 +285,25 @@ const clients = {
   disk: async () => ({ free: 1.4 * 1024 ** 4, total: 4 * 1024 ** 4 }),
   // A fake 7-Zip that takes a few seconds, so "Finished · unpacking" can be seen.
   unpacker: Object.assign(new FakeUnpacker(), { delayMs: 8000 }),
+  // Rule updates: GitHub "has" the made-up newer Dictionarry waiting below.
+  dictionarry: { latest: async () => DEMO_DICT_SHA, tarball: async () => { throw new Error('demo mode has no GitHub'); } },
 };
+
+// A made-up newer Dictionarry waiting in Settings → Quality → Rule updates: a few points changed, one rule gone.
+const DEMO_DICT_SHA = 'd3m0d1c7aa11';
+for (const app of ['radarr', 'sonarr'] as const) {
+  const d = structuredClone(DICTIONARRY_SHIPPED[app]);
+  d.commit = DEMO_DICT_SHA;
+  d.fetchedAt = new Date().toISOString().slice(0, 10);
+  const efficient4k = d.profiles.find((p) => p.name === '2160p Efficient')!;
+  efficient4k.scores['dict:NF'] = (efficient4k.scores['dict:NF'] ?? 0) + 1000;
+  efficient4k.scores['dict:HDR10+'] = 2500;
+  const efficient = d.profiles.find((p) => p.name === '1080p Efficient')!;
+  efficient.scores['dict:AMZN'] = 3500;
+  delete efficient.scores['dict:Repack3'];
+  db.insert(dbSchema.ruleDatabaseVersions).values({ name: 'dictionarry', app, state: 'pending', commitSha: d.commit, fetchedAt: d.fetchedAt, data: JSON.stringify(d), savedAt: Date.now() }).onConflictDoNothing().run();
+}
+setSetting(db, 'rules.last_check', JSON.stringify({ at: Date.now(), ok: true, message: 'An update is ready.' }));
 
 const app = createApp({
   db,

@@ -530,6 +530,8 @@ export interface SearchResult {
 
 export type ProfileKind = 'movie' | 'tv';
 export type ProfileDefaultSlot = 'movie' | 'tv' | 'kids';
+/** Where a profile's rules come from. */
+export type RuleDatabaseName = 'dictionarry' | 'trash';
 
 /** A group of qualities that rank the same, best group first. */
 export interface QualityTier {
@@ -545,8 +547,11 @@ export interface ProfileSummary {
   key: string;
   name: string;
   description: string;
-  /** Set for the built-in profiles, which can be reset to TRaSH's values. */
+  /** Set for the built-in profiles, which can be put back to their database's values. */
   preset: string | null;
+  database: RuleDatabaseName;
+  /** The database's profile it follows for rule updates, e.g. "2160p Efficient". */
+  base: string | null;
   /** Name of the "good enough" quality group. */
   cutoff: string;
   /** How many movies or shows use it. */
@@ -557,22 +562,28 @@ export interface ProfileSummary {
 export interface ProfilesView {
   profiles: ProfileSummary[];
   defaults: Record<ProfileDefaultSlot, string>;
-  /** TRaSH's own profiles, which a new profile can start from. */
-  trashProfiles: { kind: ProfileKind; name: string; description: string }[];
+  /** Dictionarry's and TRaSH's own profiles, which a new profile can start from. */
+  starters: { database: RuleDatabaseName; kind: ProfileKind; name: string; description: string }[];
+  /** Said once after the built-in profiles moved to Dictionarry. */
+  notice: { changed: { kind: ProfileKind; name: string }[]; kept: { kind: ProfileKind; name: string }[] } | null;
 }
 
 export interface ProfileRuleView {
+  /** The rule's id (TRaSH's id, "dict:<name>" or "own:<id>"). */
   trashId: string;
-  /** TRaSH's name, shown small beside the label. */
+  source: RuleDatabaseName | 'own';
+  /** Its name in its database, shown small beside the label. */
   name: string;
   label: string;
   explain: string;
-  /** TRaSH's group, e.g. "[Unwanted] Unwanted Formats". */
+  /** Heading it's listed under, e.g. "Trusted groups". */
   group: string | null;
   enabled: boolean;
   score: number;
-  /** TRaSH's own points, to show when you've changed them. */
-  trashScore: number;
+  /** The database's own points, to show when you've changed them; null for your own rules. */
+  databaseScore: number | null;
+  /** A rule update changed its points while you'd changed them too: their new points (you kept yours). */
+  conflict: number | null;
 }
 
 /** MB per minute of runtime. */
@@ -591,6 +602,8 @@ export interface SizeLimitView {
 export interface ProfileDetail extends ProfileSummary {
   tiers: QualityTier[];
   upgrades: boolean;
+  /** Rank a fixed copy above others of the same quality before points. Dictionarry turns this off and gives points instead. */
+  preferRepacks: boolean;
   minScore: number;
   cutoffScore: number;
   minUpgradeScore: number;
@@ -598,6 +611,68 @@ export interface ProfileDetail extends ProfileSummary {
   rules: ProfileRuleView[];
   /** Plain words for each quality name ("WEBDL-1080p" → "1080p web download"). */
   qualityLabels: Record<string, string>;
+}
+
+/** Settings → Quality → Try a name: how a profile judges one copy name. */
+export interface NameCheckView {
+  name: string;
+  quality: string;
+  qualityLabel: string;
+  /** The quality group it falls in, and whether the profile takes it. */
+  tier: string | null;
+  tierAllowed: boolean;
+  score: number;
+  minScore: number;
+  rules: CopyRuleView[];
+  /** Would the profile take it (ignoring whether it's the right title)? */
+  taken: boolean;
+  /** Why not, in plain words. */
+  reasons: string[];
+  /** What Marquee read from the name. */
+  details: CopyView['details'] & { title: string; year: number | null; source: string | null };
+}
+
+export type OwnRuleMatch = 'words' | 'group' | 'language' | 'pattern';
+
+/** A rule you wrote: what it looks for, and its points in each profile. */
+export interface OwnRuleView {
+  id: number;
+  trashId: string;
+  name: string;
+  kind: ProfileKind | 'both';
+  match: OwnRuleMatch;
+  value: string;
+  /** Plain words: what it looks for. */
+  description: string;
+  /** Profile id → points (0 or missing: not counted). */
+  points: Record<number, number>;
+}
+
+export interface OwnRulesView {
+  rules: OwnRuleView[];
+  languages: string[];
+}
+
+/** Settings → Quality → Rule updates (Dictionarry). */
+export interface RuleUpdatesView {
+  current: { commit: string; fetchedAt: string; shipped: boolean };
+  lastCheck: { at: number; ok: boolean; message: string } | null;
+  pending: {
+    from: { commit: string; fetchedAt: string };
+    to: { commit: string; fetchedAt: string };
+    summary: string;
+    rules: { kind: ProfileKind; added: string[]; removed: string[]; changed: string[] }[];
+    profiles: {
+      id: number;
+      kind: ProfileKind;
+      name: string;
+      newPoints: { label: string; from: number; to: number }[];
+      added: string[];
+      removed: string[];
+      settings: string[];
+      conflicts: { label: string; yours: string; theirs: string }[];
+    }[];
+  } | null;
 }
 
 // ---------------------------------------------------------------- Copies we found (search)
@@ -609,7 +684,7 @@ export interface CopyRejection {
 
 export interface CopyRuleView {
   trashId: string;
-  /** TRaSH's name, shown small. */
+  /** Its name in its database, shown small. */
   name: string;
   label: string;
   explain: string;

@@ -258,6 +258,19 @@ describe('free space', () => {
 
 // ---------------- Backups ----------------
 
+/** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
+const UNDO_NEWEST = {
+  sql: [
+    'DROP TABLE own_rules',
+    'DROP TABLE rule_database_versions',
+    'ALTER TABLE profile_rules DROP COLUMN upstream_score',
+    'ALTER TABLE profiles DROP COLUMN prefer_repacks',
+    'ALTER TABLE profiles DROP COLUMN base',
+    'ALTER TABLE profiles DROP COLUMN database',
+  ],
+  tables: ['own_rules', 'rule_database_versions'],
+};
+
 describe('backups', () => {
   it('backs up now, lists it, and downloads the file', async () => {
     const t = await admin();
@@ -325,8 +338,7 @@ describe('backups', () => {
     const file = path.join(t.dataDir, 'backups', b.name);
     const old = new Database(file);
     old.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
-    old.exec('DROP TABLE left_out');
-    old.exec('DROP TABLE renames');
+    for (const sql of UNDO_NEWEST.sql) old.exec(sql);
     old.exec(`INSERT INTO history (at, event, kind, title) VALUES (1, 'sent', 'movie', 'Kept through the upgrade')`);
     old.close();
     const res = await call(t.app, 'POST', `/api/system/backups/${b.name}/restore`, { confirm: true }, t.cookie);
@@ -334,7 +346,7 @@ describe('backups', () => {
     const v = t.db.$client.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number };
     expect(v.v).toBe(migrations.length);
     const tables = (t.db.$client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((c) => c.name);
-    expect(tables).toEqual(expect.arrayContaining(['left_out', 'renames', 'history']));
+    expect(tables).toEqual(expect.arrayContaining([...UNDO_NEWEST.tables, 'history']));
     expect(t.db.select().from(schema.history).all().map((h) => h.title)).toContain('Kept through the upgrade');
   });
 

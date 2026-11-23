@@ -19,7 +19,7 @@ async function setup() {
   const qbit = new FakeQbit();
   const plex = new FakeMediaServer('plex');
   let clock = Date.parse('2026-11-18T12:00:00Z');
-  const t = makeApp({
+  const t = makeApp({ trashPresets: true,
     now: () => clock,
     clients: {
       torznab: sites.torznab,

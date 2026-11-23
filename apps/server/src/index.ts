@@ -40,6 +40,8 @@ import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
 import { CATALOGUE_URL, catalogueDue, refreshCatalogue } from './sources/sites/catalogue.js';
+import { githubFetch } from './releases/dictionarry.js';
+import { checkDue, checkForRuleUpdates } from './releases/ruleUpdates.js';
 
 // Keep recent log lines (secrets taken out) for Settings → Logs.
 captureConsole(serverLog);
@@ -218,6 +220,19 @@ jobs
       if (!catalogueDue(db, Date.now())) return 'Not due yet';
       const r = await refreshCatalogue({ db, dataDir: config.dataDir, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
       console.log(`[sites] ${r.message}`);
+      return r.message;
+    },
+  })
+  .add({
+    id: 'rule-updates',
+    label: 'Check for rule updates',
+    description: 'Asks once a week whether Dictionarry’s rules and profiles have changed. An update waits in Settings → Quality until you apply it.',
+    everyMs: HOUR,
+    firstAfterMs: 10 * MIN,
+    run: async () => {
+      if (!checkDue(db, Date.now())) return 'Not due yet';
+      const r = await checkForRuleUpdates(db, githubFetch(), Date.now());
+      if (!r.ok) throw new Error(r.message);
       return r.message;
     },
   })
