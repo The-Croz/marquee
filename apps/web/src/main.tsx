@@ -29,6 +29,7 @@ import { ManualImportPage } from './pages/ManualImport';
 import { LeftOutPage } from './pages/LeftOut';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
+import { CollectionPage, ListsPage } from './pages/GettingIn';
 import { BackupsPage, HealthPage, LogsPage } from './pages/System';
 import './styles.css';
 
@@ -76,6 +77,7 @@ const router = createBrowserRouter([
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
       { path: 'quality', element: <Navigate to="/settings/quality" replace /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'collections/:id', element: <RequireUser render={(s) => <CollectionPage user={s.user} />} /> },
       { path: 'history', element: <MyHistoryPage /> },
       {
         path: 'settings',
@@ -99,6 +101,7 @@ const router = createBrowserRouter([
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
+          { path: 'lists', element: <RequireUser render={(st) => <AdminOnly status={st}><ListsPage /></AdminOnly>} /> },
           { path: 'automation', element: <RequireUser render={(st) => <AdminOnly status={st}><AutomationPage /></AdminOnly>} /> },
           { path: 'health', element: <RequireUser render={(st) => <AdminOnly status={st}><HealthPage /></AdminOnly>} /> },
           { path: 'backups', element: <RequireUser render={(st) => <AdminOnly status={st}><BackupsPage /></AdminOnly>} /> },

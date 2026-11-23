@@ -1,3 +1,4 @@
+import { ShowEpisodesChoice } from './GettingIn';
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -315,6 +316,12 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
         {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
         {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
       </div>
+      {admin && lib && kind === 'series' && <ShowEpisodesChoice showId={lib.id} />}
+      {info?.collection && (
+        <Link to={`/collections/${info.collection.tmdbId}`} className="self-start text-sm font-semibold">
+          Part of {info.collection.name} →
+        </Link>
+      )}
       {info?.note && !info.canRequest && !lib && info.card.state === 'none' && <p className="m-0 text-sm text-soft">{info.note}</p>}
       {message && <Notice tone="error">{message}</Notice>}
       {info && kind === 'series' && (

@@ -20,8 +20,8 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | L4 | **Edit a file's details** (quality, edition) when the name is wrong | Radarr, Sonarr | ❌ | Later | ⏸ Later *(suggested)* |
 | L5 | **Media info** from the file itself (codec, audio channels, audio/subtitle languages, HDR from the stream, real runtime) | Radarr, Sonarr | ❌ quality is from the name only | Ask (needs ffprobe in the image) | ⏸ Later |
 | L6 | **Refresh one title** from TMDB on demand | Radarr, Sonarr | ✅ More → Refresh from TMDB | Add | ✅ **Done** (round 3) |
-| L7 | **Movie collections** (see a collection, want the whole thing, auto-add new films in it) | Radarr, Seerr | ❌ | Ask | ✅ Add |
-| L8 | **Show monitoring presets** when adding: all, future episodes only, missing only, first season, latest season, none; and "want new seasons when they appear" | Sonarr | 🟡 per-season/episode ticks by hand; new seasons follow the show | Add (at least "future only" and "latest season") | ✅ Add *(suggested)* |
+| L7 | **Movie collections** (see a collection, want the whole thing, auto-add new films in it) | Radarr, Seerr | ✅ Collection pages, Want the whole collection, new films added daily | Ask | ✅ **Done** (round 4) |
+| L8 | **Show monitoring presets** when adding: all, future episodes only, missing only, first season, latest season, none; and "want new seasons when they appear" | Sonarr | ✅ Which episodes: every episode, only new ones, latest season, first season, nothing (Add, approve, show page) | Add (at least "future only" and "latest season") | ✅ **Done** (round 4) |
 | L9 | **Wanted → Missing / Not good enough yet** lists (everything wanted without a file, everything below "good enough") with bulk search | Radarr, Sonarr | ✅ Library filters with Look for these | Add | ✅ **Done** (round 3) |
 | L10 | **Multiple library folders** per kind (e.g. a second disk, or a separate Kids folder) and pick one per title | Radarr, Sonarr | 🟡 one movie folder, one TV folder | Ask | ⛔ Skip: one of each |
 | L11 | **Move a title** to another folder | Radarr, Sonarr | ❌ | Later (only matters with L10) | ⛔ Skip |
@@ -32,7 +32,7 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | L16 | **Extra files** next to the movie: subtitles (.srt), .nfo — import them with the video | Radarr, Sonarr | ✅ subtitles come along, renamed with language/forced tags | Add | ✅ **Done** (round 3) |
 | L17 | **Metadata files** written for Kodi/Emby (nfo, posters in the folder) | Radarr, Sonarr | ❌ | Skip (Plex/Jellyfin fetch their own) | ⛔ Skip *(suggested)* |
 | L18 | **Recycle bin** with cleanup after N days | Radarr, Sonarr | 🟡 `.marquee-replaced` kept forever | Ask (show its size and an "Empty" button?) | ✅ **Done** (round 3): Settings → Health → Replaced files |
-| L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ❌ | Ask (Plex watchlist → request is the big one) | ✅ Add: Plex watchlist, Trakt, IMDb, Letterboxd |
+| L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ✅ Settings → Lists: Plex watchlists, Trakt, IMDb, Letterboxd, exclusions | Ask (Plex watchlist → request is the big one) | ✅ **Done** (round 4) |
 | L20 | **Minimum free space** before importing; checks free space on the download disk | Radarr, Sonarr | 🟡 "disk full" error after the fact | Add (cheap) | ✅ **Done** (round 1) |
 | L21 | **Delay before grabbing** (wait N hours for a better copy, preferred protocol) | Radarr, Sonarr | ❌ HolyArrs idea "Held copies" noted for later | Later | ⏸ Later *(suggested)* |
 | L22 | **Release must / must-not contain** words (release profiles) | Radarr, Sonarr | ✅ Settings → Quality → Your own rules: words, groups, a language or a pattern, with points per profile | Ask | ✅ **Done** (round 5) |
@@ -58,7 +58,7 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
 | R1 | **Report a problem** with a title (bad audio, wrong subtitles, wrong file) → admin sees it, fixes, replies; "Find a better copy" from there | Seerr (Issues) | ❌ | **Add** (family-facing, big for "totally replace") | ✅ Add |
-| R2 | **Plex watchlist auto-request** (add to your Plex watchlist → request appears) | Seerr | ❌ | Ask (see L19) | ✅ Add (with L19) |
+| R2 | **Plex watchlist auto-request** (add to your Plex watchlist → request appears) | Seerr | ✅ Each person’s Plex watchlist becomes their requests | Ask (see L19) | ✅ **Done** (round 4) |
 | R3 | **Separate 4K requests** / 4K server | Seerr | Skip: one library, profiles decide | Skip | ⛔ Skip *(suggested)* |
 | R4 | Per-user permissions finer than roles (auto-approve, request TV but not movies, see others' requests) | Seerr | 🟡 three roles + per-person limits | Ask (is "auto-approve this member" needed?) | ✅ Add: per-person "requests skip approval" switch |
 | R5 | Request **advanced options** (profile, folder, language) when asking | Seerr | 🟡 admin picks profile on approve | Skip | ⛔ Skip *(suggested)* |
@@ -149,7 +149,7 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - L16 Bring subtitles (`.srt`, `.ass`) and other extras along with the video
    - L18 `.marquee-replaced`: size shown in Settings, Empty button behind a confirm
    - L13 alternate titles when matching, only if real searches miss
-4. **Getting titles in**
+4. ✅ **Getting titles in**. Done: see PLAN.md.
    - L8 Show presets when adding or approving: everything, future episodes only, latest season, first season, nothing
    - L7 Movie collections: collection page, want the whole collection, new films in it added
    - L19 + R2 Lists: **Plex watchlist** (each person's, becomes their request, approved by role as usual), Trakt, IMDb, Letterboxd; an exclusions list

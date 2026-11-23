@@ -287,6 +287,15 @@ const clients = {
   unpacker: Object.assign(new FakeUnpacker(), { delayMs: 8000 }),
   // Rule updates: GitHub "has" the made-up newer Dictionarry waiting below.
   dictionarry: { latest: async () => DEMO_DICT_SHA, tarball: async () => { throw new Error('demo mode has no GitHub'); } },
+  // Lists: any Letterboxd list holds two Pixar films; any IMDb list holds The Matrix; Plex watchlists hold Wicked.
+  listFetch: async (url: string) => {
+    if (url.startsWith('https://discover.provider.plex.tv/library/sections/watchlist')) return { status: 200, text: JSON.stringify({ MediaContainer: { totalSize: 1, Metadata: [{ type: 'movie', title: 'Wicked', Guid: [{ id: 'tmdb://402431' }] }] } }) };
+    if (/letterboxd\.com\/film\/up\//.test(url)) return { status: 200, text: '<body data-tmdb-id="14160" data-tmdb-type="movie">' };
+    if (/letterboxd\.com\/film\/inside-out-2\//.test(url)) return { status: 200, text: '<body data-tmdb-id="1022789" data-tmdb-type="movie">' };
+    if (/letterboxd\.com\/[^/]+\/(list\/[^/]+|watchlist)\/$/.test(url)) return { status: 200, text: '<div data-film-slug="up"></div><div data-film-slug="inside-out-2"></div>' };
+    if (/imdb\.com\/(list|user)\//.test(url)) return { status: 200, text: '<a href="/title/tt0133093/">The Matrix</a>' };
+    return { status: 404, text: '' };
+  },
 };
 
 // A made-up newer Dictionarry waiting in Settings → Quality → Rule updates: a few points changed, one rule gone.
