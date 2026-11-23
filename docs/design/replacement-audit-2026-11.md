@@ -57,17 +57,17 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| R1 | **Report a problem** with a title (bad audio, wrong subtitles, wrong file) → admin sees it, fixes, replies; "Find a better copy" from there | Seerr (Issues) | ❌ | **Add** (family-facing, big for "totally replace") | ✅ Add |
+| R1 | **Report a problem** with a title (bad audio, wrong subtitles, wrong file) → admin sees it, fixes, replies; "Find a better copy" from there | Seerr (Issues) | ✅ Something wrong? on title pages (per episode for shows), Requests → Something wrong? with Find a better copy, replies, notifications | **Add** (family-facing, big for "totally replace") | ✅ **Done** (round 6) |
 | R2 | **Plex watchlist auto-request** (add to your Plex watchlist → request appears) | Seerr | ✅ Each person’s Plex watchlist becomes their requests | Ask (see L19) | ✅ **Done** (round 4) |
 | R3 | **Separate 4K requests** / 4K server | Seerr | Skip: one library, profiles decide | Skip | ⛔ Skip *(suggested)* |
-| R4 | Per-user permissions finer than roles (auto-approve, request TV but not movies, see others' requests) | Seerr | 🟡 three roles + per-person limits | Ask (is "auto-approve this member" needed?) | ✅ Add: per-person "requests skip approval" switch |
+| R4 | Per-user permissions finer than roles (auto-approve, request TV but not movies, see others' requests) | Seerr | ✅ Settings → Users: Requests skip approval (kids: kids’ titles only) | Ask (is "auto-approve this member" needed?) | ✅ **Done** (round 6) |
 | R5 | Request **advanced options** (profile, folder, language) when asking | Seerr | 🟡 admin picks profile on approve | Skip | ⛔ Skip *(suggested)* |
 | R6 | **Hide a title** from Discover (blocklist) | Seerr | ❌ | Later | ⏸ Later *(suggested)* |
 | R7 | Discover by **studio / network / keyword** pages | Seerr | 🟡 genres only; person pages exist | Later | ⏸ Later *(suggested)* |
 | R8 | Admin can **customise Discover rows** (order, add a TMDB list/keyword row) | Seerr | ❌ fixed order | Later | ⏸ Later *(suggested)* |
-| R9 | **Email** and **web push** (PWA) notifications; **Discord / Telegram / webhook** | Seerr, arrs, Tautulli | 🟡 Pushover, ntfy, bell; iPhone push in M7 | Ask (anyone in the family need email/Discord? a generic webhook is cheap) | ✅ Add: generic webhook only |
+| R9 | **Email** and **web push** (PWA) notifications; **Discord / Telegram / webhook** | Seerr, arrs, Tautulli | ✅ Webhook channel (JSON POST, optional Bearer secret) | Ask (anyone in the family need email/Discord? a generic webhook is cheap) | ✅ **Done** (round 6) |
 | R10 | **Invite** a new person (link that creates their Plex/Jellyfin access and Marquee account) | Wizarr | ❌ people must already be on the server | Ask | ⏸ Later |
-| R11 | Request quota shown to the requester ("2 of 5 left this week") | Seerr | ❌ limits are enforced but not shown before asking | Add (cheap) | ✅ Add *(suggested)* |
+| R11 | Request quota shown to the requester ("2 of 5 left this week") | Seerr | ✅ Weekly limit per person, shown before asking ("2 of 5 left this week") | Add (cheap) | ✅ **Done** (round 6) |
 
 ## 4. Watching and stats (Tautulli / WatchState)
 
@@ -123,7 +123,7 @@ Profilarr (v2) keeps a shared database of profiles and rules (Dictionarry), lets
 | S10 | **Import from the old apps** (Radarr/Sonarr monitored state & profiles, Seerr requests & users, Prowlarr done) with undo | HolyArrs idea | 🟡 Prowlarr sites brought over; Radarr/Sonarr read-only for matching; no Seerr import (decided) | Ask (bring over Wanted from Radarr/Sonarr's monitored flags?) | ⛔ Skip: Josh marks Wanted by hand |
 | S11 | Profile updates from TRaSH at runtime (Profilarr pulls new formats) | Profilarr | 🟡 `trash:update` at build time; ships with releases | Skip (new Marquee release = new rules) | ⛔ Skip *(suggested)* |
 | S12 | Subtitles (download missing subtitles) | Bazarr | ❌ | Ask (is Bazarr in your stack?) | ⛔ Skip: Bazarr not in use |
-| S13 | iCal calendar feed (subscribe in Apple Calendar) | Radarr, Sonarr | ❌ | Ask (cheap) | ✅ Add: private link per person |
+| S13 | iCal calendar feed (subscribe in Apple Calendar) | Radarr, Sonarr | ✅ Calendar → private link (iCal), kids get kids’ titles | Ask (cheap) | ✅ **Done** (round 6) |
 
 ## Plan
 
@@ -158,7 +158,7 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - P2 Rule updates in the app: weekly check, see what changed, apply; your edits kept and flagged on conflict
    - L22/P4 Your own rules: words, groups or patterns in the name, with points (covers L23 language preference)
    - P5 Paste a copy name and see how a profile judges it
-6. **Family**
+6. ✅ **Family**. Done: see PLAN.md.
    - R1 **Something wrong?** on title pages (picture, sound, subtitles, wrong title, other), a list for admins with Find a better copy, replies both ways
    - R4 Per person, "Their requests skip approval" (Settings → Users; kids still need approval for anything not kid-safe)
    - R11 Show what's left of a weekly limit before asking

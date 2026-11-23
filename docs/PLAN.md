@@ -375,6 +375,15 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 - **Try a name** (P5): paste a copy's name on any profile: would it be taken, why not, its quality and group, and every rule's points.
 - Tests: `test/dictionarry.test.ts` (reading our own small Dictionarry, tarballs, the pinned copy's rules and words, the presets on real-looking names and the real corpus, the once-only move with its note, Try a name, own rules, rule updates with conflicts), engine tests kept on TRaSH-built profiles (`trashPreset`/`trashPresets` in `test/helpers.ts`). Demo mode has a rule update waiting.
 
+### Round 6: Family ✅
+
+- **Something wrong?** (R1, `requests/issues.ts`, `/api/issues`): on every title in the library, for anyone: picture, sound, subtitles, the wrong title or something else, for the whole show, a season or one episode, with a note (needed for "something else"). Admins hear about it (new **Someone says something's wrong** notification) and see every report under Requests → Something wrong?, with **Find a better copy** (opens the title's search) and **Mark fixed**. Replies go both ways with notifications (**A reply about a problem you reported**, **Someone replied about a problem**, **A problem you reported is fixed**). Everyone else sees their own reports; a title page notes its open reports.
+- **Requests skip approval** (R4): a per-person switch in Settings → Users. Kids can only ever ask for kids' titles, so for them it applies to those.
+- **Weekly limits** (R11): a per-person "requests a week" (0 = none) in Settings → Users, enforced when asking (turned-down requests don't count; it says when the next one frees up), and shown before asking on title pages and Requests ("2 of 5 requests left this week"). `GET /api/requests/allowance`.
+- **Webhook channel** (R9): Settings → Notifications → Add → Webhook: one JSON POST per message (`event`, `title`, `body`, `link`, `image`, `vars`, `sentAt`), with an optional secret sent as `Authorization: Bearer`. Works for shared and personal channels.
+- **Calendar link** (S13): Calendar → In your calendar app: a private iCal link per person (`/api/calendar/ical/<secret>.ics`, 30 days back to 120 ahead, all-day events), New link turns the old one off; kids get kids' titles only.
+- Migration 29 (rebuilds `notification_channels` for the webhook kind). Tests: `test/family.test.ts`.
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

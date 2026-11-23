@@ -16,6 +16,12 @@ export const users = sqliteTable(
     plexUsername: text('plex_username'),
     /** Their own Plex sign-in token, kept from signing in with Plex, for their watchlist. Never sent to screens. */
     plexToken: text('plex_token'),
+    /** Their requests go straight through (kids: only kid-safe titles). */
+    skipApproval: integer('skip_approval', { mode: 'boolean' }).notNull().default(false),
+    /** Most requests in 7 days; 0 means no limit. Admins have none. */
+    weeklyLimit: integer('weekly_limit').notNull().default(0),
+    /** The secret in their private calendar (iCal) link; null until they make one. */
+    calendarToken: text('calendar_token'),
     jellyfinId: text('jellyfin_id'),
     jellyfinUsername: text('jellyfin_username'),
     oidcIssuer: text('oidc_issuer'),
@@ -567,7 +573,7 @@ export const userPrefs = sqliteTable('user_prefs', {
 
 export const notificationChannels = sqliteTable('notification_channels', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  kind: text('kind', { enum: ['pushover', 'ntfy'] }).notNull(),
+  kind: text('kind', { enum: ['pushover', 'ntfy', 'webhook'] }).notNull(),
   name: text('name').notNull(),
   /** Whose channel this is. Null = a shared admin channel (Settings → Notifications). */
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -736,4 +742,33 @@ export const letterboxdFilms = sqliteTable('letterboxd_films', {
   tmdbId: integer('tmdb_id'),
   kind: text('kind'),
   seenAt: integer('seen_at').notNull(),
+});
+
+/** "Something wrong?" reports on a title (or one episode), with replies both ways. */
+export const issues = sqliteTable('issues', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'cascade' }),
+  seriesId: integer('series_id').references(() => series.id, { onDelete: 'cascade' }),
+  season: integer('season'),
+  episode: integer('episode'),
+  title: text('title').notNull(),
+  problem: text('problem', { enum: ['picture', 'sound', 'subtitles', 'wrong_title', 'other'] }).notNull(),
+  message: text('message').notNull().default(''),
+  status: text('status', { enum: ['open', 'fixed'] }).notNull().default('open'),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  fixedAt: integer('fixed_at'),
+  fixedBy: integer('fixed_by').references(() => users.id, { onDelete: 'set null' }),
+});
+
+export const issueComments = sqliteTable('issue_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  issueId: integer('issue_id')
+    .notNull()
+    .references(() => issues.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  createdAt: integer('created_at').notNull(),
 });

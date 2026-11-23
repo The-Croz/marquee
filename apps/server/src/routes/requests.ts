@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { RequestView } from '@marquee/shared';
+import type { RequestAllowance, RequestView } from '@marquee/shared';
 import { notifyDeps } from './notifications.js';
 import { requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
-import { approveRequest, createRequest, declineRequest, listRequests, pendingCount, removeRequest, reopenRequest, type RequestDeps } from '../requests/service.js';
+import { allowance, approveRequest, createRequest, declineRequest, listRequests, pendingCount, removeRequest, reopenRequest, type RequestDeps } from '../requests/service.js';
 import { scanSources } from './library.js';
 
 /** Requests: ask, approve, turn down. Everyone can ask; admins decide. */
@@ -19,6 +19,13 @@ requestRoutes.get('/', (c) => {
   const scope = z.enum(['mine', 'all']).default('mine').parse(c.req.query('scope'));
   const { db, now } = c.get('deps');
   return c.json<{ items: RequestView[] }>({ items: listRequests(db, user, scope, now()) });
+});
+
+/** How many requests are left this week, shown before asking. */
+requestRoutes.get('/allowance', (c) => {
+  const user = requireUser(c);
+  const { db, now } = c.get('deps');
+  return c.json<RequestAllowance>(allowance(db, user, now()));
 });
 
 /** The number on the menu badge: how many wait for an admin (everyone else sees 0). */

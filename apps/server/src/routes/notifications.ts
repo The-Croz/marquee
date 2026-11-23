@@ -71,7 +71,7 @@ function channelView(ch: NotificationChannel): NotificationChannelView {
     name: ch.name,
     enabled: ch.enabled,
     events: JSON.parse(ch.events) as string[],
-    detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : 'Pushover',
+    detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : ch.kind === 'webhook' ? (c.url ?? '').replace(/^(https?:\/\/[^/]+).*$/, '$1/…') : 'Pushover',
     lastOkAt: ch.lastOkAt,
     lastError: ch.lastError,
   };
@@ -114,6 +114,7 @@ const secret = z.string().max(300).optional();
 const createBody = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('pushover'), name: z.string().trim().min(1).max(60), appToken: z.string().trim().min(1).max(300), userKey: z.string().trim().min(1).max(300), events: eventList.optional() }),
   z.object({ kind: z.literal('ntfy'), name: z.string().trim().min(1).max(60), server: z.string().trim().max(300).default(''), topic: z.string().trim().min(1).max(200), token: secret, events: eventList.optional() }),
+  z.object({ kind: z.literal('webhook'), name: z.string().trim().min(1).max(60), url: z.string().trim().regex(/^https?:\/\//i, 'The webhook address should start with http:// or https://').max(500), secret, events: eventList.optional() }),
 ]);
 const patchBody = z.object({
   name: z.string().trim().min(1).max(60).optional(),
@@ -124,6 +125,8 @@ const patchBody = z.object({
   server: z.string().trim().max(300).optional(),
   topic: z.string().trim().max(200).optional(),
   token: secret,
+  url: z.string().trim().regex(/^https?:\/\//i, 'The webhook address should start with http:// or https://').max(500).optional(),
+  secret,
 });
 
 function channelRoutesFor(scope: Scope): Hono<Env> {
@@ -150,7 +153,12 @@ function channelRoutesFor(scope: Scope): Hono<Env> {
     const { db, now } = c.get('deps');
     const b = createBody.parse(await c.req.json());
     if (b.kind === 'ntfy' && b.server && !/^https?:\/\//i.test(b.server)) throw new HttpError(400, 'invalid_input', 'The ntfy address should start with http:// or https://');
-    const config = b.kind === 'pushover' ? { appToken: b.appToken, userKey: b.userKey } : { server: b.server, topic: b.topic, ...(b.token ? { token: b.token } : {}) };
+    const config =
+      b.kind === 'pushover'
+        ? { appToken: b.appToken, userKey: b.userKey }
+        : b.kind === 'webhook'
+          ? { url: b.url, ...(b.secret ? { secret: b.secret } : {}) }
+          : { server: b.server, topic: b.topic, ...(b.token ? { token: b.token } : {}) };
     const events = b.events ? only(u, b.events) : scope.defaults(u);
     const row = db.insert(notificationChannels).values({ kind: b.kind, name: b.name, userId: scope.owner(u), config: JSON.stringify(config), events: JSON.stringify(events), createdAt: now() }).returning().get();
     return c.json(channelView(row), 201);
@@ -163,7 +171,7 @@ function channelRoutesFor(scope: Scope): Hono<Env> {
     const ch = find(c, u);
     const b = patchBody.parse(await c.req.json());
     const config = cfg(ch);
-    for (const k of ['appToken', 'userKey', 'token'] as const) if (b[k]) config[k] = b[k]!;
+    for (const k of ['appToken', 'userKey', 'token', 'secret', 'url'] as const) if (b[k]) config[k] = b[k]!;
     if (b.server !== undefined) config.server = b.server;
     if (b.topic) config.topic = b.topic;
     const row = db
@@ -188,7 +196,7 @@ function channelRoutesFor(scope: Scope): Hono<Env> {
     const { db, clients, now } = c.get('deps');
     const ch = find(c, u);
     try {
-      await clients.push.send({ kind: ch.kind, config: cfg(ch) }, { title: 'Marquee test', body: 'If you can read this, Marquee can reach you here.', link: null });
+      await clients.push.send({ kind: ch.kind, config: cfg(ch) }, { title: 'Marquee test', body: 'If you can read this, Marquee can reach you here.', link: null, event: 'test' });
       db.update(notificationChannels).set({ lastOkAt: now(), lastError: null }).where(eq(notificationChannels.id, ch.id)).run();
       return c.json({ ok: true, message: 'Sent. Check your phone.' });
     } catch (err) {

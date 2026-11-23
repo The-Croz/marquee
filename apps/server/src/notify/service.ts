@@ -82,12 +82,12 @@ function inbox(db: Db, now: number, userId: number, event: string, m: Composed):
   if (old) db.delete(notifications).where(and(eq(notifications.userId, userId), lte(notifications.id, old.id))).run();
 }
 
-async function sendTo(deps: NotifyDeps, channels: NotificationChannel[], event: string, m: Composed): Promise<void> {
+async function sendTo(deps: NotifyDeps, channels: NotificationChannel[], event: string, m: Composed, vars: Record<string, unknown> = {}): Promise<void> {
   const { db, push, now } = deps;
   for (const ch of channels) {
     if (!ch.enabled || !parse<string[]>(ch.events, []).includes(event)) continue;
     try {
-      await push.send({ kind: ch.kind, config: parse<Record<string, string>>(ch.config, {}) }, { title: m.title, body: m.body, link: m.url, image: m.image });
+      await push.send({ kind: ch.kind, config: parse<Record<string, string>>(ch.config, {}) }, { title: m.title, body: m.body, link: m.url, image: m.image, event, vars });
       db.update(notificationChannels).set({ lastOkAt: now(), lastError: null }).where(eq(notificationChannels.id, ch.id)).run();
     } catch (err) {
       db.update(notificationChannels).set({ lastError: (err as Error).message }).where(eq(notificationChannels.id, ch.id)).run();
@@ -110,7 +110,7 @@ export async function notifyUser(deps: NotifyDeps, userId: number | null, event:
     console.error('[notify] inbox failed:', (err as Error).message);
     return;
   }
-  await sendTo(deps, ownChannels(db, userId), event, m);
+  await sendTo(deps, ownChannels(db, userId), event, m, msg.vars);
 }
 
 /** Tells every admin (bell and their own channels) and sends it down the shared channels that have the event on. */
@@ -130,8 +130,8 @@ export async function notifyAdmins(deps: NotifyDeps, event: string, msg: Message
     console.error('[notify] inbox failed:', (err as Error).message);
     return;
   }
-  await sendTo(deps, db.select().from(notificationChannels).where(isNull(notificationChannels.userId)).all(), event, m);
-  for (const id of listening) await sendTo(deps, ownChannels(db, id), event, m);
+  await sendTo(deps, db.select().from(notificationChannels).where(isNull(notificationChannels.userId)).all(), event, m, msg.vars);
+  for (const id of listening) await sendTo(deps, ownChannels(db, id), event, m, msg.vars);
 }
 
 /** Fire and forget, for code that mustn't wait on a push. */

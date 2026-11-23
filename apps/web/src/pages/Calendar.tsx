@@ -1,3 +1,4 @@
+import { CalendarLink } from '../components/Family';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -100,7 +101,8 @@ export function CalendarPage() {
                       <>
                         <span className="mr-1.5 rounded bg-raised px-1.5 py-0.5 text-caption font-semibold tracking-wide text-muted uppercase">Movie</span>
                         {i.title}
-                      </>
+                        <CalendarLink />
+    </>
                     ) : (
                       <>
                         {i.season === 0 ? 'Special' : `S${i.season} E${i.episode}`}

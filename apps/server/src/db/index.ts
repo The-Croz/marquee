@@ -643,6 +643,54 @@ export const migrations: string[] = [
   );
   CREATE TABLE letterboxd_films (slug TEXT PRIMARY KEY, tmdb_id INTEGER, kind TEXT, seen_at INTEGER NOT NULL);
   `,
+  // 29: family: webhook channels, skip approval, weekly limits, calendar links, "Something wrong?"
+  `
+  CREATE TABLE notification_channels_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('pushover', 'ntfy', 'webhook')),
+    name TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    events TEXT NOT NULL DEFAULT '[]',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    last_ok_at INTEGER,
+    last_error TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE
+  );
+  INSERT INTO notification_channels_new (id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id)
+    SELECT id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id FROM notification_channels;
+  DROP TABLE notification_channels;
+  ALTER TABLE notification_channels_new RENAME TO notification_channels;
+  ALTER TABLE users ADD COLUMN skip_approval INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN weekly_limit INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN calendar_token TEXT;
+  CREATE UNIQUE INDEX users_calendar_token ON users (calendar_token);
+  CREATE TABLE issues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE CASCADE,
+    series_id INTEGER REFERENCES series (id) ON DELETE CASCADE,
+    season INTEGER,
+    episode INTEGER,
+    title TEXT NOT NULL,
+    problem TEXT NOT NULL CHECK (problem IN ('picture', 'sound', 'subtitles', 'wrong_title', 'other')),
+    message TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'fixed')),
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    fixed_at INTEGER,
+    fixed_by INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  CREATE INDEX issues_status ON issues (status);
+  CREATE TABLE issue_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_id INTEGER NOT NULL REFERENCES issues (id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function openDb(file: string): Db {

@@ -17,7 +17,7 @@ export const userRoutes = new Hono<Env>();
 const roleSchema = z.enum(['admin', 'member', 'kid']);
 
 function summary(u: User): UserSummary {
-  return { ...toSessionUser(u), email: u.email, plexUsername: u.plexUsername, jellyfinUsername: u.jellyfinUsername, createdAt: u.createdAt, lastLoginAt: u.lastLoginAt };
+  return { ...toSessionUser(u), email: u.email, plexUsername: u.plexUsername, jellyfinUsername: u.jellyfinUsername, createdAt: u.createdAt, lastLoginAt: u.lastLoginAt, skipApproval: u.skipApproval, weeklyLimit: u.weeklyLimit };
 }
 
 function load(c: Ctx): User {
@@ -65,6 +65,8 @@ userRoutes.patch('/:id{[0-9]+}', async (c) => {
       password: passwordSchema.optional(),
       unlinkPlex: z.boolean().optional(),
       unlinkOidc: z.boolean().optional(),
+      skipApproval: z.boolean().optional(),
+      weeklyLimit: z.number().int().min(0).max(100).optional(),
     })
     .parse(await c.req.json());
 
@@ -75,7 +77,9 @@ userRoutes.patch('/:id{[0-9]+}', async (c) => {
     ...(input.displayName ? { displayName: input.displayName } : {}),
     ...(input.role ? { role: input.role } : {}),
     ...(input.password ? { passwordHash: await hashPassword(input.password) } : {}),
-    ...(input.unlinkPlex ? { plexId: null, plexUsername: null } : {}),
+    ...(input.unlinkPlex ? { plexId: null, plexUsername: null, plexToken: null } : {}),
+    ...(input.skipApproval !== undefined ? { skipApproval: input.skipApproval } : {}),
+    ...(input.weeklyLimit !== undefined ? { weeklyLimit: input.weeklyLimit } : {}),
     ...(input.unlinkOidc ? { oidcIssuer: null, oidcSubject: null } : {}),
   });
   // A reset password or role change signs that person out everywhere.

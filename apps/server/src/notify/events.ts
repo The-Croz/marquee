@@ -120,6 +120,28 @@ export const EVENTS: NotificationEventInfo[] = [
   { key: 'stream_paused', group: 'Watching', audience: 'admins', label: 'Someone paused', description: 'A stream was paused.', quiet: true, vars: stream, title: '{{user}} paused {{title}}', body: streamBody, image: '' },
   { key: 'stream_resumed', group: 'Watching', audience: 'admins', label: 'Someone resumed', description: 'A paused stream carried on.', quiet: true, vars: stream, title: '{{user}} resumed {{title}}', body: streamBody, image: '' },
 
+  // Something wrong?
+  {
+    key: 'issue_reported', group: 'Requests', audience: 'admins', label: 'Someone says something’s wrong', description: 'Someone reported a problem with a title: picture, sound, subtitles, the wrong title or something else.',
+    vars: [v('user', 'Who', 'Jessie'), titleVar(), v('problem', 'What’s wrong', 'The sound is out of sync'), v('message', 'What they said', 'From about 20 minutes in.')],
+    title: 'Something’s wrong with {{title}}', body: '{{user}}: {{problem}}{{#message}}. “{{message}}”{{/message}}', image: '',
+  },
+  {
+    key: 'issue_comment', group: 'Requests', audience: 'admins', label: 'Someone replied about a problem', description: 'The person who reported a problem wrote back.',
+    vars: [v('user', 'Who', 'Jessie'), titleVar(), v('message', 'What they said', 'Still happening on the TV.')],
+    title: '{{user}} replied about {{title}}', body: '{{message}}', image: '',
+  },
+  {
+    key: 'issue_reply', group: 'Requests', audience: 'requester', label: 'A reply about a problem you reported', description: 'An admin wrote back about something you said was wrong.',
+    vars: [v('by', 'Who', 'Josh'), titleVar(), v('message', 'What they said', 'Found a better copy, try it now.')],
+    title: 'About {{title}}', body: '{{by}}: {{message}}', image: '',
+  },
+  {
+    key: 'issue_fixed', group: 'Requests', audience: 'requester', label: 'A problem you reported is fixed', description: 'An admin marked something you reported as fixed.',
+    vars: [v('by', 'Who', 'Josh'), titleVar(), v('message', 'What they said', 'Swapped in a better copy.')],
+    title: '{{title}} is fixed', body: '{{by}} fixed it{{#message}}: {{message}}{{/message}}{{^message}}.{{/message}}', image: '',
+  },
+
   // Marquee itself
   {
     key: 'marquee_updated', group: 'Marquee', audience: 'admins', label: 'Marquee was updated', description: 'Marquee started on a new version.',

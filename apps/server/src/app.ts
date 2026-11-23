@@ -1,3 +1,4 @@
+import { issueRoutes } from './routes/issues.js';
 import { addGettingInJobs, collectionRoutes, listRoutes, showPresetRoutes } from './routes/gettingIn.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -117,6 +118,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   app.route('/api/shows', showPresetRoutes);
   app.route('/api/collections', collectionRoutes);
   app.route('/api/lists', listRoutes);
+  app.route('/api/issues', issueRoutes);
   app.all('/api/*', (c) => c.json<ApiError>({ error: 'not_found', message: 'No such endpoint.' }, 404));
 
   app.onError((err, c) => {

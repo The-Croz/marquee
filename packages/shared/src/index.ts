@@ -54,6 +54,22 @@ export interface UserSummary extends SessionUser {
   jellyfinUsername: string | null;
   createdAt: number;
   lastLoginAt: number | null;
+  /** Their requests go straight through (kids: only titles for kids). */
+  skipApproval: boolean;
+  /** Most requests in 7 days; 0 means no limit. */
+  weeklyLimit: number;
+}
+
+/** How many more requests someone can make this week. */
+export interface RequestAllowance {
+  /** 0 means no limit. */
+  limit: number;
+  used: number;
+  left: number | null;
+  /** When the oldest request in the week stops counting, if they're at the limit. */
+  nextAt: number | null;
+  /** Their requests skip approval (for kids, only titles for kids). */
+  skipApproval: boolean;
 }
 
 // ---- Home screen (sample data until Milestones 1-6 land) ----
@@ -1407,7 +1423,7 @@ export interface NotificationEventInfo {
 
 export interface NotificationChannelView {
   id: number;
-  kind: 'pushover' | 'ntfy';
+  kind: 'pushover' | 'ntfy' | 'webhook';
   name: string;
   enabled: boolean;
   events: string[];
@@ -1872,4 +1888,30 @@ export interface ReplacedView {
   bytes: number;
   /** What emptying them gives back. Files still shared by a download in qBittorrent free nothing. */
   freedBytes: number;
+}
+
+// ---------------------------------------------------------------- Something wrong?
+
+export type IssueProblem = 'picture' | 'sound' | 'subtitles' | 'wrong_title' | 'other';
+
+export interface IssueView {
+  id: number;
+  kind: 'movie' | 'series';
+  /** The movie's or show's library id. */
+  titleId: number | null;
+  /** "Severance (2022)". */
+  title: string;
+  /** Shows: "S02E03" or "S02", or null for the whole show. */
+  where: string | null;
+  href: string | null;
+  problem: IssueProblem;
+  problemText: string;
+  message: string;
+  status: 'open' | 'fixed';
+  by: string;
+  byId: number | null;
+  createdAt: number;
+  updatedAt: number;
+  fixedAt: number | null;
+  comments: { id: number; by: string; byId: number | null; body: string; createdAt: number }[];
 }

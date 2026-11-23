@@ -261,17 +261,14 @@ describe('free space', () => {
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 const UNDO_NEWEST = {
   sql: [
-    'DROP TABLE letterboxd_films',
-    'DROP TABLE list_exclusions',
-    'DROP TABLE list_items',
-    'DROP INDEX import_lists_watchlist',
-    'DROP TABLE import_lists',
-    'DROP TABLE collections',
-    'ALTER TABLE users DROP COLUMN plex_token',
-    'ALTER TABLE movies DROP COLUMN collection_tmdb_id',
-    'ALTER TABLE series DROP COLUMN want_new',
+    'DROP TABLE issue_comments',
+    'DROP TABLE issues',
+    'DROP INDEX users_calendar_token',
+    'ALTER TABLE users DROP COLUMN calendar_token',
+    'ALTER TABLE users DROP COLUMN weekly_limit',
+    'ALTER TABLE users DROP COLUMN skip_approval',
   ],
-  tables: ['collections', 'import_lists', 'list_items'],
+  tables: ['issues', 'issue_comments'],
 };
 
 describe('backups', () => {

@@ -1,5 +1,5 @@
-import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
-import type { CardState, NewRequest, RequestState, RequestView } from '@marquee/shared';
+import { and, desc, eq, gte, inArray, isNull, ne, or } from 'drizzle-orm';
+import type { CardState, NewRequest, RequestAllowance, RequestState, RequestView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { downloads, episodes, mediaFiles, movies, profiles, requests, series, users, type Download, type RequestRow, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
@@ -230,8 +230,29 @@ const tmdbFailed = (err: unknown): never => {
   throw new HttpError(502, 'tmdb_failed', 'TMDB didn’t answer. Try again in a moment.');
 };
 
+const WEEK = 7 * 24 * 3_600_000;
+
+/** How many requests this person has left this week (admins and people with no limit: no limit). */
+export function allowance(db: Db, user: User, now: number): RequestAllowance {
+  const limit = user.role === 'admin' ? 0 : user.weeklyLimit;
+  const mine = db
+    .select({ at: requests.createdAt })
+    .from(requests)
+    .where(and(eq(requests.requestedBy, user.id), gte(requests.createdAt, now - WEEK), ne(requests.status, 'declined')))
+    .all()
+    .map((r) => r.at)
+    .sort((a, b) => a - b);
+  const used = mine.length;
+  const left = limit ? Math.max(0, limit - used) : null;
+  return { limit, used, left, nextAt: left === 0 && mine.length ? mine[used - limit]! + WEEK : null, skipApproval: user.role === 'admin' || user.skipApproval };
+}
+
 export async function createRequest(deps: RequestDeps, user: User, input: NewRequest): Promise<RequestView> {
   const { db, tmdb, now } = deps;
+  const left = allowance(db, user, now());
+  if (left.left === 0) {
+    throw new HttpError(429, 'limit_reached', `You’ve used all ${left.limit} of your requests this week. The next one frees up ${left.nextAt ? new Date(left.nextAt).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'soon'}.`);
+  }
   let title: string;
   let year: number | null;
   let posterPath: string | null;
@@ -277,6 +298,8 @@ export async function createRequest(deps: RequestDeps, user: User, input: NewReq
     .returning()
     .get();
   if (user.role === 'admin') return approveRequest(deps, row.id, user, input.preset && input.kind === 'series' ? { preset: input.preset } : {});
+  // "Their requests skip approval": straight through, for kids only when it's a title for kids (it is, or they'd have been stopped above).
+  if (user.skipApproval) return approveRequest(deps, row.id, user, {});
   await notifyAdmins(deps.notify, 'request_pending', { vars: { ...requestVars(row), user: user.displayName }, link: '/requests' });
   return requestView(db, row, now());
 }

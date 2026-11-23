@@ -1,5 +1,6 @@
+import { ProblemsList, RequestsLeft } from '../components/Family';
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { DiscoverTitle, ProfilesView, RequestState, RequestView, SessionUser, ShowPreset } from '@marquee/shared';
 import { SHOW_PRESETS } from './GettingIn';
@@ -261,7 +262,8 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
 
 export function RequestsPage({ user }: { user: SessionUser }) {
   const admin = user.role === 'admin';
-  const [tab, setTab] = useState<'waiting' | 'all' | 'mine'>(admin ? 'waiting' : 'mine');
+  const [search] = useSearchParams();
+  const [tab, setTab] = useState<'waiting' | 'all' | 'mine' | 'problems'>(search.get('tab') === 'problems' ? 'problems' : admin ? 'waiting' : 'mine');
   const scope = tab === 'mine' ? 'mine' : 'all';
   const { data, isLoading, error } = useQuery({
     queryKey: ['requests', scope],
@@ -271,8 +273,8 @@ export function RequestsPage({ user }: { user: SessionUser }) {
   const items = (data?.items ?? []).filter((r) => tab !== 'waiting' || r.state === 'pending');
   const waiting = admin ? (data?.items ?? []).filter((r) => r.state === 'pending').length : 0;
   const tabs: [typeof tab, string][] = admin
-    ? [['waiting', 'Waiting for you'], ['all', 'Everyone'], ['mine', 'Mine']]
-    : [['mine', 'My requests']];
+    ? [['waiting', 'Waiting for you'], ['all', 'Everyone'], ['mine', 'Mine'], ['problems', 'Something wrong?']]
+    : [['mine', 'My requests'], ['problems', 'Problems I reported']];
 
   return (
     <>
@@ -297,12 +299,14 @@ export function RequestsPage({ user }: { user: SessionUser }) {
           Find something to ask for →
         </Link>
       </nav>
-      {error && <Notice tone="error">{errMsg(error)}</Notice>}
-      {isLoading && <p className="text-muted">Loading…</p>}
-      {data && items.length === 0 && (
+      {!admin && <RequestsLeft />}
+      {tab === 'problems' && <ProblemsList admin={admin} />}
+      {tab !== 'problems' && error && <Notice tone="error">{errMsg(error)}</Notice>}
+      {tab !== 'problems' && isLoading && <p className="text-muted">Loading…</p>}
+      {tab !== 'problems' && data && items.length === 0 && (
         <Notice>{tab === 'waiting' ? 'Nothing is waiting for you.' : 'No requests yet. Find something in Discover and press Request.'}</Notice>
       )}
-      <ul className="m-0 flex list-none flex-col gap-3 p-0">
+      <ul className="m-0 flex list-none flex-col gap-3 p-0" hidden={tab === 'problems'}>
         {items.map((r) => (
           <RequestRow key={r.id} r={r} admin={admin && tab !== 'mine'} />
         ))}
