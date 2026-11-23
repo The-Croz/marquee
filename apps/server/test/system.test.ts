@@ -325,17 +325,17 @@ describe('backups', () => {
     const file = path.join(t.dataDir, 'backups', b.name);
     const old = new Database(file);
     old.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
-    old.exec('DROP TABLE history');
-    for (const [table, col] of [['downloads', 'unpack_state'], ['downloads', 'unpack_started_at'], ['downloads', 'import_unpacked']]) {
-      old.exec(`ALTER TABLE ${table} DROP COLUMN ${col}`);
-    }
+    old.exec('DROP TABLE left_out');
+    old.exec('DROP TABLE renames');
+    old.exec(`INSERT INTO history (at, event, kind, title) VALUES (1, 'sent', 'movie', 'Kept through the upgrade')`);
     old.close();
     const res = await call(t.app, 'POST', `/api/system/backups/${b.name}/restore`, { confirm: true }, t.cookie);
     expect(res.status).toBe(200);
     const v = t.db.$client.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number };
     expect(v.v).toBe(migrations.length);
-    const cols = (t.db.$client.prepare('PRAGMA table_info(downloads)').all() as { name: string }[]).map((c) => c.name);
-    expect(cols).toContain('import_unpacked');
+    const tables = (t.db.$client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((c) => c.name);
+    expect(tables).toEqual(expect.arrayContaining(['left_out', 'renames', 'history']));
+    expect(t.db.select().from(schema.history).all().map((h) => h.title)).toContain('Kept through the upgrade');
   });
 
   it('won’t restore a backup from a newer Marquee, or a file that isn’t one', async () => {

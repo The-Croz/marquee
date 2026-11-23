@@ -379,6 +379,7 @@ export class DownloadMonitor {
       r.unpacked ? 'Unpacked from .rar files, so the library file is its own file, not a hardlink.' : null,
       r.copied ? 'Copied, not linked: the download folder and the library are on different disks.' : null,
       r.replaced.length ? `The file it replaced (${r.replaced.map((p) => path.basename(p)).join(', ')}) is kept in the library’s .marquee-replaced folder.` : null,
+      r.extras.length ? `${r.extras.length === 1 ? 'A subtitle file came' : `${r.extras.length} subtitle files came`} along with it.` : null,
     ].filter(Boolean);
     recordHistory(db, r.replaced.length ? 'upgraded' : 'in_library', row, now(), { detail: how.join(' ') || null });
     const told = await this.tellServers(id);

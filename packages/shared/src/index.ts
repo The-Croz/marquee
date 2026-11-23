@@ -773,7 +773,7 @@ export interface DownloadsView {
 }
 
 /** What happened to a download, for the History page and a title's History. */
-export type HistoryEvent = 'sent' | 'in_library' | 'upgraded' | 'replaced' | 'removed' | 'import_failed' | 'allowed_again';
+export type HistoryEvent = 'sent' | 'in_library' | 'upgraded' | 'replaced' | 'removed' | 'import_failed' | 'allowed_again' | 'title_removed' | 'renamed';
 
 export interface HistoryItem {
   id: number;
@@ -1567,4 +1567,161 @@ export interface LogsView {
   kept: number;
   /** The most Marquee keeps. */
   keepMax: number;
+}
+
+// ---------------- Library care (remove, rename, manual import, replaced files) ----------------
+
+/** What "Remove from Marquee" would do, shown before anything happens. */
+export interface RemovalPreview {
+  kind: 'movie' | 'series';
+  title: string;
+  /** The library files Marquee knows for it, plus their subtitles: exactly what "Delete its files too" deletes. */
+  files: { path: string; sizeBytes: number }[];
+  totalBytes: number;
+  /** The title's folder, when it has one. Removed only if it's empty afterwards. */
+  folder: string | null;
+  /** Downloads for it that haven't reached the library yet. */
+  onTheWay: { id: number; copy: string; status: string }[];
+  /** Downloads already in the library and still sharing; they carry on until their seeding rule. */
+  sharing: number;
+  /** People who asked for it. Their requests are taken away so it can be asked for again. */
+  requests: string[];
+}
+
+export interface RemovalInput {
+  /** Also delete these files. Must be exactly the preview's list, so nothing is deleted that wasn't shown. */
+  deleteFiles?: string[];
+  /** Don't add it back when scanning the library folders. */
+  leaveOut: boolean;
+  /** Downloads on the way: stop them and remove them from qBittorrent with what's downloaded so far, or only stop following them. */
+  onTheWay: 'remove' | 'leave';
+}
+
+export interface RemovalResult {
+  message: string;
+  deleted: string[];
+  /** Files that couldn't be deleted, with why. */
+  problems: string[];
+}
+
+/** A title left out of scans. */
+export interface LeftOutItem {
+  id: number;
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  path: string | null;
+  at: number;
+  who: string | null;
+}
+
+export interface RenameMove {
+  from: string;
+  to: string;
+  what: 'video' | 'subtitle' | 'other';
+}
+
+export interface RenameTitlePlan {
+  kind: 'movie' | 'series';
+  id: number;
+  title: string;
+  /** The title's folder now, and after. Equal when the folder keeps its name. */
+  folderFrom: string | null;
+  folderTo: string | null;
+  moves: RenameMove[];
+  /** Files left as they are, with why ("Another file already has that name."). */
+  skipped: { path: string; reason: string }[];
+}
+
+/** "Rename files": every change, before anything moves. */
+export interface RenamePlanView {
+  kind: 'movie' | 'tv';
+  /** Only titles with something to change. */
+  titles: RenameTitlePlan[];
+  /** Files already named the way the pattern says. */
+  alreadyRight: number;
+  pattern: string;
+}
+
+export interface RenameRunView {
+  id: number;
+  at: number;
+  kind: 'movie' | 'tv';
+  label: string;
+  files: number;
+  who: string | null;
+  undoneAt: number | null;
+}
+
+export interface RenameResult {
+  run: RenameRunView | null;
+  moved: number;
+  problems: string[];
+  message: string;
+}
+
+export interface BrowseView {
+  /** The folder shown, or null for the list of places you can start from. */
+  path: string | null;
+  parent: string | null;
+  folders: { name: string; path: string }[];
+  /** Where you can start: the downloads folder and the two library folders. */
+  places: { label: string; path: string }[];
+}
+
+/** One video file found in a folder for "Put files in your library". */
+export interface ImportFile {
+  path: string;
+  name: string;
+  sizeBytes: number;
+  /** Subtitles beside it that come along. */
+  subtitles: string[];
+  /** Already in your library under this title (nothing to do). */
+  inLibrary: { kind: 'movie' | 'series'; id: number; title: string } | null;
+  /** Marquee's guess, which you can change. */
+  guess: ImportGuess | null;
+}
+
+export interface ImportGuess {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  /** Shows only. */
+  season: number | null;
+  episodes: number[];
+  /** Already in your library (its id there). */
+  libraryId: number | null;
+}
+
+export interface ImportScanView {
+  folder: string;
+  files: ImportFile[];
+  /** Under a library folder: files are moved, not linked. */
+  inLibraryFolder: boolean;
+}
+
+export interface ImportItemInput {
+  path: string;
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  season?: number;
+  episodes?: number[];
+}
+
+export interface ImportItemResult {
+  path: string;
+  ok: boolean;
+  message: string;
+  href: string | null;
+}
+
+/** The hidden `.marquee-replaced` folders: files set aside by upgrades. */
+export interface ReplacedView {
+  folders: { label: string; path: string; files: number; bytes: number; freedBytes: number }[];
+  files: number;
+  bytes: number;
+  /** What emptying them gives back. Files still shared by a download in qBittorrent free nothing. */
+  freedBytes: number;
 }

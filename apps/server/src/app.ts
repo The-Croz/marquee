@@ -13,6 +13,7 @@ import { homeRoutes } from './routes/home.js';
 import { servicesRoutes } from './routes/services.js';
 import { sourcesRoutes } from './routes/sources.js';
 import { libraryRoutes, movieRoutes, showRoutes } from './routes/library.js';
+import { libraryCareRoutes, movieCareRoutes, showCareRoutes } from './routes/libraryCare.js';
 import { profileRoutes } from './routes/profiles.js';
 import { movieCopyRoutes, showCopyRoutes } from './routes/copies.js';
 import { downloaderRoutes } from './routes/downloader.js';
@@ -104,10 +105,13 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   app.route('/api/settings/notifications', channelRoutes);
   app.route('/api/system', systemRoutes);
   app.route('/api/library', libraryRoutes);
+  app.route('/api/library', libraryCareRoutes);
   app.route('/api/movies', movieRoutes);
   app.route('/api/shows', showRoutes);
   app.route('/api/movies', movieCopyRoutes);
   app.route('/api/shows', showCopyRoutes);
+  app.route('/api/movies', movieCareRoutes);
+  app.route('/api/shows', showCareRoutes);
   app.all('/api/*', (c) => c.json<ApiError>({ error: 'not_found', message: 'No such endpoint.' }, 404));
 
   app.onError((err, c) => {

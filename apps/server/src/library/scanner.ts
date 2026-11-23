@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { and, eq, inArray, isNotNull, like, lt } from 'drizzle-orm';
 import { getSetting, setSetting, type Db } from '../db/index.js';
-import { episodes, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
+import { episodes, leftOut, mediaFiles, movies, scanItems, series, type Movie, type Series } from '../db/schema.js';
+import { isLeftOut } from './leftOut.js';
 import { TmdbError, type TmdbApi, type TmdbSearchResult } from './tmdb.js';
 import type { ArrApi, ArrTitle } from './arr.js';
 import { chooseProfile, factsFrom } from '../releases/choose.js';
@@ -95,6 +96,9 @@ export function pickMatch(results: TmdbSearchResult[], title: string, year: numb
 
 const folderKey = (p: string) => path.basename(p.replace(/\/+$/, '')).toLowerCase();
 
+/** A title you removed with "don't add it back when scanning". */
+class LeftOutTitle extends Error {}
+
 interface Attempt {
   /** Where the id came from, in plain English, e.g. "Sonarr's TMDB ID" */
   source: string;
@@ -178,6 +182,16 @@ export class LibraryScanner {
     return this.current;
   }
 
+  /** Runs a match; a left-out title comes back as `row: undefined`, so its folder is skipped quietly. */
+  private async unlessLeftOut<T>(fn: () => Promise<{ row: T | null; dead: string[] }>): Promise<{ row: T | null | undefined; dead: string[] }> {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof LeftOutTitle) return { row: undefined, dead: [] };
+      throw err;
+    }
+  }
+
   private warn(msg: string) {
     if (this.status.warnings.length < 50) this.status.warnings.push(msg);
     console.warn(`[scan] ${msg}`);
@@ -245,13 +259,14 @@ export class LibraryScanner {
       ? await fs.stat(entry.path).then((s) => [{ path: entry.path, name: path.basename(entry.path), size: s.size, mtime: Math.floor(s.mtimeMs) }])
       : await videoFiles(entry.path, 2);
     if (files.length === 0) return; // empty folder: nothing to match
+    if (isLeftOut(this.db, 'movie', { path: entry.path })) return;
 
     const parsed = parseTitleName(path.basename(entry.path));
     const existing = this.db.select().from(movies).where(eq(movies.path, entry.path)).get();
 
     let candidates: TmdbSearchResult[] = [];
     const imdbId = parsed.imdbId ?? hint?.imdbId ?? null;
-    const { row: movie, dead } = await firstWorking(
+    const { row: movie, dead } = await this.unlessLeftOut(() => firstWorking(
       [
         { source: 'the previous match', id: async () => existing?.tmdbId ?? null },
         { source: 'the TMDB ID in the folder name', id: async () => parsed.tmdbId },
@@ -267,8 +282,12 @@ export class LibraryScanner {
         },
       ],
       // Titles matched before studios, language and keywords were kept are fetched once more.
-      (id) => (existing && id === existing.tmdbId && existing.originalLanguage !== null ? Promise.resolve(existing) : this.upsertMovie(tmdb, id, entry.path, Math.min(...files.map((f) => f.mtime)))),
-    );
+      (id) => {
+        if (isLeftOut(this.db, 'movie', { tmdbId: id })) throw new LeftOutTitle();
+        return existing && id === existing.tmdbId && existing.originalLanguage !== null ? Promise.resolve(existing) : this.upsertMovie(tmdb, id, entry.path, Math.min(...files.map((f) => f.mtime)));
+      },
+    ));
+    if (movie === undefined) return;
 
     if (!movie) {
       this.recordUnmatched('movie', entry.path, parsed.title, parsed.year, candidates, unmatchedReason(dead, candidates));
@@ -307,12 +326,15 @@ export class LibraryScanner {
       // A second folder for the same movie keeps the first folder as "the" folder.
       return this.db.update(movies).set({ ...values, path: current.path ?? folder }).where(eq(movies.id, current.id)).returning().get();
     }
+    // Added again (by hand, a request or a manual import): it's no longer left out of scans.
+    this.db.delete(leftOut).where(and(eq(leftOut.kind, 'movie'), eq(leftOut.tmdbId, tmdbId))).run();
     return this.db.insert(movies).values({ tmdbId, path: folder, addedAt, monitored: false, profile: chooseProfile(this.db, 'movie', factsFrom(d)), ...values }).returning().get();
   }
 
   // ---------------- Shows ----------------
 
   private async scanShowFolder(tmdb: TmdbApi, folder: string, hint: ArrTitle | undefined): Promise<void> {
+    if (isLeftOut(this.db, 'series', { path: folder })) return;
     const parsed = parseTitleName(path.basename(folder));
     const existing = this.db.select().from(series).where(eq(series.path, folder)).get();
 
@@ -320,7 +342,7 @@ export class LibraryScanner {
     let candidates: TmdbSearchResult[] = [];
     const tvdbId = parsed.tvdbId ?? hint?.tvdbId ?? null;
     const imdbId = parsed.imdbId ?? hint?.imdbId ?? null;
-    const { row: show, dead } = await firstWorking(
+    const { row: show, dead } = await this.unlessLeftOut(() => firstWorking(
       [
         { source: 'the previous match', id: async () => existing?.tmdbId ?? null },
         { source: 'the TMDB ID in the folder name', id: async () => parsed.tmdbId },
@@ -335,11 +357,14 @@ export class LibraryScanner {
           },
         },
       ],
-      (id) =>
-        existing && id === existing.tmdbId && existing.originalLanguage !== null && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
+      (id) => {
+        if (isLeftOut(this.db, 'series', { tmdbId: id })) throw new LeftOutTitle();
+        return existing && id === existing.tmdbId && existing.originalLanguage !== null && this.now() - existing.refreshedAt < SERIES_REFRESH_MS
           ? Promise.resolve(existing)
-          : this.upsertSeries(tmdb, id, folder, files.length ? Math.min(...files.map((f) => f.mtime)) : this.now()),
-    );
+          : this.upsertSeries(tmdb, id, folder, files.length ? Math.min(...files.map((f) => f.mtime)) : this.now());
+      },
+    ));
+    if (show === undefined) return;
 
     if (!show) {
       if (files.length === 0) return;
@@ -386,6 +411,7 @@ export class LibraryScanner {
       refreshedAt: this.now(),
     };
     const current = this.db.select().from(series).where(eq(series.tmdbId, tmdbId)).get();
+    if (!current) this.db.delete(leftOut).where(and(eq(leftOut.kind, 'series'), eq(leftOut.tmdbId, tmdbId))).run();
     const row = current
       ? this.db.update(series).set({ ...values, path: current.path ?? folder }).where(eq(series.id, current.id)).returning().get()
       : this.db.insert(series).values({ tmdbId, path: folder, addedAt, monitored: false, profile: chooseProfile(this.db, 'tv', factsFrom(d)), ...values }).returning().get();

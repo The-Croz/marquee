@@ -2,12 +2,14 @@ import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { BackupView, BackupsView, DiskSettingsView, HealthView, JobView, LogsView, RestoreResult } from '@marquee/shared';
+import type { BackupView, BackupsView, DiskSettingsView, HealthView, JobView, LogsView, ReplacedView, RestoreResult } from '@marquee/shared';
 import { HttpError, requireAdmin, type Env } from '../http.js';
 import { healthView } from '../system/health.js';
 import { readDiskSettings, writeDiskSettings } from '../system/disk.js';
 import { backUp, backupPath, backupsView, restoreBackup } from '../system/backups.js';
 import { KEEP_LINES } from '../system/logs.js';
+import { emptyReplaced, replacedView } from '../library/replaced.js';
+import { size } from '../system/disk.js';
 
 /** `/api/system`: the Health page (connections, free space, jobs), backups and logs. Admin only. */
 export const systemRoutes = new Hono<Env>();
@@ -48,6 +50,23 @@ systemRoutes.put('/disk', async (c) => {
   const { db } = c.get('deps');
   writeDiskSettings(db, diskUpdate.parse(await c.req.json()));
   return c.json<DiskSettingsView>(readDiskSettings(db));
+});
+
+// ---------------- Replaced files (.marquee-replaced) ----------------
+
+systemRoutes.get('/replaced', async (c) => {
+  requireAdmin(c);
+  return c.json<ReplacedView>(await replacedView(c.get('deps').db));
+});
+
+/** Empty: deletes what upgrades set aside. Only ever by hand, behind a confirm. */
+systemRoutes.post('/replaced/empty', async (c) => {
+  requireAdmin(c);
+  z.object({ confirm: z.literal(true, { message: 'Confirm first: emptying deletes these files for good.' }) }).parse(await c.req.json());
+  const { db } = c.get('deps');
+  const r = await emptyReplaced(db);
+  console.info(`[library] emptied the replaced folders: ${r.files} files, ${size(r.bytes)}`);
+  return c.json({ ...r, message: r.files ? `Deleted ${r.files} ${r.files === 1 ? 'file' : 'files'} (${size(r.bytes)}).` : 'There was nothing to delete.', view: await replacedView(db) });
 });
 
 // ---------------- Backups ----------------

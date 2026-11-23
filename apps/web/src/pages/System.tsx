@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { BackupKind, BackupView, BackupsView, ConnectionView, DiskSettingsView, DiskView, HealthView, JobView, LogLevel, LogsView, RestoreResult } from '@marquee/shared';
+import type { BackupKind, BackupView, BackupsView, ConnectionView, DiskSettingsView, DiskView, HealthView, JobView, LogLevel, LogsView, ReplacedView, RestoreResult } from '@marquee/shared';
 import { ApiFailure, api, queryClient, refreshAuth } from '../api';
 import { Button, Card, Field, Notice, Progress, cx } from '../components/ui';
 import { EmptyState, StatusDot, Tabs } from '../components/Page';
@@ -81,6 +81,7 @@ export function HealthPage() {
       </div>
       <Connections rows={h.connections} />
       <Disks disks={h.disks} settings={h.disk} />
+      <Replaced />
       <Jobs jobs={h.jobs} />
     </div>
   );
@@ -201,6 +202,94 @@ function Disks({ disks, settings }: { disks: DiskView[]; settings: DiskSettingsV
           </div>
         </form>
       </details>
+    </section>
+  );
+}
+
+/** The files upgrades set aside in .marquee-replaced: how much room they take, and Empty behind a confirm. Never emptied by itself. */
+function Replaced() {
+  const q = useQuery({ queryKey: ['replaced'], queryFn: () => api<ReplacedView>('/system/replaced') });
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const v = q.data;
+  async function empty() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ message: string; problems: string[]; view: ReplacedView }>('/system/replaced/empty', { body: { confirm: true } });
+      queryClient.setQueryData(['replaced'], r.view);
+      await queryClient.invalidateQueries({ queryKey: HEALTH });
+      setDone([r.message, ...r.problems].join(' '));
+      setConfirming(false);
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section aria-labelledby="h-replaced" className="flex flex-col gap-3">
+      <SectionTitle>Replaced files</SectionTitle>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="m-0 text-sm text-soft">
+          When a better copy comes in, the old file is set aside in a hidden <span className="font-mono text-xs">.marquee-replaced</span> folder in its library folder, in case you want it back. Plex and Jellyfin don’t look there. Marquee never empties it by itself.
+        </p>
+        {q.isError && <Notice tone="error">{errMsg(q.error)}</Notice>}
+        {v && (
+          <>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+              <span className="text-heading font-semibold tabular-nums">{v.files ? size(v.bytes) : 'Empty'}</span>
+              {v.files > 0 && (
+                <span className="text-sm text-muted">
+                  {v.files} {v.files === 1 ? 'file' : 'files'}
+                  {v.folders.filter((f) => f.files).map((f) => ` · ${f.label} ${size(f.bytes)}`).join('')}
+                </span>
+              )}
+            </div>
+            {v.files > 0 && v.freedBytes < v.bytes && (
+              <p className="m-0 text-sm text-muted">
+                Emptying gives back {size(v.freedBytes)}. The rest is still shared by downloads in qBittorrent (the same file, hardlinked), so it frees up once those are removed.
+              </p>
+            )}
+            {done && <Notice tone="success">{done}</Notice>}
+            {v.files > 0 && (
+              <div>
+                <Button type="button" variant="danger" onClick={() => setConfirming(true)}>
+                  Empty…
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+      <Sheet open={confirming} onClose={() => setConfirming(false)} title="Empty the replaced files?">
+        {v && (
+          <div className="flex flex-col gap-4 pt-1 pb-2">
+            <p className="m-0 text-sm text-soft">
+              This deletes {v.files} {v.files === 1 ? 'file' : 'files'} ({size(v.bytes)}) that upgrades set aside, from:
+            </p>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-xs break-all text-muted">
+              {v.folders.filter((f) => f.files).map((f) => (
+                <li key={f.path}>
+                  {f.path} ({f.files} {f.files === 1 ? 'file' : 'files'}, {size(f.bytes)})
+                </li>
+              ))}
+            </ul>
+            <p className="m-0 text-sm text-warn">It can’t be undone. The files in your library aren’t touched.</p>
+            {error && <Notice tone="error">{error}</Notice>}
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" variant="danger" disabled={busy} onClick={() => void empty()}>
+                {busy ? 'Deleting…' : `Delete ${v.files} ${v.files === 1 ? 'file' : 'files'}`}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>
+                Keep them
+              </Button>
+            </div>
+          </div>
+        )}
+      </Sheet>
     </section>
   );
 }

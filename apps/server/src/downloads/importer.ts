@@ -8,6 +8,7 @@ import { parseQuality } from '../library/parse.js';
 import { hdrLabel, renderName } from '../library/naming.js';
 import { libraryRoots, readNaming } from '../library/services.js';
 import { parseRelease } from '../releases/parse.js';
+import { extrasNames, subtitlesInList, SUBTITLE } from '../library/extras.js';
 import type { QbitFile } from './qbittorrent.js';
 import { mapPath, readDownloader } from './service.js';
 
@@ -36,11 +37,17 @@ export interface ImportResult {
   replaced: string[];
   /** The files came from unpacking .rar files rather than from the download itself. */
   unpacked: boolean;
+  /** Subtitles that came along, where they went. */
+  extras: string[];
 }
 
 export interface ImportFrom {
   /** Take the files from this folder (Marquee's unpack folder), not from qBittorrent's. `files` are relative to it. */
   folder?: string;
+  /** Manual import: you said which season and episodes the file is, so the name isn't read for them. */
+  episodes?: { season: number; episodes: number[] };
+  /** Manual import of a file already in a library folder: move it (same disk) instead of linking a second copy. */
+  move?: boolean;
 }
 
 /** Swappable for tests: link, then copy if linking across disks isn't possible. */
@@ -101,6 +108,13 @@ async function setAside(file: string, root: string): Promise<string | null> {
   await fs.mkdir(path.dirname(dest), { recursive: true });
   const free = (await exists(dest)) ? `${dest}.${Date.now()}` : dest;
   await fs.rename(file, free);
+  // Its subtitles go with it, so they aren't left matching nothing.
+  if (!SUBTITLE.test(file)) {
+    const stem = path.basename(file, path.extname(file));
+    for (const e of await fs.readdir(path.dirname(file)).catch(() => [] as string[])) {
+      if (SUBTITLE.test(e) && e.startsWith(`${stem}.`)) await setAside(path.join(path.dirname(file), e), root).catch(() => null);
+    }
+  }
   return free;
 }
 
@@ -124,7 +138,8 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
   if (!(await exists(first))) throw new ImportError(cantSee(first, d.savePath, settings.folderPairs.length > 0));
 
   const fromName = parseRelease(d.title);
-  type Plan = { src: string; size: number; dest: string; season: number | null; episodes: number[] };
+  type Plan = { src: string; size: number; dest: string; season: number | null; episodes: number[]; subs: string[] };
+  const subsOf = (f: QbitFile) => subtitlesInList(f.name, files, picked.length).map((n) => source({ name: n, size: 0 }));
   const plans: Plan[] = [];
   let root: string;
   if (d.kind === 'movie') {
@@ -138,7 +153,7 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
       Title: m.title, Year: m.year, TmdbId: m.tmdbId, ImdbId: m.imdbId, Quality: q.quality === 'Unknown' ? null : q.quality, HDR: hdrLabel(q.hdr),
       Edition: (p.editions[0] ?? fromName.editions[0]) || null, Group: p.group ?? fromName.group,
     });
-    plans.push({ src: source(f), size: f.size, dest: inFolder(rel + path.extname(f.name).toLowerCase(), root, m.path), season: null, episodes: [] });
+    plans.push({ src: source(f), size: f.size, dest: inFolder(rel + path.extname(f.name).toLowerCase(), root, m.path), season: null, episodes: [], subs: subsOf(f) });
   } else {
     const s = d.seriesId ? db.select().from(series).where(eq(series.id, d.seriesId)).get() : undefined;
     if (!s) throw new ImportError('This show isn’t in your library any more.');
@@ -146,8 +161,9 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
     const wantedEps = d.episodes ? (JSON.parse(d.episodes) as number[]) : null;
     for (const f of picked) {
       const p = parseRelease(path.basename(f.name));
-      const season = p.season ?? (p.episodes.length ? d.season : null);
-      if (season === null || season !== d.season || !p.episodes.length) continue;
+      if (from.episodes) Object.assign(p, { season: from.episodes.season, episodes: from.episodes.episodes });
+      const season = from.episodes ? from.episodes.season : (p.season ?? (p.episodes.length ? d.season : null));
+      if (season === null || (!from.episodes && season !== d.season) || !p.episodes.length) continue;
       if (wantedEps && !p.episodes.some((e) => wantedEps.includes(e))) continue;
       const q = p.resolution ? p : fromName;
       const titles = p.episodes.map((e) => db.select({ title: episodes.title }).from(episodes).where(and(eq(episodes.seriesId, s.id), eq(episodes.season, season), eq(episodes.episode, e))).get()?.title).filter(Boolean);
@@ -156,7 +172,7 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
         'Episode Title': titles.length === 1 ? titles[0] : titles.length ? titles.join(' + ') : null,
         Quality: q.quality === 'Unknown' ? null : q.quality, HDR: hdrLabel(q.hdr), Group: p.group ?? fromName.group,
       });
-      plans.push({ src: source(f), size: f.size, dest: inFolder(rel + path.extname(f.name).toLowerCase(), root, s.path), season, episodes: p.episodes });
+      plans.push({ src: source(f), size: f.size, dest: inFolder(rel + path.extname(f.name).toLowerCase(), root, s.path), season, episodes: p.episodes, subs: subsOf(f) });
     }
     if (!plans.length) {
       const which = wantedEps ? `S${String(d.season).padStart(2, '0')}E${wantedEps.map((e) => String(e).padStart(2, '0')).join('-E')}` : `season ${d.season}`;
@@ -168,12 +184,13 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
   const old = db
     .select()
     .from(mediaFiles)
-    .where(d.kind === 'movie' ? eq(mediaFiles.movieId, d.movieId!) : and(eq(mediaFiles.seriesId, d.seriesId!), eq(mediaFiles.season, d.season ?? -1)))
+    .where(d.kind === 'movie' ? eq(mediaFiles.movieId, d.movieId!) : and(eq(mediaFiles.seriesId, d.seriesId!), eq(mediaFiles.season, plans[0]!.season ?? d.season ?? -1)))
     .all()
     .filter((f) => d.kind === 'movie' || plans.some((p) => (JSON.parse(f.episodes ?? '[]') as number[]).some((e) => p.episodes.includes(e))));
 
   const done: string[] = [];
   const replaced: string[] = [];
+  const extras: string[] = [];
   let copied = false;
   for (const p of plans) {
     const dir = path.dirname(p.dest);
@@ -182,6 +199,7 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
       const [a, b] = await Promise.all([fs.stat(p.src), fs.stat(p.dest).catch(() => null)]);
       if (b && a.ino === b.ino && a.dev === b.dev) {
         done.push(p.dest); // already linked, e.g. a retry
+        extras.push(...(await bringSubtitles(p.src, p.subs, p.dest, root, ops, !!from.move)));
         continue;
       }
       // Before touching anything: a copy needs room.
@@ -194,16 +212,21 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
         const moved = await setAside(p.dest, root);
         if (moved) replaced.push(p.dest);
       }
-      try {
-        await ops.link(p.src, p.dest);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
-        await ops.copy(p.src, p.dest);
-        copied = true;
+      if (from.move) {
+        await fs.rename(p.src, p.dest);
+      } else {
+        try {
+          await ops.link(p.src, p.dest);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
+          await ops.copy(p.src, p.dest);
+          copied = true;
+        }
       }
       const made = await fs.stat(p.dest);
       if (made.size !== a.size) throw new ImportError(`The library file came out a different size from the download (${made.size} vs ${a.size} bytes). Marquee tries again shortly.`);
       done.push(p.dest);
+      extras.push(...(await bringSubtitles(p.src, p.subs, p.dest, root, ops, !!from.move)));
     } catch (err) {
       if (err instanceof ImportError) throw err;
       throw new ImportError(why(err, dir));
@@ -232,5 +255,40 @@ export async function importDownload(db: Db, d: Download, files: QbitFile[], now
   const id = d.kind === 'movie' ? d.movieId! : d.seriesId!;
   const had = db.select({ path: table.path }).from(table).where(eq(table.id, id)).get();
   if (!had?.path) db.update(table).set({ path: top }).where(eq(table.id, id)).run();
-  return { paths: done, copied, replaced, unpacked: !!from.folder };
+  return { paths: done, copied, replaced, unpacked: !!from.folder, extras };
+}
+
+/**
+ * Links (or moves) a video's subtitles next to its new library file, named to
+ * match it with their language and "forced" tags kept. A subtitle that can't
+ * be brought along doesn't stop the video: it's only logged.
+ */
+async function bringSubtitles(video: string, subs: string[], dest: string, root: string, ops: FileOps, move: boolean): Promise<string[]> {
+  if (!subs.length) return [];
+  const out: string[] = [];
+  const named = extrasNames(subs, path.basename(video, path.extname(video)), path.basename(dest, path.extname(dest)));
+  for (const x of named) {
+    const to = path.join(path.dirname(dest), x.name);
+    try {
+      const [a, b] = await Promise.all([fs.stat(x.from), fs.stat(to).catch(() => null)]);
+      if (b && a.ino === b.ino && a.dev === b.dev) {
+        out.push(to);
+        continue;
+      }
+      if (b) await setAside(to, root);
+      if (move) await fs.rename(x.from, to);
+      else {
+        try {
+          await ops.link(x.from, to);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
+          await ops.copy(x.from, to);
+        }
+      }
+      out.push(to);
+    } catch (err) {
+      console.warn(`[import] couldn't bring the subtitle ${x.from} along: ${(err as Error).message}`);
+    }
+  }
+  return out;
 }
