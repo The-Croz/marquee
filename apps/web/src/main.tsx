@@ -1,3 +1,4 @@
+import { UnwatchedPage } from './components/WatchingTools';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router';
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'library/import', element: <RequireUser render={(s) => <AdminOnly status={s}><ManualImportPage /></AdminOnly>} /> },
+      { path: 'library/unwatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnwatchedPage /></AdminOnly>} /> },
       { path: 'library/left-out', element: <RequireUser render={(s) => <AdminOnly status={s}><LeftOutPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },

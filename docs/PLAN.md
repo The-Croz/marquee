@@ -329,7 +329,7 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 - Sideways rows line up with the page edge (scroll padding) and use the phone's 16px gutter; checked at 375px with no sideways scroll.
 - Tests: `test/title-page.test.ts` (scores, OMDb key, people, providers, when a movie is out), plus the searching state in `test/requests.test.ts`, cinema rules in `test/wanted.test.ts`, the scan memory in `test/library.test.ts`. Demo mode has a fake OMDb.
 
-## Replace everything 🔨 (gaps from the replacement audit)
+## Replace everything ✅ (gaps from the replacement audit)
 
 [`docs/design/replacement-audit-2026-11.md`](design/replacement-audit-2026-11.md) compares Radarr, Sonarr, Prowlarr, Seerr, Tautulli, WatchState, Profilarr and their helpers screen by screen, with Josh's decisions (2026-11-22). Seven rounds; **1 (backups, logs, Health page, disk space) and 2 (unpack .rar, Never pick list, one History page) come before Radarr and Sonarr are turned off.** Then library care (remove, rename with preview, manual import, subtitles along), getting titles in (show presets, collections, Plex watchlist and Trakt/IMDb/Letterboxd lists), profiles (Dictionarry as the default database with TRaSH kept, rule updates in the app, own rules, test a name), family (Something wrong?, webhook, iCal) and watching (sync on stop, resume points, Tautulli import).
 
@@ -383,6 +383,15 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 - **Webhook channel** (R9): Settings → Notifications → Add → Webhook: one JSON POST per message (`event`, `title`, `body`, `link`, `image`, `vars`, `sentAt`), with an optional secret sent as `Authorization: Bearer`. Works for shared and personal channels.
 - **Calendar link** (S13): Calendar → In your calendar app: a private iCal link per person (`/api/calendar/ical/<secret>.ics`, 30 days back to 120 ahead, all-day events), New link turns the old one off; kids get kids' titles only.
 - Migration 29 (rebuilds `notification_channels` for the webhook kind). Tests: `test/family.test.ts`.
+
+### Round 7: Watching ✅
+
+- **Sync right after a play stops** (W3): Activity's live line to Plex and Jellyfin calls back when a play of 30 seconds or more ends, and watched sync runs about 20 seconds later (plays ending close together share one run), as well as every 30 minutes. No webhook receiver needed.
+- **Resume points** (W1): watched sync now also copies where someone stopped, for titles neither server counts as watched: the server played more recently passes its place on (differences under a minute are ignored). On by default, **Resume points too** on Settings → Watched sync. Plex: `/:/progress`; Jellyfin: `POST /Users/{id}/Items/{item}/UserData` (PlaybackPositionTicks).
+- **Why it's converting** (W12): Plex's decisions (subtitles drawn on, picture or sound converted from → to) and Jellyfin's TranscodeReasons, in plain words, on Activity and in the **A stream is being converted** notification (`{{reason}}`).
+- **Not watched** (W16, `activity/unwatched.ts`, Library → More → Not watched): titles with a file nobody has played, or not in a year, from the plays Marquee copies (and Tautulli's, if brought in). Read-only.
+- **Tautulli's history** (W5, `activity/tautulli.ts`, Watching → Bring in Tautulli's history): reads its API (`get_history`, 1,000 at a time) once; plays Plex already gave Marquee (same person and item within six hours) aren't added twice; each import can be undone (migration 30, `plays.import_batch`). The key is used for that import and not kept.
+- Tests: `test/watching.test.ts`, plus `test/watchSync.test.ts` for the servers' resume fields. Demo mode brings in two old plays from any Tautulli address.
 
 ## Milestone 7: iPhone app ⬜
 

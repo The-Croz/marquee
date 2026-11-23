@@ -1,5 +1,6 @@
 import type { DictionarryFetch } from './releases/dictionarry.js';
 import type { ListFetch } from './library/lists.js';
+import type { TautulliFetch } from './activity/tautulli.js';
 import type { Context } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Config } from './config.js';
@@ -55,6 +56,8 @@ export interface Clients extends SourceClients {
   dictionarry?: DictionarryFetch;
   /** Reads list pages and APIs (Plex watchlists, Trakt, IMDb, Letterboxd). Tests fake it; left out, Marquee uses fetch. */
   listFetch?: ListFetch;
+  /** Reads Tautulli's API for the one-time history import. Tests fake it; left out, Marquee uses fetch. */
+  tautulliFetch?: TautulliFetch;
 }
 
 export interface Deps {

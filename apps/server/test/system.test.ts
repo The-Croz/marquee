@@ -260,15 +260,8 @@ describe('free space', () => {
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 const UNDO_NEWEST = {
-  sql: [
-    'DROP TABLE issue_comments',
-    'DROP TABLE issues',
-    'DROP INDEX users_calendar_token',
-    'ALTER TABLE users DROP COLUMN calendar_token',
-    'ALTER TABLE users DROP COLUMN weekly_limit',
-    'ALTER TABLE users DROP COLUMN skip_approval',
-  ],
-  tables: ['issues', 'issue_comments'],
+  sql: ['DROP INDEX plays_import_batch', 'ALTER TABLE plays DROP COLUMN import_batch'],
+  tables: ['plays'],
 };
 
 describe('backups', () => {

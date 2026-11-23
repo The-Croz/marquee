@@ -10,7 +10,7 @@ const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeri
 const ticks = (n: number) => `${n} ${n === 1 ? 'tick' : 'ticks'}`;
 
 function lastLine(r: WatchSyncRun): string {
-  const base = r.ticked ? `Last sync ${when(r.at)}: added ${ticks(r.ticked)}.` : `Last sync ${when(r.at)}: everything already matched.`;
+  const base = `${r.ticked ? `Last sync ${when(r.at)}: added ${ticks(r.ticked)}.` : `Last sync ${when(r.at)}: everything already matched.`}${r.resumed ? ` Moved ${r.resumed} ${r.resumed === 1 ? 'resume point' : 'resume points'} across.` : ''}`;
   return r.failed ? `${base} ${r.failed} couldn’t be added and will be tried again next time.` : base;
 }
 
@@ -65,7 +65,7 @@ export function WatchSyncPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className={s.enabled ? 'text-teal-hi' : 'text-muted'}>{s.enabled ? 'On · syncs every 30 minutes' : 'Off'}</span>
+          <span className={s.enabled ? 'text-teal-hi' : 'text-muted'}>{s.enabled ? 'On · syncs when a play stops, and every 30 minutes' : 'Off'}</span>
           <Button type="button" variant={s.enabled ? 'ghost' : 'primary'} disabled={busy !== null} onClick={() => toggle(!s.enabled)}>
             {s.enabled ? 'Pause' : 'Turn on'}
           </Button>
@@ -73,6 +73,19 @@ export function WatchSyncPage() {
             {busy === 'check' ? 'Checking…' : 'See what would change'}
           </Button>
         </div>
+        <label className="flex min-h-11 items-start gap-3 text-sm text-soft">
+          <input
+            type="checkbox"
+            checked={s.resume}
+            disabled={busy !== null}
+            onChange={(e) => act('toggle', async () => void (await api('/watch-sync/enabled', { method: 'PUT', body: { resume: e.target.checked } })))}
+            className="mt-0.5 size-5 accent-amber"
+          />
+          <span>
+            Resume points too
+            <span className="block text-label text-muted">Stop at 40 minutes on Plex and carry on from there on Jellyfin. The server played more recently wins.</span>
+          </span>
+        </label>
         {!s.enabled && !s.last && <Notice>Start with “See what would change”. The first sync can add a lot of ticks if the servers have drifted apart.</Notice>}
         {s.last && (s.last.problem ? <Notice tone="error">{s.last.problem}</Notice> : <p className="m-0 text-sm text-soft">{lastLine(s.last)}</p>)}
         {error && <Notice tone="error">{error}</Notice>}

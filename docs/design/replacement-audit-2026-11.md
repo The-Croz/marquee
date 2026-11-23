@@ -73,22 +73,22 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| W1 | **Resume points sync** (stopped at 40 min on Plex → continue on Jellyfin) | WatchState | ❌ ticks only | Ask | ✅ Add |
+| W1 | **Resume points sync** (stopped at 40 min on Plex → continue on Jellyfin) | WatchState | ✅ Resume points synced with watched ticks (newer place wins; can be switched off) | Ask | ✅ **Done** (round 7) |
 | W2 | **Unwatched sync** (untick on one → untick on both) | WatchState | ❌ adds only, on purpose | Skip (safer) | ⛔ Skip *(suggested)* |
-| W3 | Real-time sync from server webhooks instead of every 30 min | WatchState | ❌ | Later (live line from M6 could trigger it) | ✅ Add: sync right after a play stops, using the live line Activity already keeps to Plex and Jellyfin (same signal WatchState's webhooks give, no Plex Pass needed); a webhook receiver only if the live line misses things |
+| W3 | Real-time sync from server webhooks instead of every 30 min | WatchState | ✅ Watched sync runs ~20 s after a play stops, from Activity’s live line | Later (live line from M6 could trigger it) | ✅ **Done** (round 7) |
 | W4 | Backup / export of watch state | WatchState | 🟡 log + undo | Later (covered by app backups, S1) | ⏸ Later *(suggested)* |
-| W5 | **Import Tautulli's old history** | Tautulli | ❌ (left out on purpose) | Ask (Plex's own history is copied; Tautulli has more detail) | ✅ Add |
+| W5 | **Import Tautulli's old history** | Tautulli | ✅ Watching → Bring in Tautulli’s history (its API), skips plays already here, Undo | Ask (Plex's own history is copied; Tautulli has more detail) | ✅ **Done** (round 7) |
 | W6 | Libraries page: media info tables (bitrate, codec, audio) per title | Tautulli | 🟡 library size by picture size and format | Later (depends on L5) | ⏸ Later (after L5) |
 | W7 | Graphs: source vs stream resolution, by platform, by month | Tautulli | 🟡 most of it on Activity | Skip | ⛔ Skip *(suggested)* |
 | W8 | **Newsletters** (weekly "new on the server" email) | Tautulli | ❌ left out | Ask (could be a weekly ntfy/Pushover digest instead) | ⛔ Skip |
 | W9 | Concurrent stream / bandwidth warnings, buffering warnings | Tautulli | 🟡 "most at once"; no alert | Later | ⏸ Later *(suggested)* |
 | W10 | Plex/Jellyfin **server update available** notice | Tautulli | ❌ | Skip | ⛔ Skip *(suggested)* |
 | W11 | Automatic stream limits per person | Tautulli (scripts) | ❌ (listed) | Skip | ⛔ Skip *(suggested)* |
-| W12 | **Why it's converting** (Plex/Jellyfin's transcode reason: subtitle burn-in, audio codec, bandwidth) on a stream | Tautulli | 🟡 converted vs direct only | Ask | ✅ Add |
+| W12 | **Why it's converting** (Plex/Jellyfin's transcode reason: subtitle burn-in, audio codec, bandwidth) on a stream | Tautulli | ✅ Why it’s converting, from Plex’s decisions and Jellyfin’s reasons | Ask | ✅ **Done** (round 7) |
 | W13 | Notification **conditions** (only when this person, this library, only 4K converting…) | Tautulli | 🟡 per-event on/off per channel | Ask | ⛔ Skip |
 | W14 | Per-library stats page (plays, most watched, never watched, last played) | Tautulli | 🟡 Activity tops are server-wide | Ask | ⛔ Skip |
 | W15 | Per person: last seen, devices and apps used, totals by period | Tautulli | 🟡 People pages have recent streams and tops | Later *(suggested)* | ⏸ Later *(suggested)* |
-| W16 | **Never watched** / not played in a year list (helps decide what to clear by hand) | Tautulli | ❌ | Ask | ✅ Add (read-only list; no deleting, per the no-automatic-deletion rule) |
+| W16 | **Never watched** / not played in a year list (helps decide what to clear by hand) | Tautulli | ✅ Library → More → Not watched (never, or not in a year); read-only | Ask | ✅ **Done** (round 7) |
 | W17 | Export metadata/history to CSV | Tautulli | ❌ | Skip *(suggested)* | ⛔ Skip *(suggested)* |
 
 ## 6. Profiles (Profilarr)
@@ -164,7 +164,7 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - R11 Show what's left of a weekly limit before asking
    - R9 Generic webhook channel (JSON POST)
    - S13 iCal link per person (kids get kids' titles)
-7. **Watching**
+7. ✅ **Watching**. Done: see PLAN.md.
    - W3 Sync watched state right after a play stops, from the live line Activity already keeps (what WatchState's webhooks did)
    - W1 Resume points sync between Plex and Jellyfin
    - W12 Why a stream is converting (Plex/Jellyfin's reason)

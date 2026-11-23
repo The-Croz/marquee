@@ -691,6 +691,11 @@ export const migrations: string[] = [
     created_at INTEGER NOT NULL
   );
   `,
+  // 30: watching: plays brought in from Tautulli, so an import can be undone
+  `
+  ALTER TABLE plays ADD COLUMN import_batch INTEGER;
+  CREATE INDEX plays_import_batch ON plays (import_batch);
+  `,
 ];
 
 export function openDb(file: string): Db {

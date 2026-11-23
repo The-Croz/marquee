@@ -23,7 +23,7 @@ import { ActivityMonitor } from './activity/live.js';
 import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
 import { announceVersion } from './notify/updated.js';
-import { runSync, syncEnabled } from './watchsync/sync.js';
+import { runSync, syncAfterPlays, syncEnabled } from './watchsync/sync.js';
 import { once } from './routes/watchSync.js';
 import { VERSION } from './version.js';
 import { Jobs } from './system/jobs.js';
@@ -78,7 +78,9 @@ const sources = new SourceService(db, clients, Date.now, undefined, bundledSolve
 const appScanner = new LibraryScanner(db);
 const jobs = new Jobs(db, Date.now);
 // Follows Plex and Jellyfin: their live lines, plus a quick look while anything is playing.
-const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }) });
+// Watched sync runs shortly after a play stops (the live line tells us), as well as every 30 minutes.
+const syncSoon = syncAfterPlays(() => once(() => runSync({ db, clients, now: Date.now })), () => syncEnabled(db));
+const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }), onStopped: () => syncSoon() });
 activity.start();
 const app = createApp({
   activity,

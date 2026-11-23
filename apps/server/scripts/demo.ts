@@ -287,6 +287,11 @@ const clients = {
   unpacker: Object.assign(new FakeUnpacker(), { delayMs: 8000 }),
   // Rule updates: GitHub "has" the made-up newer Dictionarry waiting below.
   dictionarry: { latest: async () => DEMO_DICT_SHA, tarball: async () => { throw new Error('demo mode has no GitHub'); } },
+  // Tautulli: any address and key bring in two old plays.
+  tautulliFetch: async () => ({ status: 200, text: JSON.stringify({ response: { result: 'success', data: { data: [
+    { stopped: Math.floor(Date.now() / 1000) - 400 * 86_400, user_id: 1, friendly_name: 'Josh', media_type: 'movie', title: 'The Matrix', year: 1999, rating_key: 9001, guid: 'tmdb://603' },
+    { stopped: Math.floor(Date.now() / 1000) - 90 * 86_400, user_id: 2, friendly_name: 'Jessie', media_type: 'movie', title: 'Up', year: 2009, rating_key: 9002, guid: 'tmdb://14160' },
+  ] } } }) }),
   // Lists: any Letterboxd list holds two Pixar films; any IMDb list holds The Matrix; Plex watchlists hold Wicked.
   listFetch: async (url: string) => {
     if (url.startsWith('https://discover.provider.plex.tv/library/sections/watchlist')) return { status: 200, text: JSON.stringify({ MediaContainer: { totalSize: 1, Metadata: [{ type: 'movie', title: 'Wicked', Guid: [{ id: 'tmdb://402431' }] }] } }) };

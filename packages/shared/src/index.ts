@@ -1494,6 +1494,8 @@ export interface NowPlayingView {
   /** 0 to 1 */
   progress: number;
   transcoding: boolean;
+  /** Why it's being converted, in plain words (from Plex or Jellyfin); null when it isn't or the server doesn't say. */
+  convertReason?: string | null;
   /** The title's page in Marquee, if the library has it. */
   href: string | null;
 }
@@ -1596,12 +1598,16 @@ export interface WatchSyncPlan {
 export interface WatchSyncRun {
   at: number;
   ticked: number;
+  /** Resume points copied to the other server. */
+  resumed?: number;
   failed: number;
   problem: string | null;
 }
 
 export interface WatchSyncStatus {
   enabled: boolean;
+  /** Resume points are synced too (where someone stopped). */
+  resume: boolean;
   last: WatchSyncRun | null;
   runs: { at: number; ticks: number; undone: number; items: { person: string; title: string; server: string }[] }[];
 }
@@ -1914,4 +1920,19 @@ export interface IssueView {
   updatedAt: number;
   fixedAt: number | null;
   comments: { id: number; by: string; byId: number | null; body: string; createdAt: number }[];
+}
+
+// ---------------------------------------------------------------- Watching: never watched, Tautulli
+
+/** Titles in the library nobody has watched, or not in a year. Read-only. */
+export interface UnwatchedView {
+  kind: 'movie' | 'series';
+  since: 'never' | 'year';
+  items: { id: number; title: string; year: number | null; posterPath: string | null; addedAt: number; lastPlayed: number | null; plays: number; href: string }[];
+  /** Why the list may be misleading (no plays seen yet), or null. */
+  note: string | null;
+}
+
+export interface TautulliImportView {
+  imports: { at: number; added: number; skipped: number; seen: number; undoneAt: number | null }[];
 }

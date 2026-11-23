@@ -335,6 +335,9 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <Link to="/library/left-out" role="menuitem" className={menuItemClass}>
               Left out of scans
             </Link>
+            <Link to="/library/unwatched" role="menuitem" className={menuItemClass}>
+              Not watched
+            </Link>
             <Link to="/calendar" role="menuitem" className={menuItemClass}>
               What’s coming out
             </Link>

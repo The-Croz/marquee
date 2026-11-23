@@ -627,6 +627,8 @@ export const plays = sqliteTable(
     year: integer('year'),
     tmdbId: integer('tmdb_id'),
     playedAt: integer('played_at').notNull(),
+    /** Set on plays brought in from Tautulli: which import, so it can be undone. */
+    importBatch: integer('import_batch'),
   },
   (t) => [uniqueIndex('plays_once').on(t.server, t.serverUserId, t.itemKey, t.playedAt)],
 );

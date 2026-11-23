@@ -25,6 +25,7 @@ const stream = [
   v('app', 'App', 'Plex for Roku'),
   v('quality', 'Picture size', '1080p'),
   v('converting', 'Being converted (yes or blank)', ''),
+  v('reason', 'Why it’s being converted', 'The subtitles are drawn onto the picture (this device can’t show them itself).'),
   v('server', 'Plex or Jellyfin', 'Plex'),
   poster,
 ];
@@ -116,7 +117,7 @@ export const EVENTS: NotificationEventInfo[] = [
     vars: [...stream, v('minutes', 'Minutes watched', '42'), v('percent', 'How far through (%)', '87')],
     title: '{{user}} finished watching {{title}}', body: '{{#subtitle}}{{subtitle}}: {{/subtitle}}watched {{minutes}} min ({{percent}}% through) on {{device}}.', image: '{{poster}}',
   },
-  { key: 'stream_transcoding', group: 'Watching', audience: 'admins', label: 'A stream is being converted', description: 'The server is re-encoding video for a device, which uses extra power.', quiet: true, vars: stream, title: '{{title}} is being converted', body: '{{user}} on {{device}} (the server is converting it). Converting uses extra power on the server.', image: '' },
+  { key: 'stream_transcoding', group: 'Watching', audience: 'admins', label: 'A stream is being converted', description: 'The server is re-encoding video for a device, which uses extra power.', quiet: true, vars: stream, title: '{{title}} is being converted', body: '{{user}} on {{device}}. {{#reason}}{{reason}} {{/reason}}Converting uses extra power on the server.', image: '' },
   { key: 'stream_paused', group: 'Watching', audience: 'admins', label: 'Someone paused', description: 'A stream was paused.', quiet: true, vars: stream, title: '{{user}} paused {{title}}', body: streamBody, image: '' },
   { key: 'stream_resumed', group: 'Watching', audience: 'admins', label: 'Someone resumed', description: 'A paused stream carried on.', quiet: true, vars: stream, title: '{{user}} resumed {{title}}', body: streamBody, image: '' },
 

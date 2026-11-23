@@ -110,8 +110,8 @@ describe('reading and ticking on the real servers', () => {
     expect((await plex.watchedUsers()).map((p) => p.id)).toEqual(['1', '11']);
     const lib = await plex.watchedLibrary('11');
     expect(lib).toEqual([
-      { ref: '5', keys: ['m:tmdb:603', 'm:imdb:tt0133093'], watched: true, title: 'The Matrix (1999)' },
-      { ref: '71', keys: ['e:tvdb:371980:1:1'], watched: false, title: 'Severance S01E01' },
+      { ref: '5', keys: ['m:tmdb:603', 'm:imdb:tt0133093'], watched: true, title: 'The Matrix (1999)', position: 0, lastPlayed: 0 },
+      { ref: '71', keys: ['e:tvdb:371980:1:1'], watched: false, title: 'Severance S01E01', position: 0, lastPlayed: 0 },
     ]);
     await plex.setWatched('11', '71', true);
     const tick = calls.at(-1)!;
@@ -123,10 +123,12 @@ describe('reading and ticking on the real servers', () => {
   it('Jellyfin: reads with ids and ticks or unticks for the person', async () => {
     const { calls, f } = recorder({
       'IncludeItemTypes=Series': { Items: [{ Id: 's1', Type: 'Series', Name: 'Severance', ProviderIds: { Tvdb: '371980', Tmdb: '95396' } }] },
-      'IncludeItemTypes=Movie,Episode': { Items: [{ Id: 'e1', Type: 'Episode', Name: 'Pilot', SeriesName: 'Severance', SeriesId: 's1', ParentIndexNumber: 1, IndexNumber: 1, UserData: { Played: true } }] },
+      'IncludeItemTypes=Movie,Episode': { Items: [{ Id: 'e1', Type: 'Episode', Name: 'Pilot', SeriesName: 'Severance', SeriesId: 's1', ParentIndexNumber: 1, IndexNumber: 1, UserData: { Played: true, PlaybackPositionTicks: 25_000_000_000, LastPlayedDate: '2026-11-20T10:00:00Z' } }] },
     });
     const jf = new JellyfinClient('http://jf:8096', 'KEY', f);
-    expect(await jf.watchedLibrary('u1')).toEqual([{ ref: 'e1', keys: ['e:tvdb:371980:1:1', 'e:tmdb:95396:1:1'], watched: true, title: 'Severance S01E01' }]);
+    expect(await jf.watchedLibrary('u1')).toEqual([{ ref: 'e1', keys: ['e:tvdb:371980:1:1', 'e:tmdb:95396:1:1'], watched: true, title: 'Severance S01E01', position: 2_500_000, lastPlayed: Date.parse('2026-11-20T10:00:00Z') }]);
+    await jf.setPosition('u1', 'e1', 60_000);
+    expect(calls.at(-1)!.url).toBe('http://jf:8096/Users/u1/Items/e1/UserData');
     await jf.setWatched('u1', 'e1', false);
     expect(calls.at(-1)).toMatchObject({ url: 'http://jf:8096/Users/u1/PlayedItems/e1', method: 'DELETE' });
   });
