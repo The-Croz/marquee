@@ -19,6 +19,22 @@ import type { ScanSources } from '../library/scanner.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Deps, type Env } from '../http.js';
 import { ProfileService } from '../releases/profiles.js';
 import { useRules } from '../releases/choose.js';
+import { notGoodEnough, wantedNothingYet } from '../library/filters.js';
+
+/** Keeps the cards a filter asks for. */
+function byFilter(c: Ctx, kind: 'movie' | 'series', filter: z.infer<typeof listQuery>['filter'], cards: LibraryCard[]): LibraryCard[] {
+  const { db, now } = c.get('deps');
+  if (filter === 'have' || filter === 'missing') return cards.filter((card) => (filter === 'have') === card.complete);
+  if (filter === 'wanted_missing') {
+    const ids = wantedNothingYet(db, kind, now());
+    return cards.filter((card) => ids.has(card.id));
+  }
+  if (filter === 'not_good_enough') {
+    const ids = notGoodEnough(db, kind, now);
+    return cards.filter((card) => ids.has(card.id));
+  }
+  return cards;
+}
 
 // Ratings a kid profile can see. Unrated titles are hidden from kids.
 // (Milestone 5 makes this adjustable per profile.)
@@ -181,7 +197,8 @@ libraryRoutes.post('/add', async (c) => {
 
 const listQuery = z.object({
   q: z.string().trim().max(200).optional(),
-  filter: z.enum(['all', 'have', 'missing']).default('all'),
+  /** wanted_missing: "Wanted, nothing yet". not_good_enough: below the profile's "good enough". */
+  filter: z.enum(['all', 'have', 'missing', 'wanted_missing', 'not_good_enough']).default('all'),
   sort: z.enum(['added', 'title', 'year']).default('added'),
   wanted: z.enum(['yes', 'no']).optional(),
 });
@@ -229,9 +246,8 @@ movieRoutes.get('/', (c) => {
         addedAt: m.addedAt,
         wanted: m.monitored,
       };
-    })
-    .filter((card) => filter === 'all' || (filter === 'have') === card.complete);
-  return c.json({ items: cards });
+    });
+  return c.json({ items: byFilter(c, 'movie', filter, cards) });
 });
 
 movieRoutes.get('/:id{[0-9]+}', (c) => {
@@ -332,9 +348,8 @@ showRoutes.get('/', (c) => {
         addedAt: s.addedAt,
         wanted: s.monitored,
       };
-    })
-    .filter((card) => filter === 'all' || (filter === 'have') === card.complete);
-  return c.json({ items: cards });
+    });
+  return c.json({ items: byFilter(c, 'series', filter, cards) });
 });
 
 showRoutes.get('/:id{[0-9]+}', (c) => {

@@ -14,24 +14,24 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| L1 | **Remove a title** from Marquee (with or without its files, optionally "don't add it back on scan") | Radarr, Sonarr | ❌ no remove at all | Add (remove-from-Marquee only; deleting files behind a confirm, per "no automatic deletion") | ✅ Add *(suggested)* |
-| L2 | **Rename existing files** to Marquee's naming, with a preview first | Radarr, Sonarr | ❌ only new imports get clean names | Ask | ✅ Add, preview first |
-| L3 | **Manual import**: point at a folder of finished downloads (or one that failed to import) and say what each file is | Radarr, Sonarr | 🟡 "Try again" on failed imports; no pick-it-yourself | Add | ✅ Add *(suggested)* |
+| L1 | **Remove a title** from Marquee (with or without its files, optionally "don't add it back on scan") | Radarr, Sonarr | ✅ More → Remove from Marquee; delete files behind a confirm naming them; Left out of scans with undo | Add | ✅ **Done** (round 3) |
+| L2 | **Rename existing files** to Marquee's naming, with a preview first | Radarr, Sonarr | ✅ Rename files, per title and whole library, preview, undo | Ask | ✅ **Done** (round 3) |
+| L3 | **Manual import**: point at a folder of finished downloads (or one that failed to import) and say what each file is | Radarr, Sonarr | ✅ Library → More → Put files in your library | Add | ✅ **Done** (round 3) |
 | L4 | **Edit a file's details** (quality, edition) when the name is wrong | Radarr, Sonarr | ❌ | Later | ⏸ Later *(suggested)* |
 | L5 | **Media info** from the file itself (codec, audio channels, audio/subtitle languages, HDR from the stream, real runtime) | Radarr, Sonarr | ❌ quality is from the name only | Ask (needs ffprobe in the image) | ⏸ Later |
-| L6 | **Refresh one title** from TMDB on demand | Radarr, Sonarr | 🟡 automatic refresh only (listed as later polish in M1) | Add | ✅ Add *(suggested)* |
+| L6 | **Refresh one title** from TMDB on demand | Radarr, Sonarr | ✅ More → Refresh from TMDB | Add | ✅ **Done** (round 3) |
 | L7 | **Movie collections** (see a collection, want the whole thing, auto-add new films in it) | Radarr, Seerr | ❌ | Ask | ✅ Add |
 | L8 | **Show monitoring presets** when adding: all, future episodes only, missing only, first season, latest season, none; and "want new seasons when they appear" | Sonarr | 🟡 per-season/episode ticks by hand; new seasons follow the show | Add (at least "future only" and "latest season") | ✅ Add *(suggested)* |
-| L9 | **Wanted → Missing / Not good enough yet** lists (everything wanted without a file, everything below "good enough") with bulk search | Radarr, Sonarr | 🟡 Library has a Wanted filter; no "below good enough" view | Add (as Library filters, not new pages) | ✅ Add *(suggested)* |
+| L9 | **Wanted → Missing / Not good enough yet** lists (everything wanted without a file, everything below "good enough") with bulk search | Radarr, Sonarr | ✅ Library filters with Look for these | Add | ✅ **Done** (round 3) |
 | L10 | **Multiple library folders** per kind (e.g. a second disk, or a separate Kids folder) and pick one per title | Radarr, Sonarr | 🟡 one movie folder, one TV folder | Ask | ⛔ Skip: one of each |
 | L11 | **Move a title** to another folder | Radarr, Sonarr | ❌ | Later (only matters with L10) | ⛔ Skip |
 | L12 | **Tags** (label titles, Sources, notifications; filter by them) | all arrs | ❌ | Skip (profile rules cover what tags did) | ⛔ Skip *(suggested)* |
-| L13 | **Alternate titles / original-language titles** used when matching copies | Radarr, Sonarr | 🟡 TMDB title, original title and ids; no alternate titles (e.g. "La Casa de Papel") | Add if real searches miss | ✅ Add *(suggested)* |
+| L13 | **Alternate titles / original-language titles** used when matching copies | Radarr, Sonarr | 🟡 TMDB title, original title and ids; no alternate titles (e.g. "La Casa de Papel") | Add if real searches miss | ⛔ Skip for now: no name in `test/fixtures` misses for want of one (only other shows, or dubbed copies with the English title in brackets) |
 | L14 | **Daily shows** (talk shows named by date, not SxxEyy) | Sonarr | ❓ parser handles SxxEyy; date-named copies untested | Ask (do you keep any?) | ⛔ Skip: no daily shows |
 | L15 | **Scene numbering** (XEM: shows where TVDB and release names number episodes differently) | Sonarr | ❌ | Skip unless a real show breaks | ⛔ Skip *(suggested)* |
-| L16 | **Extra files** next to the movie: subtitles (.srt), .nfo — import them with the video | Radarr, Sonarr | ❌ only the video is linked | Add (subtitles at least) | ✅ Add *(suggested)* |
+| L16 | **Extra files** next to the movie: subtitles (.srt), .nfo — import them with the video | Radarr, Sonarr | ✅ subtitles come along, renamed with language/forced tags | Add | ✅ **Done** (round 3) |
 | L17 | **Metadata files** written for Kodi/Emby (nfo, posters in the folder) | Radarr, Sonarr | ❌ | Skip (Plex/Jellyfin fetch their own) | ⛔ Skip *(suggested)* |
-| L18 | **Recycle bin** with cleanup after N days | Radarr, Sonarr | 🟡 `.marquee-replaced` kept forever | Ask (show its size and an "Empty" button?) | ✅ Add: show size + Empty button (confirm, never automatic) |
+| L18 | **Recycle bin** with cleanup after N days | Radarr, Sonarr | 🟡 `.marquee-replaced` kept forever | Ask (show its size and an "Empty" button?) | ✅ **Done** (round 3): Settings → Health → Replaced files |
 | L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ❌ | Ask (Plex watchlist → request is the big one) | ✅ Add: Plex watchlist, Trakt, IMDb, Letterboxd |
 | L20 | **Minimum free space** before importing; checks free space on the download disk | Radarr, Sonarr | 🟡 "disk full" error after the fact | Add (cheap) | ✅ **Done** (round 1) |
 | L21 | **Delay before grabbing** (wait N hours for a better copy, preferred protocol) | Radarr, Sonarr | ❌ HolyArrs idea "Held copies" noted for later | Later | ⏸ Later *(suggested)* |
@@ -140,7 +140,7 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - D3 Unpack `.rar` copies (Unpackerr's job), then import as usual; the unpacked file is the only one that isn't a hardlink, and the row says so
    - D1 "Never pick" list on the title page and in one place, with Remove from list
    - D2 one **History** page across everything (sent, in the library, upgraded, replaced, removed), filterable
-3. **Library care**
+3. ✅ **Library care**. Done: see PLAN.md.
    - L1 Remove a title from Marquee; delete its files only behind a confirm; "don't add it back on scan"
    - L2 Rename files to Marquee's pattern, per title and whole library, preview first
    - L3 Manual import: pick a folder, say what each file is

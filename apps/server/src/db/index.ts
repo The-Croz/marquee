@@ -521,6 +521,52 @@ export const migrations: string[] = [
     FROM history_base WHERE import_error IS NOT NULL AND imported_at IS NULL;
   DROP VIEW history_base;
   `,
+  /* 26: library care: titles left out of scans, a record of every rename (for undo), and two more kinds of History */ `
+  CREATE TABLE left_out (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    path TEXT,
+    at INTEGER NOT NULL,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  CREATE UNIQUE INDEX left_out_title ON left_out (kind, tmdb_id);
+  CREATE TABLE renames (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    label TEXT NOT NULL,
+    moves TEXT NOT NULL,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    undone_at INTEGER
+  );
+  CREATE TABLE history_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    event TEXT NOT NULL CHECK (event IN ('sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed')),
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE SET NULL,
+    series_id INTEGER REFERENCES series (id) ON DELETE SET NULL,
+    season INTEGER,
+    episodes TEXT,
+    download_id INTEGER REFERENCES downloads (id) ON DELETE SET NULL,
+    copy TEXT,
+    title TEXT NOT NULL,
+    source TEXT,
+    quality TEXT,
+    size INTEGER,
+    detail TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  INSERT INTO history_new SELECT * FROM history;
+  DROP TABLE history;
+  ALTER TABLE history_new RENAME TO history;
+  CREATE INDEX history_at ON history (at);
+  CREATE INDEX history_movie ON history (movie_id);
+  CREATE INDEX history_series ON history (series_id);
+  `,
 ];
 
 export function openDb(file: string): Db {

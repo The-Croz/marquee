@@ -12,6 +12,8 @@
  * fake sites can be brought over too.
  * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
  * Copies whose name ends in -SCENE finish as .rar files, so Downloads shows them unpacking (a fake 7-Zip, a few seconds).
+ * Library → More: The Matrix has Radarr-style names to rename, and the downloads folder has two finished files
+ * to put in your library by hand. Settings → Health shows a set-aside file under Replaced files.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -63,6 +65,14 @@ file('tv/Severance (2022)/Season 01/Severance - S01E01 - Good News About Hell [W
 file('tv/Severance (2022)/Season 01/Severance - S01E02 - Half Loop [WEBDL-2160p][DV HDR10][h265].mkv', 5 * GB, 5);
 file('tv/Severance (2022)/Season 02/Severance - S02E01 - Hello, Ms. Cobel [WEBDL-2160p].mkv', 5 * GB, 1);
 file('tv/Bluey (2018) {tvdb-353546}/Season 1/Bluey.S01E01-E03.720p.WEBRip.mkv', GB, 10);
+// Library care: Radarr-style names with a subtitle and poster (Rename files), finished downloads that never
+// went in (Put files in your library), and a file an upgrade set aside (Settings → Health → Replaced files).
+file('movies/The Matrix (1999)/The Matrix (1999) Bluray-1080p.en.srt', 80_000, 400);
+file('movies/The Matrix (1999)/poster.jpg', 300_000, 400);
+file('torrents/Blade.Runner.2049.2017.1080p.BluRay.x264-GRP/movie.mkv', 9 * GB, 1);
+file('torrents/Blade.Runner.2049.2017.1080p.BluRay.x264-GRP/English.srt', 90_000, 1);
+file('torrents/Severance.S02E02.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb.mkv', 3 * GB, 1);
+file('movies/.marquee-replaced/Up (2009)/Up (2009) HDTV-720p.mkv', GB, 60);
 
 const config = { ...loadConfig(), dataDir: root, webDir: process.env.MARQUEE_WEB_DIR ?? path.resolve('../web/dist') };
 const db = openDb(':memory:');
@@ -72,6 +82,7 @@ const jobs = new Jobs(db, Date.now);
 setSetting(db, 'services.tmdb_api_key', 'good-key');
 setSetting(db, 'library.movies_root', path.join(root, 'movies'));
 setSetting(db, 'library.tv_root', path.join(root, 'tv'));
+setSetting(db, 'disk.downloads_folder', path.join(root, 'torrents'));
 const tmdb = new FakeTmdb();
 // Move Severance season 2 and a new Bluey episode around today, so the calendar has something on it.
 const dayOffset = (d: number) => new Date(Date.now() + d * 86400_000).toISOString().slice(0, 10);

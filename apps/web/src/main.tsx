@@ -25,6 +25,8 @@ import { LibraryHome, LibraryPage, LibraryRedirect } from './pages/Library';
 import { DiscoverTitlePage, MovieDetailPage, ShowDetailPage } from './pages/Title';
 import { TmdbPersonPage } from './pages/TmdbPerson';
 import { UnmatchedPage } from './pages/Unmatched';
+import { ManualImportPage } from './pages/ManualImport';
+import { LeftOutPage } from './pages/LeftOut';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
 import { BackupsPage, HealthPage, LogsPage } from './pages/System';
@@ -63,6 +65,8 @@ const router = createBrowserRouter([
       { path: 'shows', element: <LibraryRedirect to="shows" /> },
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
+      { path: 'library/import', element: <RequireUser render={(s) => <AdminOnly status={s}><ManualImportPage /></AdminOnly>} /> },
+      { path: 'library/left-out', element: <RequireUser render={(s) => <AdminOnly status={s}><LeftOutPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },

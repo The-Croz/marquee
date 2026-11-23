@@ -747,6 +747,9 @@ function ServicesAdmin() {
             </p>
             <NamePattern kind="movie" saved={data.naming.movie} fallback={data.naming.defaultMovie} />
             <NamePattern kind="tv" saved={data.naming.tv} fallback={data.naming.defaultTv} />
+            <p className="m-0 text-sm text-muted">
+              Files already in your library keep their names until you rename them: Library → More → Rename files to Marquee’s names shows every change first, and can be undone.
+            </p>
           </div>
         </details>
       </Card>

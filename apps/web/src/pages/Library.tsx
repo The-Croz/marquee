@@ -8,6 +8,7 @@ import { Button, Notice, Progress, cx } from '../components/ui';
 import { PageHeader, Tabs } from '../components/Page';
 import { Menu, MenuDivider, menuItemClass, useToast } from '../components/Overlay';
 import { refreshLibrary } from '../components/Wanted';
+import { RenameSheet } from '../components/LibraryCare';
 import { SearchBox } from './Search';
 
 const PHASE: Record<ScanStatusView['phase'], string> = {
@@ -137,6 +138,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const toast = useToast();
   const scan = useScan();
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
@@ -154,6 +156,20 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const total = items.reduce((n, i) => n + i.sizeBytes, 0);
   const title = kind === 'movie' ? 'Movies' : 'Shows';
   const wantedCount = items.filter((i) => i.wanted).length;
+
+  /** Look for these: Wanted, and searched for right now. */
+  async function lookFor() {
+    setBulkError(null);
+    try {
+      const r = await api<{ message: string }>(`${endpoint}/look-now`, { body: { ids: [...picked] } });
+      await refreshLibrary();
+      setPicked(new Set());
+      setSelecting(false);
+      toast({ message: r.message });
+    } catch (e) {
+      setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t start. Try again.');
+    }
+  }
 
   async function markPicked(wanted: boolean) {
     setBulkError(null);
@@ -223,11 +239,17 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           placeholder={`Filter ${title.toLowerCase()}`}
           className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
         />
-        <div role="group" aria-label="Show" className="flex gap-1.5">
+        <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
           {[
             ['all', 'All'],
             ['have', kind === 'movie' ? 'On disk' : 'Complete'],
             ['missing', kind === 'movie' ? 'Missing' : 'Incomplete'],
+            ...(isAdmin
+              ? [
+                  ['wanted_missing', kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing'],
+                  ['not_good_enough', 'Not good enough yet'],
+                ]
+              : []),
           ].map(([v, label]) => (
             <button
               key={v}
@@ -304,6 +326,15 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <Link to={`/search?kind=${kind}`} role="menuitem" className={menuItemClass}>
               {kind === 'movie' ? 'Add a movie' : 'Add a show'}
             </Link>
+            <Link to="/library/import" role="menuitem" className={menuItemClass}>
+              Put files in your library…
+            </Link>
+            <button type="button" role="menuitem" className={menuItemClass} onClick={() => setRenaming(true)}>
+              Rename files to Marquee’s names…
+            </button>
+            <Link to="/library/left-out" role="menuitem" className={menuItemClass}>
+              Left out of scans
+            </Link>
             <Link to="/calendar" role="menuitem" className={menuItemClass}>
               What’s coming out
             </Link>
@@ -317,13 +348,34 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           </Menu>
         )}
       </div>
+      {isAdmin && !selecting && items.length > 0 && (filter === 'wanted_missing' || filter === 'not_good_enough') && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3">
+          <span className="min-w-[200px] flex-1 text-sm text-soft">
+            {filter === 'wanted_missing'
+              ? kind === 'movie'
+                ? 'Wanted, with nothing on disk yet. Marquee looks for these by itself every few hours; Look for these searches now.'
+                : 'Wanted, with episodes that are out but not on disk. Look for these searches now.'
+              : 'You have these, but below their profile’s “good enough”, so Marquee would still take a better copy. Look for these searches now.'}
+          </span>
+          <Button
+            type="button"
+            className="h-11 px-3.5 text-sm"
+            onClick={() => {
+              setSelecting(true);
+              setPicked(new Set(items.map((i) => i.id)));
+            }}
+          >
+            Look for these…
+          </Button>
+        </div>
+      )}
       {selecting && (
         <div role="region" aria-label="Wanted for the ones you picked" className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber/60 bg-amber/8 px-4 py-3">
           <span className="text-sm text-soft">{picked.size} picked</span>
           <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => setPicked(new Set(items.map((i) => i.id)))}>
             Pick all {items.length} shown
           </Button>
-          <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(true)}>
+          <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => void lookFor()}>
             Look for these
           </Button>
           <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(false)}>
@@ -348,6 +400,8 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
               : `No ${title.toLowerCase()} yet.`}
         </Notice>
       )}
+
+      {isAdmin && <RenameSheet open={renaming} onClose={() => setRenaming(false)} kind={kind === 'movie' ? 'movie' : 'tv'} />}
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-[18px] gap-y-6">
         {items.map((i) => {

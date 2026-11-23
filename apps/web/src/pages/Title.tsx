@@ -8,6 +8,7 @@ import { DownloadList, useDownloads } from '../components/Downloads';
 import { NeverPickList, copyFacts, useNeverPick } from '../components/History';
 import { Row, Trailer, useRequest } from '../components/Discover';
 import { WantedToggle } from '../components/Wanted';
+import { TitleTools } from '../components/LibraryCare';
 import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/Poster';
 import { Sheet } from '../components/Overlay';
 import { Button, Notice, Progress, cx } from '../components/ui';
@@ -312,6 +313,7 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
           </button>
         )}
         {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
+        {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
       </div>
       {info?.note && !info.canRequest && !lib && info.card.state === 'none' && <p className="m-0 text-sm text-soft">{info.note}</p>}
       {message && <Notice tone="error">{message}</Notice>}

@@ -6,11 +6,12 @@ import { history, movies, series, users, type Download } from '../db/schema.js';
 /**
  * One History of what happened to every download: sent, in the library,
  * upgraded, replaced (turned down and swapped for another copy), removed,
- * imports that failed, and copies taken off Never pick. Rows are only ever
+ * imports that failed, and copies taken off Never pick. Also what you did to
+ * a title by hand: renamed its files, or removed it from Marquee. Rows are only ever
  * added. A title's own History and the History page both read from here.
  */
 
-export const HISTORY_EVENTS: HistoryEvent[] = ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again'];
+export const HISTORY_EVENTS: HistoryEvent[] = ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed'];
 
 const LOOK: Record<HistoryEvent, { label: string; tone: HistoryItem['tone'] }> = {
   sent: { label: 'Sent to qBittorrent', tone: 'busy' },
@@ -20,6 +21,8 @@ const LOOK: Record<HistoryEvent, { label: string; tone: HistoryItem['tone'] }> =
   removed: { label: 'Removed from qBittorrent', tone: 'quiet' },
   import_failed: { label: 'Couldn’t put it in your library', tone: 'bad' },
   allowed_again: { label: 'Taken off Never pick', tone: 'quiet' },
+  title_removed: { label: 'Removed from Marquee', tone: 'quiet' },
+  renamed: { label: 'Renamed', tone: 'quiet' },
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');

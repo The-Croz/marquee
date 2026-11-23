@@ -113,7 +113,7 @@ describe('putting a download in the library', () => {
     ];
     const r = await importDownload(w.db, w.download(), files, 1);
     const dest = path.join(w.root, 'media/movies/Dune - Part Two (2024) {tmdb-693134}/Dune - Part Two (2024) [WEBDL-2160p][DV HDR].mkv');
-    expect(r).toEqual({ paths: [dest], copied: false, replaced: [], unpacked: false });
+    expect(r).toEqual({ paths: [dest], copied: false, replaced: [], unpacked: false, extras: [] });
     expect(fs.statSync(dest).ino).toBe(fs.statSync(src).ino);
     expect(fs.existsSync(src)).toBe(true); // still there for qBittorrent to share
     const rec = w.db.select().from(schema.mediaFiles).all();

@@ -418,7 +418,7 @@ export type Download = typeof downloads.$inferSelect;
 export const history = sqliteTable('history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   at: integer('at').notNull(),
-  event: text('event', { enum: ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again'] }).notNull(),
+  event: text('event', { enum: ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed'] }).notNull(),
   kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
   movieId: integer('movie_id').references(() => movies.id, { onDelete: 'set null' }),
   seriesId: integer('series_id').references(() => series.id, { onDelete: 'set null' }),
@@ -439,6 +439,37 @@ export const history = sqliteTable('history', {
   userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
 });
 export type HistoryRow = typeof history.$inferSelect;
+
+/** Titles removed from Marquee with "don't add it back when scanning": the scan skips their folders. */
+export const leftOut = sqliteTable(
+  'left_out',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+    tmdbId: integer('tmdb_id').notNull(),
+    title: text('title').notNull(),
+    year: integer('year'),
+    /** The folder it was in, so the scan can skip it without asking TMDB. */
+    path: text('path'),
+    at: integer('at').notNull(),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [uniqueIndex('left_out_title').on(t.kind, t.tmdbId)],
+);
+export type LeftOut = typeof leftOut.$inferSelect;
+
+/** One run of "Rename files": every move it made, so it can be undone. */
+export const renames = sqliteTable('renames', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  at: integer('at').notNull(),
+  kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
+  /** "Dune: Part Two (2024)", "All movies". */
+  label: text('label').notNull(),
+  /** JSON { from, to }[] in the order they were made. */
+  moves: text('moves').notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  undoneAt: integer('undone_at'),
+});
 
 export const neverPick = sqliteTable('never_pick', {
   id: integer('id').primaryKey({ autoIncrement: true }),
