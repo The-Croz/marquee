@@ -15,6 +15,17 @@ const HOUR = 3_600_000;
 
 /** qBittorrent states where the clock for "stuck" doesn't run: waiting, paused, or busy checking. */
 export const RESTING = new Set(['queuedDL', 'pausedDL', 'stoppedDL', 'checkingDL', 'checkingResumeData', 'moving', 'allocating']);
+/**
+ * Notes a download carries while its "stuck" clock is held, because the
+ * trouble is the connection (usually the VPN, like gluetun), not the copy.
+ * While one is set Marquee never tries another copy by itself.
+ */
+export const NO_INTERNET_NOTE =
+  'qBittorrent says it has no internet connection, usually because the VPN (like gluetun) is down. This time doesn’t count as stuck, and Marquee won’t try another copy until the connection is back.';
+export const ALL_STOPPED_NOTE =
+  'Every download stopped at about the same time, which points to the connection (usually the VPN, like gluetun), not this copy. Marquee won’t try another copy until downloads move again. Check the VPN container, then restart it and qBittorrent together.';
+export const HELD_NOTES = new Set([NO_INTERNET_NOTE, ALL_STOPPED_NOTE]);
+
 /** qBittorrent states that mean the whole copy is here. */
 export const FINISHED = new Set(['uploading', 'stalledUP', 'queuedUP', 'forcedUP', 'pausedUP', 'stoppedUP', 'checkingUP']);
 
@@ -73,6 +84,7 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
   if (q.startsWith('checking')) return s('Checking files', 'busy', 'qBittorrent is checking what it already has.');
   if (q === 'moving') return s('Moving files', 'busy', null);
 
+  if (d.message === NO_INTERNET_NOTE) return s('Waiting · no internet for downloads', 'warn', NO_INTERNET_NOTE);
   const stillFor = now - (d.lastProgressAt ?? d.addedAt);
   const giveUpAt = (d.lastProgressAt ?? d.addedAt) + settings.giveUpHours * HOUR;
   const next = settings.tryAnother && d.adopted === false ? giveUpAt : null;
@@ -81,6 +93,7 @@ export function downloadStatus(d: Download, settings: { stuckHours: number; give
     : d.adopted
       ? 'Another app sent this one, so Marquee leaves it alone.'
       : 'Press Try another copy, or wait.';
+  if (stillFor >= settings.stuckHours * HOUR && d.message === ALL_STOPPED_NOTE) return s(`Stuck · no progress for ${hours(stillFor)}`, 'warn', ALL_STOPPED_NOTE);
   if (stillFor >= settings.stuckHours * HOUR) {
     const nobody = (d.seeds ?? 0) === 0;
     return s(nobody ? 'Stuck · nobody is sharing it' : `Stuck · no progress for ${hours(stillFor)}`, 'warn', `${nobody ? `No progress for ${hours(stillFor)}. ` : ''}${whatNext}`, next);

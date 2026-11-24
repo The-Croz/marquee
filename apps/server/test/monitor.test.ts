@@ -3,7 +3,7 @@ import type { CopiesResult, DownloadsView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { QbitError } from '../src/downloads/qbittorrent.js';
 import { fakeReason } from '../src/downloads/monitor.js';
-import { FakeQbit, fakeFetchTorrent } from './fakes/qbittorrent.js';
+import { FakeQbit, fakeFetchTorrent, qbitTorrent } from './fakes/qbittorrent.js';
 import { FakeSites, release } from './fakes/sources.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
@@ -37,7 +37,8 @@ async function setup(releases = [release(BEST, { size: 25 * GB }), release(NEXT,
     later(11_000);
     return (await call(t.app, 'GET', '/api/downloads', undefined, cookie)).body as DownloadsView;
   };
-  return { ...t, qbit, cookie, movie, hash, torrent, later, view, id: sent.body.download.id as number };
+  const searches = () => sites.feeds.get('http://tpb.test/api')!.searches!.length;
+  return { ...t, qbit, sites, searches, cookie, movie, hash, torrent, later, view, id: sent.body.download.id as number };
 }
 
 describe('following downloads', () => {
@@ -134,9 +135,81 @@ describe('following downloads', () => {
     expect(v[0]!.status.detail).toMatch(/Press Try another copy/);
   });
 
+  it('doesn’t count time qBittorrent has no internet as stuck (a VPN that’s down)', async () => {
+    const t = await setup();
+    Object.assign(t.torrent()!, { state: 'stalledDL', progress: 0.1, seedsConnected: 0, seedsKnown: 0 });
+    await t.view();
+    t.later(2 * HOUR);
+    t.qbit.state.connection = 'disconnected';
+    await t.view();
+    t.later(40 * HOUR);
+    const held = (await t.view()).items;
+    expect(held).toHaveLength(1);
+    expect(held[0]!.status).toMatchObject({ label: 'Waiting · no internet for downloads', tone: 'warn' });
+    expect(held[0]!.status.detail).toMatch(/VPN/);
+    expect(t.qbit.actions).toEqual([]);
+    // Back online: the clock carries on from the two hours it had, so nothing is replaced yet.
+    t.qbit.state.connection = 'connected';
+    const back = (await t.view()).items;
+    expect(back).toHaveLength(1);
+    expect(back[0]!.message).toBeNull();
+    expect(back[0]!.status.label).not.toMatch(/no internet/);
+    t.later(23 * HOUR);
+    expect((await t.view()).items.map((i) => i.state)).toEqual(['sent', 'failed']);
+  });
+
+  it('leaves copies alone when every download stopped at once', async () => {
+    const t = await setup();
+    // A second download on the way, through the same qBittorrent.
+    const { id: _id, ...first } = t.db.select().from(schema.downloads).get()!;
+    const other = 'b'.repeat(40);
+    t.db.insert(schema.downloads).values({ ...first, infoHash: other, title: 'Other.Movie.2024.1080p.WEB-DL-GRP', movieId: null }).run();
+    t.qbit.list.push(qbitTorrent(other, { state: 'downloading', progress: 0.3, category: 'marquee', savePath: '/data/torrents' }));
+    Object.assign(t.torrent()!, { state: 'downloading', progress: 0.1 });
+    await t.view();
+    // The tunnel stops passing anything, though qBittorrent still says it's connected.
+    for (const x of t.qbit.list) x.state = 'stalledDL';
+    t.later(7 * HOUR);
+    await t.view();
+    t.later(48 * HOUR);
+    const v = (await t.view()).items;
+    expect(v.map((i) => i.state)).toEqual(['downloading', 'downloading']);
+    expect(v[0]!.status.label).toMatch(/^Stuck · no progress for 7 hours/);
+    expect(v[0]!.status.detail).toMatch(/Every download stopped at about the same time/);
+    expect(t.qbit.actions).toEqual([]);
+    // One starts moving again: it was the connection, so the other gets the rest of its time before Marquee gives up on it.
+    t.qbit.list.find((x) => x.hash === other)!.progress = 0.4;
+    t.later(HOUR);
+    expect((await t.view()).items.every((i) => i.state === 'downloading')).toBe(true);
+    t.later(17 * HOUR);
+    t.qbit.list.find((x) => x.hash === other)!.progress = 0.9;
+    expect((await t.view()).items.map((i) => [i.title, i.state])).toContainEqual([BEST, 'failed']);
+  });
+
+  it('picks the next copy from the search it just did, without asking the Sources again', async () => {
+    const t = await setup();
+    const before = t.searches();
+    Object.assign(t.torrent()!, { state: 'downloading', progress: 0.01 });
+    t.qbit.fileLists.set(t.hash, [{ name: 'Dune/setup.exe', size: 1000 }]);
+    const v = await t.view();
+    expect(v.items.map((i) => [i.title, i.state])).toEqual([
+      [NEXT, 'sent'],
+      [BEST, 'failed'],
+    ]);
+    expect(t.searches()).toBe(before);
+    // Hours later, the old results are too old: it searches again.
+    t.later(4 * HOUR);
+    const next = v.items[0]!;
+    expect((await call(t.app, 'POST', `/api/downloads/${next.id}/try-another`, {}, t.cookie)).status).toBe(200);
+    expect(t.searches()).toBe(before + 1);
+  });
+
   it('says so when no other copy suits the profile', async () => {
     const t = await setup([release(BEST, { size: 25 * GB })]);
+    const before = t.searches();
     const res = await call(t.app, 'POST', `/api/downloads/${t.id}/try-another`, {}, t.cookie);
+    // Nothing left in the last search, so it searched once more before saying so.
+    expect(t.searches()).toBe(before + 1);
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ next: null, message: expect.stringMatching(/No other copy suits 4K Quality right now/) });
   });

@@ -565,7 +565,32 @@ function MediaServerCard({ kind, s }: { kind: 'plex' | 'jellyfin'; s: MediaServe
           }
         />
       </div>
+      {kind === 'jellyfin' && (
+        <Field
+          label="Address people open it at"
+          name="jellyfinPublicUrl"
+          id="jellyfinPublicUrl"
+          defaultValue={s.publicUrl ?? ''}
+          placeholder="https://jellyfin.example.com"
+          hint="For the Watch in Jellyfin button on title pages. Leave blank to use the address above."
+        />
+      )}
       <ServiceTest service={kind} getValues={() => ({ url: val(`${kind}Url`), apiKey: val(secretName) })} />
+      {kind === 'plex' && s.labels && (
+        <fieldset className="m-0 flex flex-col gap-2 rounded-xl border border-line p-4">
+          <legend className="px-1 text-sm font-medium text-soft">Labels on requested titles</legend>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input type="checkbox" name="plexLabelOn" defaultChecked={s.labels.on} className="size-5 accent-amber" />
+            Label titles people asked for, once they’re in Plex
+          </label>
+          <Field label="Label" name="plexLabelText" id="plexLabelText" defaultValue={s.labels.text} maxLength={60} hint="Use it in Plex to filter, make a collection, or limit what someone sees." />
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input type="checkbox" name="plexLabelRequester" defaultChecked={s.labels.requester} className="size-5 accent-amber" />
+            Also label it with the name of each person who asked
+          </label>
+          <p className="m-0 text-caption text-muted">Checked every 15 minutes. Labels already on a title stay; Marquee never removes one.</p>
+        </fieldset>
+      )}
       {libs && <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">{(['movie', 'tv'] as const).map(picker)}</div>}
       {!libs && (
         <button type="button" onClick={load} className="h-11 self-start text-sm font-medium text-amber">
@@ -640,6 +665,8 @@ function ServicesAdmin() {
       plexUrl: String(d.get('plexUrl') ?? ''),
       jellyfinUrl: String(d.get('jellyfinUrl') ?? ''),
     };
+    if (d.has('jellyfinPublicUrl')) body.jellyfinPublicUrl = String(d.get('jellyfinPublicUrl') ?? '');
+    if (d.has('plexLabelText')) body.plexLabels = { on: d.has('plexLabelOn'), text: String(d.get('plexLabelText') ?? '').trim() || 'Requested', requester: d.has('plexLabelRequester') };
     // Library pickers only exist once the libraries are shown.
     for (const k of ['plexMovieLibrary', 'plexTvLibrary', 'jellyfinMovieLibrary', 'jellyfinTvLibrary'] as const) {
       if (d.has(k)) body[k] = String(d.get(k) ?? '');

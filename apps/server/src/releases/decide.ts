@@ -259,7 +259,8 @@ function sizeKey(d: Decision, wanted: Wanted, profile: FullProfile): number {
 }
 
 /** Turned down because it's another title or episode: listed after the near misses. */
-const OFF_TARGET = new Set<RejectionCode>(['wrong_title', 'wrong_year', 'not_a_movie', 'wrong_episode', 'no_episode', 'season_pack']);
+/** Copies of something else (another title, episode or season). */
+export const OFF_TARGET = new Set<RejectionCode>(['wrong_title', 'wrong_year', 'not_a_movie', 'wrong_episode', 'no_episode', 'season_pack']);
 const offTarget = (d: Decision) => Number(d.rejections.some((r) => OFF_TARGET.has(r.code)));
 
 function compare(a: Decision, b: Decision, wanted: Wanted, profile: FullProfile): number {

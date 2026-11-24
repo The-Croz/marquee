@@ -71,6 +71,24 @@ describe('Requests', () => {
     expect(after).toMatchObject({ state: 'downloading', stateText: 'Found a copy. The download is starting.' });
   });
 
+  it('says why nothing was picked when copies were found but none is good enough', async () => {
+    const t = await setup();
+    t.sites.feed('http://tpb.test/api', {
+      releases: [release('Dune.Part.Two.2024.HDCAM.x264-GRP', { size: 2 * GB }), release('Dune.Part.Two.2024.TELESYNC.x264-GRP', { size: 2 * GB })],
+    });
+    const r = (await t.ask(t.admin, { kind: 'movie', tmdbId: 693134 })).body as RequestView;
+    expect(r.state).toBe('looking');
+    expect(r.stateText).toBe('Approved. Copies are out there, but none is good enough yet. Marquee looks again once automatic searching is on.');
+    expect(r.searchNote?.text).toMatch(/^2 copies, none good enough for .+: 2 not a quality it takes\.$/);
+    // Nothing found at all says so too.
+    t.sites.feed('http://tpb.test/api', { releases: [] });
+    const movie = t.db.select().from(schema.movies).all()[0]!;
+    await call(t.app, 'POST', `/api/movies/${movie.id}/search`, {}, t.admin);
+    const [after] = ((await call(t.app, 'GET', '/api/requests', undefined, t.admin)).body as { items: RequestView[] }).items;
+    expect(after!.stateText).toBe('Approved. No copy on your sites yet. Marquee looks again once automatic searching is on.');
+    expect(after!.searchNote?.text).toBe('No Source had a copy.');
+  });
+
   it('a member’s request waits, tells the admins, and nothing is downloaded', async () => {
     const t = await setup();
     const r = await t.ask(t.jessie, { kind: 'movie', tmdbId: 693134 });

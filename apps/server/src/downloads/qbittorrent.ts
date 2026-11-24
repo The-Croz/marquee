@@ -90,6 +90,8 @@ export type TorrentPayload = { kind: 'file'; bytes: Uint8Array; name: string } |
 export interface QbitApi {
   /** Signs in if needed and reads everything the health check needs. Throws QbitError. */
   status(): Promise<QbitStatus>;
+  /** Just qBittorrent's view of its internet connection (one light call). Throws QbitError. */
+  connection(): Promise<QbitConnection>;
   /** Torrents with these info-hashes (lowercase hex), in any category. */
   torrents(hashes: string[]): Promise<QbitTorrent[]>;
   /** Makes a category if it doesn't exist yet. */
@@ -269,6 +271,10 @@ export class QbitClient implements QbitApi {
     if (!res.ok) throw new QbitError('error', `qBittorrent answered ${res.status} when adding the torrent.`);
   }
 
+  async connection(): Promise<QbitConnection> {
+    return readConnection((await this.json<{ connection_status?: string }>('/transfer/info')).connection_status);
+  }
+
   async status(): Promise<QbitStatus> {
     const version = (await (await this.get('/app/version')).text()).trim();
     if (!/^v?\d+\.\d+/.test(version)) throw new QbitError('not_qbittorrent', `${this.base} answers, but not like qBittorrent does.`);
@@ -281,12 +287,16 @@ export class QbitClient implements QbitApi {
     return {
       version: version.replace(/^v/, ''),
       apiVersion,
-      connection: conn === 'connected' || conn === 'firewalled' ? conn : 'disconnected',
+      connection: readConnection(conn),
       freeSpace: typeof main.server_state?.free_space_on_disk === 'number' ? main.server_state.free_space_on_disk : null,
       savePath: (prefs.save_path ?? '').replace(/\/+$/, '') || '/',
       categories: Object.fromEntries(Object.values(cats).map((c) => [c.name, c.savePath ?? ''])),
     };
   }
+}
+
+function readConnection(conn: string | undefined): QbitConnection {
+  return conn === 'connected' || conn === 'firewalled' ? conn : 'disconnected';
 }
 
 /** Is a Web API version at least 2.8 (qBittorrent 4.5)? */

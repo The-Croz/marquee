@@ -1,4 +1,4 @@
-import { MediaServerError, type MediaLibrary, type MediaPerson, type NowPlayingItem, type PlayRecord, type MediaServerApi, type SyncItem } from '../../src/library/mediaServers.js';
+import { MediaServerError, type MediaLibrary, type MediaPerson, type NowPlayingItem, type PlayRecord, type MediaServerApi, type ServerTitle, type SyncItem } from '../../src/library/mediaServers.js';
 
 /** A fake Plex or Jellyfin for tests and demo mode: its libraries, and every scan it was asked for. No network. */
 export class FakeMediaServer {
@@ -19,6 +19,12 @@ export class FakeMediaServer {
   stopped: { sessionId: string; message: string }[] = [];
   /** Set to make stopping fail this way. */
   failStop: string | null = null;
+  /** Movies and shows in the server's libraries, with their ids and (Plex) labels. */
+  titleList: (ServerTitle & { kind: 'movie' | 'tv' })[] = [];
+  /** How many times the whole list was read. */
+  titleReads = 0;
+  /** Each time labels were set: the item and the full list sent. */
+  labelSets: { ref: string; labels: string[] }[] = [];
   private hints = new Set<() => void>();
   /** Pretends the server just pushed "something changed". */
   hint(): void {
@@ -107,6 +113,34 @@ export class FakeMediaServer {
         const item = this.watched.get(userId)?.find((i) => i.ref === ref);
         if (item) item.position = ms;
       },
+      titles: async (kind) => {
+        gate();
+        this.titleReads++;
+        return structuredClone(this.titleList.filter((t) => t.kind === kind).map(({ kind: _k, labels: _l, ...t }) => t));
+      },
+      item: async (ref) => {
+        gate();
+        const t = this.titleList.find((x) => x.ref === ref);
+        if (!t) return null;
+        const { kind: _k, ...rest } = structuredClone(t);
+        return rest;
+      },
+      webLink: async (ref, publicUrl) => {
+        gate();
+        return this.name === 'Plex'
+          ? `https://app.plex.tv/desktop/#!/server/fake-machine/details?key=${encodeURIComponent(`/library/metadata/${ref}`)}`
+          : `${publicUrl ?? 'http://jf:8096'}/web/#/details?id=${ref}&serverId=fake-server`;
+      },
+      ...(this.name === 'Plex'
+        ? {
+            setLabels: async (item: ServerTitle, _kind: 'movie' | 'tv', labels: string[]) => {
+              gate();
+              this.labelSets.push({ ref: item.ref, labels: [...labels] });
+              const t = this.titleList.find((x) => x.ref === item.ref);
+              if (t) t.labels = [...labels];
+            },
+          }
+        : {}),
     };
   }
 }

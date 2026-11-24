@@ -200,6 +200,25 @@ export interface MediaServerView {
   /** Picked library ids; null means Marquee picks. */
   movieLibrary: string | null;
   tvLibrary: string | null;
+  /** Jellyfin: the address people open it at, for "Watch in Jellyfin" (null = the one above). */
+  publicUrl: string | null;
+  /** Plex: labels on requested titles. */
+  labels?: PlexLabelSettings;
+}
+
+/** Plex labels on requested titles, once they're in Plex. */
+export interface PlexLabelSettings {
+  on: boolean;
+  /** The label every requested title gets ("Requested"). */
+  text: string;
+  /** Also label it with the name of each person who asked. */
+  requester: boolean;
+}
+
+/** "Watch in Plex": where a library title opens in a media server's own app. */
+export interface WatchLink {
+  server: 'Plex' | 'Jellyfin';
+  url: string;
 }
 
 export interface MediaLibraryView {
@@ -236,6 +255,9 @@ export interface ServicesUpdate {
   jellyfinApiKey?: string | null;
   jellyfinMovieLibrary?: string | null;
   jellyfinTvLibrary?: string | null;
+  /** "" means use the address above. */
+  jellyfinPublicUrl?: string | null;
+  plexLabels?: Partial<PlexLabelSettings>;
 }
 
 export interface ServiceTestResult {
@@ -1376,6 +1398,8 @@ export interface RequestView {
   state: RequestState;
   /** A plain sentence for the state. */
   stateText: string;
+  /** While it's still looking: what the title's last search found, for admins ("23 copies, none good enough for 4K Quality: 15 too big"). */
+  searchNote: { at: number; text: string } | null;
   /** The profile picked on approval (its name); null = chosen by the rules. */
   profile: string | null;
   reason: string | null;
@@ -1692,7 +1716,7 @@ export interface HealthView {
   jobs: JobView[];
 }
 
-export type BackupKind = 'nightly' | 'by_hand' | 'before_restore';
+export type BackupKind = 'nightly' | 'by_hand' | 'before_restore' | 'before_update';
 
 export interface BackupView {
   /** File name; also its id in the API. */

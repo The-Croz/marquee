@@ -97,6 +97,25 @@ export interface MediaServerApi {
   setWatched?(userId: string, ref: string, watched: boolean): Promise<void>;
   /** Resume points: sets where someone stopped (ms). */
   setPosition?(userId: string, ref: string, ms: number): Promise<void>;
+  /** Every movie (or show) in the server's libraries, with the ids it knows them by. */
+  titles?(kind: 'movie' | 'tv'): Promise<ServerTitle[]>;
+  /** One item by the server's id, or null when it's gone. */
+  item?(ref: string): Promise<ServerTitle | null>;
+  /** Where people open this item in the server's own app. `publicUrl` is the address people use, if not Marquee's. */
+  webLink?(ref: string, publicUrl: string | null): Promise<string>;
+  /** Plex: sets an item's labels to exactly these (pass the ones it has, plus new ones). */
+  setLabels?(item: ServerTitle, kind: 'movie' | 'tv', labels: string[]): Promise<void>;
+}
+
+/** A movie or show on a media server. */
+export interface ServerTitle {
+  ref: string;
+  /** "tmdb:603", "tvdb:371980", "imdb:tt0133093". */
+  keys: string[];
+  /** Plex: the library it's in (labels are set through it). */
+  libraryId?: string;
+  /** Plex: its labels. */
+  labels?: string[];
 }
 
 /** Plex's decisions on a converted stream, in plain words (it gives the decisions, not a reason). */
@@ -176,7 +195,15 @@ function idKeys(ids: Record<string, string | undefined>): string[] {
 const plexIds = (guids: { id: string }[] | undefined) => Object.fromEntries((guids ?? []).map((g) => g.id.split('://') as [string, string]));
 const sxe = (show: string[], s: number | undefined, e: number | undefined) => (s === undefined || e === undefined ? [] : show.map((k) => `e:${k}:${s}:${e}`));
 
-export class MediaServerError extends Error {}
+export class MediaServerError extends Error {
+  constructor(
+    message: string,
+    /** The server's HTTP status, when it answered. */
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 
 async function request(fetchImpl: typeof fetch, label: string, base: string, url: string, init: RequestInit): Promise<Response> {
   let res: Response;
@@ -187,8 +214,8 @@ async function request(fetchImpl: typeof fetch, label: string, base: string, url
     const why = e.name === 'TimeoutError' ? 'no answer in time' : e.cause?.code;
     throw new MediaServerError(`Couldn't reach ${label} at ${base}${why ? ` (${why})` : ''}.`);
   }
-  if (res.status === 401 || res.status === 403) throw new MediaServerError(`${label} turned down the ${label === 'Plex' ? 'token' : 'API key'}.`);
-  if (!res.ok) throw new MediaServerError(`${label} answered ${res.status}.`);
+  if (res.status === 401 || res.status === 403) throw new MediaServerError(`${label} turned down the ${label === 'Plex' ? 'token' : 'API key'}.`, res.status);
+  if (!res.ok) throw new MediaServerError(`${label} answered ${res.status}.`, res.status);
   return res;
 }
 
@@ -223,7 +250,11 @@ interface PlexMeta {
   Guid?: { id: string }[];
   viewCount?: number;
   grandparentRatingKey?: string | number;
+  Label?: { tag: string }[];
+  librarySectionID?: string | number;
 }
+
+const gone = (err: unknown) => err instanceof MediaServerError && (err.status === 404 || err.status === 400);
 
 function plexItem(m: PlexMeta): WatchItem {
   const tmdb = m.Guid?.map((g) => /^tmdb:\/\/(\d+)/.exec(g.id)?.[1]).find(Boolean);
@@ -398,6 +429,45 @@ export class PlexServerClient implements MediaServerApi {
   async scan(library: MediaLibrary, folder: string): Promise<void> {
     await this.get(`/library/sections/${encodeURIComponent(library.id)}/refresh?path=${encodeURIComponent(folder)}`);
   }
+
+  async titles(kind: 'movie' | 'tv'): Promise<ServerTitle[]> {
+    const out: ServerTitle[] = [];
+    for (const lib of (await this.libraries()).filter((l) => l.kind === kind)) {
+      const body = (await (await this.get(`/library/sections/${encodeURIComponent(lib.id)}/all?type=${kind === 'movie' ? 1 : 2}&includeGuids=1`)).json()) as { MediaContainer?: { Metadata?: PlexMeta[] } };
+      for (const m of body.MediaContainer?.Metadata ?? []) out.push({ ref: String(m.ratingKey), keys: idKeys(plexIds(m.Guid)), libraryId: lib.id });
+    }
+    return out;
+  }
+
+  async item(ref: string): Promise<ServerTitle | null> {
+    try {
+      const body = (await (await this.get(`/library/metadata/${encodeURIComponent(ref)}?includeGuids=1`)).json()) as { MediaContainer?: { Metadata?: PlexMeta[] } };
+      const m = body.MediaContainer?.Metadata?.[0];
+      if (!m) return null;
+      return { ref: String(m.ratingKey ?? ref), keys: idKeys(plexIds(m.Guid)), libraryId: m.librarySectionID === undefined ? undefined : String(m.librarySectionID), labels: (m.Label ?? []).map((l) => l.tag) };
+    } catch (err) {
+      if (gone(err)) return null;
+      throw err;
+    }
+  }
+
+  async webLink(ref: string): Promise<string> {
+    const body = (await (await this.get('/')).json()) as { MediaContainer?: { machineIdentifier?: string } };
+    const id = body.MediaContainer?.machineIdentifier;
+    if (!id) throw new MediaServerError(`${this.base} didn't say which Plex server it is.`);
+    return `https://app.plex.tv/desktop/#!/server/${encodeURIComponent(id)}/details?key=${encodeURIComponent(`/library/metadata/${ref}`)}`;
+  }
+
+  async setLabels(item: ServerTitle, kind: 'movie' | 'tv', labels: string[]): Promise<void> {
+    if (!item.libraryId) throw new MediaServerError('Plex didn’t say which library that title is in.');
+    // Plex replaces the whole list with what's sent, so every label goes, old and new.
+    const q = new URLSearchParams({ type: kind === 'movie' ? '1' : '2', id: item.ref, 'label.locked': '1' });
+    labels.forEach((l, i) => q.set(`label[${i}].tag.tag`, l));
+    await request(this.fetchImpl, 'Plex', this.base, `${this.base}/library/sections/${encodeURIComponent(item.libraryId)}/all?${q}`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'X-Plex-Token': this.token },
+    });
+  }
 }
 
 interface JfItem {
@@ -550,6 +620,28 @@ export class JellyfinClient implements MediaServerApi {
     });
   }
 
+  async titles(kind: 'movie' | 'tv'): Promise<ServerTitle[]> {
+    const body = (await (await this.send(`/Items?Recursive=true&IncludeItemTypes=${kind === 'movie' ? 'Movie' : 'Series'}&Fields=ProviderIds`)).json()) as { Items?: JfItem[] };
+    return (body.Items ?? []).filter((i) => i.Id).map((i) => ({ ref: i.Id!, keys: idKeys(i.ProviderIds ?? {}) }));
+  }
+
+  async item(ref: string): Promise<ServerTitle | null> {
+    try {
+      const body = (await (await this.send(`/Items?Ids=${encodeURIComponent(ref)}&Fields=ProviderIds`)).json()) as { Items?: JfItem[] };
+      const i = body.Items?.[0];
+      return i?.Id ? { ref: i.Id, keys: idKeys(i.ProviderIds ?? {}) } : null;
+    } catch (err) {
+      if (gone(err)) return null;
+      throw err;
+    }
+  }
+
+  async webLink(ref: string, publicUrl: string | null): Promise<string> {
+    const info = (await (await this.send('/System/Info/Public')).json()) as { Id?: string };
+    const base = (publicUrl || this.base).replace(/\/+$/, '');
+    return `${base}/web/#/details?id=${encodeURIComponent(ref)}${info.Id ? `&serverId=${encodeURIComponent(info.Id)}` : ''}`;
+  }
+
   async scan(_library: MediaLibrary, folder: string): Promise<void> {
     await this.send('/Library/Media/Updated', {
       method: 'POST',
@@ -567,13 +659,15 @@ export interface MediaServerSettings {
   /** Library ids picked for movies and TV; null means "pick for me". */
   movieLibrary: string | null;
   tvLibrary: string | null;
+  /** Jellyfin: the address people open it at (for "Watch in Jellyfin"), when not the one Marquee uses. */
+  publicUrl: string | null;
 }
 
 const key = (kind: ServerKind, field: string) => `services.${kind}_${field}`;
 
 export function readMediaServer(db: Db, kind: ServerKind): MediaServerSettings {
   const get = (f: string) => getSetting(db, key(kind, f)) || null;
-  return { url: get('url'), secret: get(kind === 'plex' ? 'token' : 'api_key'), movieLibrary: get('movie_library'), tvLibrary: get('tv_library') };
+  return { url: get('url'), secret: get(kind === 'plex' ? 'token' : 'api_key'), movieLibrary: get('movie_library'), tvLibrary: get('tv_library'), publicUrl: get('public_url') };
 }
 
 /** `undefined` leaves a field alone; `null` or "" clears it. A saved secret is forgotten when the address changes without a new one. */
@@ -588,6 +682,7 @@ export function writeMediaServer(db: Db, kind: ServerKind, v: Partial<MediaServe
   if (v.secret !== undefined) setSetting(db, secretKey, (v.secret ?? '').trim());
   if (v.movieLibrary !== undefined) setSetting(db, key(kind, 'movie_library'), v.movieLibrary ?? '');
   if (v.tvLibrary !== undefined) setSetting(db, key(kind, 'tv_library'), v.tvLibrary ?? '');
+  if (v.publicUrl !== undefined) setSetting(db, key(kind, 'public_url'), (v.publicUrl ?? '').trim().replace(/\/+$/, ''));
 }
 
 /**

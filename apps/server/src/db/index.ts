@@ -696,14 +696,35 @@ export const migrations: string[] = [
   ALTER TABLE plays ADD COLUMN import_batch INTEGER;
   CREATE INDEX plays_import_batch ON plays (import_batch);
   `,
+  // 31: what each title's last search found (JSON), so a request can say why nothing was picked; the Plex labels Marquee
+  // added; each title's id on Plex and Jellyfin (JSON), for "Watch in Plex" and labels
+  `
+  ALTER TABLE movies ADD COLUMN search_note TEXT;
+  ALTER TABLE series ADD COLUMN search_note TEXT;
+  ALTER TABLE movies ADD COLUMN plex_labels TEXT;
+  ALTER TABLE series ADD COLUMN plex_labels TEXT;
+  ALTER TABLE movies ADD COLUMN server_refs TEXT;
+  ALTER TABLE series ADD COLUMN server_refs TEXT;
+  `,
 ];
 
-export function openDb(file: string): Db {
+export interface OpenOptions {
+  /**
+   * Called before a newer Marquee changes a database an older one made
+   * (never for a new database). Throwing stops Marquee starting, so nothing
+   * is changed without it.
+   */
+  beforeUpdate?: (sqlite: Database.Database, from: number, to: number) => void;
+}
+
+export function openDb(file: string, opts: OpenOptions = {}): Db {
   if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
   const sqlite = new Database(file);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   sqlite.pragma('busy_timeout = 5000');
+  const from = schemaVersion(sqlite);
+  if (opts.beforeUpdate && from > 0 && from < migrations.length) opts.beforeUpdate(sqlite, from, migrations.length);
   migrate(sqlite);
   return drizzle(sqlite, { schema }) as Db;
 }
@@ -713,10 +734,16 @@ export function migrateNow(db: Db): void {
   migrate(db.$client);
 }
 
+/** How many migrations a database has had (0 for a new one). */
+function schemaVersion(sqlite: Database.Database): number {
+  const table = sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'").get();
+  if (!table) return 0;
+  return (sqlite.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number | null }).v ?? 0;
+}
+
 function migrate(sqlite: Database.Database): void {
   sqlite.exec('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)');
-  const row = sqlite.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number | null };
-  const current = row.v ?? 0;
+  const current = schemaVersion(sqlite);
   migrations.slice(current).forEach((sql, i) => {
     const version = current + i + 1;
     sqlite.transaction(() => {

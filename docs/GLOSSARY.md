@@ -72,6 +72,7 @@ A failing Source is skipped and tried again by itself: 1 minute after the first 
 | **Paused** | Paused in Marquee or qBittorrent. Doesn't count towards stuck. |
 | **Waiting · nobody is sharing it right now** | Connected to nobody with the whole copy. Often comes back. |
 | **Stuck · nobody is sharing it** / **Stuck · no progress for 7 hours** | No progress for the "stuck" time (6 hours by default). Marquee tries another copy at the give-up time (24 hours) unless that's turned off. |
+| **Waiting · no internet for downloads** | qBittorrent says it has no connection (usually the VPN, like gluetun). This time doesn't count as stuck, and Marquee never tries another copy meanwhile. The same goes when every download stops at once: that's the connection, not the copies. |
 | **Problem in qBittorrent** | qBittorrent reported an error, often a full disk or missing folder. |
 | **Gone from qBittorrent** | Removed in qBittorrent, not by Marquee. |
 | **Finished downloading** | The whole copy is here. |
