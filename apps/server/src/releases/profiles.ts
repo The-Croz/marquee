@@ -217,17 +217,45 @@ export function dictProfile(data: DictionarryData, name: string) {
   return p;
 }
 
+/**
+ * How far below the best copy at the target quality still counts as good enough. Dictionarry's group tiers are 1,000
+ * apart and a plain x265 streaming download sits 20,000 below the best encodes, so both count.
+ */
+export const GOOD_ENOUGH_BAND = 25_000;
+/** An upgrade must beat your file by at least this many points, so one tier step doesn't mean a whole new download. */
+export const MIN_UPGRADE_STEP = 10_000;
+
+/**
+ * Dictionarry's own "good enough" is 1,000,000 points, which no copy reaches (the best score about 920,000–982,000):
+ * it means "never stop upgrading", and any copy one point better is an upgrade. For Marquee, which searches for better
+ * copies itself, a copy close to the best score at the profile's target quality is good enough.
+ */
+export function dictGoodEnough(data: DictionarryData, p: { tiers: { name: string; qualities: string[] }[]; cutoff: string; scores: Record<string, number>; cutoffScore: number; minUpgradeScore: number }): { cutoffScore: number; minUpgradeScore: number } {
+  const tier = p.tiers.find((t) => t.name === p.cutoff);
+  const res = Math.max(0, ...(tier?.qualities ?? []).map((q) => Number(/(\d{3,4})p/.exec(q)?.[1] ?? 0)));
+  const atRes = (id: string) =>
+    data.formats.find((f) => f.trash_id === id)?.specifications.some((sp) => sp.implementation === 'ResolutionSpecification' && sp.required && !sp.negate && Number(sp.fields.value) === res) ?? false;
+  const positive = Object.entries(p.scores).filter(([, v]) => v > 0);
+  const best = Math.max(0, ...positive.filter(([id]) => res && atRes(id)).map(([, v]) => v)) || Math.max(0, ...positive.map(([, v]) => v));
+  if (!best) return { cutoffScore: p.cutoffScore, minUpgradeScore: p.minUpgradeScore };
+  return {
+    cutoffScore: Math.min(p.cutoffScore, best - GOOD_ENOUGH_BAND),
+    minUpgradeScore: Math.max(p.minUpgradeScore, MIN_UPGRADE_STEP),
+  };
+}
+
 /** A Dictionarry profile as Marquee stores it: its qualities, every rule it scores with its points, and its point limits. */
 export function fromDictionarry(data: DictionarryData, kind: Kind, base: string, text: { name: string; description: string }): PresetValues {
   const p = dictProfile(data, base);
+  const limits = dictGoodEnough(data, p);
   return {
     ...text,
     tiers: dictTiers(kind, p.tiers),
     cutoff: p.cutoff,
     upgrades: p.upgrades,
     minScore: p.minScore,
-    cutoffScore: p.cutoffScore,
-    minUpgradeScore: p.minUpgradeScore,
+    cutoffScore: limits.cutoffScore,
+    minUpgradeScore: limits.minUpgradeScore,
     sizes: {},
     rules: Object.entries(p.scores).map(([trashId, score]) => ({ trashId, enabled: true, score })),
     database: 'dictionarry',
@@ -261,6 +289,7 @@ const SEEDED = 'profiles.seeded';
 const RENAMED_4K = 'profiles.renamed_4k';
 const KIDS_TV_1080 = 'profiles.kids_tv_1080';
 const DICT_REBASED = 'profiles.dictionarry_rebased';
+const DICT_GOOD_ENOUGH = 'profiles.dictionarry_good_enough';
 /** What the one-time move to Dictionarry did, shown once on the Quality page. */
 export const DICT_NOTICE = 'profiles.dictionarry_notice';
 export const DEFAULT_KEYS = { movie: 'profiles.default.movie', tv: 'profiles.default.tv', kids: 'profiles.default.kids' } as const;
@@ -331,6 +360,24 @@ export function seedProfiles(db: Db, now: number): void {
       }
       if (notice.changed.length || notice.kept.length) setSetting(db, DICT_NOTICE, JSON.stringify(notice));
       setSetting(db, DICT_REBASED, '1');
+    });
+  }
+  // Once: Dictionarry profiles still on its never-reached 1,000,000-point "good enough" (and 1-point upgrades) get
+  // limits that stop at a top-tier copy. Only the values you never changed are touched.
+  if (!getSetting(db, DICT_GOOD_ENOUGH)) {
+    db.transaction(() => {
+      for (const row of db.select().from(schema.profiles).where(eq(schema.profiles.database, 'dictionarry')).all()) {
+        if (!row.base) continue;
+        const data = dictionarry(db, appFor(row.kind as Kind));
+        const up = data.profiles.find((x) => x.name === row.base);
+        if (!up) continue;
+        const limits = dictGoodEnough(data, up);
+        const set: { cutoffScore?: number; minUpgradeScore?: number } = {};
+        if (row.cutoffScore === up.cutoffScore) set.cutoffScore = limits.cutoffScore;
+        if (row.minUpgradeScore === up.minUpgradeScore) set.minUpgradeScore = limits.minUpgradeScore;
+        if (Object.keys(set).length) db.update(schema.profiles).set(set).where(eq(schema.profiles.id, row.id)).run();
+      }
+      setSetting(db, DICT_GOOD_ENOUGH, '1');
     });
   }
 }
