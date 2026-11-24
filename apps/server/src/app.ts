@@ -38,6 +38,7 @@ import { systemRoutes } from './routes/system.js';
 import { addScanJob } from './routes/library.js';
 
 import { VERSION } from './version.js';
+import { readServices } from './library/services.js';
 
 export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'logs'> & { copies?: CopyCache; activity?: ActivityMonitor; jobs?: Jobs; logs?: LogBook }) {
   const deps: Deps = {
@@ -47,7 +48,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
     copies: given.copies ?? new CopyCache(given.now),
     activity:
       given.activity ??
-      new ActivityMonitor({ db: given.db, clients: given.clients, now: given.now, notify: () => ({ db: given.db, push: given.clients.push, now: given.now, baseUrl: () => given.config.baseUrl ?? null }) }),
+      new ActivityMonitor({ db: given.db, clients: given.clients, now: given.now, tmdbKey: () => readServices(given.db, given.config).tmdbApiKey, notify: () => ({ db: given.db, push: given.clients.push, now: given.now, baseUrl: () => given.config.baseUrl ?? null }) }),
   };
   const app = new Hono<Env>();
   seedProfiles(deps.db, deps.now());

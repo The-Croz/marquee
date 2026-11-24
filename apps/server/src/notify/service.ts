@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, lte } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
-import { notificationChannels, notifications, notificationTemplates, userPrefs, users, type NotificationChannel } from '../db/schema.js';
+import type { NotificationPriority } from '@marquee/shared';
+import { notificationChannels, notificationPriorities, notifications, notificationTemplates, userPrefs, users, type NotificationChannel } from '../db/schema.js';
 import { eventInfo } from './events.js';
 import type { PushClient } from './push.js';
 import { render, type Vars } from './template.js';
@@ -39,6 +40,8 @@ export interface Composed {
   link: string | null;
   /** A full address, when Marquee knows its own. */
   url: string | null;
+  /** How it arrives on phones. */
+  priority: NotificationPriority;
 }
 
 const parse = <T>(s: string, fallback: T): T => {
@@ -63,6 +66,12 @@ export function templateFor(db: Db, event: string): { title: string; body: strin
   return row ? { title: row.title, body: row.body, image: row.image, custom: true } : { title: info.title, body: info.body, image: info.image, custom: false };
 }
 
+/** How an event arrives on phones: the admin's choice, or Marquee's. */
+export function priorityFor(db: Db, event: string): NotificationPriority {
+  const row = db.select({ p: notificationPriorities.priority }).from(notificationPriorities).where(eq(notificationPriorities.event, event)).get();
+  return row?.p ?? eventInfo(event)!.priority;
+}
+
 /** Fills an event's wording with the facts. A blank title falls back to Marquee's, so a message is never empty. */
 export function compose(deps: Pick<NotifyDeps, 'db' | 'now' | 'baseUrl'>, event: string, msg: Message, tpl = templateFor(deps.db, event)): Composed {
   const info = eventInfo(event)!;
@@ -72,7 +81,7 @@ export function compose(deps: Pick<NotifyDeps, 'db' | 'now' | 'baseUrl'>, event:
   const title = render(tpl.title, vars) || render(info.title, vars) || info.label;
   const body = render(tpl.body, vars);
   const image = render(tpl.image, vars);
-  return { title, body, image: /^https?:\/\//i.test(image) ? image : null, link: msg.link ?? null, url };
+  return { title, body, image: /^https?:\/\//i.test(image) ? image : null, link: msg.link ?? null, url, priority: priorityFor(deps.db, event) };
 }
 
 function inbox(db: Db, now: number, userId: number, event: string, m: Composed): void {
@@ -87,7 +96,7 @@ async function sendTo(deps: NotifyDeps, channels: NotificationChannel[], event: 
   for (const ch of channels) {
     if (!ch.enabled || !parse<string[]>(ch.events, []).includes(event)) continue;
     try {
-      await push.send({ kind: ch.kind, config: parse<Record<string, string>>(ch.config, {}) }, { title: m.title, body: m.body, link: m.url, image: m.image, event, vars });
+      await push.send({ kind: ch.kind, config: parse<Record<string, string>>(ch.config, {}) }, { title: m.title, body: m.body, link: m.url, image: m.image, priority: m.priority, event, vars });
       db.update(notificationChannels).set({ lastOkAt: now(), lastError: null }).where(eq(notificationChannels.id, ch.id)).run();
     } catch (err) {
       db.update(notificationChannels).set({ lastError: (err as Error).message }).where(eq(notificationChannels.id, ch.id)).run();

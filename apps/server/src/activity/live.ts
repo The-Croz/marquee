@@ -25,8 +25,10 @@ import { describeItem, hrefFor } from './service.js';
 
 type Deps = {
   db: Db;
-  clients: Pick<Clients, 'plexServer' | 'jellyfin'>;
+  clients: Pick<Clients, 'plexServer' | 'jellyfin'> & Partial<Pick<Clients, 'tmdb'>>;
   now: () => number;
+  /** The TMDB key, to find cover art for something that isn't in the library. */
+  tmdbKey?: () => string | null | undefined;
   notify?: () => NotifyDeps;
   /** Called when someone stops a play (after at least 30 seconds), e.g. to sync watched ticks right away. */
   onStopped?: (server: ServerKind) => void;
@@ -54,6 +56,9 @@ const MIN_STOP_MS = 30_000;
 const GIVE_UP_AFTER = 2 * 60_000;
 const WRITE_EVERY = 30_000;
 
+/** A title for matching: no "(2019)" on the end, and the usual clean-up. */
+const bareTitle = (t: string) => normalizeTitle(t.replace(/\s*\((\d{4})\)\s*$/, ''));
+
 const minutes = (ms: number) => Math.max(1, Math.round(ms / 60_000));
 
 export interface LiveStatus {
@@ -73,6 +78,10 @@ export class ActivityMonitor {
   private hintTimer: ReturnType<typeof setTimeout> | null = null;
   private lastJson = '';
   private started = false;
+  /** Cover art found on TMDB, so a show isn't looked up again for every pause. */
+  private posters = new Map<string, string | null>();
+  /** Messages go out in order, even while one waits for its cover art. */
+  private sending: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: Deps) {}
 
@@ -205,20 +214,57 @@ export class ActivityMonitor {
     const vars: Vars = {
       user: it.user, title: what.title, subtitle: what.subtitle, show: it.show, season: it.season, episode: it.episode, year: it.year,
       device: it.device, app: it.platform, quality: it.resolution ? (/^\d+$/.test(it.resolution) ? `${it.resolution}p` : it.resolution.toUpperCase()) : null,
-      converting: it.transcoding, reason: it.convertReason ?? null, server: SERVER_NAME[server], poster: this.poster(it), ...extra,
+      converting: it.transcoding, reason: it.convertReason ?? null, server: SERVER_NAME[server], ...extra,
     };
-    tell(this.deps.notify?.(), 'admins', event, { vars, link: '/activity' });
+    this.sending = this.sending
+      .then(() => this.poster(it))
+      .catch(() => null)
+      .then((poster) => tell(this.deps.notify?.(), 'admins', event, { vars: { ...vars, poster }, link: '/activity' }));
   }
 
-  /** Cover art from the library: the movie by TMDB id, or the show by name. */
-  private poster(it: NowPlayingItem): string | null {
+  /** Cover art: from the library if it's there, otherwise from TMDB. */
+  async poster(it: NowPlayingItem): Promise<string | null> {
+    const local = this.libraryPoster(it);
+    if (local) return local;
+    const key = it.kind === 'movie' ? `m:${it.tmdbId ?? `${bareTitle(it.title)}:${it.year ?? ''}`}` : `s:${bareTitle(it.show ?? it.title)}`;
+    if (this.posters.has(key)) return this.posters.get(key)!;
+    const found = await this.tmdbPoster(it).catch(() => null);
+    if (this.posters.size > 500) this.posters.clear();
+    this.posters.set(key, found);
+    return found;
+  }
+
+  /**
+   * The library's cover art. Movies by TMDB id, then by name and year (Plex doesn't
+   * always say the id while something plays); shows by name, ignoring a "(2019)" either side.
+   */
+  private libraryPoster(it: NowPlayingItem): string | null {
     const { db } = this.deps;
-    if (it.kind === 'movie' && it.tmdbId) return posterUrl(db.select({ p: movies.posterPath }).from(movies).where(eq(movies.tmdbId, it.tmdbId)).get()?.p);
-    if (it.show) {
-      const want = normalizeTitle(it.show);
-      return posterUrl(db.select({ t: series.title, p: series.posterPath }).from(series).all().find((s) => normalizeTitle(s.t) === want)?.p);
+    if (it.kind === 'movie') {
+      if (it.tmdbId) {
+        const p = db.select({ p: movies.posterPath }).from(movies).where(eq(movies.tmdbId, it.tmdbId)).get()?.p;
+        if (p) return posterUrl(p);
+      }
+      const want = bareTitle(it.title);
+      const near = (y: number | null) => !it.year || !y || Math.abs(y - it.year) <= 1;
+      return posterUrl(db.select({ t: movies.title, y: movies.year, p: movies.posterPath }).from(movies).all().find((m) => m.p && near(m.y) && bareTitle(m.t) === want)?.p);
     }
-    return null;
+    if (!it.show) return null;
+    const want = bareTitle(it.show);
+    return posterUrl(db.select({ t: series.title, p: series.posterPath }).from(series).all().find((s) => s.p && bareTitle(s.t) === want)?.p);
+  }
+
+  private async tmdbPoster(it: NowPlayingItem): Promise<string | null> {
+    const key = this.deps.tmdbKey?.();
+    if (!key || !this.deps.clients.tmdb) return null;
+    const tmdb = this.deps.clients.tmdb(key);
+    if (it.kind === 'movie') {
+      if (it.tmdbId) return posterUrl((await tmdb.movie(it.tmdbId)).posterPath);
+      return posterUrl((await tmdb.searchMovie(it.title, it.year)).find((r) => r.posterPath)?.posterPath);
+    }
+    if (!it.show) return null;
+    const show = it.show.replace(/\s*\((\d{4})\)\s*$/, '');
+    return posterUrl((await tmdb.searchShow(show)).find((r) => r.posterPath)?.posterPath);
   }
 
   /** Compares what the server says is playing with what we knew, and records the differences. */

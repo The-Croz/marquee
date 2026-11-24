@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useOutletContext } from 'react-router';
-import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
+import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
 import { Tabs } from '../components/Page';
@@ -454,6 +454,50 @@ function Chip({ v, onPick }: { v: NotificationVar; onPick: (key: string) => void
   );
 }
 
+const ARRIVES: { value: NotificationPriority; label: string; hint: string }[] = [
+  { value: 'silent', label: 'Silently', hint: 'No banner or sound. It waits in the Pushover or ntfy app.' },
+  { value: 'quiet', label: 'Quietly', hint: 'A banner, but no sound or buzz.' },
+  { value: 'normal', label: 'Normally', hint: 'A banner and your usual sound.' },
+  { value: 'high', label: 'Right away', hint: 'Time Sensitive on an iPhone: it shows even during Focus and Do Not Disturb.' },
+];
+
+/** How one message arrives on phones. Saved as soon as you pick. */
+function Arrives({ info, current }: { info: NotificationEventInfo; current: NotificationTemplateView }) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const pick = (priority: NotificationPriority) =>
+    run(setError, async () => {
+      setBusy(true);
+      try {
+        await api(`${SHARED}/templates/${info.key}/priority`, { method: 'PUT', body: { priority } });
+        await queryClient.invalidateQueries({ queryKey: ['wording', 'list'] });
+      } finally {
+        setBusy(false);
+      }
+    });
+  return (
+    <fieldset className="m-0 flex flex-col gap-2 border-0 p-0" disabled={busy}>
+      <legend className="mb-2 p-0 text-sm font-medium text-soft">How it arrives on phones</legend>
+      <div className="flex flex-col gap-2">
+        {ARRIVES.map((o) => (
+          <label key={o.value} className={cx('flex min-h-11 cursor-pointer gap-3 rounded-xl border px-4 py-3 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-amber', current.priority === o.value ? 'border-amber bg-amber/10' : 'border-line hover:border-line-strong')}>
+            <input type="radio" name={`arrives-${info.key}`} value={o.value} checked={current.priority === o.value} onChange={() => pick(o.value)} className="mt-1 accent-amber" />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium">
+                {o.label}
+                {o.value === info.priority && <span className="text-xs font-normal text-dim">Marquee’s choice</span>}
+              </span>
+              <span className="text-xs text-muted">{o.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <span className="text-xs text-dim">The bell in Marquee always shows it. Webhooks get this as “priority”.</span>
+      {error && <Notice tone="error">{error}</Notice>}
+    </fieldset>
+  );
+}
+
 function Editor({ info, current, common }: { info: NotificationEventInfo; current: NotificationTemplateView; common: NotificationVar[] }) {
   const [draft, setDraft] = useState<Draft>({ title: current.title, body: current.body, image: current.image });
   const [focus, setFocus] = useState<FieldKey>('body');
@@ -512,6 +556,8 @@ function Editor({ info, current, common }: { info: NotificationEventInfo; curren
         <input id="w-image" ref={refs.image} className={cx('h-12', field)} value={draft.image} placeholder="Leave blank for no picture" onFocus={() => setFocus('image')} onChange={(e) => (setSaved(null), setDraft({ ...draft, image: e.target.value }))} />
         <span className="text-xs text-dim">A picture address. <code>{'{{poster}}'}</code> is the cover art. Pushover shows the picture in the message; ntfy shows it below.</span>
       </div>
+
+      <Arrives info={info} current={current} />
 
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium text-soft">Facts you can use</span>
@@ -581,7 +627,7 @@ export function WordingPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="m-0 text-lg font-semibold">What each message says</h2>
-        <p className="m-0 text-sm text-muted">Change the title, message and picture of anything Marquee sends. Your wording is used in the bell and on every phone.</p>
+        <p className="m-0 text-sm text-muted">Change the title, message and picture of anything Marquee sends, and how loudly it arrives. Your wording is used in the bell and on every phone.</p>
       </div>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <nav aria-label="Messages" className="flex flex-col gap-4 lg:w-[280px] lg:flex-none">

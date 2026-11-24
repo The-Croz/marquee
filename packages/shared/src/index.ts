@@ -1429,6 +1429,12 @@ export interface NotificationVar {
 
 export type NotificationGroup = 'Requests' | 'Downloads' | 'Problems' | 'Watching' | 'Marquee';
 
+/**
+ * How a message arrives on a phone. Pushover gets -2, -1, 0 or 1; ntfy 1 to 4.
+ * "high" is Time Sensitive on an iPhone: it breaks through Focus.
+ */
+export type NotificationPriority = 'silent' | 'quiet' | 'normal' | 'high';
+
 export interface NotificationEventInfo {
   key: string;
   group: NotificationGroup;
@@ -1443,6 +1449,8 @@ export interface NotificationEventInfo {
   title: string;
   body: string;
   image: string;
+  /** How it arrives on phones unless an admin changes it. */
+  priority: NotificationPriority;
 }
 
 export interface NotificationChannelView {
@@ -1477,6 +1485,8 @@ export interface NotificationTemplateView {
   image: string;
   /** True when an admin changed it. */
   custom: boolean;
+  /** How it arrives on phones: the admin's choice, or Marquee's. */
+  priority: NotificationPriority;
 }
 
 export interface NotificationPreview {

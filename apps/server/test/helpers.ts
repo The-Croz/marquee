@@ -1,5 +1,6 @@
 import { openDb } from '../src/db/index.js';
 import { ActivityMonitor } from '../src/activity/live.js';
+import { readServices } from '../src/library/services.js';
 import { createApp } from '../src/app.js';
 import { loadConfig, type Config } from '../src/config.js';
 import { RateLimiter } from '../src/auth/rateLimit.js';
@@ -76,7 +77,7 @@ export function makeApp(opts: TestOptions = {}) {
   };
   const now = opts.now ?? Date.now;
   const sources = new SourceService(db, clients, now, async () => {});
-  const activity = new ActivityMonitor({ db, clients, now, notify: () => ({ db, push: clients.push, now, baseUrl: () => null }) });
+  const activity = new ActivityMonitor({ db, clients, now, tmdbKey: () => readServices(db, config).tmdbApiKey, notify: () => ({ db, push: clients.push, now, baseUrl: () => null }) });
   const app = createApp({
     activity,
     db,

@@ -20,6 +20,7 @@ import { SourceService } from './sources/service.js';
 import { QbitClient } from './downloads/qbittorrent.js';
 import { fetchTorrent } from './downloads/torrent.js';
 import { ActivityMonitor } from './activity/live.js';
+import { readServices } from './library/services.js';
 import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
 import { announceVersion } from './notify/updated.js';
@@ -83,7 +84,7 @@ const jobs = new Jobs(db, Date.now);
 // Follows Plex and Jellyfin: their live lines, plus a quick look while anything is playing.
 // Watched sync runs shortly after a play stops (the live line tells us), as well as every 30 minutes.
 const syncSoon = syncAfterPlays(() => once(() => runSync({ db, clients, now: Date.now })), () => syncEnabled(db));
-const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }), onStopped: () => syncSoon() });
+const activity = new ActivityMonitor({ db, clients, now: Date.now, tmdbKey: () => readServices(db, config).tmdbApiKey, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }), onStopped: () => syncSoon() });
 activity.start();
 const app = createApp({
   activity,

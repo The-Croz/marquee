@@ -622,6 +622,13 @@ export const notificationTemplates = sqliteTable('notification_templates', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+/** How each message arrives on phones, when an admin picked something other than Marquee's choice. */
+export const notificationPriorities = sqliteTable('notification_priorities', {
+  event: text('event').primaryKey(),
+  priority: text('priority', { enum: ['silent', 'quiet', 'normal', 'high'] }).notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 /** One finished watch, copied from Plex or Jellyfin. */
 export const plays = sqliteTable(
   'plays',

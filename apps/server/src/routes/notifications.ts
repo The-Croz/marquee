@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import type { NotificationChannelView, NotificationEventInfo, NotificationInboxItem, NotificationPreview, NotificationTemplateView } from '@marquee/shared';
-import { notificationChannels, notifications, notificationTemplates, userPrefs, type NotificationChannel, type User } from '../db/schema.js';
+import type { NotificationChannelView, NotificationEventInfo, NotificationInboxItem, NotificationPreview, NotificationPriority, NotificationTemplateView } from '@marquee/shared';
+import type { Db } from '../db/index.js';
+import { notificationChannels, notificationPriorities, notifications, notificationTemplates, userPrefs, type NotificationChannel, type User } from '../db/schema.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
-import { COMMON_VARS, DEFAULT_ADMIN_EVENTS, EVENTS, eventInfo, eventsFor } from '../notify/events.js';
-import { compose, templateFor, type NotifyDeps } from '../notify/service.js';
+import { COMMON_VARS, DEFAULT_ADMIN_EVENTS, EVENTS, eventInfo, eventsFor, PRIORITIES } from '../notify/events.js';
+import { compose, priorityFor, templateFor, type NotifyDeps } from '../notify/service.js';
 import { unknownNames } from '../notify/template.js';
 
 /**
@@ -212,6 +213,7 @@ notificationRoutes.route('/channels', channelRoutesFor(MINE));
 
 // ---------------- Wording (admin) ----------------
 
+const view = (db: Db, event: string): NotificationTemplateView => ({ event, ...templateFor(db, event), priority: priorityFor(db, event) });
 const templateBody = z.object({ title: z.string().max(300), body: z.string().max(2000), image: z.string().max(500).default('') });
 const known = (event: string) => [...eventInfo(event)!.vars.map((v) => v.key), ...COMMON_VARS.map((v) => v.key)];
 const mustKnow = (event: string) => {
@@ -221,7 +223,7 @@ const mustKnow = (event: string) => {
 channelRoutes.get('/templates', (c) => {
   requireAdmin(c);
   const { db } = c.get('deps');
-  const items: NotificationTemplateView[] = EVENTS.map((e) => ({ event: e.key, ...templateFor(db, e.key) }));
+  const items: NotificationTemplateView[] = EVENTS.map((e) => view(db, e.key));
   return c.json({ items, events: EVENTS, common: COMMON_VARS });
 });
 
@@ -245,7 +247,19 @@ channelRoutes.put('/templates/:event', async (c) => {
   if (!t.title.trim()) throw new HttpError(400, 'invalid_input', 'A message needs a title. Use “Put Marquee’s wording back” to start again.');
   const { db, now } = c.get('deps');
   db.insert(notificationTemplates).values({ event, ...t, updatedAt: now() }).onConflictDoUpdate({ target: notificationTemplates.event, set: { ...t, updatedAt: now() } }).run();
-  return c.json<NotificationTemplateView>({ event, ...templateFor(db, event) });
+  return c.json<NotificationTemplateView>(view(db, event));
+});
+
+/** How a message arrives on phones. Picking Marquee's own choice forgets yours. */
+channelRoutes.put('/templates/:event/priority', async (c) => {
+  requireAdmin(c);
+  const event = c.req.param('event');
+  mustKnow(event);
+  const { priority } = z.object({ priority: z.enum(PRIORITIES as [NotificationPriority, ...NotificationPriority[]]) }).parse(await c.req.json());
+  const { db, now } = c.get('deps');
+  if (priority === eventInfo(event)!.priority) db.delete(notificationPriorities).where(eq(notificationPriorities.event, event)).run();
+  else db.insert(notificationPriorities).values({ event, priority, updatedAt: now() }).onConflictDoUpdate({ target: notificationPriorities.event, set: { priority, updatedAt: now() } }).run();
+  return c.json<NotificationTemplateView>(view(db, event));
 });
 
 /** Back to Marquee's own wording. */
@@ -255,7 +269,7 @@ channelRoutes.delete('/templates/:event', (c) => {
   mustKnow(event);
   const { db } = c.get('deps');
   db.delete(notificationTemplates).where(eq(notificationTemplates.event, event)).run();
-  return c.json<NotificationTemplateView>({ event, ...templateFor(db, event) });
+  return c.json<NotificationTemplateView>(view(db, event));
 });
 
 channelRoutes.route('/', channelRoutesFor(SHARED));
