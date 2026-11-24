@@ -1,5 +1,12 @@
 /** Sending one message through Pushover, ntfy or a webhook (a JSON POST). Errors say what happened in plain words. */
 
+import type { NotificationPriority } from '@marquee/shared';
+
+/** Pushover's levels. 1 is Time Sensitive on an iPhone; 2 (keeps buzzing until you answer) isn't offered. */
+const PUSHOVER_PRIORITY: Record<NotificationPriority, string> = { silent: '-2', quiet: '-1', normal: '0', high: '1' };
+/** ntfy's levels. 4 is Time Sensitive on an iPhone. */
+const NTFY_PRIORITY: Record<NotificationPriority, number> = { silent: 1, quiet: 2, normal: 3, high: 4 };
+
 export interface PushMessage {
   title: string;
   body: string;
@@ -7,6 +14,8 @@ export interface PushMessage {
   link?: string | null;
   /** A picture address (cover art). Pushover gets the picture itself; ntfy fetches it. */
   image?: string | null;
+  /** How it arrives on the phone. Normal when left out. */
+  priority?: NotificationPriority;
   /** The event's key ("request_ready"), for webhooks. */
   event?: string;
   /** The facts the message was made from, for webhooks. */
@@ -41,6 +50,7 @@ export class HttpPushClient implements PushClient {
   private async pushover(c: Record<string, string>, msg: PushMessage) {
     const body = new URLSearchParams({ token: c.appToken ?? '', user: c.userKey ?? '', title: msg.title, message: msg.body });
     if (msg.link) body.set('url', msg.link);
+    body.set('priority', PUSHOVER_PRIORITY[msg.priority ?? 'normal']);
     const pic = msg.image ? await this.picture(msg.image) : null;
     if (pic) {
       body.set('attachment_base64', pic.base64);
@@ -72,7 +82,7 @@ export class HttpPushClient implements PushClient {
   private async webhook(c: Record<string, string>, msg: PushMessage) {
     const headers: Record<string, string> = { 'Content-Type': 'application/json', 'User-Agent': 'Marquee' };
     if (c.secret) headers.Authorization = `Bearer ${c.secret}`;
-    const payload = { event: msg.event ?? 'test', title: msg.title, body: msg.body, link: msg.link ?? null, image: msg.image ?? null, vars: msg.vars ?? {}, sentAt: new Date().toISOString() };
+    const payload = { event: msg.event ?? 'test', title: msg.title, body: msg.body, link: msg.link ?? null, image: msg.image ?? null, priority: msg.priority ?? 'normal', vars: msg.vars ?? {}, sentAt: new Date().toISOString() };
     const res = await this.fetchImpl(c.url ?? '', { method: 'POST', body: JSON.stringify(payload), headers, signal: AbortSignal.timeout(10_000) });
     if (res.ok) return;
     throw new PushError(`The webhook answered ${res.status}. It will try again with the next message.`);
@@ -83,7 +93,7 @@ export class HttpPushClient implements PushClient {
     const server = (c.server || 'https://ntfy.sh').replace(/\/+$/, '');
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (c.token) headers.Authorization = `Bearer ${c.token}`;
-    const payload: Record<string, string> = { topic: c.topic ?? '', title: msg.title, message: msg.body };
+    const payload: Record<string, string | number> = { topic: c.topic ?? '', title: msg.title, message: msg.body, priority: NTFY_PRIORITY[msg.priority ?? 'normal'] };
     if (msg.link) payload.click = msg.link;
     if (msg.image) payload.attach = msg.image;
     const res = await this.fetchImpl(`${server}/`, { method: 'POST', body: JSON.stringify(payload), headers });

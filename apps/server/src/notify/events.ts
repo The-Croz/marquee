@@ -1,4 +1,4 @@
-import type { NotificationEventInfo, NotificationVar } from '@marquee/shared';
+import type { NotificationEventInfo, NotificationPriority, NotificationVar } from '@marquee/shared';
 
 /**
  * Everything Marquee can tell people about. Each event says who it is for
@@ -33,7 +33,7 @@ const streamBody = '{{#subtitle}}{{subtitle}} {{/subtitle}}on {{device}}{{#conve
 
 const download = [titleVar(), v('release', 'Copy name', 'Dune.Part.Two.2024.2160p.WEB-DL.DV.HDR.H.265-FLUX'), poster];
 
-export const EVENTS: NotificationEventInfo[] = [
+const LIST: Omit<NotificationEventInfo, 'priority'>[] = [
   // Requests
   {
     key: 'request_pending', group: 'Requests', audience: 'admins', label: 'Someone asked for something', description: 'A request is waiting for you to approve or turn down.',
@@ -150,6 +150,11 @@ export const EVENTS: NotificationEventInfo[] = [
     title: 'Marquee updated', body: 'Now on {{version}}{{#previous}} (was {{previous}}){{/previous}}.', image: '',
   },
 ];
+
+export const PRIORITIES: NotificationPriority[] = ['silent', 'quiet', 'normal', 'high'];
+
+/** Watching is chatty, so it arrives quietly; everything else arrives normally. Admins can change each one. */
+export const EVENTS: NotificationEventInfo[] = LIST.map((e) => ({ ...e, priority: e.group === 'Watching' ? 'quiet' : 'normal' }));
 
 /** Variables every message has, whatever the event. */
 export const COMMON_VARS: NotificationVar[] = [

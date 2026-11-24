@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { keepListening, type SocketLike } from '../src/activity/socket.js';
 import { JellyfinClient, PlexServerClient, type NowPlayingItem } from '../src/library/mediaServers.js';
-import { notificationChannels, streams } from '../src/db/schema.js';
+import { movies, notificationChannels, series, streams } from '../src/db/schema.js';
+import { FakeTmdb } from './fakes/tmdb.js';
 import { FakeMediaServer } from './fakes/mediaServers.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
@@ -132,6 +133,52 @@ describe('following streams', () => {
     activity.start();
     activity.stopWatching();
     expect(rows()[0]!.endedAt).toBe(5000);
+  });
+});
+
+describe('cover art on watching messages', () => {
+  async function withArt(tmdb = true) {
+    const plex = new FakeMediaServer('plex');
+    const sent: { title: string; image: string | null | undefined; priority: string | undefined }[] = [];
+    const t = makeApp({ clients: { plexServer: (u, k) => plex.as(u, k), tmdb: () => new FakeTmdb(), push: { send: async (_c, m) => void sent.push({ title: m.title, image: m.image, priority: m.priority }) } } });
+    const admin = await setupAdmin(t.app);
+    await call(t.app, 'PUT', '/api/settings/services', { plexUrl: 'http://plex:32400', plexToken: 'plex-token', ...(tmdb ? { tmdbApiKey: 'good-key' } : {}) }, admin);
+    t.db.insert(notificationChannels).values({ kind: 'ntfy', name: 'Phone', config: '{"topic":"t"}', events: '["stream_started"]', createdAt: 1 }).run();
+    const look = async () => {
+      await call(t.app, 'GET', '/api/activity/now', undefined, admin);
+      await new Promise((r) => setTimeout(r, 20));
+    };
+    return { ...t, plex, sent, look };
+  }
+
+  it('finds a movie in the library by name and year when Plex doesn’t say its TMDB id', async () => {
+    const { db, plex, sent, look } = await withArt(false);
+    db.insert(movies).values({ tmdbId: 438631, title: 'Dune', sortTitle: 'dune', year: 2021, posterPath: '/dune.jpg', path: '/m/dune', addedAt: 1, refreshedAt: 1 } as never).run();
+    plex.playing = [item({ tmdbId: null })];
+    await look();
+    expect(sent[0]).toMatchObject({ title: 'ana started Dune', image: 'https://image.tmdb.org/t/p/w500/dune.jpg', priority: 'quiet' });
+  });
+
+  it('finds a show whose name has a year on one side only', async () => {
+    const { db, plex, sent, look } = await withArt(false);
+    db.insert(series).values({ tmdbId: 5, title: 'Doctor Who (2005)', sortTitle: 'doctor who', posterPath: '/who.jpg', addedAt: 1, refreshedAt: 1, path: '/tv/w' } as never).run();
+    plex.playing = [item({ kind: 'episode', title: 'Blink', show: 'Doctor Who', season: 3, episode: 10, tmdbId: null })];
+    await look();
+    expect(sent[0]!.image).toBe('https://image.tmdb.org/t/p/w500/who.jpg');
+  });
+
+  it('asks TMDB for something that isn’t in the library', async () => {
+    const { plex, sent, look } = await withArt();
+    plex.playing = [item({ title: 'Up', year: 2009, tmdbId: 14160 }), item({ sessionId: 's2', kind: 'episode', title: 'Half Loop', show: 'Severance', season: 1, episode: 2, tmdbId: null })];
+    await look();
+    expect(sent.map((m) => m.image).sort()).toEqual(['https://image.tmdb.org/t/p/w500/up.jpg', expect.stringMatching(/^https:\/\/image\.tmdb\.org\/t\/p\/w500\//)].sort());
+  });
+
+  it('sends the message without a picture when there is none to find', async () => {
+    const { plex, sent, look } = await withArt(false);
+    plex.playing = [item({ title: 'Nothing Known', tmdbId: null })];
+    await look();
+    expect(sent[0]).toMatchObject({ title: 'ana started Nothing Known', image: null });
   });
 });
 

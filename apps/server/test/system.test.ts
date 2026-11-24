@@ -260,8 +260,8 @@ describe('free space', () => {
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 const UNDO_NEWEST = {
-  sql: ['movies', 'series'].flatMap((t) => ['search_note', 'plex_labels', 'server_refs'].map((c) => `ALTER TABLE ${t} DROP COLUMN ${c}`)),
-  tables: ['movies', 'series'],
+  sql: ['DROP TABLE notification_priorities'],
+  tables: ['notification_priorities'],
 };
 
 describe('backups', () => {

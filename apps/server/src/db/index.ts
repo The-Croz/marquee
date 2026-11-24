@@ -706,6 +706,14 @@ export const migrations: string[] = [
   ALTER TABLE movies ADD COLUMN server_refs TEXT;
   ALTER TABLE series ADD COLUMN server_refs TEXT;
   `,
+  // 32: how each notification arrives on phones (quietly, normally, Time Sensitive)
+  `
+  CREATE TABLE notification_priorities (
+    event TEXT PRIMARY KEY,
+    priority TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export interface OpenOptions {
