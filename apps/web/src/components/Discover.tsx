@@ -305,22 +305,22 @@ export function Hero({ items }: { items: DiscoverCard[] }) {
     >
       {items.map((x, n) => {
         const src = tmdbImage(x.backdropPath, 'w1280');
-        return src ? <img key={x.tmdbId} src={src} alt="" className={cx('absolute inset-0 size-full object-cover transition-opacity duration-700', n === i ? 'opacity-70' : 'opacity-0')} /> : null;
+        return src ? <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} key={x.tmdbId} src={src} alt="" className={cx('absolute inset-0 size-full object-cover transition-opacity duration-700', n === i ? 'opacity-70' : 'opacity-0')} /> : null;
       })}
       {!bg && <div className="absolute inset-0 bg-raised" />}
       <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/55 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/20 to-transparent" />
-      <div aria-live={paused ? 'polite' : 'off'} className="relative flex min-h-[340px] flex-col justify-end gap-3 px-6 pt-24 pb-9 sm:min-h-[420px] sm:px-10 lg:min-h-[460px]">
+      <div aria-live={paused ? 'polite' : 'off'} className="relative flex min-h-[280px] flex-col justify-end gap-2.5 px-5 pt-14 pb-4 sm:min-h-[420px] sm:gap-3 sm:px-6 sm:pt-24 sm:pb-9 sm:px-10 lg:min-h-[460px]">
         <div className="flex flex-wrap items-center gap-2 text-label">
           <span className="rounded-full bg-white/10 px-2.5 py-1 text-soft">{c.kind === 'movie' ? 'Movie' : 'Show'}</span>
           {c.year && <span className="text-soft">{c.year}</span>}
           {c.score !== null && <span className="font-semibold text-amber-hi">★ {c.score.toFixed(1)}</span>}
-          {c.genres.length > 0 && <span className="text-soft">{c.genres.join(' · ')}</span>}
+          {c.genres.length > 0 && <span className="text-soft max-sm:hidden">{c.genres.join(' · ')}</span>}
           {c.badge && <span className="rounded-full bg-amber/20 px-2.5 py-1 font-semibold text-amber-hi">{c.badge}</span>}
         </div>
-        <h2 className="m-0 max-w-[760px] font-display text-[44px] leading-[0.95] font-normal sm:text-display-lg">{c.title}</h2>
-        <p className="m-0 line-clamp-3 max-w-[640px] text-base leading-relaxed text-soft">{c.overview}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
+        <h2 className="m-0 max-w-[760px] font-display text-[36px] leading-[0.95] sm:text-[44px] font-normal sm:text-display-lg">{c.title}</h2>
+        <p className="m-0 line-clamp-2 max-w-[640px] text-base sm:line-clamp-3 leading-relaxed text-soft">{c.overview}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
           {canAsk ? (
             <Button type="button" onClick={() => ask(c)} disabled={busy !== null}>
               {busy === c.tmdbId ? 'Asking…' : 'Request'}
@@ -328,7 +328,7 @@ export function Hero({ items }: { items: DiscoverCard[] }) {
           ) : (
             <StateBadge state={c.state} className="px-3 py-2 text-label" />
           )}
-          <Link to={cardHref(c)} className="inline-flex h-11 items-center rounded-xl border border-line-strong px-5 text-body font-medium text-text no-underline hover:bg-white/10 hover:text-text">
+          <Link to={cardHref(c)} className="inline-flex h-11 items-center rounded-xl border border-line-strong px-4 text-body font-medium text-text no-underline hover:bg-white/10 sm:px-5 hover:text-text">
             More info
           </Link>
           <Link to={`/discover/${c.kind}/${c.tmdbId}?trailer=1`} className="inline-flex h-11 items-center gap-2 rounded-xl px-3 text-body font-medium text-soft no-underline hover:text-text">

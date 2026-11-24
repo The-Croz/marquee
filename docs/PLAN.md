@@ -329,6 +329,19 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 - Sideways rows line up with the page edge (scroll padding) and use the phone's 16px gutter; checked at 375px with no sideways scroll.
 - Tests: `test/title-page.test.ts` (scores, OMDb key, people, providers, when a movie is out), plus the searching state in `test/requests.test.ts`, cinema rules in `test/wanted.test.ts`, the scan memory in `test/library.test.ts`. Demo mode has a fake OMDb.
 
+### Phone pass (Nov 2026) ✅
+
+Every page walked at 375px in the demo (and the main ones at desktop width). Nothing scrolled sideways, but plenty didn't work well:
+- **One look for section tabs, another for filters.** `Tabs` (`components/Page.tsx`) is now an underline row for switching views (Library Movies/Shows, Downloads/History/Never pick, Requests, Notifications); the new `Chips` are pill filters that scroll sideways on phones instead of wrapping into a wall, and wrap on wider screens (Library, Downloads, Calendar, Logs, person pages). Before, Downloads showed two stacked rows of identical pills, and Quality, Notifications and Downloads each used a different tab style.
+- **Library header** fits in one screen on phones: filter box and More on one row, chips, then the two sort/Wanted selects side by side. Admins' "Find a movie to add" box is hidden on phones (More → Add a movie does the same).
+- **Calendar**: the "In your calendar app" card was rendered inside every movie row; it now shows once at the bottom. On phones each row's state sits under the name instead of squeezing it.
+- **Title pages**: no empty band above the poster on phones; facts use "·" like everywhere else; "Which episodes to want" moved from the hero to the Seasons heading; episode rows keep to one line (state under the name on phones).
+- Images that fail to load are hidden instead of showing the browser's broken-image icon (Discover banner, title and Home banners, bell).
+- Sideways rows no longer show a thin scrollbar line on touch screens.
+- **Find copies** opens as a whole screen on phones (a tall window on wider screens) with a Close button; `Sheet` gained `size="full"` and every Sheet now has a Close button. The search it already started leads with one line (what was searched, which profile) plus Change and Search again; the profile/season/episode choices fold away under Change. While searching it says so with placeholder rows. Each copy's points sit above it on phones so the name gets the full width.
+- Discover's banner is shorter on phones (smaller title, two lines of description, no genres). Library's add box no longer leaves a gap on phones (`PageHeader` `actionsWideOnly`). Home's This week says a note once when every card shares it.
+- Watching says "Nothing watched yet…" instead of empty charts; Quality's New profile form opens from a button; Settings → Users won't let you change your own role; Home's setup checklist uses a › button on phones so step names don't wrap.
+
 ## Replace everything ✅ (gaps from the replacement audit)
 
 [`docs/design/replacement-audit-2026-11.md`](design/replacement-audit-2026-11.md) compares Radarr, Sonarr, Prowlarr, Seerr, Tautulli, WatchState, Profilarr and their helpers screen by screen, with Josh's decisions (2026-11-22). Seven rounds; **1 (backups, logs, Health page, disk space) and 2 (unpack .rar, Never pick list, one History page) come before Radarr and Sonarr are turned off.** Then library care (remove, rename with preview, manual import, subtitles along), getting titles in (show presets, collections, Plex watchlist and Trakt/IMDb/Letterboxd lists), profiles (Dictionarry as the default database with TRaSH kept, rule updates in the app, own rules, test a name), family (Something wrong?, webhook, iCal) and watching (sync on stop, resume points, Tautulli import).

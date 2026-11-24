@@ -158,3 +158,13 @@
     transform: translateY(-50%);
   }
 }
+
+/* Sideways rows: on touch screens the swipe is the cue, so the thin scrollbar line under each row goes. */
+@media (pointer: coarse) {
+  .overflow-x-auto {
+    scrollbar-width: none;
+  }
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+}

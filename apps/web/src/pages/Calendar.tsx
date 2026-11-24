@@ -6,7 +6,7 @@ import type { CalendarItem, CalendarView } from '@marquee/shared';
 import { ApiFailure, api } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Notice, cx } from '../components/ui';
-import { PageHeader } from '../components/Page';
+import { Chips, PageHeader } from '../components/Page';
 
 /**
  * The calendar: episodes of the shows in your library and Wanted movies
@@ -46,25 +46,16 @@ export function CalendarPage() {
   return (
     <>
       <PageHeader title="Calendar" back={{ to: "/", label: "Home" }} info="New episodes of the shows in your library and the Wanted movies coming out, by day. Dates come from TMDB and are checked twice a day." />
-      <div role="group" aria-label="Show" className="flex flex-wrap gap-2">
-        {(
-          [
-            ['all', 'Everything'],
-            ['episode', 'Shows'],
-            ['movie', 'Movies'],
-          ] as const
-        ).map(([v, label]) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={only === v}
-            onClick={() => setOnly(v)}
-            className={cx('h-11 rounded-full border px-4 text-sm font-medium', only === v ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Chips
+        label="Show"
+        value={only}
+        onChange={setOnly}
+        items={[
+          { value: 'all', label: 'Everything' },
+          { value: 'episode', label: 'Shows' },
+          { value: 'movie', label: 'Movies' },
+        ]}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => shift(-14)}>
           ← Earlier
@@ -101,8 +92,7 @@ export function CalendarPage() {
                       <>
                         <span className="mr-1.5 rounded bg-raised px-1.5 py-0.5 text-caption font-semibold tracking-wide text-muted uppercase">Movie</span>
                         {i.title}
-                        <CalendarLink />
-    </>
+                      </>
                     ) : (
                       <>
                         {i.season === 0 ? 'Special' : `S${i.season} E${i.episode}`}
@@ -110,8 +100,13 @@ export function CalendarPage() {
                       </>
                     )}
                   </span>
+                  {/* On phones the state goes under the name, so neither is squeezed. */}
+                  <span className="text-label sm:hidden">
+                    <span className={cx('font-medium', STATE[i.state].tone)}>{STATE[i.state].label}</span>
+                    {i.note !== STATE[i.state].label && <span className="text-muted"> · {i.note}</span>}
+                  </span>
                 </div>
-                <div className="flex max-w-[45%] flex-col items-end gap-0.5 text-right">
+                <div className="flex max-w-[45%] flex-col items-end gap-0.5 text-right max-sm:hidden">
                   <span className={cx('text-sm font-medium', STATE[i.state].tone)}>{STATE[i.state].label}</span>
                   {i.note !== STATE[i.state].label && <span className="text-label text-muted">{i.note}</span>}
                 </div>
@@ -120,6 +115,7 @@ export function CalendarPage() {
           </ul>
         </section>
       ))}
+      <CalendarLink />
     </>
   );
 }

@@ -128,19 +128,19 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
 
       <section className={cx('relative isolate overflow-hidden rounded-2xl bg-raised', trailer && info?.trailerKey && 'hidden')} style={{ '--tint': color ?? 'var(--color-amber)' } as React.CSSProperties}>
         {bg ? (
-          <img src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover opacity-60" />
+          <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover opacity-60" />
         ) : (
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(80%_110%_at_80%_0%,color-mix(in_oklab,var(--tint)_34%,transparent)_0%,color-mix(in_oklab,var(--tint)_12%,var(--color-ink))_50%,var(--color-ink)_100%)]" />
         )}
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/70 to-ink/20" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink/70 via-transparent to-transparent" />
-        <div className="relative flex flex-wrap items-end gap-6 px-5 pt-28 pb-7 sm:gap-8 sm:px-10 sm:pb-9">
-          <Poster title={title} path={lib?.posterPath ?? c?.posterPath} color={color} transition={lib ? posterTransition(href) : undefined} size="w500" className="w-[132px] flex-none shadow-2xl sm:w-[190px]" />
+        <div className="relative flex flex-wrap items-end gap-6 px-5 pt-6 pb-7 sm:pt-28 sm:gap-8 sm:px-10 sm:pb-9">
+          <Poster title={title} path={lib?.posterPath ?? c?.posterPath} color={color} transition={lib ? posterTransition(href) : undefined} size="w500" className="w-[112px] flex-none shadow-2xl sm:w-[190px]" />
           <div className="flex min-w-[260px] flex-1 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-soft">
               {cert && <span className="rounded border border-white/35 px-1.5 py-px text-caption font-semibold tracking-wide text-text">{cert}</span>}
               {/* A no-break space keeps each slash on the line before it when the facts wrap. */}
-              <span>{facts.join('\u00a0/ ')}</span>
+              <span>{facts.join('\u00a0· ')}</span>
             </div>
             <h1 className="m-0 font-display text-display leading-[0.95] font-normal text-balance sm:text-display-lg">{title}</h1>
             {info?.tagline && <p className="m-0 text-body text-soft italic">{info.tagline}</p>}
@@ -177,20 +177,18 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
       {lib?.path && <p className="m-0 text-xs break-all text-dim">Folder on disk: {lib.path}</p>}
 
       {admin && lib && (
-        <Sheet open={finding !== null} onClose={() => setFinding(null)} title={finding?.episode !== undefined ? `Find a copy of episode ${finding.episode}` : finding?.season !== undefined ? `Find copies of season ${finding.season}` : `Find a copy of ${title}`} className="sm:w-[min(880px,calc(100vw-48px))]">
+        <Sheet open={finding !== null} onClose={() => setFinding(null)} title={finding?.episode !== undefined ? `Find a copy of episode ${finding.episode}` : finding?.season !== undefined ? `Find copies of season ${finding.season}` : `Find a copy of ${title}`} size="full">
           {finding && (
-            <div className="p-5 sm:p-6">
-              <CopiesPanel
-                bare
-                autoSearch
-                kind={kind === 'movie' ? 'movie' : 'tv'}
-                titleId={lib.id}
-                profile={lib.profile}
-                byHand={lib.profileByHand}
-                {...(show ? { seasons: show.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) })) } : {})}
-                {...(finding.season !== undefined ? { start: { season: finding.season, ...(finding.episode !== undefined ? { episode: finding.episode } : {}) } } : {})}
+            <CopiesPanel
+              bare
+              autoSearch
+              kind={kind === 'movie' ? 'movie' : 'tv'}
+              titleId={lib.id}
+              profile={lib.profile}
+              byHand={lib.profileByHand}
+              {...(show ? { seasons: show.seasons.map((x) => ({ season: x.season, episodes: x.episodes.map((e) => e.episode) })) } : {})}
+              {...(finding.season !== undefined ? { start: { season: finding.season, ...(finding.episode !== undefined ? { episode: finding.episode } : {}) } } : {})}
               />
-            </div>
           )}
         </Sheet>
       )}
@@ -319,7 +317,6 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
         {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
         {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
       </div>
-      {admin && lib && kind === 'series' && <ShowEpisodesChoice showId={lib.id} />}
       {info?.collection && (
         <Link to={`/collections/${info.collection.tmdbId}`} className="self-start text-sm font-semibold">
           Part of {info.collection.name} →
@@ -371,7 +368,7 @@ function WatchOn({ list }: { list: DiscoverTitle['watchOn'] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm text-soft">
       <span>Streaming on</span>
       {logos.length === list.length ? (
-        logos.slice(0, 6).map((p) => <img key={p.name} src={tmdbImage(p.logoPath, 'w185')!} alt={p.name} title={p.name} className="size-8 rounded-lg" />)
+        logos.slice(0, 6).map((p) => <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} key={p.name} src={tmdbImage(p.logoPath, 'w185')!} alt={p.name} title={p.name} className="size-8 rounded-lg" />)
       ) : (
         <span className="text-text">{list.map((p) => p.name).join(', ')}</span>
       )}
@@ -459,9 +456,12 @@ function Seasons({ show, admin, onFind }: { show: ShowDetail; admin: boolean; on
   const ordered = [...show.seasons.filter((s) => s.season !== 0), ...show.seasons.filter((s) => s.season === 0)];
   return (
     <section aria-labelledby="seasons-h" className="flex flex-col gap-3">
-      <h2 id="seasons-h" className="m-0 text-lg font-semibold">
-        Seasons
-      </h2>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 id="seasons-h" className="m-0 text-lg font-semibold">
+          Seasons
+        </h2>
+        {admin && <ShowEpisodesChoice showId={show.id} />}
+      </div>
       <ul className="m-0 flex list-none flex-col gap-2 p-0">
         {ordered.map((s) => (
           <SeasonRow key={s.season} s={s} show={show} admin={admin} open={open.has(s.season)} onToggle={() => toggle(s.season)} onFind={onFind} />
@@ -505,15 +505,17 @@ function SeasonRow({ s, show, admin, open, onToggle, onFind }: { s: SeasonView; 
       {open && (
         <ol id={id} className="m-0 list-none border-t border-line p-0">
           {s.episodes.map((e) => (
-            <li key={e.episode} className="flex flex-wrap items-center gap-x-4 gap-y-0.5 border-b border-line px-4 py-2 last:border-b-0 sm:px-5">
-              <span className="w-8 flex-none text-sm font-semibold text-muted tabular-nums">{e.episode}</span>
-              <span className="flex min-w-[160px] flex-1 flex-col">
+            <li key={e.episode} className="flex items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0 sm:gap-x-4 sm:px-5">
+              <span className="w-6 flex-none text-sm font-semibold text-muted tabular-nums sm:w-8">{e.episode}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
                 <span className="text-body">{e.title ?? `Episode ${e.episode}`}</span>
-                <span className="text-xs text-dim">{e.airDate ? pretty(e.airDate) : 'No date yet'}</span>
+                <span className="text-xs text-dim">
+                  {e.airDate ? pretty(e.airDate) : 'No date yet'}
+                  {/* On phones the state sits under the name, so the name keeps the width. */}
+                  <span className={cx('font-semibold sm:hidden', e.file ? 'text-soft' : e.aired ? 'text-warn' : 'text-dim')}> · {episodeState(e)}</span>
+                </span>
               </span>
-              <span className={cx('text-xs font-semibold', e.file ? 'text-soft' : e.aired ? 'text-warn' : 'text-dim')}>
-                {e.file ? `${e.file.quality.label} · ${formatBytes(e.file.sizeBytes)}` : e.aired ? 'Missing' : 'Not out yet'}
-              </span>
+              <span className={cx('text-xs font-semibold max-sm:hidden', e.file ? 'text-soft' : e.aired ? 'text-warn' : 'text-dim')}>{episodeState(e)}</span>
               {admin && show.monitored && <WantedToggle compact path={`/shows/${show.id}/seasons/${s.season}/episodes/${e.episode}/wanted`} wanted={e.wanted} label={`Episode ${e.episode}: wanted`} />}
               {admin && e.aired && (
                 <button type="button" onClick={() => onFind(s.season, e.episode)} aria-label={`Find a copy of episode ${e.episode}`} className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-amber hover:bg-raised">
@@ -527,6 +529,8 @@ function SeasonRow({ s, show, admin, open, onToggle, onFind }: { s: SeasonView; 
     </li>
   );
 }
+
+const episodeState = (e: SeasonView['episodes'][number]) => (e.file ? `${e.file.quality.label} · ${formatBytes(e.file.sizeBytes)}` : e.aired ? 'Missing' : 'Not out yet');
 
 // ---------------- Cast ----------------
 

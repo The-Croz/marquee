@@ -45,7 +45,7 @@ export function ShowEpisodesChoice({ showId }: { showId: number }) {
   return (
     <div className="flex flex-wrap items-end gap-2">
       <label className="flex flex-col gap-1 text-label text-muted">
-        Want in one go
+        Which episodes to want
         <select value={value} onChange={(e) => setValue(e.target.value as ShowPreset)} className="h-11 rounded-lg border border-line-strong bg-panel px-2.5 text-sm text-text">
           <option value="">Choose…</option>
           {SHOW_PRESETS.map((p) => (

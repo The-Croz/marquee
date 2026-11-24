@@ -137,6 +137,7 @@ export function Sheet({
   hideTitle,
   children,
   className,
+  size = 'fit',
 }: {
   open: boolean;
   onClose: () => void;
@@ -145,6 +146,8 @@ export function Sheet({
   hideTitle?: boolean;
   children: ReactNode;
   className?: string;
+  /** `full`: a whole screen on phones and a tall window on wider screens, for long results. */
+  size?: 'fit' | 'full';
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -168,19 +171,26 @@ export function Sheet({
       onMouseDown={(e) => e.target === ref.current && onClose()}
       className={cx(
         'sheet m-0 mt-auto w-full max-w-none border border-line-strong bg-panel p-0 text-text shadow-2xl backdrop:bg-black/60',
-        'max-h-[85vh] rounded-t-2xl sm:m-auto sm:max-h-[80vh] sm:w-[min(560px,calc(100vw-48px))] sm:rounded-2xl',
+        size === 'full'
+          ? 'h-[100dvh] max-h-[100dvh] sm:m-auto sm:h-[85vh] sm:max-h-[85vh] sm:w-[min(880px,calc(100vw-48px))] sm:rounded-2xl'
+          : 'max-h-[85vh] rounded-t-2xl sm:m-auto sm:max-h-[80vh] sm:w-[min(560px,calc(100vw-48px))] sm:rounded-2xl',
         className,
       )}
     >
       {open && (
-        <div className="flex max-h-[inherit] flex-col">
-          <div className="flex items-center gap-3 px-5 pt-3 pb-2">
-            <span aria-hidden="true" className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-line-strong sm:hidden" />
-            <h2 id={titleId} className={cx('m-0 flex-1 pt-3 text-heading font-semibold', hideTitle && 'sr-only')}>
+        <div className={cx('flex max-h-[inherit] flex-col', size === 'full' && 'h-full')}>
+          <div className={cx('flex items-center gap-3 px-5 pb-2', size === 'full' ? 'border-b border-line pt-[max(12px,env(safe-area-inset-top))] pb-3' : 'pt-3')}>
+            {size === 'fit' && <span aria-hidden="true" className="absolute top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-line-strong sm:hidden" />}
+            <h2 id={titleId} className={cx('m-0 min-w-0 flex-1 text-heading font-semibold', size === 'fit' && 'pt-3', hideTitle && 'sr-only')}>
               {title}
             </h2>
+            {!hideTitle && (
+              <button type="button" onClick={onClose} aria-label="Close" className={cx('-mr-2 flex size-11 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-raised hover:text-text', size === 'fit' && 'mt-3')}>
+                <span aria-hidden="true">×</span>
+              </button>
+            )}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[max(20px,env(safe-area-inset-bottom))]">{children}</div>
+          <div className={cx('min-h-0 flex-1 overflow-y-auto px-5 pb-[max(20px,env(safe-area-inset-bottom))]', size === 'full' && 'pt-4')}>{children}</div>
         </div>
       )}
     </dialog>

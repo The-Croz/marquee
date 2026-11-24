@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { BackupKind, BackupView, BackupsView, ConnectionView, DiskSettingsView, DiskView, HealthView, JobView, LogLevel, LogsView, ReplacedView, RestoreResult } from '@marquee/shared';
 import { ApiFailure, api, queryClient, refreshAuth } from '../api';
 import { Button, Card, Field, Notice, Progress, cx } from '../components/ui';
-import { EmptyState, StatusDot, Tabs } from '../components/Page';
+import { Chips, EmptyState, StatusDot } from '../components/Page';
 import { Sheet } from '../components/Overlay';
 
 /** Settings → Health, Backups and Logs: running Marquee safely. Admin only. */
@@ -488,7 +488,7 @@ export function LogsPage() {
         What Marquee has been doing lately, newest first. Keys, passwords and tokens are taken out before anything is kept, so the download is safe to share in a bug report.
       </p>
       <div className="flex flex-wrap items-center gap-3">
-        <Tabs
+        <Chips
           label="Which lines"
           value={show}
           onChange={setShow}

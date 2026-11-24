@@ -5,7 +5,7 @@ import { ApiFailure, useAuthStatus } from '../api';
 import { DownloadTable, useDownloads } from '../components/Downloads';
 import { formatBytes } from '../components/Poster';
 import { Notice, cx } from '../components/ui';
-import { PageHeader, Tabs } from '../components/Page';
+import { Chips, PageHeader, Tabs } from '../components/Page';
 
 /**
  * Downloads: everything Marquee sent to qBittorrent (or follows for another
@@ -90,19 +90,7 @@ export function DownloadsPage() {
       {v && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
-              {SHOW.map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-pressed={show === k}
-                  onClick={() => setShow(k)}
-                  className={cx('h-11 rounded-full border px-4 text-sm font-medium', show === k ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
-                >
-                  {label} <span className={cx('tabular-nums', show === k ? 'text-amber-ink/70' : 'text-dim')}>{count(k)}</span>
-                </button>
-              ))}
-            </div>
+            <Chips label="Show" value={show} onChange={setShow} items={SHOW.map(([k, label]) => ({ value: k, label, count: count(k) }))} />
             <label htmlFor="dl-filter" className="sr-only">
               Filter downloads
             </label>

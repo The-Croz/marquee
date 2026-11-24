@@ -7,7 +7,7 @@ import { SHOW_PRESETS } from './GettingIn';
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster } from '../components/Poster';
 import { Button, Card, Notice, cx } from '../components/ui';
-import { PageHeader } from '../components/Page';
+import { PageHeader, Tabs } from '../components/Page';
 
 const errMsg = (e: unknown) => (e instanceof ApiFailure ? e.message : 'Something went wrong. Try again.');
 const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['requests'] }), queryClient.invalidateQueries({ queryKey: ['discover'] }), queryClient.invalidateQueries({ queryKey: ['library'] })]);
@@ -282,19 +282,8 @@ export function RequestsPage({ user }: { user: SessionUser }) {
         title="Requests"
         info={admin ? 'Approve what the family asks for. Your own requests go straight through.' : 'Ask for a movie or show from Discover. An admin approves it, and you’ll hear when it’s ready.'}
       />
-      <nav aria-label="Requests" className="flex flex-wrap gap-2">
-        {tabs.map(([v, label]) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={tab === v}
-            onClick={() => setTab(v)}
-            className={cx('h-11 rounded-full border px-4 text-sm font-medium', tab === v ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
-          >
-            {label}
-            {v === 'waiting' && waiting > 0 && ` (${waiting})`}
-          </button>
-        ))}
+      <Tabs label="Requests" value={tab} onChange={setTab} items={tabs.map(([v, label]) => ({ value: v, label, count: v === 'waiting' && waiting > 0 ? waiting : undefined }))} />
+      <nav aria-label="More" className="-mt-2 flex">
         <Link to="/discover" className="ml-auto flex min-h-11 items-center text-sm font-semibold">
           Find something to ask for →
         </Link>
