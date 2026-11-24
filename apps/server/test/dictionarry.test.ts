@@ -10,7 +10,8 @@ import { dictExplain } from '../src/releases/dictWords.js';
 import { decide, type Wanted } from '../src/releases/decide.js';
 import { compile, matches, unsupported } from '../src/releases/formats.js';
 import { parseRelease } from '../src/releases/parse.js';
-import { DICT_NOTICE, PRESET_BASES, ProfileService, seedProfiles, type FullProfile, type Kind } from '../src/releases/profiles.js';
+import { judgeFile, doneUpgrading } from '../src/releases/upgrade.js';
+import { DICT_NOTICE, GOOD_ENOUGH_BAND, MIN_UPGRADE_STEP, PRESET_BASES, ProfileService, seedProfiles, type FullProfile, type Kind } from '../src/releases/profiles.js';
 import type { FoundRelease } from '../src/sources/service.js';
 import { FakeDictionarry, OPS_V1, OPS_V2, SCHEMA_SQL, tarball } from './fakes/dictionarry.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
@@ -135,7 +136,8 @@ describe('the presets, built on Dictionarry', () => {
     for (const kind of ['movie', 'tv'] as Kind[]) {
       for (const [key, base] of Object.entries(PRESET_BASES)) {
         const p = preset(kind, key);
-        expect(p).toMatchObject({ database: 'dictionarry', base, preferRepacks: false, minScore: 200000, cutoffScore: 1000000 });
+        expect(p).toMatchObject({ database: 'dictionarry', base, preferRepacks: false, minScore: 200000, minUpgradeScore: MIN_UPGRADE_STEP });
+        expect(p.cutoffScore).toBeLessThan(1000000);
         expect(p.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual([base]);
         expect(p.rules.every((r) => p.defs!.has(r.trashId))).toBe(true);
       }
@@ -238,6 +240,45 @@ describe('the presets, built on Dictionarry', () => {
 });
 
 // ---------------------------------------------------------------- moving an install's presets over, once
+
+describe('good enough, on Dictionarry', () => {
+  it('stops at a top-tier copy of the target quality instead of Dictionarry’s never-reached 1,000,000', () => {
+    // The best 4K rule scores 982,000 (movies) and the best 1080p compact one 943,000; TV's best 1080p efficient one 940,000.
+    expect(preset('movie', 'cinema').cutoffScore).toBe(982000 - GOOD_ENOUGH_BAND);
+    expect(preset('movie', 'kids').cutoffScore).toBe(943000 - GOOD_ENOUGH_BAND);
+    expect(preset('tv', 'everyday-hd').cutoffScore).toBe(940000 - GOOD_ENOUGH_BAND);
+  });
+
+  it('a good 4K streaming copy is good enough for 4K Quality; a 1080p one isn’t', () => {
+    const p = preset('movie', 'cinema');
+    const four = judgeFile(dune, '/data/media/movies/Dune Part Two (2024)/Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX.mkv', p);
+    const hd = judgeFile(dune, '/data/media/movies/Dune Part Two (2024)/Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.H.264-FLUX.mkv', p);
+    expect(doneUpgrading(four, p)).toBe(true);
+    expect(doneUpgrading(hd, p)).toBe(false);
+  });
+
+  it('a small x265 streaming copy is good enough for Everyday HD', () => {
+    const p = preset('movie', 'everyday-hd');
+    const yours = judgeFile(dune, '/data/media/movies/Dune Part Two (2024)/Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.H.265-FLUX.mkv', p);
+    expect(doneUpgrading(yours, p)).toBe(true);
+  });
+
+  it('existing installs: only the limits you never changed move, once', () => {
+    const db = openDb(':memory:');
+    seedProfiles(db, 0);
+    db.update(schema.profiles).set({ cutoffScore: 1000000, minUpgradeScore: 1 }).run();
+    db.update(schema.profiles).set({ cutoffScore: 500000 }).where(eq(schema.profiles.key, 'kids')).run();
+    setSetting(db, 'profiles.dictionarry_good_enough', '');
+    seedProfiles(db, 10);
+    const rows = db.select().from(schema.profiles).all();
+    const cinema = rows.find((r) => r.kind === 'movie' && r.key === 'cinema')!;
+    expect(cinema).toMatchObject({ cutoffScore: 982000 - GOOD_ENOUGH_BAND, minUpgradeScore: MIN_UPGRADE_STEP });
+    for (const k of rows.filter((r) => r.key === 'kids')) expect(k).toMatchObject({ cutoffScore: 500000, minUpgradeScore: MIN_UPGRADE_STEP });
+    db.update(schema.profiles).set({ cutoffScore: 1000000 }).where(eq(schema.profiles.id, cinema.id)).run();
+    seedProfiles(db, 20);
+    expect(db.select().from(schema.profiles).where(eq(schema.profiles.id, cinema.id)).get()!.cutoffScore).toBe(1000000);
+  });
+});
 
 describe('moving built-in profiles from TRaSH to Dictionarry', () => {
   it('moves only the ones you never changed, once, and says so', async () => {
