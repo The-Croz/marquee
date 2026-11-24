@@ -44,6 +44,10 @@ export class FakeQbit {
         gate();
         return structuredClone(this.state);
       },
+      connection: async () => {
+        gate();
+        return this.state.connection;
+      },
       torrents: async (hashes) => {
         gate();
         return this.list.filter((t) => hashes.includes(t.hash)).map((t) => ({ ...t }));

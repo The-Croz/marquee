@@ -215,6 +215,12 @@ jellyfin.people = [
   { id: 'jf-sam', username: 'sam', name: 'Sam' },
   { id: 'jf-kid', username: 'riley', name: 'Riley' },
 ];
+// What each server has, for "Watch in Plex / Jellyfin" and Plex labels.
+plex.titleList = [
+  { kind: 'movie', ref: '101', keys: ['tmdb:693134'], libraryId: '1', labels: [] },
+  { kind: 'tv', ref: '201', keys: ['tmdb:95396'], libraryId: '2', labels: [] },
+];
+jellyfin.titleList = [{ kind: 'movie', ref: 'jf-dune', keys: ['tmdb:693134'] }];
 const hoursAgo = (h: number) => Date.now() - h * 3_600_000;
 plex.plays = [
   { kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, userId: '1', user: 'josh', key: 'p1', playedAt: hoursAgo(5) },

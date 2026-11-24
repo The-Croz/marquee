@@ -102,7 +102,7 @@ describe('Settings → Services: Plex and Jellyfin', () => {
     const admin = await setupAdmin(t.app);
     await call(t.app, 'PUT', '/api/settings/services', { plexUrl: 'http://plex:32400/', plexToken: 'plex-token', jellyfinUrl: 'http://jellyfin:8096', jellyfinApiKey: 'jellyfin-key' }, admin);
     const v = await call(t.app, 'GET', '/api/settings/services', undefined, admin);
-    expect(v.body.plex).toEqual({ url: 'http://plex:32400', configured: true, movieLibrary: null, tvLibrary: null });
+    expect(v.body.plex).toEqual({ url: 'http://plex:32400', configured: true, movieLibrary: null, tvLibrary: null, publicUrl: null, labels: { on: false, text: 'Requested', requester: false } });
     expect(JSON.stringify(v.body)).not.toMatch(/plex-token|jellyfin-key/);
     const test = await call(t.app, 'POST', '/api/settings/services/test', { service: 'plex' }, admin);
     expect(test.body).toEqual({ ok: true, message: "Connected to Josh's Plex (Plex 1.41.3): 1 movie library and 1 TV library." });

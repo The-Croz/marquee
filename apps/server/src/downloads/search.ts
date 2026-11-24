@@ -3,7 +3,7 @@ import type { SourceSearchOutcome } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, neverPick, series } from '../db/schema.js';
 import { HttpError } from '../http.js';
-import { decide, type Decision, type Wanted } from '../releases/decide.js';
+import { OFF_TARGET, decide, type Decision, type RejectionCode, type Wanted } from '../releases/decide.js';
 import { ProfileService, type FullProfile } from '../releases/profiles.js';
 import { compareToYours, judgeFile, worstFile, type YourFile } from '../releases/upgrade.js';
 import type { FoundRelease, SourceService } from '../sources/service.js';
@@ -78,12 +78,115 @@ export function judgeCopies(db: Db, target: SearchTarget, prep: PreparedTitle, r
   return { search: { wanted, target, profileKey: profile.key, decisions, vsYours }, yours };
 }
 
-export async function searchTitle(deps: { db: Db; sources: SourceService; now: () => number }, target: SearchTarget): Promise<TitleSearch> {
+/**
+ * What each title's recent searches brought back (the copies, not the
+ * judgement), per database, so "Try another copy" soon after can pick the
+ * next best without asking every Source again. Judged afresh each time, so
+ * Never pick, the profile and your file are always current.
+ */
+const recent = new WeakMap<Db, Map<string, { at: number; releases: FoundRelease[]; sources: SourceSearchOutcome[] }>>();
+const KEEP_RECENT = 200;
+const targetKey = (t: SearchTarget) => (t.kind === 'movie' ? `m:${t.movieId}` : `t:${t.seriesId}:${t.season ?? ''}:${t.episode ?? ''}`);
+
+function remember(db: Db, target: SearchTarget, at: number, releases: FoundRelease[], sources: SourceSearchOutcome[]): void {
+  let m = recent.get(db);
+  if (!m) recent.set(db, (m = new Map()));
+  m.delete(targetKey(target));
+  m.set(targetKey(target), { at, releases, sources });
+  while (m.size > KEEP_RECENT) m.delete(m.keys().next().value!);
+}
+
+export async function searchTitle(
+  deps: { db: Db; sources: SourceService; now: () => number },
+  target: SearchTarget,
+  /** Use copies a search for the same title brought back this recently (ms), instead of searching again. */
+  opts: { reuseWithinMs?: number } = {},
+): Promise<TitleSearch & { reused?: boolean }> {
   const { db, sources, now } = deps;
   const prep = prepareTitle(db, now, target);
+  const earlier = opts.reuseWithinMs ? recent.get(db)?.get(targetKey(target)) : undefined;
+  if (earlier && now() - earlier.at <= opts.reuseWithinMs!) {
+    return { ...judgeCopies(db, target, prep, earlier.releases), profile: prep.profile, sources: earlier.sources, reused: true };
+  }
   if (!sources.view().sources.some((s) => s.enabled)) throw new HttpError(409, 'no_sources', 'There are no Sources to search yet. Add some in Settings → Sources.');
   const outcome = await sources.search(prep.query);
-  return { ...judgeCopies(db, target, prep, outcome.releases), profile: prep.profile, sources: outcome.sources };
+  if (outcome.sources.some((s) => s.status === 'searched')) remember(db, target, now(), outcome.releases, outcome.sources);
+  const judged = judgeCopies(db, target, prep, outcome.releases);
+  // A search where every Source failed found nothing out there; it says nothing about the copies.
+  if (outcome.sources.some((s) => s.status === 'searched')) saveSearchNote(db, target, searchNote(judged.search, prep.profile.name, now()));
+  return { ...judged, profile: prep.profile, sources: outcome.sources };
+}
+
+/** What a title's last search found, kept on the title so its request can say why nothing was picked. */
+export interface SearchNote {
+  at: number;
+  /** "Season 2" or "S02E03" for shows; null for movies. */
+  what: string | null;
+  profile: string;
+  /** Copies of this title (not of others). */
+  found: number;
+  /** Of those, how many Marquee would take. */
+  taken: number;
+  /** Why the rest were turned down, most common first: [reason, how many]. */
+  reasons: [string, number][];
+}
+
+const WHY: Partial<Record<RejectionCode, string>> = {
+  quality: 'not a quality it takes',
+  too_small: 'too small',
+  too_big: 'too big',
+  no_seeders: 'nobody sharing them',
+  never: 'on Never pick',
+  low_score: 'not enough points',
+  sample: 'samples',
+};
+
+export function searchNote(search: Omit<CachedSearch, 'at'>, profile: string, at: number): SearchNote {
+  const t = search.target;
+  const what = t.kind === 'movie' ? null : t.episode !== undefined ? `S${String(t.season ?? 1).padStart(2, '0')}E${String(t.episode).padStart(2, '0')}` : `Season ${t.season ?? 1}`;
+  const counts = new Map<string, number>();
+  const bump = (k: string) => counts.set(k, (counts.get(k) ?? 0) + 1);
+  let found = 0;
+  let taken = 0;
+  search.decisions.forEach((d, i) => {
+    if (d.rejections.some((r) => OFF_TARGET.has(r.code))) return;
+    found++;
+    if (d.accepted) {
+      if (search.vsYours[i]?.better ?? true) taken++;
+      else bump('not better than your file');
+      return;
+    }
+    const code = d.rejections.find((r) => WHY[r.code])?.code;
+    bump(code ? WHY[code]! : 'turned down for other reasons');
+  });
+  const reasons = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  return { at, what, profile, found, taken, reasons };
+}
+
+function saveSearchNote(db: Db, target: SearchTarget, note: SearchNote): void {
+  const value = JSON.stringify(note);
+  if (target.kind === 'movie') db.update(movies).set({ searchNote: value }).where(eq(movies.id, target.movieId!)).run();
+  else db.update(series).set({ searchNote: value }).where(eq(series.id, target.seriesId!)).run();
+}
+
+export function readSearchNote(db: Db, kind: 'movie' | 'series', id: number): SearchNote | null {
+  const row = kind === 'movie' ? db.select({ v: movies.searchNote }).from(movies).where(eq(movies.id, id)).get() : db.select({ v: series.searchNote }).from(series).where(eq(series.id, id)).get();
+  if (!row?.v) return null;
+  try {
+    return JSON.parse(row.v) as SearchNote;
+  } catch {
+    return null;
+  }
+}
+
+/** "23 copies of Season 2, none good enough for 4K Quality: 15 too big, 6 not a quality it takes." */
+export function searchNoteText(n: SearchNote): string {
+  const of = n.what ? ` of ${n.what}` : '';
+  if (n.found === 0) return `No Source had a copy${of}.`;
+  const copies = `${n.found} ${n.found === 1 ? 'copy' : 'copies'}${of}`;
+  if (n.taken > 0) return `${copies}; Marquee would take ${n.taken} of them.`;
+  const why = n.reasons.map(([r, c]) => `${c} ${r}`).join(', ');
+  return `${copies}, none good enough for ${n.profile}${why ? `: ${why}` : ''}.`;
 }
 
 /** Turns down copies you said never to pick for this title, keeping accepted copies first. */

@@ -96,6 +96,12 @@ export const movies = sqliteTable('movies', {
   refreshedAt: integer('refreshed_at').notNull(),
   /** When Marquee last searched for it by itself. */
   lastSearchedAt: integer('last_searched_at'),
+  /** What the last search found, as JSON (`SearchNote` in downloads/search.ts). */
+  searchNote: text('search_note'),
+  /** The Plex labels Marquee added to this title (JSON list), so it never adds them twice. */
+  plexLabels: text('plex_labels'),
+  /** Its id on Plex and Jellyfin, as JSON ({"plex":"123"}), found once and checked before use. */
+  serverRefs: text('server_refs'),
   /** TMDB's collection it belongs to ("The Matrix Collection"), if any. */
   collectionTmdbId: integer('collection_tmdb_id'),
 });
@@ -111,6 +117,12 @@ export const series = sqliteTable('series', {
   overview: text('overview'),
   posterPath: text('poster_path'),
   /** The poster's main colour, `#rrggbb`. Null until picked, or when the image couldn't be read. */
+  /** What the last search found, as JSON (`SearchNote` in downloads/search.ts). */
+  searchNote: text('search_note'),
+  /** The Plex labels Marquee added to this show (JSON list), so it never adds them twice. */
+  plexLabels: text('plex_labels'),
+  /** Its id on Plex and Jellyfin, as JSON ({"plex":"123"}), found once and checked before use. */
+  serverRefs: text('server_refs'),
   posterColor: text('poster_color'),
   /** The poster path the colour was picked from; differs from posterPath when the poster changed. */
   posterColorFor: text('poster_color_for'),

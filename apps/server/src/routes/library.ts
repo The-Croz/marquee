@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type {
+  WatchLink,
   EpisodeView,
   LibraryCard,
   MediaFileView,
@@ -16,6 +17,7 @@ import type {
 import { episodes, mediaFiles, movies, scanItems, series, type MediaFile, type User } from '../db/schema.js';
 import { setEpisodeWanted, setMoviesWanted, setSeasonWanted, setShowsWanted } from '../library/wanted.js';
 import { readServices } from '../library/services.js';
+import { watchLinks } from '../library/onServers.js';
 import type { ScanSources } from '../library/scanner.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Deps, type Env } from '../http.js';
 import { ProfileService } from '../releases/profiles.js';
@@ -284,6 +286,15 @@ movieRoutes.get('/:id{[0-9]+}', (c) => {
   return c.json(detail);
 });
 
+/** "Watch in Plex / Jellyfin": where this movie opens in each server that has it. */
+movieRoutes.get('/:id{[0-9]+}/watch', async (c) => {
+  const user = requireUser(c);
+  const { db, clients } = c.get('deps');
+  const m = db.select({ id: movies.id, certification: movies.certification }).from(movies).where(eq(movies.id, Number(c.req.param('id')))).get();
+  if (!m || (isKid(user) && !KID_MOVIE_RATINGS.includes(m.certification ?? ''))) throw new HttpError(404, 'not_found', 'No such movie.');
+  return c.json<{ links: WatchLink[] }>({ links: await watchLinks({ db, clients }, 'movie', m.id) });
+});
+
 // ---------------- Shows ----------------
 
 export const showRoutes = new Hono<Env>();
@@ -355,6 +366,15 @@ showRoutes.get('/', (c) => {
       };
     });
   return c.json({ items: byFilter(c, 'series', filter, cards) });
+});
+
+/** "Watch in Plex / Jellyfin": where this show opens in each server that has it. */
+showRoutes.get('/:id{[0-9]+}/watch', async (c) => {
+  const user = requireUser(c);
+  const { db, clients } = c.get('deps');
+  const s = db.select({ id: series.id, certification: series.certification }).from(series).where(eq(series.id, Number(c.req.param('id')))).get();
+  if (!s || (isKid(user) && !KID_TV_RATINGS.includes(s.certification ?? ''))) throw new HttpError(404, 'not_found', 'No such show.');
+  return c.json<{ links: WatchLink[] }>({ links: await watchLinks({ db, clients }, 'tv', s.id) });
 });
 
 showRoutes.get('/:id{[0-9]+}', (c) => {

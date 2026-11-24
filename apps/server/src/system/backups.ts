@@ -19,8 +19,8 @@ const DAY = 24 * 60 * 60 * 1000;
 /** A nightly backup is due once the last one is this old. */
 export const NIGHTLY_EVERY = DAY;
 
-const NAME = /^marquee-(\d{8})-(\d{6})-(nightly|by-hand|before-restore)\.sqlite$/;
-const KIND_IN_NAME: Record<BackupKind, string> = { nightly: 'nightly', by_hand: 'by-hand', before_restore: 'before-restore' };
+const NAME = /^marquee-(\d{8})-(\d{6})-(nightly|by-hand|before-restore|before-update)\.sqlite$/;
+const KIND_IN_NAME: Record<BackupKind, string> = { nightly: 'nightly', by_hand: 'by-hand', before_restore: 'before-restore', before_update: 'before-update' };
 
 export function backupFolder(dataDir: string): string {
   return path.join(dataDir, 'backups');
@@ -81,6 +81,35 @@ export async function backUp(db: Db, dataDir: string, kind: BackupKind, now: num
     throw new Error(`Couldn’t write a backup in ${dir} (${(err as NodeJS.ErrnoException).code ?? (err as Error).message}). Check that folder has space and Marquee can write there.`);
   }
   return { name, size: fs.statSync(file).size, createdAt: parseName(name)!.createdAt, kind };
+}
+
+/**
+ * Before a newer Marquee changes the database: a copy as it was, so going
+ * back to the older version (its image, then Restore this backup) loses
+ * nothing. Runs while Marquee starts, before anything else uses the
+ * database, so it's done in one step (VACUUM INTO). If it can't be written,
+ * Marquee doesn't start, rather than change the database without one.
+ */
+export function backUpBeforeUpdate(sqlite: Database.Database, dataDir: string, now: number): string {
+  const dir = backupFolder(dataDir);
+  let name = `marquee-${stamp(now)}-before-update.sqlite`;
+  for (let n = 1; fs.existsSync(path.join(dir, name)); n++) name = `marquee-${stamp(now + n * 1000)}-before-update.sqlite`;
+  const file = path.join(dir, name);
+  const part = `${file}.part`;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.rmSync(part, { force: true });
+    sqlite.prepare('VACUUM INTO ?').run(part);
+    fs.renameSync(part, file);
+  } catch (err) {
+    try {
+      fs.rmSync(part, { force: true });
+    } catch {
+      /* nothing was written */
+    }
+    throw new Error(`Marquee needs to update its database, but couldn’t back it up first in ${dir} (${(err as NodeJS.ErrnoException).code ?? (err as Error).message}). Nothing was changed. Free some space or check Marquee can write there, then start it again.`);
+  }
+  return name;
 }
 
 /** Deletes backups older than KEEP_DAYS, but always keeps the newest one. Returns how many went. */

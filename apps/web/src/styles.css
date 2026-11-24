@@ -79,6 +79,16 @@
   }
 }
 
+/* iPhone zooms the whole page into any text field under 16px when it's tapped, and stays zoomed.
+   On touch screens every field is 16px. Outside a layer on purpose, so it wins over text-sm and friends. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='color'], [type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Marquee bulbs: lit bulbs glow; a chasing row dims each in turn. */
 .bulb-on {
   box-shadow: 0 0 8px var(--color-amber);

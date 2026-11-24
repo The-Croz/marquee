@@ -7,8 +7,9 @@ import type { Clients } from '../http.js';
 import type { LibraryScanner } from '../library/scanner.js';
 import { TmdbError, type TmdbApi } from '../library/tmdb.js';
 import { setMoviesWanted, setSeasonWanted, setShowsWanted } from '../library/wanted.js';
-import { lookForWanted } from '../downloads/wanted.js';
-import { lookForWantedTv } from '../downloads/wantedTv.js';
+import { lookForWanted, lookingForWanted } from '../downloads/wanted.js';
+import { lookForWantedTv, lookingForWantedTv } from '../downloads/wantedTv.js';
+import { readSearchNote, searchNoteText } from '../downloads/search.js';
 import type { SourceService } from '../sources/service.js';
 import { ProfileService } from '../releases/profiles.js';
 import { notifyAdmins, tell, type NotifyDeps } from '../notify/service.js';
@@ -169,7 +170,23 @@ function stateText(db: Db, r: RequestRow, state: RequestState, now: number): str
     if (d && d.progress > 0) return `Downloading now · ${Math.floor(d.progress * 100)}%.`;
     if (d) return 'Found a copy. The download is starting.';
   }
+  if (state === 'looking' && r.titleId !== null) {
+    const kind = r.kind === 'movie' ? 'movie' : 'series';
+    const note = readSearchNote(db, kind, r.titleId);
+    const on = kind === 'movie' ? lookingForWanted(db) : lookingForWantedTv(db);
+    const next = on ? 'Marquee keeps looking.' : 'Marquee looks again once automatic searching is on.';
+    if (note && note.found > 0 && note.taken === 0) return `Approved. Copies are out there, but none is good enough yet. ${next}`;
+    if (note && note.found === 0) return `Approved. No copy on your sites yet. ${next}`;
+    return `Approved. No good copy yet. ${next}`;
+  }
   return STATE_TEXT[state];
+}
+
+/** For admins: what the title's last search found, when a request is still looking. */
+function requestSearchNote(db: Db, r: RequestRow, state: RequestState): RequestView['searchNote'] {
+  if (state !== 'looking' || r.titleId === null) return null;
+  const note = readSearchNote(db, r.kind === 'movie' ? 'movie' : 'series', r.titleId);
+  return note ? { at: note.at, text: searchNoteText(note) } : null;
 }
 
 /** "Approved. It's in cinemas now; Marquee looks for it once it's out to stream or buy, around Feb 18, 2027." */
@@ -200,6 +217,7 @@ export function requestView(db: Db, r: RequestRow, now: number): RequestView {
     requestedBy: by,
     state,
     stateText: stateText(db, r, state, now),
+    searchNote: requestSearchNote(db, r, state),
     profile,
     reason: r.reason,
     decidedBy: decider,

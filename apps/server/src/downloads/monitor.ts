@@ -14,7 +14,7 @@ import { QbitError, type QbitApi, type QbitFile, type QbitTorrent } from './qbit
 import { bestPick, searchTitle } from './search.js';
 import { sendFromSearch } from './send.js';
 import { DOWNLOADER_TEXT, mapPath, readDownloader } from './service.js';
-import { FINISHED, RESTING, describeDownload } from './view.js';
+import { ALL_STOPPED_NOTE, FINISHED, HELD_NOTES, NO_INTERNET_NOTE, RESTING, describeDownload } from './view.js';
 import type { SearchTarget } from './cache.js';
 import { ImportError, cantSee, exists, importDownload, videoFiles, type ImportResult } from './importer.js';
 import { DAMAGED_PROBLEMS, FAKE_PROBLEMS, UnpackError, filesUnder, lookInside, needsUnpacking, rarSets, sevenZip, unpackText, type Unpacker } from './unpack.js';
@@ -38,6 +38,8 @@ import { tellMediaServers } from '../library/mediaServers.js';
 
 const HOUR = 3_600_000;
 const FOLLOWED = ['sent', 'downloading'] as const;
+/** "Try another copy" picks from a search for the same title this recent, rather than searching again. */
+export const REUSE_SEARCH_MS = 3 * HOUR;
 /** A failed import is tried again this often. */
 export const IMPORT_RETRY_MS = 15 * 60_000;
 
@@ -164,6 +166,7 @@ export class DownloadMonitor {
     }
     const settings = readDownloader(db);
     const found = new Map((await qbit.torrents(rows.map((r) => r.infoHash))).map((t) => [t.hash, t]));
+    const hold = await this.connectionHold(qbit, rows, found, settings.stuckHours);
     this.lastCheck = now();
     let replaced = 0;
     for (const row of rows) {
@@ -196,6 +199,13 @@ export class DownloadMonitor {
       const moved = t.progress > row.progress + 0.0001;
       const resting = RESTING.has(t.state);
       const done = t.progress >= 1 || FINISHED.has(t.state);
+      // While the connection is the trouble, the stuck clock stands still. From the check where the hold began
+      // (time before it counts as usual), it moves on by the time since the last check.
+      const held = hold !== null && !moved && !resting && !done;
+      const wasHeld = HELD_NOTES.has(row.message ?? '');
+      const shift = held && wasHeld && row.checkedAt ? Math.max(0, now() - row.checkedAt) : 0;
+      const lastProgressAt = moved || resting ? now() : (row.lastProgressAt ?? row.addedAt) + shift;
+      const message = held ? hold : wasHeld ? null : row.message;
       db.update(downloads)
         .set({
           qbitState: t.state,
@@ -207,8 +217,9 @@ export class DownloadMonitor {
           ratio: t.ratio,
           savePath: t.savePath,
           checkedAt: now(),
-          // Waiting, paused and checking don't count towards "stuck".
-          lastProgressAt: moved || resting ? now() : row.lastProgressAt ?? row.addedAt,
+          // Waiting, paused and checking don't count towards "stuck", nor does time the connection is down.
+          lastProgressAt,
+          message,
           ...(done ? { state: 'done' as const, finishedAt: now() } : row.state === 'sent' ? { state: 'downloading' as const } : {}),
         })
         .where(eq(downloads.id, row.id))
@@ -234,14 +245,35 @@ export class DownloadMonitor {
         }
       }
 
-      const since = moved || resting ? now() : row.lastProgressAt ?? row.addedAt;
-      if (settings.tryAnother && now() - since >= settings.giveUpHours * HOUR) {
-        const h = Math.floor((now() - since) / HOUR);
+      if (settings.tryAnother && !held && now() - lastProgressAt >= settings.giveUpHours * HOUR) {
+        const h = Math.floor((now() - lastProgressAt) / HOUR);
         await this.tryAnother(row.id, `No progress for ${h} hours.`, null).catch((e) => console.error('[downloads] try another failed:', (e as Error).message));
         replaced++;
       }
     }
     return { replaced };
+  }
+
+  /**
+   * Why stuck downloads shouldn't count right now, or null. qBittorrent saying
+   * it has no internet, or every download on the way (two or more) stopped
+   * for the stuck time at once, means the connection is down (a VPN like
+   * gluetun can fail without qBittorrent noticing), not the copies: replacing
+   * them would turn good copies down and throw away what they'd fetched.
+   */
+  private async connectionHold(qbit: QbitApi, rows: Download[], found: Map<string, QbitTorrent>, stuckHours: number): Promise<string | null> {
+    const connection = await qbit.connection().catch(() => 'connected' as const);
+    if (connection === 'disconnected') return NO_INTERNET_NOTE;
+    const now = this.deps.now();
+    const onTheWay = rows.flatMap((r) => {
+      const t = found.get(r.infoHash);
+      if (!t || (r.state !== 'sent' && r.state !== 'downloading')) return [];
+      if (RESTING.has(t.state) || t.progress >= 1 || FINISHED.has(t.state)) return [];
+      return [{ r, t }];
+    });
+    const allStopped =
+      onTheWay.length >= 2 && onTheWay.every(({ r, t }) => t.progress <= r.progress + 0.0001 && now - (r.lastProgressAt ?? r.addedAt) >= stuckHours * HOUR);
+    return allStopped ? ALL_STOPPED_NOTE : null;
   }
 
   /** Tells the admins (inbox and push). Never holds up the monitor. */
@@ -571,8 +603,14 @@ export class DownloadMonitor {
     if ((row.kind === 'movie' && !row.movieId) || (row.kind === 'tv' && !row.seriesId)) {
       return { message: `Turned that copy down (${reason}) The title is no longer in your library, so nothing else was sent.`, next: null };
     }
-    const found = await searchTitle({ db, sources: this.deps.sources, now }, target);
-    const pick = bestPick(found.search);
+    // The copies a search brought back in the last few hours are reused, so Sources (and their daily limits)
+    // aren't asked again; only when none of those suits is there a fresh search.
+    let found = await searchTitle({ db, sources: this.deps.sources, now }, target, { reuseWithinMs: REUSE_SEARCH_MS });
+    let pick = bestPick(found.search);
+    if (pick === null && found.reused) {
+      found = await searchTitle({ db, sources: this.deps.sources, now }, target);
+      pick = bestPick(found.search);
+    }
     if (pick === null) {
       const note = `${reason} No other copy suits ${found.profile.name} right now. Search again later, or pick one yourself.`;
       db.update(downloads).set({ message: note }).where(eq(downloads.id, id)).run();

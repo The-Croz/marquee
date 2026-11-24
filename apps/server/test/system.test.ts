@@ -3,12 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { BackupView, BackupsView, HealthView, LogsView } from '@marquee/shared';
-import { getSetting, migrations, schema, setSetting } from '../src/db/index.js';
+import { getSetting, migrations, openDb, schema, setSetting } from '../src/db/index.js';
 import { writeDownloader } from '../src/downloads/service.js';
 import { writeMediaServer } from '../src/library/mediaServers.js';
 import { Jobs, every } from '../src/system/jobs.js';
 import { LogBook, captureConsole, scrub, secretsIn, watchSecrets } from '../src/system/logs.js';
-import { backUp, listBackups, nightlyBackup, pruneBackups } from '../src/system/backups.js';
+import { backUp, backUpBeforeUpdate, listBackups, nightlyBackup, pruneBackups } from '../src/system/backups.js';
 import { noRoomReason, readDiskSettings } from '../src/system/disk.js';
 import { checkHealth } from '../src/notify/health.js';
 import { FakeMediaServer } from './fakes/mediaServers.js';
@@ -260,11 +260,50 @@ describe('free space', () => {
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 const UNDO_NEWEST = {
-  sql: ['DROP INDEX plays_import_batch', 'ALTER TABLE plays DROP COLUMN import_batch'],
-  tables: ['plays'],
+  sql: ['movies', 'series'].flatMap((t) => ['search_note', 'plex_labels', 'server_refs'].map((c) => `ALTER TABLE ${t} DROP COLUMN ${c}`)),
+  tables: ['movies', 'series'],
 };
 
 describe('backups', () => {
+  it('backs up before a newer version changes the database, and never for a new one', async () => {
+    const dataDir = tempDir();
+    const file = path.join(dataDir, 'marquee.sqlite');
+    const before = (sqlite: Parameters<typeof backUpBeforeUpdate>[0]) => backUpBeforeUpdate(sqlite, dataDir, START);
+    openDb(file, { beforeUpdate: before }).$client.close();
+    expect(listBackups(dataDir)).toEqual([]);
+    // An older Marquee's database: one migration behind.
+    const Database = (await import('better-sqlite3')).default;
+    const old = new Database(file);
+    old.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
+    for (const sql of UNDO_NEWEST.sql) old.exec(sql);
+    old.close();
+    const seen: number[] = [];
+    const db = openDb(file, { beforeUpdate: (sqlite, from, to) => (seen.push(from, to), before(sqlite)) });
+    expect(seen).toEqual([migrations.length - 1, migrations.length]);
+    expect(listBackups(dataDir)).toMatchObject([{ name: 'marquee-20261122-120000-before-update.sqlite', kind: 'before_update' }]);
+    expect((db.$client.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number }).v).toBe(migrations.length);
+    db.$client.close();
+    const kept = new Database(path.join(dataDir, 'backups', 'marquee-20261122-120000-before-update.sqlite'), { readonly: true });
+    expect((kept.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number }).v).toBe(migrations.length - 1);
+    kept.close();
+  });
+
+  it('won’t change the database when the backup before an update fails', async () => {
+    const dataDir = tempDir();
+    const file = path.join(dataDir, 'marquee.sqlite');
+    openDb(file).$client.close();
+    const Database = (await import('better-sqlite3')).default;
+    const old = new Database(file);
+    old.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
+    for (const sql of UNDO_NEWEST.sql) old.exec(sql);
+    old.close();
+    fs.writeFileSync(path.join(dataDir, 'backups'), 'a file where the folder should be');
+    expect(() => openDb(file, { beforeUpdate: (sqlite) => backUpBeforeUpdate(sqlite, dataDir, START) })).toThrow(/couldn’t back it up first .*Nothing was changed/);
+    const after = new Database(file, { readonly: true });
+    expect((after.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number }).v).toBe(migrations.length - 1);
+    after.close();
+  });
+
   it('backs up now, lists it, and downloads the file', async () => {
     const t = await admin();
     const made = await call(t.app, 'POST', '/api/system/backups', {}, t.cookie);

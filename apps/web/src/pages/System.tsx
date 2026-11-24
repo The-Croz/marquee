@@ -355,7 +355,7 @@ function Jobs({ jobs }: { jobs: JobView[] }) {
 // ---------------- Backups ----------------
 
 const BACKUPS = ['system', 'backups'];
-const KIND: Record<BackupKind, string> = { nightly: 'Nightly', by_hand: 'By hand', before_restore: 'Before a restore' };
+const KIND: Record<BackupKind, string> = { nightly: 'Nightly', by_hand: 'By hand', before_restore: 'Before a restore', before_update: 'Before an update' };
 
 export function BackupsPage() {
   const q = useQuery({ queryKey: BACKUPS, queryFn: () => api<BackupsView>('/system/backups') });
@@ -404,6 +404,9 @@ export function BackupsPage() {
       <p className="m-0 text-soft">
         Everything Marquee knows lives in one database: your library, profiles, Sources, requests, history and settings. Marquee backs it up every night and keeps {v.keepDays} days of backups in{' '}
         <span className="font-mono text-sm break-all">{v.folder}</span>. Keep a copy somewhere else too, like your Unraid backups.
+      </p>
+      <p className="m-0 text-sm text-muted">
+        A new version of Marquee that needs to change the database backs it up first (“Before an update”). To go back to the older version, run its image, then restore that backup here.
       </p>
       <div className="flex flex-wrap items-center gap-4">
         <Button onClick={() => void backUpNow()} disabled={busy}>

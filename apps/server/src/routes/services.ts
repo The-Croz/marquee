@@ -5,6 +5,7 @@ import { readNaming, readServices, writeNaming, writeServices } from '../library
 import { DEFAULT_MOVIE_PATTERN, DEFAULT_TV_PATTERN, patternProblem, renderName } from '../library/naming.js';
 import { pickLibrary, readMediaServer, writeMediaServer, type ServerKind } from '../library/mediaServers.js';
 import { libraryRoots } from '../library/services.js';
+import { readPlexLabels, writePlexLabels } from '../library/onServers.js';
 import type { MediaLibrariesResult, MediaServerView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
@@ -77,9 +78,11 @@ servicesRoutes.put('/', async (c) => {
       jellyfinApiKey: secret.nullable().optional(),
       jellyfinMovieLibrary: z.string().max(100).nullable().optional(),
       jellyfinTvLibrary: z.string().max(100).nullable().optional(),
+      jellyfinPublicUrl: url.nullable().optional(),
+      plexLabels: z.object({ on: z.boolean().optional(), text: z.string().trim().min(1, 'Type the label to add, e.g. Requested.').max(60).optional(), requester: z.boolean().optional() }).optional(),
     })
     .parse(await c.req.json());
-  const { moviePattern, tvPattern, plexUrl, plexToken, plexMovieLibrary, plexTvLibrary, jellyfinUrl, jellyfinApiKey, jellyfinMovieLibrary, jellyfinTvLibrary, ...rest } = input;
+  const { moviePattern, tvPattern, plexUrl, plexToken, plexMovieLibrary, plexTvLibrary, jellyfinUrl, jellyfinApiKey, jellyfinMovieLibrary, jellyfinTvLibrary, jellyfinPublicUrl, plexLabels, ...rest } = input;
   const db = c.get('deps').db;
   writeServices(db, rest);
   writeNaming(db, { movie: moviePattern, tv: tvPattern });
@@ -89,13 +92,15 @@ servicesRoutes.put('/', async (c) => {
     secret: jellyfinApiKey,
     movieLibrary: jellyfinMovieLibrary || (jellyfinMovieLibrary === undefined ? undefined : null),
     tvLibrary: jellyfinTvLibrary || (jellyfinTvLibrary === undefined ? undefined : null),
+    publicUrl: jellyfinPublicUrl,
   });
+  if (plexLabels) writePlexLabels(db, plexLabels);
   return c.json({ ok: true });
 });
 
 function serverView(db: Db, kind: ServerKind): MediaServerView {
   const s = readMediaServer(db, kind);
-  return { url: s.url, configured: !!(s.url && s.secret), movieLibrary: s.movieLibrary, tvLibrary: s.tvLibrary };
+  return { url: s.url, configured: !!(s.url && s.secret), movieLibrary: s.movieLibrary, tvLibrary: s.tvLibrary, publicUrl: s.publicUrl, ...(kind === 'plex' ? { labels: readPlexLabels(db) } : {}) };
 }
 
 /** A media server from typed values, falling back to saved ones. A saved secret only goes to its own address. */

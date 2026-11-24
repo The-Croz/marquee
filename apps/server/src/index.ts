@@ -28,7 +28,8 @@ import { once } from './routes/watchSync.js';
 import { VERSION } from './version.js';
 import { Jobs } from './system/jobs.js';
 import { captureConsole, serverLog, watchSecrets } from './system/logs.js';
-import { KEEP_DAYS, nightlyBackup } from './system/backups.js';
+import { KEEP_DAYS, backUpBeforeUpdate, nightlyBackup } from './system/backups.js';
+import { labelRequested } from './library/onServers.js';
 import { lookingForWanted } from './downloads/wanted.js';
 import { lookingForWantedTv } from './downloads/wantedTv.js';
 import { sharedMonitor } from './downloads/monitor.js';
@@ -46,7 +47,9 @@ import { checkDue, checkForRuleUpdates } from './releases/ruleUpdates.js';
 // Keep recent log lines (secrets taken out) for Settings → Logs.
 captureConsole(serverLog);
 const config = loadConfig();
-const db = openDb(path.join(config.dataDir, 'marquee.sqlite'));
+const db = openDb(path.join(config.dataDir, 'marquee.sqlite'), {
+  beforeUpdate: (sqlite, from, to) => console.log(`[backups] Updating the database (${from} → ${to}); backed it up first: ${backUpBeforeUpdate(sqlite, config.dataDir, Date.now())}`),
+});
 const clientId = plexClientId(db);
 watchSecrets(db);
 
@@ -237,6 +240,13 @@ jobs
       if (!r.ok) throw new Error(r.message);
       return r.message;
     },
+  })
+  .add({
+    id: 'plex-labels',
+    label: 'Label requested titles in Plex',
+    description: 'Adds your label (and who asked, if you chose that) to requested titles once Plex has them. Turn it on in Settings → Services → Plex.',
+    everyMs: 15 * MIN,
+    run: () => labelRequested({ db, clients }),
   })
   .add({
     id: 'backup',

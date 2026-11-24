@@ -3,7 +3,7 @@ import { ShowEpisodesChoice } from './GettingIn';
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MediaFileView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView } from '@marquee/shared';
+import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MediaFileView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
 import { api, ApiFailure, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { DownloadList, useDownloads } from '../components/Downloads';
@@ -282,6 +282,32 @@ function StatusLine({ kind, movie, show, info, active }: { kind: 'movie' | 'seri
   );
 }
 
+/** "Watch in Plex" / "Watch in Jellyfin": opens the title in each server that has it. Nothing shows until one does. */
+function WatchButtons({ kind, id }: { kind: 'movie' | 'series'; id: number }) {
+  const { data } = useQuery({
+    queryKey: ['watch-links', kind, id],
+    queryFn: () => api<{ links: WatchLink[] }>(`/${kind === 'movie' ? 'movies' : 'shows'}/${id}/watch`),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  return (
+    <>
+      {data?.links.map((l) => (
+        <a
+          key={l.server}
+          href={l.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="inline-flex h-12 items-center gap-2 rounded-full border border-white/30 px-5 text-body font-semibold text-text no-underline hover:bg-white/10 hover:text-text"
+        >
+          Watch in {l.server}
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      ))}
+    </>
+  );
+}
+
 /** Trailer, asking for it, finding a copy, and Wanted, in one row. */
 function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' | 'series'; info?: DiscoverTitle; lib?: MovieDetail | ShowDetail; admin: boolean; onTrailer: () => void; onFind: () => void }) {
   const navigate = useNavigate();
@@ -314,6 +340,7 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
             {(lib as MovieDetail).files.length ? 'Find a better copy' : 'Find a copy'}
           </button>
         )}
+        {lib && <WatchButtons kind={kind} id={lib.id} />}
         {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
         {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
       </div>

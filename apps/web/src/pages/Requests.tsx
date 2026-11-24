@@ -197,6 +197,11 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
               {r.state === 'declined' ? (r.reason ? `Turned down: ${r.reason}` : 'Turned down.') : r.state === 'pending' ? 'An admin will look at it.' : r.stateText}
               {r.decidedBy && r.state !== 'pending' && ` (${r.decidedBy})`}
             </p>
+            {admin && r.searchNote && (
+              <p className="m-0 text-sm text-soft">
+                Last search, {when(r.searchNote.at)}: {r.searchNote.text}
+              </p>
+            )}
             {r.href && (
               <Link to={r.href} className="flex min-h-11 items-center self-start text-sm font-semibold">
                 Open it →
