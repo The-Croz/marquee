@@ -6,7 +6,7 @@ import { api, ApiFailure } from '../api';
 import { TitleCard } from '../components/Discover';
 import { tmdbImage } from '../components/Poster';
 import { Notice } from '../components/ui';
-import { Tabs, useDocTitle } from '../components/Page';
+import { Chips, useDocTitle } from '../components/Page';
 
 const pretty = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
@@ -75,7 +75,7 @@ export function TmdbPersonPage() {
             Known for
           </h2>
           {movies > 0 && shows > 0 && (
-            <Tabs<Filter>
+            <Chips<Filter>
               label="Show"
               value={filter}
               onChange={setFilter}

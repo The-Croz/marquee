@@ -227,12 +227,16 @@ function Stats() {
             {s.total} watched · {s.last24h} in the last day · Plex {s.servers.plex}, Jellyfin {s.servers.jellyfin}
           </span>
         </div>
-        <div role="img" aria-label={`Watches per day over the last ${s.days} days, ${s.total} in all`} className="flex h-28 items-end gap-[3px]">
+        {s.total === 0 ? (
+          <p className="m-0 text-sm text-muted">Nothing watched yet. Plays from Plex and Jellyfin show up here, with the busiest hours and who watches most, once someone watches something.</p>
+        ) : (
+          <div role="img" aria-label={`Watches per day over the last ${s.days} days, ${s.total} in all`} className="flex h-28 items-end gap-[3px]">
           {s.perDay.map((d) => {
             const peak = Math.max(1, ...s.perDay.map((x) => x.plays));
             return <div key={d.day} title={`${d.day}: ${d.plays}`} className="flex-1 rounded-t bg-amber/80" style={{ height: `${Math.max(d.plays ? 6 : 2, (d.plays / peak) * 100)}%`, opacity: d.plays ? 1 : 0.25 }} />;
           })}
-        </div>
+          </div>
+        )}
       </Card>
 
       {s.live.streams > 0 && (
@@ -252,6 +256,8 @@ function Stats() {
         </Card>
       )}
 
+      {s.total > 0 && (
+        <>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
         <Bars title="Busiest hours" values={s.hours} labels={hourLabels} peakLabel={s.total ? `busiest ${busiest}:00` : undefined} />
         <Bars title="Busiest days" values={s.weekdays} labels={DAYS} />
@@ -268,6 +274,8 @@ function Stats() {
           </>
         )}
       </div>
+        </>
+      )}
       {s.library.files > 0 && (
         <Card className="flex flex-col gap-3">
           <h2 className="m-0 text-lg font-semibold">Library</h2>

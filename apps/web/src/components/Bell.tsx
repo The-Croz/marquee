@@ -69,7 +69,7 @@ export function Bell({ up = false }: { up?: boolean }) {
             {(data?.items ?? []).map((n) => {
               const inner = (
                 <span className="flex gap-3">
-                  {n.image && <img src={n.image} alt="" loading="lazy" className="h-14 w-10 flex-none rounded-md bg-raised object-cover" />}
+                  {n.image && <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} src={n.image} alt="" loading="lazy" className="h-14 w-10 flex-none rounded-md bg-raised object-cover" />}
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="flex items-baseline justify-between gap-3">
                       <span className={cx('text-sm', n.read ? 'text-soft' : 'font-semibold text-text')}>{n.title}</span>

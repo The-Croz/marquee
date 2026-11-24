@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NavLink, Outlet, useOutletContext } from 'react-router';
+import { Outlet, useOutletContext } from 'react-router';
 import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { Tabs } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
 
@@ -81,20 +82,7 @@ export function NotificationSettingsLayout() {
   return (
     <div className="flex flex-col gap-6">
       {tabs.length > 1 && (
-        <nav aria-label="Notification settings" className="flex flex-wrap gap-1 border-b border-line">
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              end={t.end}
-              className={({ isActive }) =>
-                cx('-mb-px flex min-h-11 items-center border-b-2 px-4 text-sm font-medium no-underline', isActive ? 'border-amber text-text hover:text-text' : 'border-transparent text-muted hover:text-text')
-              }
-            >
-              {t.label}
-            </NavLink>
-          ))}
-        </nav>
+        <Tabs label="Notification settings" items={tabs.map((t) => ({ value: t.to, label: t.label, to: t.to, end: t.end }))} />
       )}
       <Outlet context={ctx} />
     </div>

@@ -12,6 +12,7 @@ export function PageHeader({
   meta,
   back,
   actions,
+  actionsWideOnly,
   info,
   docTitle,
 }: {
@@ -20,6 +21,8 @@ export function PageHeader({
   /** `wideHidden`: hide it on wide screens, where a side list already leads back. */
   back?: { to: string; label: string; wideHidden?: boolean };
   actions?: ReactNode;
+  /** Hide the actions on phones (the page offers them another way there). */
+  actionsWideOnly?: boolean;
   info?: ReactNode;
   /** The browser tab's title, when `title` isn't plain text. */
   docTitle?: string;
@@ -40,7 +43,7 @@ export function PageHeader({
           </div>
           {meta && <div className="text-sm text-dim">{meta}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full">{actions}</div>}
+        {actions && <div className={cx('flex flex-wrap items-center gap-2 max-sm:w-full', actionsWideOnly && 'max-sm:hidden')}>{actions}</div>}
       </div>
     </header>
   );
@@ -121,7 +124,10 @@ export function StatusDot({ tone, className }: { tone: 'ok' | 'busy' | 'attentio
   return <span aria-hidden="true" className={cx('inline-block size-2 flex-none rounded-full', bg, className)} />;
 }
 
-/** Pill tabs. Links when given `to`, buttons otherwise. */
+/**
+ * Section tabs: switch between views of one page (Movies / Shows, Downloads / History).
+ * Links when given `to`, buttons otherwise. Filters use `Chips` instead, so the two never look alike.
+ */
 export function Tabs<T extends string>({
   label,
   items,
@@ -129,31 +135,67 @@ export function Tabs<T extends string>({
   onChange,
 }: {
   label: string;
-  items: { value: T; label: ReactNode; to?: string; count?: number }[];
+  items: { value: T; label: ReactNode; to?: string; end?: boolean; count?: number }[];
   value?: T;
   onChange?: (v: T) => void;
 }) {
   const cls = (active: boolean) =>
     cx(
-      'inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium whitespace-nowrap no-underline',
-      active ? 'border-amber bg-amber text-amber-ink hover:text-amber-ink' : 'border-line bg-panel text-soft hover:text-text',
+      '-mb-px inline-flex min-h-11 flex-none items-center gap-2 border-b-2 px-4 text-sm font-medium whitespace-nowrap no-underline',
+      active ? 'border-amber text-text hover:text-text' : 'border-transparent text-muted hover:text-text',
     );
+  const count = (n?: number) => n !== undefined && <span className="tabular-nums text-dim">{n}</span>;
   return (
-    <nav aria-label={label} className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+    <nav aria-label={label} className="flex overflow-x-auto border-b border-line">
       {items.map((t) =>
         t.to ? (
-          <NavLink key={t.value} to={t.to} end className={({ isActive }) => cls(isActive)}>
+          <NavLink key={t.value} to={t.to} end={t.end ?? true} className={({ isActive }) => cls(isActive)}>
             {t.label}
-            {t.count !== undefined && <span className="tabular-nums opacity-70">{t.count}</span>}
+            {count(t.count)}
           </NavLink>
         ) : (
           <button key={t.value} type="button" aria-pressed={value === t.value} onClick={() => onChange?.(t.value)} className={cls(value === t.value)}>
             {t.label}
-            {t.count !== undefined && <span className="tabular-nums opacity-70">{t.count}</span>}
+            {count(t.count)}
           </button>
         ),
       )}
     </nav>
+  );
+}
+
+/** Filter chips: one row that scrolls sideways on phones (no wall of wrapped pills) and wraps on wider screens. */
+export function Chips<T extends string>({
+  label,
+  items,
+  value,
+  onChange,
+  className,
+}: {
+  label: string;
+  items: { value: T; label: ReactNode; count?: number }[];
+  value: T;
+  onChange: (v: T) => void;
+  className?: string;
+}) {
+  return (
+    <div role="group" aria-label={label} className={cx('-mx-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0', className)}>
+      {items.map((t) => {
+        const on = value === t.value;
+        return (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(t.value)}
+            className={cx('inline-flex h-11 flex-none items-center gap-1.5 rounded-full border px-4 text-sm font-medium whitespace-nowrap', on ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
+          >
+            {t.label}
+            {t.count !== undefined && <span className={cx('tabular-nums', on ? 'text-amber-ink/70' : 'text-dim')}>{t.count}</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

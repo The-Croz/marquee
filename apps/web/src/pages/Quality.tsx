@@ -102,10 +102,19 @@ function NewProfile({ kind, view, onCreated }: { kind: ProfileKind; view: Profil
     },
     onSuccess: async (p) => {
       setName('');
+      setOpen(false);
       await queryClient.invalidateQueries({ queryKey: ['profiles'] });
       onCreated(p.id);
     },
   });
+  // Closed until asked for, so the profile list isn't followed by an empty form.
+  const [open, setOpen] = useState(false);
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="flex min-h-11 items-center justify-center rounded-2xl border border-dashed border-line-strong px-4 text-sm font-medium text-soft hover:text-text">
+        + New profile
+      </button>
+    );
   return (
     <form
       className="flex flex-col gap-3 rounded-2xl border border-dashed border-line-strong p-4"
@@ -131,9 +140,14 @@ function NewProfile({ kind, view, onCreated }: { kind: ProfileKind; view: Profil
       </label>
       {starter && <p className="m-0 text-label text-dim">{starter.description}</p>}
       {create.error && <Notice tone="error">{errMsg(create.error)}</Notice>}
-      <Button type="submit" variant="ghost" disabled={!name.trim() || create.isPending}>
-        Create
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" variant="ghost" disabled={!name.trim() || create.isPending}>
+          Create
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
     </form>
   );
 }

@@ -107,7 +107,7 @@ function SendButton({ c, searchId, best }: { c: CopyView; searchId: string; best
 function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; profile: string; searchId: string }) {
   const [open, setOpen] = useState(best);
   return (
-    <li className={cx('flex flex-col gap-3 rounded-2xl border px-5 py-4', best ? 'border-amber bg-raised' : c.accepted ? 'border-line-strong' : 'border-line')}>
+    <li className={cx('flex flex-col gap-3 rounded-2xl border px-4 py-4 sm:px-5', best ? 'border-amber bg-raised' : c.accepted ? 'border-line-strong' : 'border-line')}>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           {c.accepted && (
@@ -141,9 +141,11 @@ function CopyRow({ c, best, profile, searchId }: { c: CopyView; best: boolean; p
           {c.vsYours && <div className={cx('text-sm', c.vsYours.better ? 'text-teal-hi' : 'text-muted')}>{c.vsYours.message}</div>}
           <SendButton c={c} searchId={searchId} best={best} />
         </div>
-        <div className="flex flex-none flex-col items-end">
-          <div className={cx('font-bold', best ? 'text-title text-amber' : 'text-xl', !c.accepted && 'text-muted')}>{points(c.score)}</div>
+        {/* On phones the points sit on their own line above the copy, so the name gets the full width. */}
+        <div className="flex flex-none flex-col items-end max-sm:order-first max-sm:w-full max-sm:flex-row max-sm:items-baseline max-sm:gap-1.5">
+          <div className={cx('font-bold', best ? 'text-xl text-amber sm:text-title' : 'text-lg sm:text-xl', !c.accepted && 'text-muted')}>{points(c.score)}</div>
           <div className="text-xs text-muted">points</div>
+          <span className="flex-1 sm:hidden" />
           <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="h-11 text-label font-medium text-amber">
             {open ? 'Hide why' : 'Why?'}
           </button>
@@ -206,10 +208,32 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
   const failed = r?.sources.filter((s) => s.status === 'failed' || (s.status === 'skipped' && !/^(Paused|Not used)/.test(s.message ?? ''))) ?? [];
   const episodes = seasons?.find((s) => s.season === season)?.episodes ?? [];
 
+  // In a sheet that has already started searching, the choices fold away under one line saying what was searched.
+  const [changing, setChanging] = useState(false);
+  const folded = bare && autoSearch && !changing;
+  const profileName = r?.profile.name ?? mine.find((p) => p.key === profile)?.name ?? profile;
+  const what = kind === 'tv' ? `${season === 0 ? 'Specials' : `Season ${season}`}${episode === 'all' ? '' : ` · Episode ${episode}`}` : null;
+
   const Wrap = bare ? 'div' : Card;
   return (
     <Wrap aria-label="Copies we found" className={cx('flex flex-col gap-4', bare && 'p-0')}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      {folded && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="m-0 min-w-0 flex-[1_1_280px] text-sm text-soft">
+            {what && <span className="font-semibold text-text">{what} · </span>}
+            Picking with <span className="font-semibold text-text">{profileName}</span>. Nothing downloads until you press “Download this”.
+          </p>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={() => setChanging(true)}>
+              Change
+            </Button>
+            <Button type="button" variant="ghost" disabled={search.isPending} onClick={() => search.mutate()}>
+              {search.isPending ? 'Searching…' : 'Search again'}
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className={cx('flex flex-wrap items-end justify-between gap-4', folded && 'hidden')}>
         <div className="flex flex-col gap-1">
           {!bare && <h2 className="m-0 text-xl font-semibold">Copies we found</h2>}
           <p className="m-0 text-label text-muted">Searches your Sources and shows what Marquee would pick and why. Nothing downloads until you press “Download this”.</p>
@@ -275,6 +299,18 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
         </div>
       </div>
       {change.error && <Notice tone="error">{errMsg(change.error)}</Notice>}
+      {search.isPending && (
+        <div role="status" className="flex flex-col gap-3">
+          <p className="m-0 flex items-center gap-2 text-sm text-soft">
+            <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-amber" />
+            Searching your Sources… slow sites can take up to a minute.
+          </p>
+          {!r &&
+            [0, 1, 2].map((n) => (
+              <div key={n} aria-hidden="true" className="h-20 animate-pulse rounded-xl bg-raised motion-reduce:animate-none" />
+            ))}
+        </div>
+      )}
       {search.error && <Notice tone="error">{errMsg(search.error)}</Notice>}
       {r && (
         <>

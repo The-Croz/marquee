@@ -371,8 +371,11 @@ function UsersAdmin({ status }: Ctx) {
             <select
               id={`role-${u.id}`}
               value={u.role}
+              // Your own role can't be changed here, so you can't lock yourself out by accident.
+              disabled={u.id === status.user.id}
+              title={u.id === status.user.id ? 'Another admin can change your role.' : undefined}
               onChange={(e) => update(u.id, { role: e.target.value }, `${u.displayName} is now ${e.target.value}.`)}
-              className="h-10 rounded-lg border border-line-strong bg-ink px-3 text-sm text-text"
+              className="h-11 rounded-lg disabled:opacity-60 border border-line-strong bg-ink px-3 text-sm text-text"
             >
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>

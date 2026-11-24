@@ -5,7 +5,7 @@ import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@m
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes, posterTransition } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
-import { PageHeader, Tabs } from '../components/Page';
+import { Chips, PageHeader, Tabs } from '../components/Page';
 import { Menu, MenuDivider, menuItemClass, useToast } from '../components/Overlay';
 import { refreshLibrary } from '../components/Wanted';
 import { RenameSheet } from '../components/LibraryCare';
@@ -209,6 +209,8 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             </>
           )
         }
+        // Admins add titles from More on phones, so the add box only takes room on wide screens.
+        actionsWideOnly={isAdmin}
         actions={
           user.role !== 'kid' && (
             <div className="flex w-full min-w-0 sm:w-[420px]">
@@ -237,35 +239,30 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           value={q}
           onChange={(e) => set('q', e.target.value)}
           placeholder={`Filter ${title.toLowerCase()}`}
-          className="h-11 flex-[1_1_240px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
+          className="order-1 h-11 min-w-0 flex-[1_1_200px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
         />
-        <div role="group" aria-label="Show" className="flex flex-wrap gap-1.5">
-          {[
-            ['all', 'All'],
-            ['have', kind === 'movie' ? 'On disk' : 'Complete'],
-            ['missing', kind === 'movie' ? 'Missing' : 'Incomplete'],
+        <Chips<string>
+          label="Show"
+          className="order-3 w-full sm:order-2 sm:w-auto"
+          value={filter}
+          onChange={(v) => set('filter', v)}
+          items={[
+            { value: 'all', label: 'All' },
+            { value: 'have', label: kind === 'movie' ? 'On disk' : 'Complete' },
+            { value: 'missing', label: kind === 'movie' ? 'Missing' : 'Incomplete' },
             ...(isAdmin
               ? [
-                  ['wanted_missing', kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing'],
-                  ['not_good_enough', 'Not good enough yet'],
+                  { value: 'wanted_missing', label: kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing' },
+                  { value: 'not_good_enough', label: 'Not good enough yet' },
                 ]
               : []),
-          ].map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={filter === v}
-              onClick={() => set('filter', v!)}
-              className={cx('h-11 rounded-full border px-4 text-sm font-medium', filter === v ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          ]}
+        />
+        <div className="order-4 flex w-full gap-2 sm:order-3 sm:w-auto">
         <label htmlFor="lib-sort" className="sr-only">
           Sort by
         </label>
-        <select id="lib-sort" value={sort} onChange={(e) => set('sort', e.target.value)} className="h-11 rounded-xl border border-line bg-panel px-3 text-sm text-text">
+        <select id="lib-sort" value={sort} onChange={(e) => set('sort', e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel px-3 text-sm text-text sm:flex-none">
           <option value="added">Recently added</option>
           <option value="title">Title</option>
           <option value="year">Year</option>
@@ -275,7 +272,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <label htmlFor="lib-wanted" className="sr-only">
               Wanted
             </label>
-            <select id="lib-wanted" value={wantedFilter} onChange={(e) => set('wanted', e.target.value)} className="h-11 rounded-xl border border-line bg-panel px-3 text-sm text-text">
+            <select id="lib-wanted" value={wantedFilter} onChange={(e) => set('wanted', e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel px-3 text-sm text-text sm:flex-none">
               <option value="all">Wanted and not</option>
               <option value="yes">Wanted</option>
               <option value="no">Not wanted</option>
@@ -287,10 +284,11 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             )}
           </>
         )}
+        </div>
         {isAdmin && (
           <Menu
             label={`More for ${title.toLowerCase()}`}
-            className="ml-auto w-auto"
+            className="order-2 w-auto sm:order-last sm:ml-auto"
             trigger={
               <span className="flex h-11 items-center gap-2 rounded-xl border border-line bg-panel px-3.5 text-sm font-medium text-soft">
                 {scan.status?.running ? 'Scanning…' : 'More'}

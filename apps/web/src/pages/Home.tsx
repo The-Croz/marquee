@@ -141,7 +141,7 @@ function Hero({ hero, corner }: { hero: HomeHero; corner?: React.ReactNode }) {
       style={{ '--tint': hero.color ?? 'var(--color-amber)' } as React.CSSProperties}
     >
       {bg ? (
-        <img src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover" />
+        <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover" />
       ) : (
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_85%_20%,color-mix(in_oklab,var(--tint)_38%,transparent)_0%,color-mix(in_oklab,var(--tint)_14%,var(--color-ink))_45%,var(--color-ink)_100%)]" />
       )}
@@ -448,12 +448,22 @@ function GetSetUp({ steps }: { steps: SetupStep[] }) {
             {!s.done && (
               <Link
                 to={s.to}
+                aria-label={s === next ? undefined : `Open: ${s.title}`}
                 className={cx(
-                  'inline-flex min-h-11 flex-none items-center rounded-xl px-4 text-sm font-semibold no-underline',
-                  s === next ? 'bg-amber text-amber-ink hover:bg-amber-hi hover:text-amber-ink' : 'border border-line text-soft hover:text-text',
+                  'inline-flex min-h-11 flex-none items-center justify-center rounded-xl text-sm font-semibold no-underline',
+                  s === next ? 'bg-amber px-4 text-amber-ink hover:bg-amber-hi hover:text-amber-ink' : 'min-w-11 border border-line text-soft hover:text-text sm:px-4',
                 )}
               >
-                {s === next ? 'Start' : 'Open'}
+                {s === next ? (
+                  'Start'
+                ) : (
+                  <>
+                    <span className="max-sm:hidden">Open</span>
+                    <span aria-hidden="true" className="text-lg sm:hidden">
+                      ›
+                    </span>
+                  </>
+                )}
               </Link>
             )}
           </li>
@@ -465,6 +475,7 @@ function GetSetUp({ steps }: { steps: SetupStep[] }) {
 
 /** The next seven days as a row of pictures, each with its day. */
 function Week({ items }: { items: HomeData['upcoming'] }) {
+  const shared = items.length > 1 && items.every((u) => u.note && u.note === items[0]!.note) ? items[0]!.note : null;
   return (
     <section aria-labelledby="week-h" className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
@@ -475,6 +486,8 @@ function Week({ items }: { items: HomeData['upcoming'] }) {
           Full calendar
         </Link>
       </div>
+      {/* When every card says the same thing, say it once. */}
+      {shared && <p className="-mt-2 m-0 text-sm text-dim">{shared}</p>}
       <ol className="-mx-4 m-0 flex list-none snap-x scroll-px-4 sm:scroll-px-10 gap-4 overflow-x-auto px-4 pb-2 sm:-mx-10 sm:px-10">
         {items.map((u, i) => {
           const img = tmdbImage(u.backdropPath, 'w780') ?? tmdbImage(u.posterPath, 'w342');
@@ -487,7 +500,7 @@ function Week({ items }: { items: HomeData['upcoming'] }) {
                 <span className={cx('absolute top-2.5 left-2.5 rounded-md px-2 py-0.5 text-caption font-semibold', today ? 'bg-amber text-amber-ink' : 'bg-ink/80 text-soft')}>{u.day}</span>
                 <span className="absolute right-3 bottom-2.5 left-3 line-clamp-2 text-body leading-tight font-semibold text-text">{u.title}</span>
               </div>
-              <span className="line-clamp-2 text-xs text-dim">{u.note}</span>
+              {!shared && <span className="line-clamp-2 text-xs text-dim">{u.note}</span>}
             </>
           );
           return (
