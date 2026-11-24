@@ -20,8 +20,8 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | L4 | **Edit a file's details** (quality, edition) when the name is wrong | Radarr, Sonarr | ❌ | Later | ⏸ Later *(suggested)* |
 | L5 | **Media info** from the file itself (codec, audio channels, audio/subtitle languages, HDR from the stream, real runtime) | Radarr, Sonarr | ❌ quality is from the name only | Ask (needs ffprobe in the image) | ⏸ Later |
 | L6 | **Refresh one title** from TMDB on demand | Radarr, Sonarr | ✅ More → Refresh from TMDB | Add | ✅ **Done** (round 3) |
-| L7 | **Movie collections** (see a collection, want the whole thing, auto-add new films in it) | Radarr, Seerr | ❌ | Ask | ✅ Add |
-| L8 | **Show monitoring presets** when adding: all, future episodes only, missing only, first season, latest season, none; and "want new seasons when they appear" | Sonarr | 🟡 per-season/episode ticks by hand; new seasons follow the show | Add (at least "future only" and "latest season") | ✅ Add *(suggested)* |
+| L7 | **Movie collections** (see a collection, want the whole thing, auto-add new films in it) | Radarr, Seerr | ✅ Collection pages, Want the whole collection, new films added daily | Ask | ✅ **Done** (round 4) |
+| L8 | **Show monitoring presets** when adding: all, future episodes only, missing only, first season, latest season, none; and "want new seasons when they appear" | Sonarr | ✅ Which episodes: every episode, only new ones, latest season, first season, nothing (Add, approve, show page) | Add (at least "future only" and "latest season") | ✅ **Done** (round 4) |
 | L9 | **Wanted → Missing / Not good enough yet** lists (everything wanted without a file, everything below "good enough") with bulk search | Radarr, Sonarr | ✅ Library filters with Look for these | Add | ✅ **Done** (round 3) |
 | L10 | **Multiple library folders** per kind (e.g. a second disk, or a separate Kids folder) and pick one per title | Radarr, Sonarr | 🟡 one movie folder, one TV folder | Ask | ⛔ Skip: one of each |
 | L11 | **Move a title** to another folder | Radarr, Sonarr | ❌ | Later (only matters with L10) | ⛔ Skip |
@@ -32,11 +32,11 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 | L16 | **Extra files** next to the movie: subtitles (.srt), .nfo — import them with the video | Radarr, Sonarr | ✅ subtitles come along, renamed with language/forced tags | Add | ✅ **Done** (round 3) |
 | L17 | **Metadata files** written for Kodi/Emby (nfo, posters in the folder) | Radarr, Sonarr | ❌ | Skip (Plex/Jellyfin fetch their own) | ⛔ Skip *(suggested)* |
 | L18 | **Recycle bin** with cleanup after N days | Radarr, Sonarr | 🟡 `.marquee-replaced` kept forever | Ask (show its size and an "Empty" button?) | ✅ **Done** (round 3): Settings → Health → Replaced files |
-| L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ❌ | Ask (Plex watchlist → request is the big one) | ✅ Add: Plex watchlist, Trakt, IMDb, Letterboxd |
+| L19 | **Import lists**: Trakt, IMDb, Letterboxd, TMDB lists, **Plex watchlist** → added and wanted automatically, with exclusions | Radarr, Sonarr, Seerr (watchlist) | ✅ Settings → Lists: Plex watchlists, Trakt, IMDb, Letterboxd, exclusions | Ask (Plex watchlist → request is the big one) | ✅ **Done** (round 4) |
 | L20 | **Minimum free space** before importing; checks free space on the download disk | Radarr, Sonarr | 🟡 "disk full" error after the fact | Add (cheap) | ✅ **Done** (round 1) |
 | L21 | **Delay before grabbing** (wait N hours for a better copy, preferred protocol) | Radarr, Sonarr | ❌ HolyArrs idea "Held copies" noted for later | Later | ⏸ Later *(suggested)* |
-| L22 | **Release must / must-not contain** words (release profiles) | Radarr, Sonarr | ❌ profiles hold TRaSH's rules only; no rule of your own ("never take copies with X in the name") | Ask | ✅ Add: own word/group rules with points |
-| L23 | Language preference per profile (e.g. original language, English audio) | Radarr, Sonarr | 🟡 TRaSH language rules exist; no simple setting | Ask | ✅ Folded into L22 ("prefer English audio" is an own rule) |
+| L22 | **Release must / must-not contain** words (release profiles) | Radarr, Sonarr | ✅ Settings → Quality → Your own rules: words, groups, a language or a pattern, with points per profile | Ask | ✅ **Done** (round 5) |
+| L23 | Language preference per profile (e.g. original language, English audio) | Radarr, Sonarr | ✅ an own rule "Has a language" (English, the title's own language…) | Ask | ✅ **Done** (round 5, with L22) |
 
 ## 2. Downloads and queue (Radarr / Sonarr / Prowlarr / helpers)
 
@@ -57,38 +57,38 @@ Most of the day-to-day is done. Tautulli's core (Activity, People, History, stop
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| R1 | **Report a problem** with a title (bad audio, wrong subtitles, wrong file) → admin sees it, fixes, replies; "Find a better copy" from there | Seerr (Issues) | ❌ | **Add** (family-facing, big for "totally replace") | ✅ Add |
-| R2 | **Plex watchlist auto-request** (add to your Plex watchlist → request appears) | Seerr | ❌ | Ask (see L19) | ✅ Add (with L19) |
+| R1 | **Report a problem** with a title (bad audio, wrong subtitles, wrong file) → admin sees it, fixes, replies; "Find a better copy" from there | Seerr (Issues) | ✅ Something wrong? on title pages (per episode for shows), Requests → Something wrong? with Find a better copy, replies, notifications | **Add** (family-facing, big for "totally replace") | ✅ **Done** (round 6) |
+| R2 | **Plex watchlist auto-request** (add to your Plex watchlist → request appears) | Seerr | ✅ Each person’s Plex watchlist becomes their requests | Ask (see L19) | ✅ **Done** (round 4) |
 | R3 | **Separate 4K requests** / 4K server | Seerr | Skip: one library, profiles decide | Skip | ⛔ Skip *(suggested)* |
-| R4 | Per-user permissions finer than roles (auto-approve, request TV but not movies, see others' requests) | Seerr | 🟡 three roles + per-person limits | Ask (is "auto-approve this member" needed?) | ✅ Add: per-person "requests skip approval" switch |
+| R4 | Per-user permissions finer than roles (auto-approve, request TV but not movies, see others' requests) | Seerr | ✅ Settings → Users: Requests skip approval (kids: kids’ titles only) | Ask (is "auto-approve this member" needed?) | ✅ **Done** (round 6) |
 | R5 | Request **advanced options** (profile, folder, language) when asking | Seerr | 🟡 admin picks profile on approve | Skip | ⛔ Skip *(suggested)* |
 | R6 | **Hide a title** from Discover (blocklist) | Seerr | ❌ | Later | ⏸ Later *(suggested)* |
 | R7 | Discover by **studio / network / keyword** pages | Seerr | 🟡 genres only; person pages exist | Later | ⏸ Later *(suggested)* |
 | R8 | Admin can **customise Discover rows** (order, add a TMDB list/keyword row) | Seerr | ❌ fixed order | Later | ⏸ Later *(suggested)* |
-| R9 | **Email** and **web push** (PWA) notifications; **Discord / Telegram / webhook** | Seerr, arrs, Tautulli | 🟡 Pushover, ntfy, bell; iPhone push in M7 | Ask (anyone in the family need email/Discord? a generic webhook is cheap) | ✅ Add: generic webhook only |
+| R9 | **Email** and **web push** (PWA) notifications; **Discord / Telegram / webhook** | Seerr, arrs, Tautulli | ✅ Webhook channel (JSON POST, optional Bearer secret) | Ask (anyone in the family need email/Discord? a generic webhook is cheap) | ✅ **Done** (round 6) |
 | R10 | **Invite** a new person (link that creates their Plex/Jellyfin access and Marquee account) | Wizarr | ❌ people must already be on the server | Ask | ⏸ Later |
-| R11 | Request quota shown to the requester ("2 of 5 left this week") | Seerr | ❌ limits are enforced but not shown before asking | Add (cheap) | ✅ Add *(suggested)* |
+| R11 | Request quota shown to the requester ("2 of 5 left this week") | Seerr | ✅ Weekly limit per person, shown before asking ("2 of 5 left this week") | Add (cheap) | ✅ **Done** (round 6) |
 
 ## 4. Watching and stats (Tautulli / WatchState)
 
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
-| W1 | **Resume points sync** (stopped at 40 min on Plex → continue on Jellyfin) | WatchState | ❌ ticks only | Ask | ✅ Add |
+| W1 | **Resume points sync** (stopped at 40 min on Plex → continue on Jellyfin) | WatchState | ✅ Resume points synced with watched ticks (newer place wins; can be switched off) | Ask | ✅ **Done** (round 7) |
 | W2 | **Unwatched sync** (untick on one → untick on both) | WatchState | ❌ adds only, on purpose | Skip (safer) | ⛔ Skip *(suggested)* |
-| W3 | Real-time sync from server webhooks instead of every 30 min | WatchState | ❌ | Later (live line from M6 could trigger it) | ✅ Add: sync right after a play stops, using the live line Activity already keeps to Plex and Jellyfin (same signal WatchState's webhooks give, no Plex Pass needed); a webhook receiver only if the live line misses things |
+| W3 | Real-time sync from server webhooks instead of every 30 min | WatchState | ✅ Watched sync runs ~20 s after a play stops, from Activity’s live line | Later (live line from M6 could trigger it) | ✅ **Done** (round 7) |
 | W4 | Backup / export of watch state | WatchState | 🟡 log + undo | Later (covered by app backups, S1) | ⏸ Later *(suggested)* |
-| W5 | **Import Tautulli's old history** | Tautulli | ❌ (left out on purpose) | Ask (Plex's own history is copied; Tautulli has more detail) | ✅ Add |
+| W5 | **Import Tautulli's old history** | Tautulli | ✅ Watching → Bring in Tautulli’s history (its API), skips plays already here, Undo | Ask (Plex's own history is copied; Tautulli has more detail) | ✅ **Done** (round 7) |
 | W6 | Libraries page: media info tables (bitrate, codec, audio) per title | Tautulli | 🟡 library size by picture size and format | Later (depends on L5) | ⏸ Later (after L5) |
 | W7 | Graphs: source vs stream resolution, by platform, by month | Tautulli | 🟡 most of it on Activity | Skip | ⛔ Skip *(suggested)* |
 | W8 | **Newsletters** (weekly "new on the server" email) | Tautulli | ❌ left out | Ask (could be a weekly ntfy/Pushover digest instead) | ⛔ Skip |
 | W9 | Concurrent stream / bandwidth warnings, buffering warnings | Tautulli | 🟡 "most at once"; no alert | Later | ⏸ Later *(suggested)* |
 | W10 | Plex/Jellyfin **server update available** notice | Tautulli | ❌ | Skip | ⛔ Skip *(suggested)* |
 | W11 | Automatic stream limits per person | Tautulli (scripts) | ❌ (listed) | Skip | ⛔ Skip *(suggested)* |
-| W12 | **Why it's converting** (Plex/Jellyfin's transcode reason: subtitle burn-in, audio codec, bandwidth) on a stream | Tautulli | 🟡 converted vs direct only | Ask | ✅ Add |
+| W12 | **Why it's converting** (Plex/Jellyfin's transcode reason: subtitle burn-in, audio codec, bandwidth) on a stream | Tautulli | ✅ Why it’s converting, from Plex’s decisions and Jellyfin’s reasons | Ask | ✅ **Done** (round 7) |
 | W13 | Notification **conditions** (only when this person, this library, only 4K converting…) | Tautulli | 🟡 per-event on/off per channel | Ask | ⛔ Skip |
 | W14 | Per-library stats page (plays, most watched, never watched, last played) | Tautulli | 🟡 Activity tops are server-wide | Ask | ⛔ Skip |
 | W15 | Per person: last seen, devices and apps used, totals by period | Tautulli | 🟡 People pages have recent streams and tops | Later *(suggested)* | ⏸ Later *(suggested)* |
-| W16 | **Never watched** / not played in a year list (helps decide what to clear by hand) | Tautulli | ❌ | Ask | ✅ Add (read-only list; no deleting, per the no-automatic-deletion rule) |
+| W16 | **Never watched** / not played in a year list (helps decide what to clear by hand) | Tautulli | ✅ Library → More → Not watched (never, or not in a year); read-only | Ask | ✅ **Done** (round 7) |
 | W17 | Export metadata/history to CSV | Tautulli | ❌ | Skip *(suggested)* | ⛔ Skip *(suggested)* |
 
 ## 6. Profiles (Profilarr)
@@ -98,10 +98,10 @@ Profilarr (v2) keeps a shared database of profiles and rules (Dictionarry), lets
 | # | Feature | From | Marquee today | Lean | Decision |
 |---|---|---|---|---|---|
 | P1 | Edit profiles and rules in a UI | Profilarr | ✅ Quality page, every setting | — | ✅ Covered |
-| P2 | **Follow an upstream database** and get its updates, keeping your own changes (shows a conflict when both changed) | Profilarr | 🟡 TRaSH pinned per Marquee release; "put back to TRaSH's values" resets a whole profile | Ask | ✅ Add: check weekly, show what changed, you apply; your edited rules kept and flagged if upstream changed them too |
-| P3 | Choose the database: **TRaSH** or **Dictionarry** (Profilarr's own, e.g. its 1080p/2160p "Quality"/"Efficient" profiles) | Profilarr | 🟡 TRaSH only | Ask | ✅ Add, **Dictionarry is the default**, TRaSH kept as a choice. Josh prefers space-efficient encodes that keep quality. Check Dictionarry's licence first; then the presets (4K Quality, Everyday HD, Kids & Cartoons) are rebased on its efficient profiles, and the Radarr comparison rerun |
-| P4 | **Write your own rules** (regex on name, group, source, size…) and reuse patterns across rules | Profilarr | ❌ (= L22) | ✅ with L22 | ✅ Add (L22) |
-| P5 | **Test a copy name** against a profile: paste a name, see each rule's points and whether it'd be taken | Profilarr | 🟡 "Why?" on real search results; "Try a movie" checks which profile a title gets, not a name | Add *(suggested)* | ✅ Add *(suggested)* |
+| P2 | **Follow an upstream database** and get its updates, keeping your own changes (shows a conflict when both changed) | Profilarr | ✅ Rule updates: weekly check of Dictionarry, see what changes, Apply; your points kept, flagged with Use theirs / Keep mine when both changed | Ask | ✅ **Done** (round 5) |
+| P3 | Choose the database: **TRaSH** or **Dictionarry** (Profilarr's own, e.g. its 1080p/2160p "Quality"/"Efficient" profiles) | Profilarr | ✅ Dictionarry pinned (MIT, declared in its pcd.json) and the default; presets on 2160p Efficient, 1080p Efficient, 1080p Compact; TRaSH still a choice | Ask | ✅ Add, **Dictionarry is the default**, TRaSH kept as a choice. Josh prefers space-efficient encodes that keep quality. Check Dictionarry's licence first; then the presets (4K Quality, Everyday HD, Kids & Cartoons) are rebased on its efficient profiles. ✅ **Done** (round 5); Radarr comparison skipped (Josh) |
+| P4 | **Write your own rules** (regex on name, group, source, size…) and reuse patterns across rules | Profilarr | ✅ (= L22): one rule, points in any profile | ✅ with L22 | ✅ **Done** (round 5) |
+| P5 | **Test a copy name** against a profile: paste a name, see each rule's points and whether it'd be taken | Profilarr | ✅ Try a name on each profile | Add *(suggested)* | ✅ **Done** (round 5) |
 | P6 | **History of profile edits** with undo / versions | Profilarr | ❌ | Ask | ⛔ Skip: backups are enough |
 | P7 | Import/export a profile as a file (share or back up) | Profilarr | ❌ (backups S1 cover safety) | Later *(suggested)* | ⏸ Later *(suggested)* |
 | P8 | Sync to several Radarr/Sonarr instances | Profilarr | n/a: Marquee uses its own | — | ⛔ Skip |
@@ -123,7 +123,7 @@ Profilarr (v2) keeps a shared database of profiles and rules (Dictionarry), lets
 | S10 | **Import from the old apps** (Radarr/Sonarr monitored state & profiles, Seerr requests & users, Prowlarr done) with undo | HolyArrs idea | 🟡 Prowlarr sites brought over; Radarr/Sonarr read-only for matching; no Seerr import (decided) | Ask (bring over Wanted from Radarr/Sonarr's monitored flags?) | ⛔ Skip: Josh marks Wanted by hand |
 | S11 | Profile updates from TRaSH at runtime (Profilarr pulls new formats) | Profilarr | 🟡 `trash:update` at build time; ships with releases | Skip (new Marquee release = new rules) | ⛔ Skip *(suggested)* |
 | S12 | Subtitles (download missing subtitles) | Bazarr | ❌ | Ask (is Bazarr in your stack?) | ⛔ Skip: Bazarr not in use |
-| S13 | iCal calendar feed (subscribe in Apple Calendar) | Radarr, Sonarr | ❌ | Ask (cheap) | ✅ Add: private link per person |
+| S13 | iCal calendar feed (subscribe in Apple Calendar) | Radarr, Sonarr | ✅ Calendar → private link (iCal), kids get kids’ titles | Ask (cheap) | ✅ **Done** (round 6) |
 
 ## Plan
 
@@ -149,22 +149,22 @@ Roughly in order: the first two rounds come before Radarr and Sonarr are turned 
    - L16 Bring subtitles (`.srt`, `.ass`) and other extras along with the video
    - L18 `.marquee-replaced`: size shown in Settings, Empty button behind a confirm
    - L13 alternate titles when matching, only if real searches miss
-4. **Getting titles in**
+4. ✅ **Getting titles in**. Done: see PLAN.md.
    - L8 Show presets when adding or approving: everything, future episodes only, latest season, first season, nothing
    - L7 Movie collections: collection page, want the whole collection, new films in it added
    - L19 + R2 Lists: **Plex watchlist** (each person's, becomes their request, approved by role as usual), Trakt, IMDb, Letterboxd; an exclusions list
-5. **Profiles** (replaces Profilarr)
-   - P3 **Dictionarry as the default database**, TRaSH still available: licence check, import its rules and profiles, rebase the three presets on its efficient encodes, rerun the Radarr comparison
+5. ✅ **Profiles** (replaces Profilarr). Done: see PLAN.md. The Radarr comparison was skipped (Josh, 2026-11-23).
+   - P3 **Dictionarry as the default database**, TRaSH still available: licence check, import its rules and profiles, rebase the three presets on its efficient encodes
    - P2 Rule updates in the app: weekly check, see what changed, apply; your edits kept and flagged on conflict
    - L22/P4 Your own rules: words, groups or patterns in the name, with points (covers L23 language preference)
    - P5 Paste a copy name and see how a profile judges it
-6. **Family**
+6. ✅ **Family**. Done: see PLAN.md.
    - R1 **Something wrong?** on title pages (picture, sound, subtitles, wrong title, other), a list for admins with Find a better copy, replies both ways
    - R4 Per person, "Their requests skip approval" (Settings → Users; kids still need approval for anything not kid-safe)
    - R11 Show what's left of a weekly limit before asking
    - R9 Generic webhook channel (JSON POST)
    - S13 iCal link per person (kids get kids' titles)
-7. **Watching**
+7. ✅ **Watching**. Done: see PLAN.md.
    - W3 Sync watched state right after a play stops, from the live line Activity already keeps (what WatchState's webhooks did)
    - W1 Resume points sync between Plex and Jellyfin
    - W12 Why a stream is converting (Plex/Jellyfin's reason)

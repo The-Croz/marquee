@@ -17,7 +17,7 @@ async function setup(releases = [release(BEST, { size: 25 * GB }), release(NEXT,
   sites.feed('http://tpb.test/api', { releases });
   const qbit = new FakeQbit();
   let clock = Date.parse('2026-11-18T12:00:00Z');
-  const t = makeApp({ now: () => clock, clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent() } });
+  const t = makeApp({ trashPresets: true, now: () => clock, clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent() } });
   const cookie = await setupAdmin(t.app);
   await call(t.app, 'POST', '/api/settings/sources', { name: 'TPB', url: 'http://tpb.test/api', apiKey: 'good' }, cookie);
   await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, cookie);

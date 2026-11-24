@@ -1,14 +1,18 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { getSetting, setSetting, schema, type Db } from '../db/index.js';
 import { HttpError } from '../http.js';
-import { explain } from './explanations.js';
-import { TRASH, defaultRules, optionalRules, type App, type Rule, type TrashProfile } from './formats.js';
+import { DICTIONARRY_SHIPPED, dictionarry, rulesFor, shippedRules, type RuleDatabase, type RuleInfo } from './catalog.js';
+import type { DictionarryData } from './dictionarry.js';
+import { TRASH, defaultRules, optionalRules, type App, type TrashProfile } from './formats.js';
+
+export type { RuleInfo } from './catalog.js';
 
 /**
  * Profiles: what a title wants. Which qualities it accepts and in what order,
- * which TRaSH rules add or take away points, size limits, and when a copy is
- * "good enough". Stored in the database and editable; the three presets are
- * built from TRaSH's own profiles and can be reset to them.
+ * which rules add or take away points, size limits, and when a copy is "good
+ * enough". Stored in the database and editable. Rules come from Dictionarry
+ * (the default) or TRaSH, plus your own; the three presets are built on
+ * Dictionarry's space-saving profiles and can be put back to them.
  */
 
 export type Kind = 'movie' | 'tv';
@@ -28,9 +32,12 @@ export interface SizeLimit {
 }
 
 export interface ProfileRuleSetting {
+  /** The rule's id: TRaSH's hex id, "dict:<name>" or "own:<id>". */
   trashId: string;
   enabled: boolean;
   score: number;
+  /** A rule update changed its points while you'd changed them too: their new points (you kept yours). */
+  upstreamScore?: number | null;
 }
 
 export interface FullProfile {
@@ -46,9 +53,17 @@ export interface FullProfile {
   minScore: number;
   cutoffScore: number;
   minUpgradeScore: number;
-  /** Only the qualities you've changed; the rest use TRaSH's sizes (see `sizeLimit`). */
+  /** Only the qualities you've changed; the rest use the database's sizes (see `sizeLimit`). */
   sizes: Record<string, SizeLimit>;
   rules: ProfileRuleSetting[];
+  /** Where its rules and sizes come from. Missing means TRaSH (profiles saved before Dictionarry). */
+  database?: RuleDatabase;
+  /** The database's profile it follows for rule updates. */
+  base?: string | null;
+  /** Rank a proper or repack above others of the same quality, before points (as Radarr's "prefer"). Missing means yes. */
+  preferRepacks?: boolean;
+  /** Every rule it can score, with your own. Missing means the shipped rules. */
+  defs?: Map<string, RuleInfo>;
 }
 
 export const appFor = (kind: Kind): App => (kind === 'movie' ? 'radarr' : 'sonarr');
@@ -74,10 +89,18 @@ export function knownQualities(kind: Kind): string[] {
   return p.items.flatMap((i) => i.items ?? [i.name]);
 }
 
-/** The size limit for a quality: yours if you changed it, else TRaSH's, else none. */
+/** The database's sizes for each quality. Dictionarry sets none (its rules judge size), so those are "no limit". */
+export function databaseSizes(database: RuleDatabase, kind: Kind): { quality: string; min: number; preferred: number; max: number }[] {
+  const app = appFor(kind);
+  if (database === 'trash') return TRASH[app].sizes;
+  const top = NO_LIMIT[app];
+  return DICTIONARRY_SHIPPED[app].sizes.map((s) => ({ quality: s.quality, min: s.min, preferred: Math.min(s.preferred, top), max: s.max > 0 ? Math.min(s.max, top) : top }));
+}
+
+/** The size limit for a quality: yours if you changed it, else the database's, else none. */
 export function sizeLimit(profile: FullProfile, quality: string): (SizeLimit & { unlimited: boolean }) | null {
   const app = appFor(profile.kind);
-  const limit = profile.sizes[quality] ?? TRASH[app].sizes.find((s) => s.quality === quality) ?? null;
+  const limit = profile.sizes[quality] ?? databaseSizes(profile.database ?? 'trash', profile.kind).find((s) => s.quality === quality) ?? null;
   if (!limit) return null;
   return { min: limit.min, preferred: limit.preferred, max: limit.max, unlimited: limit.max >= NO_LIMIT[app] };
 }
@@ -124,12 +147,16 @@ interface PresetValues {
   minUpgradeScore: number;
   sizes: Record<string, SizeLimit>;
   rules: ProfileRuleSetting[];
+  database: RuleDatabase;
+  base: string | null;
+  preferRepacks: boolean;
 }
 
 interface Preset {
   key: string;
   kind: Kind;
-  build: () => PresetValues;
+  /** Builds it from the Dictionarry version in use (pass null for the shipped one). */
+  build: (db?: Db | null) => PresetValues;
 }
 
 function trashProfile(app: App, name: string): TrashProfile {
@@ -157,7 +184,7 @@ function rulesFrom(app: App, profileNames: string[]): ProfileRuleSetting[] {
   return [...out.values()];
 }
 
-function fromTrash(app: App, base: string, extra: string[], allowed: string[], cutoff: string, text: { name: string; description: string }, sizes: Record<string, SizeLimit> = {}): PresetValues {
+export function fromTrash(app: App, base: string, extra: string[], allowed: string[], cutoff: string, text: { name: string; description: string }, sizes: Record<string, SizeLimit> = {}): PresetValues {
   const p = trashProfile(app, base);
   return {
     ...text,
@@ -169,41 +196,73 @@ function fromTrash(app: App, base: string, extra: string[], allowed: string[], c
     minUpgradeScore: p.minUpgradeFormatScore,
     sizes,
     rules: rulesFrom(app, [base, ...extra]),
+    database: 'trash',
+    base,
+    preferRepacks: true,
   };
 }
 
-/**
- * Kids & Cartoons movies take a 1080p web copy only when it's small: 40 MB a
- * minute (about 3.6 GB for 90 minutes). TV prefers 1080p with no cap.
- */
-const KIDS_1080P_MAX = { movie: 40 };
-const kidsSizes = (kind: 'movie'): Record<string, SizeLimit> => {
-  const app = appFor(kind);
-  const out: Record<string, SizeLimit> = {};
-  for (const q of ['WEBDL-1080p', 'WEBRip-1080p']) {
-    const t = TRASH[app].sizes.find((s) => s.quality === q)!;
-    out[q] = { min: t.min, preferred: KIDS_1080P_MAX[kind] - 1, max: KIDS_1080P_MAX[kind] };
-  }
+/** Dictionarry's quality list, kept to the qualities Marquee knows, with any it leaves out added (off) at the end. */
+function dictTiers(kind: Kind, tiers: Tier[]): Tier[] {
+  const known = knownQualities(kind);
+  const out = tiers.map((t) => ({ ...t, qualities: t.qualities.filter((q) => known.includes(q)) })).filter((t) => t.qualities.length);
+  const placed = new Set(out.flatMap((t) => t.qualities));
+  for (const q of known) if (!placed.has(q)) out.push({ name: q, qualities: [q], allowed: false });
   return out;
+}
+
+export function dictProfile(data: DictionarryData, name: string) {
+  const p = data.profiles.find((x) => x.name === name);
+  if (!p) throw new HttpError(400, 'invalid_input', `Dictionarry has no profile called "${name}".`);
+  return p;
+}
+
+/** A Dictionarry profile as Marquee stores it: its qualities, every rule it scores with its points, and its point limits. */
+export function fromDictionarry(data: DictionarryData, kind: Kind, base: string, text: { name: string; description: string }): PresetValues {
+  const p = dictProfile(data, base);
+  return {
+    ...text,
+    tiers: dictTiers(kind, p.tiers),
+    cutoff: p.cutoff,
+    upgrades: p.upgrades,
+    minScore: p.minScore,
+    cutoffScore: p.cutoffScore,
+    minUpgradeScore: p.minUpgradeScore,
+    sizes: {},
+    rules: Object.entries(p.scores).map(([trashId, score]) => ({ trashId, enabled: true, score })),
+    database: 'dictionarry',
+    base,
+    preferRepacks: data.preferRepacks,
+  };
+}
+
+/** Which Dictionarry profile each preset is built on. All three favour small x265 encodes that keep the picture. */
+export const PRESET_BASES: Record<string, string> = { cinema: '2160p Efficient', 'everyday-hd': '1080p Efficient', kids: '1080p Compact' };
+
+const CINEMA = {
+  name: '4K Quality',
+  description: '4K with HDR from streaming services at sensible sizes (about 15–30 GB a movie). Takes a small, high-quality 1080p encode until a 4K copy turns up. Never remuxes or full discs. Built on Dictionarry’s 2160p Efficient.',
 };
+const EVERYDAY = {
+  name: 'Everyday HD',
+  description: 'Small 1080p x265 encodes from groups Dictionarry trusts to keep the picture (about 6–12 GB a movie, 2–3 GB an episode). Built on Dictionarry’s 1080p Efficient.',
+};
+const KIDS = {
+  name: 'Kids & Cartoons',
+  description: 'Very small 1080p x265 encodes (about 3–6 GB a movie, 1–2 GB an episode); cartoons squeeze well, so they still look sharp. Falls back to 720p and DVD for older ones. Built on Dictionarry’s 1080p Compact.',
+};
+const TEXT: Record<string, { name: string; description: string }> = { cinema: CINEMA, 'everyday-hd': EVERYDAY, kids: KIDS };
 
-const CINEMA = { name: '4K Quality', description: '4K with HDR and Dolby Vision at sensible sizes. Takes 1080p until a 4K copy turns up. Skips remuxes and full discs.' };
-const EVERYDAY = { name: 'Everyday HD', description: 'Good 1080p copies from Blu-ray or streaming services.' };
-const KIDS_TV = { name: 'Kids & Cartoons', description: '1080p when there’s a copy, otherwise 720p, then standard definition, so older cartoons still turn up.' };
-const KIDS = { name: 'Kids & Cartoons', description: '720p is plenty for cartoons and saves space. Takes a small 1080p web copy when there’s no 720p.' };
+const preset = (key: string, kind: Kind): Preset => ({ key, kind, build: (db) => fromDictionarry(dictionarry(db ?? null, appFor(kind)), kind, PRESET_BASES[key]!, TEXT[key]!) });
 
-export const PRESETS: Preset[] = [
-  { key: 'cinema', kind: 'movie', build: () => fromTrash('radarr', 'UHD Bluray + WEB', ['HD Bluray + WEB'], ['Bluray-2160p', 'WEB 2160p', 'Bluray-1080p', 'WEB 1080p'], 'Bluray-2160p', CINEMA) },
-  { key: 'everyday-hd', kind: 'movie', build: () => fromTrash('radarr', 'HD Bluray + WEB', [], ['Bluray-1080p', 'WEB 1080p', 'Bluray-720p'], 'Bluray-1080p', EVERYDAY) },
-  { key: 'kids', kind: 'movie', build: () => fromTrash('radarr', 'HD Bluray + WEB', [], ['Bluray-720p', 'WEB 720p', 'WEB 1080p'], 'Bluray-720p', KIDS, kidsSizes('movie')) },
-  { key: 'cinema', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-2160p', ['WEB-1080p'], ['WEB 2160p', 'WEB 1080p'], 'WEB 2160p', CINEMA) },
-  { key: 'everyday-hd', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p'], 'WEB 1080p', EVERYDAY) },
-  { key: 'kids', kind: 'tv', build: () => fromTrash('sonarr', 'WEB-1080p', [], ['WEB 1080p', 'Bluray-1080p', 'WEB 720p', 'Bluray-720p', 'HDTV-720p', 'WEB 480p', 'DVD', 'SDTV'], 'WEB 1080p', KIDS_TV) },
-];
+export const PRESETS: Preset[] = [preset('cinema', 'movie'), preset('everyday-hd', 'movie'), preset('kids', 'movie'), preset('cinema', 'tv'), preset('everyday-hd', 'tv'), preset('kids', 'tv')];
 
 const SEEDED = 'profiles.seeded';
 const RENAMED_4K = 'profiles.renamed_4k';
 const KIDS_TV_1080 = 'profiles.kids_tv_1080';
+const DICT_REBASED = 'profiles.dictionarry_rebased';
+/** What the one-time move to Dictionarry did, shown once on the Quality page. */
+export const DICT_NOTICE = 'profiles.dictionarry_notice';
 export const DEFAULT_KEYS = { movie: 'profiles.default.movie', tv: 'profiles.default.tv', kids: 'profiles.default.kids' } as const;
 export type DefaultSlot = keyof typeof DEFAULT_KEYS;
 const FALLBACK: Record<DefaultSlot, string> = { movie: 'cinema', tv: 'cinema', kids: 'kids' };
@@ -213,6 +272,13 @@ export function defaultProfileKey(db: Db, kind: Kind): string {
   return getSetting(db, DEFAULT_KEYS[kind]) ?? FALLBACK[kind];
 }
 
+export interface DictionarryNotice {
+  /** Built-in profiles moved to Dictionarry (you'd never changed them). */
+  changed: { kind: Kind; name: string }[];
+  /** Built-in profiles you'd changed, left on TRaSH. */
+  kept: { kind: Kind; name: string }[];
+}
+
 /** Adds the presets the first time Marquee runs. Deleting one later doesn't bring it back. */
 export function seedProfiles(db: Db, now: number): void {
   // The Cinema preset is now called 4K Quality; rename it once unless you've renamed it yourself.
@@ -220,29 +286,62 @@ export function seedProfiles(db: Db, now: number): void {
     db.update(schema.profiles).set({ name: CINEMA.name }).where(and(eq(schema.profiles.preset, 'cinema'), eq(schema.profiles.name, 'Cinema'))).run();
     setSetting(db, RENAMED_4K, '1');
   }
-  // Kids & Cartoons for TV now prefers 1080p and falls back to SD. Update it once if it was never edited.
-  if (!getSetting(db, KIDS_TV_1080)) {
-    const row = db.select().from(schema.profiles).where(and(eq(schema.profiles.kind, 'tv'), eq(schema.profiles.preset, 'kids'))).get();
-    if (row && row.updatedAt === row.createdAt) {
-      const v = PRESETS.find((p) => p.kind === 'tv' && p.key === 'kids')!.build();
-      db.transaction(() => {
+  // Kids & Cartoons for TV once moved to 1080p on TRaSH; the move to Dictionarry below covers it now.
+  if (!getSetting(db, KIDS_TV_1080)) setSetting(db, KIDS_TV_1080, '1');
+  if (!getSetting(db, SEEDED)) {
+    db.transaction(() => {
+      for (const p of PRESETS) {
+        const exists = db.select({ id: schema.profiles.id }).from(schema.profiles).where(and(eq(schema.profiles.kind, p.kind), eq(schema.profiles.key, p.key))).get();
+        if (!exists) insert(db, p.kind, p.key, p.key, p.build(db), now);
+      }
+      setSetting(db, SEEDED, '1');
+    });
+  }
+  // Once: built-in profiles still on TRaSH move to Dictionarry, unless you've changed them. The Quality page says which.
+  if (!getSetting(db, DICT_REBASED)) {
+    const notice: DictionarryNotice = { changed: [], kept: [] };
+    db.transaction(() => {
+      for (const row of db.select().from(schema.profiles).where(eq(schema.profiles.database, 'trash')).all()) {
+        const p = PRESETS.find((x) => x.kind === row.kind && x.key === row.preset);
+        if (!p) continue;
+        if (row.updatedAt !== row.createdAt) {
+          notice.kept.push({ kind: row.kind, name: row.name });
+          continue;
+        }
+        const v = p.build(db);
         db.update(schema.profiles)
-          .set({ description: v.description, tiers: JSON.stringify(v.tiers), cutoff: v.cutoff, sizes: JSON.stringify(v.sizes) })
+          .set({
+            name: v.name,
+            description: v.description,
+            tiers: JSON.stringify(v.tiers),
+            cutoff: v.cutoff,
+            upgrades: v.upgrades,
+            minScore: v.minScore,
+            cutoffScore: v.cutoffScore,
+            minUpgradeScore: v.minUpgradeScore,
+            sizes: JSON.stringify(v.sizes),
+            database: v.database,
+            base: v.base,
+            preferRepacks: v.preferRepacks,
+          })
           .where(eq(schema.profiles.id, row.id))
           .run();
         writeRules(db, row.id, v.rules);
-      });
-    }
-    setSetting(db, KIDS_TV_1080, '1');
+        notice.changed.push({ kind: row.kind, name: v.name });
+      }
+      if (notice.changed.length || notice.kept.length) setSetting(db, DICT_NOTICE, JSON.stringify(notice));
+      setSetting(db, DICT_REBASED, '1');
+    });
   }
-  if (getSetting(db, SEEDED)) return;
-  db.transaction(() => {
-    for (const p of PRESETS) {
-      const exists = db.select({ id: schema.profiles.id }).from(schema.profiles).where(and(eq(schema.profiles.kind, p.kind), eq(schema.profiles.key, p.key))).get();
-      if (!exists) insert(db, p.kind, p.key, p.key, p.build(), now);
-    }
-    setSetting(db, SEEDED, '1');
-  });
+}
+
+export function dictionarryNotice(db: Db): DictionarryNotice | null {
+  const raw = getSetting(db, DICT_NOTICE);
+  return raw ? (JSON.parse(raw) as DictionarryNotice) : null;
+}
+
+export function dismissDictionarryNotice(db: Db): void {
+  setSetting(db, DICT_NOTICE, '');
 }
 
 function insert(db: Db, kind: Kind, key: string, preset: string | null, v: PresetValues, now: number): number {
@@ -261,6 +360,9 @@ function insert(db: Db, kind: Kind, key: string, preset: string | null, v: Prese
       cutoffScore: v.cutoffScore,
       minUpgradeScore: v.minUpgradeScore,
       sizes: JSON.stringify(v.sizes),
+      database: v.database,
+      base: v.base,
+      preferRepacks: v.preferRepacks,
       createdAt: now,
       updatedAt: now,
     })
@@ -270,9 +372,15 @@ function insert(db: Db, kind: Kind, key: string, preset: string | null, v: Prese
   return row.id;
 }
 
-function writeRules(db: Db, profileId: number, rules: ProfileRuleSetting[]): void {
+/** Saves a profile's rules. A rule-update conflict note stays until you change that rule's points. */
+export function writeRules(db: Db, profileId: number, rules: ProfileRuleSetting[]): void {
+  const before = new Map(db.select().from(schema.profileRules).where(eq(schema.profileRules.profileId, profileId)).all().map((r) => [r.trashId, r]));
   db.delete(schema.profileRules).where(eq(schema.profileRules.profileId, profileId)).run();
-  for (const r of rules) db.insert(schema.profileRules).values({ profileId, trashId: r.trashId, enabled: r.enabled, score: r.score }).run();
+  for (const r of rules) {
+    const old = before.get(r.trashId);
+    const upstreamScore = r.upstreamScore !== undefined ? r.upstreamScore : old && old.score === r.score ? old.upstreamScore : null;
+    db.insert(schema.profileRules).values({ profileId, trashId: r.trashId, enabled: r.enabled, score: r.score, upstreamScore }).run();
+  }
 }
 
 // ---------------------------------------------------------------- service
@@ -288,6 +396,7 @@ export interface ProfilePatch {
   minUpgradeScore?: number;
   sizes?: Record<string, SizeLimit>;
   rules?: ProfileRuleSetting[];
+  preferRepacks?: boolean;
 }
 
 const notFound = () => new HttpError(404, 'not_found', 'No such profile.');
@@ -327,10 +436,16 @@ export class ProfileService {
     return this.db.select({ n: sql<number>`count(*)` }).from(table).where(eq(table.profile, key)).get()?.n ?? 0;
   }
 
-  /** A new profile: a copy of `copyFrom`, TRaSH's profile `fromTrash` as TRaSH sets it up, or else a copy of the Everyday HD preset. */
-  create(input: { kind: Kind; name: string; copyFrom?: number; fromTrash?: string }): FullProfile {
+  /**
+   * A new profile: a copy of `copyFrom`, Dictionarry's profile `fromDictionarry`
+   * or TRaSH's profile `fromTrash` as they set it up, or else a copy of the Everyday HD preset.
+   */
+  create(input: { kind: Kind; name: string; copyFrom?: number; fromTrash?: string; fromDictionarry?: string }): FullProfile {
     let values: PresetValues;
-    if (input.fromTrash !== undefined) {
+    if (input.fromDictionarry !== undefined) {
+      const data = dictionarry(this.db, appFor(input.kind));
+      values = fromDictionarry(data, input.kind, input.fromDictionarry, { name: input.name, description: `Starts as Dictionarry’s ${input.fromDictionarry}.` });
+    } else if (input.fromTrash !== undefined) {
       const app = appFor(input.kind);
       const tp = TRASH[app].profiles.find((x) => x.name === input.fromTrash);
       if (!tp) throw new HttpError(400, 'invalid_input', `TRaSH has no ${input.kind === 'movie' ? 'movie' : 'TV'} profile called "${input.fromTrash}".`);
@@ -338,9 +453,9 @@ export class ProfileService {
     } else if (input.copyFrom !== undefined) {
       const src = this.get(input.copyFrom);
       if (src.kind !== input.kind) throw new HttpError(400, 'invalid_input', `That profile is for ${src.kind === 'movie' ? 'movies' : 'TV'}; copy one made for ${input.kind === 'movie' ? 'movies' : 'TV'}.`);
-      values = { ...src, name: input.name };
+      values = { ...src, name: input.name, database: src.database ?? 'trash', base: src.base ?? null, preferRepacks: src.preferRepacks ?? true };
     } else {
-      values = { ...PRESETS.find((p) => p.kind === input.kind && p.key === 'everyday-hd')!.build(), name: input.name, description: '' };
+      values = { ...PRESETS.find((p) => p.kind === input.kind && p.key === 'everyday-hd')!.build(this.db), name: input.name, description: '' };
     }
     this.checkName(input.kind, input.name, null);
     const id = this.db.transaction(() => insert(this.db, input.kind, this.newKey(input.kind, input.name), null, values, this.now()));
@@ -349,6 +464,11 @@ export class ProfileService {
 
   update(id: number, patch: ProfilePatch): FullProfile {
     const current = this.get(id);
+    // A rule its database no longer has (a rule update dropped it) is quietly left out rather than refused.
+    const known = rulesFor(this.db, current.kind);
+    const had = new Set(current.rules.map((r) => r.trashId));
+    const rules = (patch.rules ?? current.rules).filter((r) => known.has(r.trashId) || !had.has(r.trashId));
+    if (patch.rules || rules.length !== current.rules.length) patch = { ...patch, rules };
     const next = { ...current, ...patch };
     if (patch.name !== undefined) this.checkName(current.kind, patch.name, id);
     this.validate(next);
@@ -365,6 +485,7 @@ export class ProfileService {
           cutoffScore: next.cutoffScore,
           minUpgradeScore: next.minUpgradeScore,
           sizes: JSON.stringify(next.sizes),
+          preferRepacks: next.preferRepacks ?? true,
           updatedAt: this.now(),
         })
         .where(eq(schema.profiles.id, id))
@@ -374,13 +495,22 @@ export class ProfileService {
     return this.get(id);
   }
 
-  /** Puts a preset back to TRaSH's values. Its name stays as you set it. */
+  /** Puts a preset back to its database's values (Dictionarry's now, even if it was on TRaSH). Its name stays as you set it. */
   reset(id: number): FullProfile {
     const current = this.get(id);
     const preset = PRESETS.find((p) => p.kind === current.kind && p.key === current.preset);
     if (!preset) throw new HttpError(400, 'not_a_preset', 'Only the built-in profiles can be reset. This one started as a copy.');
-    const v = preset.build();
-    return this.update(id, { ...v, name: current.name });
+    const v = preset.build(this.db);
+    this.db.update(schema.profiles).set({ database: v.database, base: v.base }).where(eq(schema.profiles.id, id)).run();
+    return this.update(id, { ...v, rules: v.rules.map((r) => ({ ...r, upstreamScore: null })), name: current.name });
+  }
+
+  /** Settles a rule-update conflict on one rule: take the database's new points, or keep yours. */
+  settle(id: number, trashId: string, use: 'theirs' | 'mine'): FullProfile {
+    const p = this.get(id);
+    const rule = p.rules.find((r) => r.trashId === trashId);
+    if (!rule || rule.upstreamScore === null || rule.upstreamScore === undefined) throw new HttpError(404, 'not_found', 'That rule has nothing to settle.');
+    return this.update(id, { rules: p.rules.map((r) => (r.trashId === trashId ? { ...r, score: use === 'theirs' ? rule.upstreamScore! : r.score, upstreamScore: null } : r)) });
   }
 
   remove(id: number): void {
@@ -441,7 +571,11 @@ export class ProfileService {
       cutoffScore: row.cutoffScore,
       minUpgradeScore: row.minUpgradeScore,
       sizes: JSON.parse(row.sizes) as Record<string, SizeLimit>,
-      rules: rules.map((r) => ({ trashId: r.trashId, enabled: r.enabled, score: r.score })),
+      rules: rules.map((r) => ({ trashId: r.trashId, enabled: r.enabled, score: r.score, upstreamScore: r.upstreamScore })),
+      database: row.database,
+      base: row.base,
+      preferRepacks: row.preferRepacks,
+      defs: rulesFor(this.db, row.kind),
     };
   }
 
@@ -484,7 +618,7 @@ export class ProfileService {
       if (!known.has(q)) throw bad(`"${q}" isn't a quality Marquee knows.`);
       if (!(s.min >= 0 && s.min <= s.preferred && s.preferred <= s.max)) throw bad(`Sizes for ${qualityLabel(q)} must go smallest ≤ preferred ≤ largest.`);
     }
-    const rules = new Set(TRASH[appFor(p.kind)].formats.map((f) => f.trash_id));
+    const rules = rulesFor(this.db, p.kind);
     const ruleSeen = new Set<string>();
     for (const r of p.rules) {
       if (!rules.has(r.trashId)) throw bad(`Rule ${r.trashId} isn't one Marquee knows.`);
@@ -499,34 +633,37 @@ const slotLabel = (s: DefaultSlot): string => (s === 'movie' ? 'new movies' : s 
 
 // ---------------------------------------------------------------- rule lookup for screens
 
-export interface RuleInfo {
-  rule: Rule;
-  label: string;
-  explain: string;
-  /** TRaSH's group, e.g. "[Unwanted] Unwanted Formats". */
-  group: string | null;
-  trashScore: number;
-}
-
-const ruleIndex = new Map<App, Map<string, RuleInfo>>();
-
-/** Every TRaSH rule for an app, with its plain-English text and group. */
+/** The shipped rules (TRaSH's and Dictionarry's), for when there's no database to hand. */
 export function ruleInfo(kind: Kind): Map<string, RuleInfo> {
-  const app = appFor(kind);
-  let map = ruleIndex.get(app);
-  if (map) return map;
-  map = new Map();
-  const data = TRASH[app];
-  for (const rule of data.formats) {
-    const group = data.groups.find((g) => g.custom_formats.some((cf) => cf.trash_id === rule.trash_id))?.name ?? null;
-    const e = explain(rule.name);
-    map.set(rule.trash_id, { rule, label: e?.label ?? rule.name, explain: e?.explain ?? '', group, trashScore: rule.trash_scores?.default ?? 0 });
-  }
-  ruleIndex.set(app, map);
-  return map;
+  return shippedRules(kind);
 }
 
-/** TRaSH's own profiles a new one can start from. */
-export function trashProfiles(): { kind: Kind; name: string; description: string }[] {
-  return (['movie', 'tv'] as Kind[]).flatMap((kind) => TRASH[appFor(kind)].profiles.map((p) => ({ kind, name: p.name, description: p.trash_description.replace(/<[^>]+>/g, '').trim() })));
+/** The database's own points for a rule in this profile: what "put back" would give it. Null for your own rules. */
+export function upstreamScore(db: Db | null, profile: FullProfile, trashId: string): number | null {
+  if (trashId.startsWith('own:')) return null;
+  if ((profile.database ?? 'trash') === 'dictionarry') {
+    const base = profile.base ? dictionarry(db, appFor(profile.kind)).profiles.find((p) => p.name === profile.base) : undefined;
+    return base?.scores[trashId] ?? 0;
+  }
+  return (profile.defs ?? shippedRules(profile.kind)).get(trashId)?.trashScore ?? 0;
 }
+
+/** The databases' own profiles a new one can start from. */
+export function databaseProfiles(db: Db | null): { database: RuleDatabase; kind: Kind; name: string; description: string }[] {
+  const out: { database: RuleDatabase; kind: Kind; name: string; description: string }[] = [];
+  for (const kind of ['movie', 'tv'] as Kind[]) {
+    for (const p of dictionarry(db, appFor(kind)).profiles) out.push({ database: 'dictionarry', kind, name: p.name, description: plain(p.description) });
+    for (const p of TRASH[appFor(kind)].profiles) out.push({ database: 'trash', kind, name: p.name, description: plain(p.trash_description) });
+  }
+  return out;
+}
+
+/** Dictionarry's and TRaSH's descriptions carry HTML and Markdown; screens want plain text. */
+const plain = (s: string) =>
+  s
+    .replace(/<[^>]+>/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\s*\n\s*-\s*/g, ' · ')
+    .replace(/\s+/g, ' ')
+    .trim();

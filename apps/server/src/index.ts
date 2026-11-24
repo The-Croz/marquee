@@ -23,7 +23,7 @@ import { ActivityMonitor } from './activity/live.js';
 import { syncPlays } from './activity/service.js';
 import { checkHealth } from './notify/health.js';
 import { announceVersion } from './notify/updated.js';
-import { runSync, syncEnabled } from './watchsync/sync.js';
+import { runSync, syncAfterPlays, syncEnabled } from './watchsync/sync.js';
 import { once } from './routes/watchSync.js';
 import { VERSION } from './version.js';
 import { Jobs } from './system/jobs.js';
@@ -40,6 +40,8 @@ import { JellyfinClient, PlexServerClient, jellyfinCheckLogin } from './library/
 import { realSiteFetch } from './sources/sites/http.js';
 import { BundledSolver, FlareSolverrClient } from './sources/sites/solver.js';
 import { CATALOGUE_URL, catalogueDue, refreshCatalogue } from './sources/sites/catalogue.js';
+import { githubFetch } from './releases/dictionarry.js';
+import { checkDue, checkForRuleUpdates } from './releases/ruleUpdates.js';
 
 // Keep recent log lines (secrets taken out) for Settings → Logs.
 captureConsole(serverLog);
@@ -76,7 +78,9 @@ const sources = new SourceService(db, clients, Date.now, undefined, bundledSolve
 const appScanner = new LibraryScanner(db);
 const jobs = new Jobs(db, Date.now);
 // Follows Plex and Jellyfin: their live lines, plus a quick look while anything is playing.
-const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }) });
+// Watched sync runs shortly after a play stops (the live line tells us), as well as every 30 minutes.
+const syncSoon = syncAfterPlays(() => once(() => runSync({ db, clients, now: Date.now })), () => syncEnabled(db));
+const activity = new ActivityMonitor({ db, clients, now: Date.now, notify: () => ({ db, push: clients.push, now: Date.now, baseUrl: () => config.baseUrl ?? null }), onStopped: () => syncSoon() });
 activity.start();
 const app = createApp({
   activity,
@@ -218,6 +222,19 @@ jobs
       if (!catalogueDue(db, Date.now())) return 'Not due yet';
       const r = await refreshCatalogue({ db, dataDir: config.dataDir, fetchCatalogue: clients.fetchCatalogue, now: Date.now });
       console.log(`[sites] ${r.message}`);
+      return r.message;
+    },
+  })
+  .add({
+    id: 'rule-updates',
+    label: 'Check for rule updates',
+    description: 'Asks once a week whether Dictionarry’s rules and profiles have changed. An update waits in Settings → Quality until you apply it.',
+    everyMs: HOUR,
+    firstAfterMs: 10 * MIN,
+    run: async () => {
+      if (!checkDue(db, Date.now())) return 'Not due yet';
+      const r = await checkForRuleUpdates(db, githubFetch(), Date.now());
+      if (!r.ok) throw new Error(r.message);
       return r.message;
     },
   })

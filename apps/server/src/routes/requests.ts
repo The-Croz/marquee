@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { RequestView } from '@marquee/shared';
+import type { RequestAllowance, RequestView } from '@marquee/shared';
 import { notifyDeps } from './notifications.js';
 import { requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
-import { approveRequest, createRequest, declineRequest, listRequests, pendingCount, removeRequest, reopenRequest, type RequestDeps } from '../requests/service.js';
+import { allowance, approveRequest, createRequest, declineRequest, listRequests, pendingCount, removeRequest, reopenRequest, type RequestDeps } from '../requests/service.js';
 import { scanSources } from './library.js';
 
 /** Requests: ask, approve, turn down. Everyone can ask; admins decide. */
@@ -21,6 +21,13 @@ requestRoutes.get('/', (c) => {
   return c.json<{ items: RequestView[] }>({ items: listRequests(db, user, scope, now()) });
 });
 
+/** How many requests are left this week, shown before asking. */
+requestRoutes.get('/allowance', (c) => {
+  const user = requireUser(c);
+  const { db, now } = c.get('deps');
+  return c.json<RequestAllowance>(allowance(db, user, now()));
+});
+
 /** The number on the menu badge: how many wait for an admin (everyone else sees 0). */
 requestRoutes.get('/summary', (c) => {
   const user = requireUser(c);
@@ -30,14 +37,16 @@ requestRoutes.get('/summary', (c) => {
 requestRoutes.post('/', async (c) => {
   const user = requireUser(c);
   const body = z
-    .object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().positive()).max(100).optional() })
+    .object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().positive()).max(100).optional(), preset: z.enum(['all', 'future', 'latest', 'first', 'none']).optional() })
     .parse(await c.req.json());
   return c.json<RequestView>(await createRequest(deps(c), user, body), 201);
 });
 
 requestRoutes.post('/:id{[0-9]+}/approve', async (c) => {
   const admin = requireAdmin(c);
-  const body = z.object({ profile: z.string().min(1).max(60).optional(), seasons: z.array(z.number().int().positive()).max(100).nullable().optional() }).parse(await c.req.json());
+  const body = z
+    .object({ profile: z.string().min(1).max(60).optional(), seasons: z.array(z.number().int().positive()).max(100).nullable().optional(), preset: z.enum(['all', 'future', 'latest', 'first']).optional() })
+    .parse(await c.req.json());
   return c.json<RequestView>(await approveRequest(deps(c), Number(c.req.param('id')), admin, body));
 });
 

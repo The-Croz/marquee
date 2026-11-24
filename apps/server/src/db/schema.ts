@@ -14,6 +14,14 @@ export const users = sqliteTable(
     role: text('role', { enum: ['admin', 'member', 'kid'] }).notNull().default('member'),
     plexId: text('plex_id').unique(),
     plexUsername: text('plex_username'),
+    /** Their own Plex sign-in token, kept from signing in with Plex, for their watchlist. Never sent to screens. */
+    plexToken: text('plex_token'),
+    /** Their requests go straight through (kids: only kid-safe titles). */
+    skipApproval: integer('skip_approval', { mode: 'boolean' }).notNull().default(false),
+    /** Most requests in 7 days; 0 means no limit. Admins have none. */
+    weeklyLimit: integer('weekly_limit').notNull().default(0),
+    /** The secret in their private calendar (iCal) link; null until they make one. */
+    calendarToken: text('calendar_token'),
     jellyfinId: text('jellyfin_id'),
     jellyfinUsername: text('jellyfin_username'),
     oidcIssuer: text('oidc_issuer'),
@@ -88,6 +96,8 @@ export const movies = sqliteTable('movies', {
   refreshedAt: integer('refreshed_at').notNull(),
   /** When Marquee last searched for it by itself. */
   lastSearchedAt: integer('last_searched_at'),
+  /** TMDB's collection it belongs to ("The Matrix Collection"), if any. */
+  collectionTmdbId: integer('collection_tmdb_id'),
 });
 
 export const series = sqliteTable('series', {
@@ -122,6 +132,8 @@ export const series = sqliteTable('series', {
   profileByHand: integer('profile_by_hand', { mode: 'boolean' }).notNull().default(false),
   addedAt: integer('added_at').notNull(),
   refreshedAt: integer('refreshed_at').notNull(),
+  /** Seasons and episodes that appear later are wanted too (set by the show's "which episodes" choice). */
+  wantNew: integer('want_new', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const episodes = sqliteTable('episodes', {
@@ -272,6 +284,12 @@ export const profiles = sqliteTable(
     minUpgradeScore: integer('min_upgrade_score').notNull().default(1),
     /** JSON Record<quality, { min, preferred, max }> in MB per minute; overrides TRaSH's sizes. */
     sizes: text('sizes').notNull().default('{}'),
+    /** Where its rules come from: 'dictionarry' (the default) or 'trash'. */
+    database: text('database', { enum: ['dictionarry', 'trash'] }).notNull().default('trash'),
+    /** The database's profile it follows for rule updates, e.g. "2160p Efficient"; null for none. */
+    base: text('base'),
+    /** Rank a fixed copy (proper/repack) above others of the same quality, before points. Dictionarry gives points instead. */
+    preferRepacks: integer('prefer_repacks', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },
@@ -306,9 +324,38 @@ export const profileRules = sqliteTable(
     trashId: text('trash_id').notNull(),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     score: integer('score').notNull(),
+    /** A rule update changed this rule's points while you'd changed them too: their new points. You kept yours. */
+    upstreamScore: integer('upstream_score'),
   },
   (t) => [primaryKey({ columns: [t.profileId, t.trashId] })],
 );
+
+/** A rule database (Dictionarry) as applied, and a newer version waiting for you to apply it. */
+export const ruleDatabaseVersions = sqliteTable(
+  'rule_database_versions',
+  {
+    name: text('name').notNull(),
+    app: text('app', { enum: ['radarr', 'sonarr'] }).notNull(),
+    state: text('state', { enum: ['applied', 'pending'] }).notNull(),
+    commitSha: text('commit_sha').notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    /** JSON DictionarryData. */
+    data: text('data').notNull(),
+    savedAt: integer('saved_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.name, t.app, t.state] })],
+);
+
+/** Rules you write yourself: words, groups, a language or a pattern in a copy's name. Points are set per profile. */
+export const ownRules = sqliteTable('own_rules', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  kind: text('kind', { enum: ['movie', 'tv', 'both'] }).notNull(),
+  match: text('match', { enum: ['words', 'group', 'language', 'pattern'] }).notNull(),
+  value: text('value').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
 /**
  * Comparison mode: each copy Radarr downloaded, and what Marquee would have
@@ -526,7 +573,7 @@ export const userPrefs = sqliteTable('user_prefs', {
 
 export const notificationChannels = sqliteTable('notification_channels', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  kind: text('kind', { enum: ['pushover', 'ntfy'] }).notNull(),
+  kind: text('kind', { enum: ['pushover', 'ntfy', 'webhook'] }).notNull(),
   name: text('name').notNull(),
   /** Whose channel this is. Null = a shared admin channel (Settings → Notifications). */
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -580,6 +627,8 @@ export const plays = sqliteTable(
     year: integer('year'),
     tmdbId: integer('tmdb_id'),
     playedAt: integer('played_at').notNull(),
+    /** Set on plays brought in from Tautulli: which import, so it can be undone. */
+    importBatch: integer('import_batch'),
   },
   (t) => [uniqueIndex('plays_once').on(t.server, t.serverUserId, t.itemKey, t.playedAt)],
 );
@@ -621,4 +670,107 @@ export const watchSyncLog = sqliteTable('watch_sync_log', {
   itemRef: text('item_ref').notNull(),
   title: text('title').notNull(),
   undoneAt: integer('undone_at'),
+});
+
+/** TMDB movie collections ("The Matrix Collection"). Wanted ones get new films added by themselves. */
+export const collections = sqliteTable('collections', {
+  tmdbId: integer('tmdb_id').primaryKey(),
+  name: text('name').notNull(),
+  overview: text('overview').notNull().default(''),
+  posterPath: text('poster_path'),
+  backdropPath: text('backdrop_path'),
+  /** JSON CollectionPart[] from TMDB, oldest first. */
+  parts: text('parts').notNull().default('[]'),
+  /** Add films in it as they're announced, as Wanted. */
+  wanted: integer('wanted', { mode: 'boolean' }).notNull().default(false),
+  refreshedAt: integer('refreshed_at').notNull(),
+});
+
+/**
+ * Lists Marquee follows: each person's Plex watchlist (their additions become
+ * their requests) and Trakt, IMDb and Letterboxd lists (added as Wanted).
+ */
+export const importLists = sqliteTable('import_lists', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['plex_watchlist', 'trakt', 'imdb', 'letterboxd'] }).notNull(),
+  name: text('name').notNull(),
+  url: text('url'),
+  /** Plex watchlists: whose. */
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** A profile key for what it adds; null lets the profile rules choose. */
+  profile: text('profile'),
+  /** Shows it adds: which episodes (see library/showPresets.ts). */
+  showPreset: text('show_preset').notNull().default('all'),
+  lastSyncAt: integer('last_sync_at'),
+  lastOk: integer('last_ok', { mode: 'boolean' }),
+  lastMessage: text('last_message'),
+  createdAt: integer('created_at').notNull(),
+});
+
+/** Everything seen on a list, and what Marquee did with it (added, asked, already here, left out…). */
+export const listItems = sqliteTable(
+  'list_items',
+  {
+    listId: integer('list_id')
+      .notNull()
+      .references(() => importLists.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+    tmdbId: integer('tmdb_id').notNull(),
+    title: text('title').notNull(),
+    year: integer('year'),
+    seenAt: integer('seen_at').notNull(),
+    outcome: text('outcome').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.listId, t.kind, t.tmdbId] })],
+);
+
+/** Titles lists never add. */
+export const listExclusions = sqliteTable(
+  'list_exclusions',
+  {
+    kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+    tmdbId: integer('tmdb_id').notNull(),
+    title: text('title').notNull(),
+    year: integer('year'),
+    addedAt: integer('added_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.tmdbId] })],
+);
+
+/** Letterboxd film pages Marquee has read: their TMDB id, so each is fetched once. */
+export const letterboxdFilms = sqliteTable('letterboxd_films', {
+  slug: text('slug').primaryKey(),
+  tmdbId: integer('tmdb_id'),
+  kind: text('kind'),
+  seenAt: integer('seen_at').notNull(),
+});
+
+/** "Something wrong?" reports on a title (or one episode), with replies both ways. */
+export const issues = sqliteTable('issues', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  kind: text('kind', { enum: ['movie', 'series'] }).notNull(),
+  movieId: integer('movie_id').references(() => movies.id, { onDelete: 'cascade' }),
+  seriesId: integer('series_id').references(() => series.id, { onDelete: 'cascade' }),
+  season: integer('season'),
+  episode: integer('episode'),
+  title: text('title').notNull(),
+  problem: text('problem', { enum: ['picture', 'sound', 'subtitles', 'wrong_title', 'other'] }).notNull(),
+  message: text('message').notNull().default(''),
+  status: text('status', { enum: ['open', 'fixed'] }).notNull().default('open'),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+  fixedAt: integer('fixed_at'),
+  fixedBy: integer('fixed_by').references(() => users.id, { onDelete: 'set null' }),
+});
+
+export const issueComments = sqliteTable('issue_comments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  issueId: integer('issue_id')
+    .notNull()
+    .references(() => issues.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  body: text('body').notNull(),
+  createdAt: integer('created_at').notNull(),
 });

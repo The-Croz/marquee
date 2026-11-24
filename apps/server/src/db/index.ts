@@ -567,6 +567,135 @@ export const migrations: string[] = [
   CREATE INDEX history_movie ON history (movie_id);
   CREATE INDEX history_series ON history (series_id);
   `,
+  // 27: profiles from Dictionarry or TRaSH, rule updates, your own rules
+  `
+  ALTER TABLE profiles ADD COLUMN database TEXT NOT NULL DEFAULT 'trash';
+  ALTER TABLE profiles ADD COLUMN base TEXT;
+  ALTER TABLE profiles ADD COLUMN prefer_repacks INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE profile_rules ADD COLUMN upstream_score INTEGER;
+  CREATE TABLE rule_database_versions (
+    name TEXT NOT NULL,
+    app TEXT NOT NULL CHECK (app IN ('radarr', 'sonarr')),
+    state TEXT NOT NULL CHECK (state IN ('applied', 'pending')),
+    commit_sha TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    data TEXT NOT NULL,
+    saved_at INTEGER NOT NULL,
+    PRIMARY KEY (name, app, state)
+  );
+  CREATE TABLE own_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv', 'both')),
+    match TEXT NOT NULL CHECK (match IN ('words', 'group', 'language', 'pattern')),
+    value TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  `,
+  // 28: getting titles in: show presets, collections, lists (Plex watchlists, Trakt, IMDb, Letterboxd)
+  `
+  ALTER TABLE series ADD COLUMN want_new INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE movies ADD COLUMN collection_tmdb_id INTEGER;
+  ALTER TABLE users ADD COLUMN plex_token TEXT;
+  CREATE TABLE collections (
+    tmdb_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    overview TEXT NOT NULL DEFAULT '',
+    poster_path TEXT,
+    backdrop_path TEXT,
+    parts TEXT NOT NULL DEFAULT '[]',
+    wanted INTEGER NOT NULL DEFAULT 0,
+    refreshed_at INTEGER NOT NULL
+  );
+  CREATE TABLE import_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('plex_watchlist', 'trakt', 'imdb', 'letterboxd')),
+    name TEXT NOT NULL,
+    url TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    profile TEXT,
+    show_preset TEXT NOT NULL DEFAULT 'all',
+    last_sync_at INTEGER,
+    last_ok INTEGER,
+    last_message TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX import_lists_watchlist ON import_lists (user_id) WHERE kind = 'plex_watchlist';
+  CREATE TABLE list_items (
+    list_id INTEGER NOT NULL REFERENCES import_lists (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    seen_at INTEGER NOT NULL,
+    outcome TEXT NOT NULL,
+    PRIMARY KEY (list_id, kind, tmdb_id)
+  );
+  CREATE TABLE list_exclusions (
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    tmdb_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    year INTEGER,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (kind, tmdb_id)
+  );
+  CREATE TABLE letterboxd_films (slug TEXT PRIMARY KEY, tmdb_id INTEGER, kind TEXT, seen_at INTEGER NOT NULL);
+  `,
+  // 29: family: webhook channels, skip approval, weekly limits, calendar links, "Something wrong?"
+  `
+  CREATE TABLE notification_channels_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('pushover', 'ntfy', 'webhook')),
+    name TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    events TEXT NOT NULL DEFAULT '[]',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    last_ok_at INTEGER,
+    last_error TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE
+  );
+  INSERT INTO notification_channels_new (id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id)
+    SELECT id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id FROM notification_channels;
+  DROP TABLE notification_channels;
+  ALTER TABLE notification_channels_new RENAME TO notification_channels;
+  ALTER TABLE users ADD COLUMN skip_approval INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN weekly_limit INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN calendar_token TEXT;
+  CREATE UNIQUE INDEX users_calendar_token ON users (calendar_token);
+  CREATE TABLE issues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'series')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE CASCADE,
+    series_id INTEGER REFERENCES series (id) ON DELETE CASCADE,
+    season INTEGER,
+    episode INTEGER,
+    title TEXT NOT NULL,
+    problem TEXT NOT NULL CHECK (problem IN ('picture', 'sound', 'subtitles', 'wrong_title', 'other')),
+    message TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'fixed')),
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    fixed_at INTEGER,
+    fixed_by INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  CREATE INDEX issues_status ON issues (status);
+  CREATE TABLE issue_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_id INTEGER NOT NULL REFERENCES issues (id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  `,
+  // 30: watching: plays brought in from Tautulli, so an import can be undone
+  `
+  ALTER TABLE plays ADD COLUMN import_batch INTEGER;
+  CREATE INDEX plays_import_batch ON plays (import_batch);
+  `,
 ];
 
 export function openDb(file: string): Db {

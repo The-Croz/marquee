@@ -313,6 +313,7 @@ describe('search and add', () => {
     expect(res.body.results.map((r: { title: string; libraryId: number | null }) => [r.title, r.libraryId !== null])).toEqual([
       ['The Matrix', true],
       ['The Matrix Reloaded', false],
+      ['The Matrix Revolutions', false],
     ]);
     const add = await call(app, 'POST', '/api/library/add', { kind: 'movie', tmdbId: 604 }, admin);
     expect(add.status).toBe(201);

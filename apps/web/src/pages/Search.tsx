@@ -1,3 +1,5 @@
+import { ShowPresetSelect } from './GettingIn';
+import type { ShowPreset } from '@marquee/shared';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -53,11 +55,12 @@ export function SearchPage({ user }: { user: SessionUser }) {
     enabled: q.length > 0,
   });
 
+  const [presets, setPresets] = useState<Record<number, ShowPreset>>({});
   async function add(r: SearchResult, wanted: boolean) {
     setAdding(r.tmdbId);
     setError(null);
     try {
-      const res = await api<{ id: number; kind: 'movie' | 'series' }>('/library/add', { body: { kind: r.kind, tmdbId: r.tmdbId, wanted } });
+      const res = await api<{ id: number; kind: 'movie' | 'series' }>('/library/add', { body: { kind: r.kind, tmdbId: r.tmdbId, wanted, ...(r.kind === 'series' && wanted ? { preset: presets[r.tmdbId] ?? 'all' } : {}) } });
       await queryClient.invalidateQueries({ queryKey: ['library'] });
       navigate(res.kind === 'movie' ? `/movies/${res.id}` : `/shows/${res.id}`);
     } catch (e) {
@@ -99,6 +102,7 @@ export function SearchPage({ user }: { user: SessionUser }) {
               </Link>
             ) : user.role === 'admin' ? (
               <div className="flex flex-col gap-1.5">
+                {r.kind === 'series' && <ShowPresetSelect id={`preset-${r.tmdbId}`} withNone={false} value={presets[r.tmdbId] ?? 'all'} onChange={(v) => setPresets({ ...presets, [r.tmdbId]: v })} />}
                 <Button className="h-10 text-sm" onClick={() => add(r, true)} disabled={adding !== null}>
                   {adding === r.tmdbId ? 'Adding…' : 'Add and look for it'}
                 </Button>

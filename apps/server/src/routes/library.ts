@@ -1,3 +1,4 @@
+import { applyShowPreset } from '../library/showPresets.js';
 import { Hono } from 'hono';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -179,7 +180,9 @@ libraryRoutes.get('/search', async (c) => {
 libraryRoutes.post('/add', async (c) => {
   requireAdmin(c);
   const { db, scanner, now } = c.get('deps');
-  const input = z.object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), wanted: z.boolean().default(false) }).parse(await c.req.json());
+  const input = z
+    .object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive(), wanted: z.boolean().default(false), preset: z.enum(['all', 'future', 'latest', 'first', 'none']).optional() })
+    .parse(await c.req.json());
   const { tmdb } = scanSources(c);
   if (input.kind === 'movie') {
     const existing = db.select().from(movies).where(eq(movies.tmdbId, input.tmdbId)).get();
@@ -189,7 +192,9 @@ libraryRoutes.post('/add', async (c) => {
   }
   const existing = db.select().from(series).where(eq(series.tmdbId, input.tmdbId)).get();
   const row = existing ?? (await scanner.upsertSeries(tmdb, input.tmdbId, null, now()));
-  if (input.wanted) setShowsWanted(db, [row.id], true);
+  // Which episodes: the choice made when adding, else every episode (Add and look for it) or none (Just add).
+  if (input.preset) applyShowPreset(db, row.id, input.preset, new Date(now()).toISOString().slice(0, 10));
+  else if (input.wanted) setShowsWanted(db, [row.id], true);
   return c.json({ id: row.id, kind: 'series' }, existing ? 200 : 201);
 });
 

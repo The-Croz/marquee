@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { WatchSyncPlan, WatchSyncRun, WatchSyncStatus } from '@marquee/shared';
 import { HttpError, requireAdmin, type Ctx, type Env } from '../http.js';
-import { planSync, runSync, setSyncEnabled, syncStatus, undoRun, type SyncDeps } from '../watchsync/sync.js';
+import { planSync, runSync, setResumeEnabled, setSyncEnabled, syncStatus, undoRun, type SyncDeps } from '../watchsync/sync.js';
 
 /** `/api/watch-sync`: keep watched ticks the same on Plex and Jellyfin. Admin only. */
 export const watchSyncRoutes = new Hono<Env>();
@@ -43,8 +43,9 @@ watchSyncRoutes.post('/run', async (c) => {
 
 watchSyncRoutes.put('/enabled', async (c) => {
   requireAdmin(c);
-  const { enabled } = z.object({ enabled: z.boolean() }).parse(await c.req.json());
-  setSyncEnabled(c.get('deps').db, enabled);
+  const { enabled, resume } = z.object({ enabled: z.boolean().optional(), resume: z.boolean().optional() }).parse(await c.req.json());
+  if (enabled !== undefined) setSyncEnabled(c.get('deps').db, enabled);
+  if (resume !== undefined) setResumeEnabled(c.get('deps').db, resume);
   return c.json<WatchSyncStatus>(syncStatus(c.get('deps').db));
 });
 

@@ -1,3 +1,4 @@
+import { TautulliImport } from '../components/WatchingTools';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -155,6 +156,7 @@ function NowPlaying() {
               {STATE[s.state]} · {s.platform}
               {s.resolution && ` · ${RES[s.resolution] ?? s.resolution}`}
               {s.transcoding && ' · being converted for this device (uses extra power on the server)'}
+              {s.transcoding && s.convertReason && <span className="block text-soft">Why: {s.convertReason}</span>}
             </span>
             {stopping !== s.sessionId && (
               <Button variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => setStopping(s.sessionId)}>
@@ -364,6 +366,10 @@ export function ActivityPage() {
       <Stats />
       <People />
       <History />
+      <Link to="/library/unwatched" className="self-start text-sm font-semibold">
+        Titles nobody has watched →
+      </Link>
+      <TautulliImport />
     </div>
   );
 }

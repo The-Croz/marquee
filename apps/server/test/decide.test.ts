@@ -4,6 +4,7 @@ import { decide, normalizeTitle, type Wanted } from '../src/releases/decide.js';
 import { ProfileService, seedProfiles, type FullProfile, type Kind } from '../src/releases/profiles.js';
 import type { FoundRelease } from '../src/sources/service.js';
 import corpus from './fixtures/releases/corpus.json' with { type: 'json' };
+import { trashPreset as trash } from './helpers.js';
 
 const GB = 1024 ** 3;
 let n = 0;
@@ -44,7 +45,7 @@ const bear: Wanted = { kind: 'tv', title: 'The Bear', year: 2022, season: 3, epi
 
 const codes = (d: { rejections: { code: string }[] }) => d.rejections.map((r) => r.code);
 
-describe('decide: picking the best copy', () => {
+describe('decide: picking the best copy (TRaSH profiles)', () => {
   it('picks 4K HDR over 1080p for Cinema, and explains the points', () => {
     const out = decide(
       dune,
@@ -52,7 +53,7 @@ describe('decide: picking the best copy', () => {
         copy('Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.H.264-FLUX', { size: 10 * GB }),
         copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { size: 25 * GB }),
       ],
-      profile('movie', 'cinema'),
+      trash('movie', 'cinema'),
     );
     expect(out.map((d) => d.accepted)).toEqual([true, true]);
     expect(out[0]!.quality).toBe('WEBDL-2160p');
@@ -69,7 +70,7 @@ describe('decide: picking the best copy', () => {
     const out = decide(
       dune,
       [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GRP', { size: 20 * GB }), copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { size: 20 * GB })],
-      profile('movie', 'cinema'),
+      trash('movie', 'cinema'),
     );
     expect(out[0]!.copy.title).toContain('FLUX');
     expect(out[0]!.score).toBeGreaterThan(out[1]!.score);
@@ -77,11 +78,11 @@ describe('decide: picking the best copy', () => {
 
   it('Everyday HD refuses 4K, and Cinema refuses remuxes and full discs', () => {
     const uhd = copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { size: 25 * GB });
-    expect(codes(decide(dune, [uhd], profile('movie', 'everyday-hd'))[0]!)).toContain('quality');
-    const remux = decide(dune, [copy('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { size: 70 * GB })], profile('movie', 'cinema'))[0]!;
+    expect(codes(decide(dune, [uhd], trash('movie', 'everyday-hd'))[0]!)).toContain('quality');
+    const remux = decide(dune, [copy('Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.7.1.Atmos-FGT', { size: 70 * GB })], trash('movie', 'cinema'))[0]!;
     expect(remux.accepted).toBe(false);
     expect(remux.rejections.find((r) => r.code === 'quality')!.message).toMatch(/4K Blu-ray remux isn't one of the qualities 4K Quality takes/);
-    const disc = decide(dune, [copy('Dune.Part.Two.2024.COMPLETE.UHD.BLURAY-SURCODE', { size: 80 * GB })], profile('movie', 'cinema'))[0]!;
+    const disc = decide(dune, [copy('Dune.Part.Two.2024.COMPLETE.UHD.BLURAY-SURCODE', { size: 80 * GB })], trash('movie', 'cinema'))[0]!;
     expect(disc.accepted).toBe(false);
   });
 
@@ -89,7 +90,7 @@ describe('decide: picking the best copy', () => {
     const out = decide(
       dune,
       [copy('Dune.Part.Two.2024.2160p.Upscaled.WEB-DL.H.265-GROUP', { size: 20 * GB }), copy('Dune Part Two 2024 3D 1080p BluRay Half-SBS x264-GROUP', { size: 12 * GB })],
-      profile('movie', 'cinema'),
+      trash('movie', 'cinema'),
     );
     for (const d of out) {
       expect(d.accepted).toBe(false);
@@ -101,7 +102,7 @@ describe('decide: picking the best copy', () => {
 
   it('Kids & Cartoons prefers 720p and only takes a small 1080p', () => {
     const up: Wanted = { kind: 'movie', title: 'Up', year: 2009, runtime: 96 };
-    const kids = profile('movie', 'kids');
+    const kids = trash('movie', 'kids');
     const out = decide(
       up,
       [
@@ -122,30 +123,30 @@ describe('decide: picking the best copy', () => {
   });
 
   it('turns down copies too small for their quality', () => {
-    const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 2 * GB })], profile('movie', 'cinema'))[0]!;
+    const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 2 * GB })], trash('movie', 'cinema'))[0]!;
     expect(codes(d)).toEqual(['too_small']);
     expect(d.rejections[0]!.message).toMatch(/2\.1 GB is too small/);
   });
 
   it('skips size checks when the runtime is unknown', () => {
-    const d = decide({ ...dune, runtime: null }, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 2 * GB })], profile('movie', 'cinema'))[0]!;
+    const d = decide({ ...dune, runtime: null }, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 2 * GB })], trash('movie', 'cinema'))[0]!;
     expect(d.accepted).toBe(true);
   });
 
   it('turns down copies nobody is sharing', () => {
-    const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 20 * GB, seeders: 0 })], profile('movie', 'cinema'))[0]!;
+    const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 20 * GB, seeders: 0 })], trash('movie', 'cinema'))[0]!;
     expect(codes(d)).toEqual(['no_seeders']);
   });
 
   it('turns down copies scoring under the minimum', () => {
-    const p = { ...profile('movie', 'cinema'), minScore: 1_000_000 };
+    const p = { ...trash('movie', 'cinema'), minScore: 1_000_000 };
     const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 20 * GB })], p)[0]!;
     expect(codes(d)).toEqual(['low_score']);
     expect(d.rejections[0]!.message).toMatch(/needs at least 1000000/);
   });
 
   it('ignores rules switched off in the profile', () => {
-    const p = profile('movie', 'cinema');
+    const p = trash('movie', 'cinema');
     const title = 'Dune.Part.Two.2024.2160p.Upscaled.WEB-DL.H.265-GROUP';
     const on = decide(dune, [copy(title, { size: 20 * GB })], p)[0]!;
     const upscaled = on.rules.find((r) => r.name === 'Upscaled')!;
@@ -208,7 +209,7 @@ describe('decide: right title, right episode', () => {
 
   it('for a whole season: takes packs and that season’s episodes, and sizes a pack by its episodes', () => {
     const season = { ...bear, episode: undefined, seasonEpisodes: 10 };
-    const out = decide(season, [copy('The.Bear.S03.1080p.WEB.h264-ETHEL', { size: 15 * GB }), copy('The.Bear.S03.1080p.WEB.h264-TINY', { size: 1 * GB })], profile('tv', 'cinema'));
+    const out = decide(season, [copy('The.Bear.S03.1080p.WEB.h264-ETHEL', { size: 15 * GB }), copy('The.Bear.S03.1080p.WEB.h264-TINY', { size: 1 * GB })], trash('tv', 'cinema'));
     expect(out[0]!.accepted).toBe(true);
     expect(codes(out[1]!)).toEqual(['too_small']);
   });
@@ -239,7 +240,7 @@ describe('decide: merging and ranking', () => {
   });
 
   it('ranks like Radarr: quality, then points, then Source priority, then people sharing, then size', () => {
-    const p = profile('movie', 'everyday-hd');
+    const p = trash('movie', 'everyday-hd');
     const t = 'Dune.Part.Two.2024.1080p.WEB-DL.DDP5.1.H.264-GRP';
     const ranked = (copies: FoundRelease[]) => decide(dune, copies, p).map((d) => d.copy.guid);
     // Source priority beats people sharing.
@@ -266,7 +267,7 @@ describe('decide: merging and ranking', () => {
     const out = decide(
       dune,
       [copy('Severance.S02E01.2160p.ATVP.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX', { size: 6 * GB, seeders: 900 }), copy('Dune.Part.Two.2024.2160p.WEB-DL.H.265-GRP', { size: 2 * GB })],
-      profile('movie', 'cinema'),
+      trash('movie', 'cinema'),
     );
     expect(out.map((d) => d.rejections[0]!.code)).toEqual(['too_small', 'wrong_title']);
   });

@@ -319,6 +319,7 @@ export class LibraryScanner {
       cinemaRelease: d.cinemaRelease ?? null,
       digitalRelease: d.digitalRelease ?? null,
       physicalRelease: d.physicalRelease ?? null,
+      collectionTmdbId: d.collection?.tmdbId ?? null,
       refreshedAt: this.now(),
     };
     const current = this.db.select().from(movies).where(eq(movies.tmdbId, tmdbId)).get();
@@ -421,7 +422,8 @@ export class LibraryScanner {
       for (const e of await tmdb.season(tmdbId, s.season)) {
         this.db
           .insert(episodes)
-          .values({ seriesId: row.id, season: e.season, episode: e.episode, title: e.title, airDate: e.airDate, overview: e.overview })
+          // A new episode is wanted unless the show's choice says later ones aren't (e.g. "The first season").
+          .values({ seriesId: row.id, season: e.season, episode: e.episode, title: e.title, airDate: e.airDate, overview: e.overview, monitored: row.wantNew })
           .onConflictDoUpdate({ target: [episodes.seriesId, episodes.season, episodes.episode], set: { title: e.title, airDate: e.airDate, overview: e.overview } })
           .run();
       }

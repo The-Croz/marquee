@@ -1,4 +1,4 @@
-/** Sending one message through Pushover or ntfy. Errors say what happened in plain words. */
+/** Sending one message through Pushover, ntfy or a webhook (a JSON POST). Errors say what happened in plain words. */
 
 export interface PushMessage {
   title: string;
@@ -7,10 +7,14 @@ export interface PushMessage {
   link?: string | null;
   /** A picture address (cover art). Pushover gets the picture itself; ntfy fetches it. */
   image?: string | null;
+  /** The event's key ("request_ready"), for webhooks. */
+  event?: string;
+  /** The facts the message was made from, for webhooks. */
+  vars?: Record<string, unknown>;
 }
 
 export interface PushConfig {
-  kind: 'pushover' | 'ntfy';
+  kind: 'pushover' | 'ntfy' | 'webhook';
   config: Record<string, string>;
 }
 
@@ -26,10 +30,11 @@ export class HttpPushClient implements PushClient {
   async send({ kind, config }: PushConfig, msg: PushMessage): Promise<void> {
     try {
       if (kind === 'pushover') await this.pushover(config, msg);
+      else if (kind === 'webhook') await this.webhook(config, msg);
       else await this.ntfy(config, msg);
     } catch (err) {
       if (err instanceof PushError) throw err;
-      throw new PushError(`Couldn’t reach ${kind === 'pushover' ? 'Pushover' : 'ntfy'}. Check the address and your internet.`);
+      throw new PushError(`Couldn’t reach ${kind === 'pushover' ? 'Pushover' : kind === 'webhook' ? 'the webhook address' : 'ntfy'}. Check the address and your internet.`);
     }
   }
 
@@ -58,6 +63,19 @@ export class HttpPushClient implements PushClient {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * A webhook: one JSON POST per message, for Home Assistant, Discord bridges
+   * or scripts. An optional secret is sent as "Authorization: Bearer …".
+   */
+  private async webhook(c: Record<string, string>, msg: PushMessage) {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'User-Agent': 'Marquee' };
+    if (c.secret) headers.Authorization = `Bearer ${c.secret}`;
+    const payload = { event: msg.event ?? 'test', title: msg.title, body: msg.body, link: msg.link ?? null, image: msg.image ?? null, vars: msg.vars ?? {}, sentAt: new Date().toISOString() };
+    const res = await this.fetchImpl(c.url ?? '', { method: 'POST', body: JSON.stringify(payload), headers, signal: AbortSignal.timeout(10_000) });
+    if (res.ok) return;
+    throw new PushError(`The webhook answered ${res.status}. It will try again with the next message.`);
   }
 
   /** ntfy's JSON form, so titles with any characters (and emoji) arrive as written. */

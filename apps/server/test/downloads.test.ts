@@ -118,7 +118,7 @@ async function setup(opts: { connect?: boolean; file?: string } = {}) {
   sites.feed('http://tpb.test/api', { releases: [release(BEST, { size: 25 * GB }), release(HD, { size: 10 * GB }), release(REMUX, { size: 70 * GB })] });
   const qbit = new FakeQbit();
   const fetched: string[] = [];
-  const t = makeApp({ clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent(fetched) } });
+  const t = makeApp({ trashPresets: true, clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent(fetched) } });
   const cookie = await setupAdmin(t.app);
   await call(t.app, 'POST', '/api/settings/sources', { name: 'TPB', url: 'http://tpb.test/api', apiKey: 'good' }, cookie);
   if (opts.connect !== false) await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, cookie);
@@ -228,7 +228,7 @@ describe('better than the file you have?', async () => {
   const { ProfileService } = await import('../src/releases/profiles.js');
   const { decide } = await import('../src/releases/decide.js');
   const { compareToYours, judgeFile, worstFile } = await import('../src/releases/upgrade.js');
-  const t = makeApp();
+  const t = makeApp({ trashPresets: true });
   const base = new ProfileService(t.db, Date.now).forTitle('movie', 'cinema');
   const wanted = { kind: 'movie' as const, title: 'Dune: Part Two', year: 2024, runtime: null };
   const copy = (name: string) => decide(wanted, [{ ...release(name), sourceId: 1, sourceName: 'S', sourcePriority: 1 }], base)[0]!;

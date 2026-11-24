@@ -13,6 +13,7 @@ export class FakeMediaServer {
   /** Watched sync: each person's movies and episodes (by server user id), and every tick asked for. */
   watched = new Map<string, SyncItem[]>();
   ticks: { user: string; ref: string; watched: boolean }[] = [];
+  positions: { user: string; ref: string; ms: number }[] = [];
   failTick: string | null = null;
   /** Streams stopped by an admin: session id and the message shown. */
   stopped: { sessionId: string; message: string }[] = [];
@@ -99,6 +100,12 @@ export class FakeMediaServer {
         this.ticks.push({ user: userId, ref, watched });
         const item = this.watched.get(userId)?.find((i) => i.ref === ref);
         if (item) item.watched = watched;
+      },
+      setPosition: async (userId, ref, ms) => {
+        gate();
+        this.positions.push({ user: userId, ref, ms });
+        const item = this.watched.get(userId)?.find((i) => i.ref === ref);
+        if (item) item.position = ms;
       },
     };
   }

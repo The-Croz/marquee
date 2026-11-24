@@ -223,7 +223,7 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
 const channelColumn = (ch: NotificationChannelView, base: string): Column => ({
   id: `ch${ch.id}`,
   label: ch.name,
-  detail: ch.kind === 'pushover' ? 'Pushover' : 'ntfy',
+  detail: ch.kind === 'pushover' ? 'Pushover' : ch.kind === 'webhook' ? 'Webhook' : 'ntfy',
   paused: !ch.enabled,
   on: (k) => ch.events.includes(k),
   set: async (keys, on) => {
@@ -235,7 +235,8 @@ const channelColumn = (ch: NotificationChannelView, base: string): Column => ({
 
 // ---------------- Phones ----------------
 
-type Kind = 'pushover' | 'ntfy';
+type Kind = 'pushover' | 'ntfy' | 'webhook';
+const KIND_NAME: Record<Kind, string> = { pushover: 'Pushover', ntfy: 'ntfy', webhook: 'Webhook' };
 
 function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string }) {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -259,7 +260,7 @@ function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string })
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-body font-semibold">
-            {ch.name} <span className="text-sm font-normal text-dim">· {ch.kind === 'pushover' ? 'Pushover' : 'ntfy'}</span>
+            {ch.name} <span className="text-sm font-normal text-dim">· {KIND_NAME[ch.kind]}</span>
           </span>
           <span className="truncate text-sm text-muted">
             {ch.detail}
@@ -292,7 +293,7 @@ function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string })
 
 function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
   const [kind, setKind] = useState<Kind>('pushover');
-  const [f, setF] = useState({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '' });
+  const [f, setF] = useState({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '', url: '', secret: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
@@ -302,9 +303,14 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
     setError(null);
     try {
       await api(base, {
-        body: kind === 'pushover' ? { kind, name: f.name || 'Pushover', appToken: f.appToken, userKey: f.userKey } : { kind, name: f.name || 'ntfy', server: f.server, topic: f.topic, ...(f.token ? { token: f.token } : {}) },
+        body:
+          kind === 'pushover'
+            ? { kind, name: f.name || 'Pushover', appToken: f.appToken, userKey: f.userKey }
+            : kind === 'webhook'
+              ? { kind, name: f.name || 'Webhook', url: f.url, ...(f.secret ? { secret: f.secret } : {}) }
+              : { kind, name: f.name || 'ntfy', server: f.server, topic: f.topic, ...(f.token ? { token: f.token } : {}) },
       });
-      setF({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '' });
+      setF({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '', url: '', secret: '' });
       await queryClient.invalidateQueries({ queryKey: ['channels'] });
     } catch (err) {
       setError(errMsg(err));
@@ -317,15 +323,20 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
       <summary className="flex min-h-11 cursor-pointer items-center px-4 text-body font-medium text-amber">Add a phone or another place…</summary>
       <div className="flex flex-col gap-4 px-4 pt-1 pb-4">
         <div role="group" aria-label="Which service" className="flex gap-2">
-          {(['pushover', 'ntfy'] as const).map((k) => (
+          {(['pushover', 'ntfy', 'webhook'] as const).map((k) => (
             <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={cx('h-11 rounded-full border px-4 text-sm font-medium', kind === k ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text')}>
-              {k === 'pushover' ? 'Pushover' : 'ntfy'}
+              {KIND_NAME[k]}
             </button>
           ))}
         </div>
         <form onSubmit={add} className="flex flex-col gap-4">
           <Field label="Name" value={f.name} onChange={set('name')} placeholder={kind === 'pushover' ? 'My phone' : 'Family topic'} />
-          {kind === 'pushover' ? (
+          {kind === 'webhook' ? (
+            <>
+              <Field label="Address" value={f.url} onChange={set('url')} placeholder="https://homeassistant.local:8123/api/webhook/marquee" hint="Marquee sends each message here as JSON: event, title, body, link, image and its facts." required />
+              <Field label="Secret (optional)" type="password" autoComplete="off" value={f.secret} onChange={set('secret')} hint="Sent as “Authorization: Bearer …”, so the other end can check it’s Marquee." />
+            </>
+          ) : kind === 'pushover' ? (
             <>
               <Field label="Application token" type="password" autoComplete="off" value={f.appToken} onChange={set('appToken')} hint="From pushover.net: create an application, then copy its API token." required />
               <Field label="Your user key" type="password" autoComplete="off" value={f.userKey} onChange={set('userKey')} hint="Shown on your Pushover home page." required />

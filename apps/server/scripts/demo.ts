@@ -43,6 +43,8 @@ import { FakeMediaServer } from '../test/fakes/mediaServers.js';
 import { FakeUnpacker, fakeRar } from '../test/fakes/unpack.js';
 import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
 import { refreshCatalogue } from '../src/sources/sites/catalogue.js';
+import { schema as dbSchema } from '../src/db/index.js';
+import { DICTIONARRY_SHIPPED } from '../src/releases/catalog.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'marquee-demo-'));
 const GB = 1024 ** 3;
@@ -283,7 +285,39 @@ const clients = {
   disk: async () => ({ free: 1.4 * 1024 ** 4, total: 4 * 1024 ** 4 }),
   // A fake 7-Zip that takes a few seconds, so "Finished · unpacking" can be seen.
   unpacker: Object.assign(new FakeUnpacker(), { delayMs: 8000 }),
+  // Rule updates: GitHub "has" the made-up newer Dictionarry waiting below.
+  dictionarry: { latest: async () => DEMO_DICT_SHA, tarball: async () => { throw new Error('demo mode has no GitHub'); } },
+  // Tautulli: any address and key bring in two old plays.
+  tautulliFetch: async () => ({ status: 200, text: JSON.stringify({ response: { result: 'success', data: { data: [
+    { stopped: Math.floor(Date.now() / 1000) - 400 * 86_400, user_id: 1, friendly_name: 'Josh', media_type: 'movie', title: 'The Matrix', year: 1999, rating_key: 9001, guid: 'tmdb://603' },
+    { stopped: Math.floor(Date.now() / 1000) - 90 * 86_400, user_id: 2, friendly_name: 'Jessie', media_type: 'movie', title: 'Up', year: 2009, rating_key: 9002, guid: 'tmdb://14160' },
+  ] } } }) }),
+  // Lists: any Letterboxd list holds two Pixar films; any IMDb list holds The Matrix; Plex watchlists hold Wicked.
+  listFetch: async (url: string) => {
+    if (url.startsWith('https://discover.provider.plex.tv/library/sections/watchlist')) return { status: 200, text: JSON.stringify({ MediaContainer: { totalSize: 1, Metadata: [{ type: 'movie', title: 'Wicked', Guid: [{ id: 'tmdb://402431' }] }] } }) };
+    if (/letterboxd\.com\/film\/up\//.test(url)) return { status: 200, text: '<body data-tmdb-id="14160" data-tmdb-type="movie">' };
+    if (/letterboxd\.com\/film\/inside-out-2\//.test(url)) return { status: 200, text: '<body data-tmdb-id="1022789" data-tmdb-type="movie">' };
+    if (/letterboxd\.com\/[^/]+\/(list\/[^/]+|watchlist)\/$/.test(url)) return { status: 200, text: '<div data-film-slug="up"></div><div data-film-slug="inside-out-2"></div>' };
+    if (/imdb\.com\/(list|user)\//.test(url)) return { status: 200, text: '<a href="/title/tt0133093/">The Matrix</a>' };
+    return { status: 404, text: '' };
+  },
 };
+
+// A made-up newer Dictionarry waiting in Settings → Quality → Rule updates: a few points changed, one rule gone.
+const DEMO_DICT_SHA = 'd3m0d1c7aa11';
+for (const app of ['radarr', 'sonarr'] as const) {
+  const d = structuredClone(DICTIONARRY_SHIPPED[app]);
+  d.commit = DEMO_DICT_SHA;
+  d.fetchedAt = new Date().toISOString().slice(0, 10);
+  const efficient4k = d.profiles.find((p) => p.name === '2160p Efficient')!;
+  efficient4k.scores['dict:NF'] = (efficient4k.scores['dict:NF'] ?? 0) + 1000;
+  efficient4k.scores['dict:HDR10+'] = 2500;
+  const efficient = d.profiles.find((p) => p.name === '1080p Efficient')!;
+  efficient.scores['dict:AMZN'] = 3500;
+  delete efficient.scores['dict:Repack3'];
+  db.insert(dbSchema.ruleDatabaseVersions).values({ name: 'dictionarry', app, state: 'pending', commitSha: d.commit, fetchedAt: d.fetchedAt, data: JSON.stringify(d), savedAt: Date.now() }).onConflictDoNothing().run();
+}
+setSetting(db, 'rules.last_check', JSON.stringify({ at: Date.now(), ok: true, message: 'An update is ready.' }));
 
 const app = createApp({
   db,

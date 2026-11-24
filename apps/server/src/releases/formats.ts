@@ -3,9 +3,10 @@ import radarr from './trash/radarr.json' with { type: 'json' };
 import sonarr from './trash/sonarr.json' with { type: 'json' };
 
 /**
- * Rules (TRaSH "custom formats"): named tests on a copy, each worth points in
- * a profile. This checks whether a rule matches a copy, the same way Radarr
- * and Sonarr do, so TRaSH's rules mean here what they mean there.
+ * Rules (the older apps call them "custom formats"): named tests on a copy,
+ * each worth points in a profile. This checks whether a rule matches a copy
+ * the same way Radarr and Sonarr do, so the rules from TRaSH and Dictionarry
+ * (converted to the same shape in dictionarry.ts) mean here what they mean there.
  */
 
 export type App = 'radarr' | 'sonarr';
@@ -100,7 +101,7 @@ const RADARR_MODIFIER: Partial<Record<Source, number>> = { regional: 1, screener
 const SONARR_SOURCE: Partial<Record<Source, number>> = { hdtv: 1, rawhd: 2, webdl: 3, webrip: 4, dvd: 5, dvdr: 5, bluray: 6, remux: 7, brdisk: 7 };
 
 /** Radarr/Sonarr language IDs used by TRaSH rules (-2 means the title's original language). */
-const LANGUAGE_ID: Record<number, string> = {
+export const LANGUAGE_ID: Record<number, string> = {
   1: 'English',
   2: 'French',
   3: 'Spanish',
@@ -219,6 +220,8 @@ function satisfied(spec: Spec, input: RuleInput): boolean | null {
     }
     case 'ReleaseTypeSpecification':
       return releaseType(p) === Number(value);
+    case 'YearSpecification':
+      return p.year !== null && p.year >= Number(spec.fields.min ?? 0) && p.year <= Number(spec.fields.max ?? 9999);
     default:
       return null;
   }
@@ -250,7 +253,7 @@ export function unsupported(rule: Rule): string | null {
   for (const spec of rule.specifications) {
     if (/Title|Group/.test(spec.implementation) && !compile(String(spec.fields.value))) return `The pattern in "${spec.name}" doesn't work in JavaScript.`;
     if (spec.implementation === 'LanguageSpecification' && Number(spec.fields.value) !== -2 && !LANGUAGE_ID[Number(spec.fields.value)]) return `Language ${String(spec.fields.value)} isn't known.`;
-    if (!['ReleaseTitleSpecification', 'ReleaseGroupSpecification', 'ResolutionSpecification', 'SourceSpecification', 'QualityModifierSpecification', 'LanguageSpecification', 'IndexerFlagSpecification', 'SizeSpecification', 'ReleaseTypeSpecification'].includes(spec.implementation)) {
+    if (!['ReleaseTitleSpecification', 'ReleaseGroupSpecification', 'ResolutionSpecification', 'SourceSpecification', 'QualityModifierSpecification', 'LanguageSpecification', 'IndexerFlagSpecification', 'SizeSpecification', 'ReleaseTypeSpecification', 'YearSpecification'].includes(spec.implementation)) {
       return `Tests of type ${spec.implementation} aren't supported yet.`;
     }
   }

@@ -1,3 +1,5 @@
+import { RequestsLeft, SomethingWrong } from '../components/Family';
+import { ShowEpisodesChoice } from './GettingIn';
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -84,7 +86,8 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
   const admin = role === 'admin';
   const [params] = useSearchParams();
   const [trailer, setTrailer] = useState(params.get('trailer') === '1');
-  const [finding, setFinding] = useState<{ season?: number; episode?: number } | null>(null);
+  // "Find a better copy" from a problem report opens the search straight away (?find=1).
+  const [finding, setFinding] = useState<{ season?: number; episode?: number } | null>(params.get('find') === '1' && admin ? {} : null);
   const { data: prefs } = useQuery({ queryKey: ['discover', 'prefs'], queryFn: () => api<DiscoverPrefs>('/discover/prefs') });
   const lib = movie ?? show;
   const libId = lib?.id;
@@ -150,6 +153,7 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
       </section>
 
       {info?.request && info.request.state !== 'ready' && info.request.state !== 'declined' && <RequestProgress r={info.request} />}
+      {lib && <SomethingWrong kind={kind} id={lib.id} seasons={show?.seasons} />}
 
       {(lib?.overview ?? c?.overview) && <p className="m-0 max-w-[720px] text-heading leading-relaxed text-soft">{lib?.overview ?? c?.overview}</p>}
 
@@ -315,6 +319,13 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
         {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
         {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
       </div>
+      {admin && lib && kind === 'series' && <ShowEpisodesChoice showId={lib.id} />}
+      {info?.collection && (
+        <Link to={`/collections/${info.collection.tmdbId}`} className="self-start text-sm font-semibold">
+          Part of {info.collection.name} →
+        </Link>
+      )}
+      {canAsk && !admin && <RequestsLeft />}
       {info?.note && !info.canRequest && !lib && info.card.state === 'none' && <p className="m-0 text-sm text-soft">{info.note}</p>}
       {message && <Notice tone="error">{message}</Notice>}
       {info && kind === 'series' && (

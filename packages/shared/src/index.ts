@@ -54,6 +54,22 @@ export interface UserSummary extends SessionUser {
   jellyfinUsername: string | null;
   createdAt: number;
   lastLoginAt: number | null;
+  /** Their requests go straight through (kids: only titles for kids). */
+  skipApproval: boolean;
+  /** Most requests in 7 days; 0 means no limit. */
+  weeklyLimit: number;
+}
+
+/** How many more requests someone can make this week. */
+export interface RequestAllowance {
+  /** 0 means no limit. */
+  limit: number;
+  used: number;
+  left: number | null;
+  /** When the oldest request in the week stops counting, if they're at the limit. */
+  nextAt: number | null;
+  /** Their requests skip approval (for kids, only titles for kids). */
+  skipApproval: boolean;
 }
 
 // ---- Home screen (sample data until Milestones 1-6 land) ----
@@ -530,6 +546,8 @@ export interface SearchResult {
 
 export type ProfileKind = 'movie' | 'tv';
 export type ProfileDefaultSlot = 'movie' | 'tv' | 'kids';
+/** Where a profile's rules come from. */
+export type RuleDatabaseName = 'dictionarry' | 'trash';
 
 /** A group of qualities that rank the same, best group first. */
 export interface QualityTier {
@@ -545,8 +563,11 @@ export interface ProfileSummary {
   key: string;
   name: string;
   description: string;
-  /** Set for the built-in profiles, which can be reset to TRaSH's values. */
+  /** Set for the built-in profiles, which can be put back to their database's values. */
   preset: string | null;
+  database: RuleDatabaseName;
+  /** The database's profile it follows for rule updates, e.g. "2160p Efficient". */
+  base: string | null;
   /** Name of the "good enough" quality group. */
   cutoff: string;
   /** How many movies or shows use it. */
@@ -557,22 +578,28 @@ export interface ProfileSummary {
 export interface ProfilesView {
   profiles: ProfileSummary[];
   defaults: Record<ProfileDefaultSlot, string>;
-  /** TRaSH's own profiles, which a new profile can start from. */
-  trashProfiles: { kind: ProfileKind; name: string; description: string }[];
+  /** Dictionarry's and TRaSH's own profiles, which a new profile can start from. */
+  starters: { database: RuleDatabaseName; kind: ProfileKind; name: string; description: string }[];
+  /** Said once after the built-in profiles moved to Dictionarry. */
+  notice: { changed: { kind: ProfileKind; name: string }[]; kept: { kind: ProfileKind; name: string }[] } | null;
 }
 
 export interface ProfileRuleView {
+  /** The rule's id (TRaSH's id, "dict:<name>" or "own:<id>"). */
   trashId: string;
-  /** TRaSH's name, shown small beside the label. */
+  source: RuleDatabaseName | 'own';
+  /** Its name in its database, shown small beside the label. */
   name: string;
   label: string;
   explain: string;
-  /** TRaSH's group, e.g. "[Unwanted] Unwanted Formats". */
+  /** Heading it's listed under, e.g. "Trusted groups". */
   group: string | null;
   enabled: boolean;
   score: number;
-  /** TRaSH's own points, to show when you've changed them. */
-  trashScore: number;
+  /** The database's own points, to show when you've changed them; null for your own rules. */
+  databaseScore: number | null;
+  /** A rule update changed its points while you'd changed them too: their new points (you kept yours). */
+  conflict: number | null;
 }
 
 /** MB per minute of runtime. */
@@ -591,6 +618,8 @@ export interface SizeLimitView {
 export interface ProfileDetail extends ProfileSummary {
   tiers: QualityTier[];
   upgrades: boolean;
+  /** Rank a fixed copy above others of the same quality before points. Dictionarry turns this off and gives points instead. */
+  preferRepacks: boolean;
   minScore: number;
   cutoffScore: number;
   minUpgradeScore: number;
@@ -598,6 +627,68 @@ export interface ProfileDetail extends ProfileSummary {
   rules: ProfileRuleView[];
   /** Plain words for each quality name ("WEBDL-1080p" → "1080p web download"). */
   qualityLabels: Record<string, string>;
+}
+
+/** Settings → Quality → Try a name: how a profile judges one copy name. */
+export interface NameCheckView {
+  name: string;
+  quality: string;
+  qualityLabel: string;
+  /** The quality group it falls in, and whether the profile takes it. */
+  tier: string | null;
+  tierAllowed: boolean;
+  score: number;
+  minScore: number;
+  rules: CopyRuleView[];
+  /** Would the profile take it (ignoring whether it's the right title)? */
+  taken: boolean;
+  /** Why not, in plain words. */
+  reasons: string[];
+  /** What Marquee read from the name. */
+  details: CopyView['details'] & { title: string; year: number | null; source: string | null };
+}
+
+export type OwnRuleMatch = 'words' | 'group' | 'language' | 'pattern';
+
+/** A rule you wrote: what it looks for, and its points in each profile. */
+export interface OwnRuleView {
+  id: number;
+  trashId: string;
+  name: string;
+  kind: ProfileKind | 'both';
+  match: OwnRuleMatch;
+  value: string;
+  /** Plain words: what it looks for. */
+  description: string;
+  /** Profile id → points (0 or missing: not counted). */
+  points: Record<number, number>;
+}
+
+export interface OwnRulesView {
+  rules: OwnRuleView[];
+  languages: string[];
+}
+
+/** Settings → Quality → Rule updates (Dictionarry). */
+export interface RuleUpdatesView {
+  current: { commit: string; fetchedAt: string; shipped: boolean };
+  lastCheck: { at: number; ok: boolean; message: string } | null;
+  pending: {
+    from: { commit: string; fetchedAt: string };
+    to: { commit: string; fetchedAt: string };
+    summary: string;
+    rules: { kind: ProfileKind; added: string[]; removed: string[]; changed: string[] }[];
+    profiles: {
+      id: number;
+      kind: ProfileKind;
+      name: string;
+      newPoints: { label: string; from: number; to: number }[];
+      added: string[];
+      removed: string[];
+      settings: string[];
+      conflicts: { label: string; yours: string; theirs: string }[];
+    }[];
+  } | null;
 }
 
 // ---------------------------------------------------------------- Copies we found (search)
@@ -609,7 +700,7 @@ export interface CopyRejection {
 
 export interface CopyRuleView {
   trashId: string;
-  /** TRaSH's name, shown small. */
+  /** Its name in its database, shown small. */
   name: string;
   label: string;
   explain: string;
@@ -1179,6 +1270,77 @@ export interface DiscoverTitle {
   canRequest: boolean;
   /** Plain words for why not. */
   note: string | null;
+  /** Movies: the collection it's part of. */
+  collection: { tmdbId: number; name: string } | null;
+}
+
+/** A movie collection ("The Matrix Collection") and where each film stands. */
+export interface CollectionView {
+  tmdbId: number;
+  name: string;
+  overview: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  /** New films in it are added as Wanted when they're announced. */
+  wanted: boolean;
+  parts: {
+    tmdbId: number;
+    title: string;
+    year: number | null;
+    posterPath: string | null;
+    overview: string;
+    /** In Marquee's library (with or without a file). */
+    libraryId: number | null;
+    /** Has a file. */
+    have: boolean;
+    wanted: boolean;
+    /** Out to stream or buy. */
+    released: boolean;
+  }[];
+}
+
+/** Which episodes of a show Marquee wants, in one choice. */
+export type ShowPreset = 'all' | 'future' | 'latest' | 'first' | 'none';
+
+// ---------------------------------------------------------------- Settings → Lists
+
+export type ListKind = 'plex_watchlist' | 'trakt' | 'imdb' | 'letterboxd';
+
+export interface ListView {
+  id: number;
+  kind: ListKind;
+  name: string;
+  url: string | null;
+  /** Plex watchlists: whose. */
+  owner: { id: number; name: string } | null;
+  enabled: boolean;
+  profile: string | null;
+  showPreset: ShowPreset;
+  lastSyncAt: number | null;
+  lastOk: boolean | null;
+  lastMessage: string | null;
+  /** Titles seen on it so far, and how many it added or asked for. */
+  seen: number;
+  added: number;
+}
+
+export interface ListItemView {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+  title: string;
+  year: number | null;
+  seenAt: number;
+  outcome: string;
+  outcomeText: string;
+}
+
+export interface ListsView {
+  /** Trakt, IMDb and Letterboxd lists. */
+  lists: ListView[];
+  /** Everyone, with their Plex watchlist when it's followed. */
+  people: { userId: number; name: string; role: 'admin' | 'member' | 'kid'; plexLinked: boolean; canRead: boolean; watchlist: ListView | null }[];
+  exclusions: { kind: 'movie' | 'series'; tmdbId: number; title: string; year: number | null; addedAt: number }[];
+  traktKeySet: boolean;
 }
 
 /** The top 10 movies and top 10 shows on one streaming service. */
@@ -1229,6 +1391,8 @@ export interface NewRequest {
   tmdbId: number;
   /** Shows: which seasons; omit for the whole show. */
   seasons?: number[];
+  /** Shows, admins: which episodes, as one choice (instead of seasons). */
+  preset?: ShowPreset;
 }
 
 /** One bit of information a notification carries, for {{key}} in its wording. */
@@ -1259,7 +1423,7 @@ export interface NotificationEventInfo {
 
 export interface NotificationChannelView {
   id: number;
-  kind: 'pushover' | 'ntfy';
+  kind: 'pushover' | 'ntfy' | 'webhook';
   name: string;
   enabled: boolean;
   events: string[];
@@ -1330,6 +1494,8 @@ export interface NowPlayingView {
   /** 0 to 1 */
   progress: number;
   transcoding: boolean;
+  /** Why it's being converted, in plain words (from Plex or Jellyfin); null when it isn't or the server doesn't say. */
+  convertReason?: string | null;
   /** The title's page in Marquee, if the library has it. */
   href: string | null;
 }
@@ -1432,12 +1598,16 @@ export interface WatchSyncPlan {
 export interface WatchSyncRun {
   at: number;
   ticked: number;
+  /** Resume points copied to the other server. */
+  resumed?: number;
   failed: number;
   problem: string | null;
 }
 
 export interface WatchSyncStatus {
   enabled: boolean;
+  /** Resume points are synced too (where someone stopped). */
+  resume: boolean;
   last: WatchSyncRun | null;
   runs: { at: number; ticks: number; undone: number; items: { person: string; title: string; server: string }[] }[];
 }
@@ -1724,4 +1894,45 @@ export interface ReplacedView {
   bytes: number;
   /** What emptying them gives back. Files still shared by a download in qBittorrent free nothing. */
   freedBytes: number;
+}
+
+// ---------------------------------------------------------------- Something wrong?
+
+export type IssueProblem = 'picture' | 'sound' | 'subtitles' | 'wrong_title' | 'other';
+
+export interface IssueView {
+  id: number;
+  kind: 'movie' | 'series';
+  /** The movie's or show's library id. */
+  titleId: number | null;
+  /** "Severance (2022)". */
+  title: string;
+  /** Shows: "S02E03" or "S02", or null for the whole show. */
+  where: string | null;
+  href: string | null;
+  problem: IssueProblem;
+  problemText: string;
+  message: string;
+  status: 'open' | 'fixed';
+  by: string;
+  byId: number | null;
+  createdAt: number;
+  updatedAt: number;
+  fixedAt: number | null;
+  comments: { id: number; by: string; byId: number | null; body: string; createdAt: number }[];
+}
+
+// ---------------------------------------------------------------- Watching: never watched, Tautulli
+
+/** Titles in the library nobody has watched, or not in a year. Read-only. */
+export interface UnwatchedView {
+  kind: 'movie' | 'series';
+  since: 'never' | 'year';
+  items: { id: number; title: string; year: number | null; posterPath: string | null; addedAt: number; lastPlayed: number | null; plays: number; href: string }[];
+  /** Why the list may be misleading (no plays seen yet), or null. */
+  note: string | null;
+}
+
+export interface TautulliImportView {
+  imports: { at: number; added: number; skipped: number; seen: number; undoneAt: number | null }[];
 }

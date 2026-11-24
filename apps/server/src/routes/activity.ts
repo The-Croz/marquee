@@ -1,3 +1,6 @@
+import { unwatched } from '../activity/unwatched.js';
+import { importTautulli, realTautulliFetch, tautulliImports, undoTautulli } from '../activity/tautulli.js';
+import type { TautulliImportView, UnwatchedView } from '@marquee/shared';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -104,4 +107,36 @@ activityRoutes.get('/watchers', (c) => {
   const v = watchersOf(c.get('deps').db, q.kind, q.id);
   if (!v) throw new HttpError(404, 'not_found', 'No such title.');
   return c.json<WatchersView>(v);
+});
+
+// ---------------- never watched, and Tautulli's history
+
+/** W16: library titles nobody has watched, or not in a year. Read-only. */
+activityRoutes.get('/unwatched', (c) => {
+  requireAdmin(c);
+  const q = z.object({ kind: z.enum(['movie', 'series']).default('movie'), since: z.enum(['never', 'year']).default('never') }).parse(c.req.query());
+  const { db, now } = c.get('deps');
+  return c.json<UnwatchedView>(unwatched(db, q.kind, q.since, now()));
+});
+
+activityRoutes.get('/tautulli', (c) => {
+  requireAdmin(c);
+  return c.json<TautulliImportView>({ imports: tautulliImports(c.get('deps').db) });
+});
+
+/** W5: brings Tautulli's history in once. The key is used for this import only and never saved. */
+activityRoutes.post('/tautulli/import', async (c) => {
+  requireAdmin(c);
+  const input = z.object({ url: z.string().trim().min(1, 'Type Tautulli’s address.').max(300), apiKey: z.string().trim().min(1, 'Paste Tautulli’s API key.').max(200) }).parse(await c.req.json());
+  const { db, clients, now } = c.get('deps');
+  await importTautulli(db, clients.tautulliFetch ?? realTautulliFetch, input, now());
+  return c.json<TautulliImportView>({ imports: tautulliImports(db) }, 201);
+});
+
+activityRoutes.post('/tautulli/undo', async (c) => {
+  requireAdmin(c);
+  const { at } = z.object({ at: z.number().int() }).parse(await c.req.json());
+  const { db, now } = c.get('deps');
+  const removed = undoTautulli(db, at, now());
+  return c.json<TautulliImportView & { removed: number }>({ imports: tautulliImports(db), removed });
 });

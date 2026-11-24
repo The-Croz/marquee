@@ -45,6 +45,37 @@ interface Change {
   serverUserId: string;
   ref: string;
   title: string;
+  /** Set for a resume point: where to put them (ms). */
+  position?: number;
+}
+
+const RESUME = 'watchsync.resume';
+/** Resume points are synced too unless turned off. */
+export const resumeEnabled = (db: Db) => getSetting(db, RESUME) !== 'false';
+export const setResumeEnabled = (db: Db, on: boolean) => setSetting(db, RESUME, on ? 'true' : 'false');
+
+/** Places closer than this count as the same. */
+const SAME_PLACE = 60_000;
+
+/**
+ * Resume points (W1): for things neither server counts as watched, the
+ * server played more recently passes its place to the other one.
+ */
+export function resumeChanges(a: SyncItem[], b: SyncItem[]): { from: SyncItem; to: SyncItem }[] {
+  const byKey = new Map<string, SyncItem>();
+  for (const i of b) for (const k of i.keys) byKey.set(k, i);
+  const out: { from: SyncItem; to: SyncItem }[] = [];
+  const seen = new Set<string>();
+  for (const x of a) {
+    const y = x.keys.map((k) => byKey.get(k)).find(Boolean);
+    if (!y || x.watched || y.watched || seen.has(y.ref)) continue;
+    seen.add(y.ref);
+    const [newer, older] = (x.lastPlayed ?? 0) >= (y.lastPlayed ?? 0) ? [x, y] : [y, x];
+    if (!newer.position || !newer.lastPlayed) continue;
+    if (Math.abs((newer.position ?? 0) - (older.position ?? 0)) < SAME_PLACE) continue;
+    out.push({ from: newer, to: older });
+  }
+  return out;
 }
 
 /** Which ticks are missing, per person. Reads both servers; changes nothing. */
@@ -77,12 +108,19 @@ export async function planSync(deps: SyncDeps): Promise<WatchSyncPlan & { change
       const toPlex = missingTicks(b, a);
       for (const i of toJf) changes.push({ userId: u.id, person: u.displayName, to: 'jellyfin', serverUserId: j.id, ref: i.ref, title: i.title });
       for (const i of toPlex) changes.push({ userId: u.id, person: u.displayName, to: 'plex', serverUserId: p.id, ref: i.ref, title: i.title });
+      if (resumeEnabled(deps.db) && plex.setPosition && jf.setPosition) {
+        const plexRefs = new Set(a.map((i) => i.ref));
+        for (const r of resumeChanges(a, b)) {
+          const to: ServerKind = plexRefs.has(r.to.ref) ? 'plex' : 'jellyfin';
+          changes.push({ userId: u.id, person: u.displayName, to, serverUserId: to === 'plex' ? p.id : j.id, ref: r.to.ref, title: r.to.title, position: r.from.position! });
+        }
+      }
       people.push({ userId: u.id, name: u.displayName, state: 'linked', note: null, toPlex: toPlex.length, toJellyfin: toJf.length, examples: [...toJf, ...toPlex].slice(0, 5).map((i) => i.title) });
     } catch (err) {
       people.push({ userId: u.id, name: u.displayName, state: 'problem', note: err instanceof MediaServerError ? `${err.message} Marquee tries again next time.` : 'Couldn’t read their library.', toPlex: 0, toJellyfin: 0 });
     }
   }
-  return { ready: true, problem: null, people, changes, total: changes.length };
+  return { ready: true, problem: null, people, changes, total: changes.filter((c) => c.position === undefined).length };
 }
 
 /** What is watched in `from` but not in `to`, matched by id. Each item in `to` is listed once. */
@@ -95,11 +133,16 @@ export function missingTicks(from: SyncItem[], to: SyncItem[]): SyncItem[] {
 export async function runSync(deps: SyncDeps): Promise<WatchSyncRun> {
   const plan = await planSync(deps);
   const at = deps.now();
-  const result: WatchSyncRun = { at, ticked: 0, failed: 0, problem: plan.problem };
+  const result: WatchSyncRun = { at, ticked: 0, resumed: 0, failed: 0, problem: plan.problem };
   if (plan.ready) {
     const api = { plex: server(deps, 'plex')!, jellyfin: server(deps, 'jellyfin')! };
     for (const c of plan.changes) {
       try {
+        if (c.position !== undefined) {
+          await api[c.to].setPosition!(c.serverUserId, c.ref, c.position);
+          result.resumed!++;
+          continue;
+        }
         await api[c.to].setWatched!(c.serverUserId, c.ref, true);
         deps.db.insert(watchSyncLog).values({ runAt: at, userId: c.userId, person: c.person, server: c.to, serverUserId: c.serverUserId, itemRef: c.ref, title: c.title }).run();
         result.ticked++;
@@ -146,5 +189,22 @@ export function syncStatus(db: Db): WatchSyncStatus {
     if (r.undoneAt) run.undone++;
     if (run.items.length < 20) run.items.push({ person: r.person, title: r.title, server: NAME[r.server] });
   }
-  return { enabled: syncEnabled(db), last: last ? (JSON.parse(last) as WatchSyncRun) : null, runs: [...runs.values()] };
+  return { enabled: syncEnabled(db), resume: resumeEnabled(db), last: last ? (JSON.parse(last) as WatchSyncRun) : null, runs: [...runs.values()] };
+}
+
+/**
+ * W3: sync soon after someone stops watching, using the live line Activity
+ * already keeps to Plex and Jellyfin (what WatchState's webhooks did). Plays
+ * ending close together share one run.
+ */
+export function syncAfterPlays(run: () => Promise<unknown>, enabled: () => boolean, delayMs = 20_000): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    if (!enabled() || timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      run().catch((err) => console.error('[watch-sync] after a play:', (err as Error).message));
+    }, delayMs);
+    timer.unref?.();
+  };
 }

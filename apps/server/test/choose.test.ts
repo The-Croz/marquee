@@ -176,28 +176,12 @@ describe('which profile a title gets', () => {
 });
 
 describe('Kids & Cartoons for TV', () => {
-  it('prefers 1080p, then 720p, then SD', () => {
+  it('takes small 1080p encodes and goes down to SD, so older cartoons still turn up', () => {
     const v = PRESETS.find((p) => p.kind === 'tv' && p.key === 'kids')!.build();
-    expect(v.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual(['WEB 1080p', 'Bluray-1080p', 'WEB 720p', 'Bluray-720p', 'HDTV-720p', 'WEB 480p', 'DVD', 'SDTV']);
-    expect(v.cutoff).toBe('WEB 1080p');
+    expect(v.tiers.filter((t) => t.allowed).map((t) => t.name)).toEqual(['1080p Compact']);
+    expect(v.tiers[0]!.qualities).toEqual(expect.arrayContaining(['WEBDL-1080p', 'Bluray-720p', 'WEBDL-480p', 'DVD', 'SDTV']));
+    expect(v.cutoff).toBe('1080p Compact');
     expect(v.sizes).toEqual({});
   });
-
-  it('updates an install’s copy once, only if it was never edited', () => {
-    const fresh = () => {
-      const db = openDb(':memory:');
-      seedProfiles(db, 0);
-      // Pretend it's from before: the old 720p-first tiers.
-      db.update(schema.profiles).set({ cutoff: 'WEB 720p' }).run();
-      db.$client.prepare("DELETE FROM settings WHERE key = 'profiles.kids_tv_1080'").run();
-      return db;
-    };
-    const untouched = fresh();
-    seedProfiles(untouched, 0);
-    expect(untouched.select().from(schema.profiles).all().find((p) => p.kind === 'tv' && p.preset === 'kids')!.cutoff).toBe('WEB 1080p');
-    const edited = fresh();
-    edited.update(schema.profiles).set({ updatedAt: 5 }).run();
-    seedProfiles(edited, 0);
-    expect(edited.select().from(schema.profiles).all().find((p) => p.kind === 'tv' && p.preset === 'kids')!.cutoff).toBe('WEB 720p');
-  });
 });
+

@@ -1,4 +1,4 @@
-import type { TmdbApi, TmdbCard, TmdbDiscoverQuery, TmdbEpisode, TmdbExtras, TmdbList, TmdbMovie, TmdbPerson, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
+import type { TmdbApi, TmdbCard, TmdbCollection, TmdbDiscoverQuery, TmdbEpisode, TmdbExtras, TmdbList, TmdbMovie, TmdbPerson, TmdbSearchResult, TmdbShow } from '../../src/library/tmdb.js';
 import { GENRES, SERVICES, TmdbError } from '../../src/library/tmdb.js';
 import { normalizeTitle } from '../../src/library/parse.js';
 
@@ -6,23 +6,30 @@ import { normalizeTitle } from '../../src/library/parse.js';
 
 /** Facts rules look at; tests and demo mode give a few titles real ones. */
 type Facts = Partial<Pick<TmdbMovie, 'genres' | 'originalLanguage' | 'companies' | 'keywords'>>;
-type M = Omit<TmdbMovie, 'originalTitle' | 'releaseDate' | 'overview' | 'backdropPath' | 'runtime' | 'genres' | 'originalLanguage' | 'companies' | 'keywords'> & { popularity: number } & Facts;
+type M = Omit<TmdbMovie, 'originalTitle' | 'releaseDate' | 'overview' | 'backdropPath' | 'runtime' | 'genres' | 'originalLanguage' | 'companies' | 'keywords' | 'collection'> & { popularity: number; collection?: number } & Facts;
 type S = Omit<TmdbShow, 'overview' | 'backdropPath' | 'network' | 'genres' | 'seasons' | 'status' | 'originalLanguage' | 'companies' | 'keywords'> & { popularity: number; episodes: TmdbEpisode[] } & Facts;
 
 export const MOVIES: M[] = [
-  { tmdbId: 603, imdbId: 'tt0133093', title: 'The Matrix', year: 1999, certification: 'R', posterPath: '/matrix.jpg', popularity: 90 },
-  { tmdbId: 604, imdbId: 'tt0234215', title: 'The Matrix Reloaded', year: 2003, certification: 'R', posterPath: '/reloaded.jpg', popularity: 60 },
+  { tmdbId: 603, imdbId: 'tt0133093', title: 'The Matrix', year: 1999, certification: 'R', posterPath: '/matrix.jpg', popularity: 90, collection: 2344 },
+  { tmdbId: 604, imdbId: 'tt0234215', title: 'The Matrix Reloaded', year: 2003, certification: 'R', posterPath: '/reloaded.jpg', popularity: 60, collection: 2344 },
+  { tmdbId: 605, imdbId: 'tt0242653', title: 'The Matrix Revolutions', year: 2003, certification: 'R', posterPath: '/revolutions.jpg', popularity: 55, collection: 2344 },
   { tmdbId: 693134, imdbId: 'tt15239678', title: 'Dune: Part Two', year: 2024, certification: 'PG-13', posterPath: '/dune2.jpg', popularity: 300, genres: ['Science Fiction', 'Adventure'], companies: ['Legendary Pictures'], keywords: ['desert', 'based on novel or book'] },
   { tmdbId: 1022789, imdbId: 'tt22022452', title: 'Inside Out 2', year: 2024, certification: 'PG', posterPath: '/io2.jpg', popularity: 250, genres: ['Animation', 'Family', 'Comedy'], companies: ['Pixar', 'Walt Disney Pictures'], keywords: ['emotions', 'sequel'] },
   { tmdbId: 14160, imdbId: 'tt1049413', title: 'Up', year: 2009, certification: 'PG', posterPath: '/up.jpg', popularity: 80, genres: ['Animation', 'Family', 'Adventure'], companies: ['Pixar'], keywords: ['balloon', 'old man'] },
-  { tmdbId: 78, imdbId: 'tt0083658', title: 'Blade Runner', year: 1982, certification: 'R', posterPath: '/br.jpg', popularity: 70 },
-  { tmdbId: 335984, imdbId: 'tt1856101', title: 'Blade Runner 2049', year: 2017, certification: 'R', posterPath: '/br2049.jpg', popularity: 75 },
+  { tmdbId: 78, imdbId: 'tt0083658', title: 'Blade Runner', year: 1982, certification: 'R', posterPath: '/br.jpg', popularity: 70, collection: 422837 },
+  { tmdbId: 335984, imdbId: 'tt1856101', title: 'Blade Runner 2049', year: 2017, certification: 'R', posterPath: '/br2049.jpg', popularity: 75, collection: 422837 },
   { tmdbId: 402431, imdbId: 'tt10638522', title: 'Wicked', year: 2024, certification: 'PG', posterPath: '/wicked.jpg', popularity: 280, genres: ['Drama', 'Fantasy', 'Romance'] },
   { tmdbId: 558449, imdbId: 'tt9218128', title: 'Gladiator II', year: 2024, certification: 'R', posterPath: '/glad2.jpg', popularity: 270, genres: ['Action', 'Adventure'] },
   { tmdbId: 1241982, imdbId: 'tt13622970', title: 'Moana 2', year: 2024, certification: 'PG', posterPath: '/moana2.jpg', popularity: 260, genres: ['Animation', 'Family', 'Adventure'] },
   { tmdbId: 1184918, imdbId: 'tt29623480', title: 'The Wild Robot', year: 2024, certification: 'PG', posterPath: '/robot.jpg', popularity: 240, genres: ['Animation', 'Science Fiction', 'Family'] },
   { tmdbId: 1064213, imdbId: 'tt28607951', title: 'Anora', year: 2024, certification: 'R', posterPath: '/anora.jpg', popularity: 120, genres: ['Drama', 'Comedy', 'Romance'] },
   { tmdbId: 990001, imdbId: 'tt9990001', title: 'Frozen Three', year: 2027, certification: null, posterPath: '/frozen3.jpg', popularity: 190, genres: ['Animation', 'Family', 'Fantasy'] },
+];
+
+/** Collections, and films in them the fake knows only through the collection (one is announced later in tests). */
+export const COLLECTIONS: { tmdbId: number; name: string; extra: number[] }[] = [
+  { tmdbId: 2344, name: 'The Matrix Collection', extra: [] },
+  { tmdbId: 422837, name: 'Blade Runner Collection', extra: [] },
 ];
 
 export const SHOWS: S[] = [
@@ -116,7 +123,30 @@ export class FakeTmdb implements TmdbApi {
     this.check(`movie:${id}`);
     const m = MOVIES.find((x) => x.tmdbId === id);
     if (!m) throw new TmdbError(404, 'not found');
-    return { ...m, originalTitle: m.title, releaseDate: `${m.year}-06-01`, overview: `About ${m.title}.`, backdropPath: null, runtime: 120, genres: m.genres ?? ['Drama'], originalLanguage: m.originalLanguage ?? 'en', companies: m.companies ?? [], keywords: m.keywords ?? [] };
+    const { collection, ...rest } = m;
+    const c = collection ? COLLECTIONS.find((x) => x.tmdbId === collection) : undefined;
+    return {
+      ...rest,
+      originalTitle: m.title,
+      releaseDate: `${m.year}-06-01`,
+      overview: `About ${m.title}.`,
+      backdropPath: null,
+      runtime: 120,
+      genres: m.genres ?? ['Drama'],
+      originalLanguage: m.originalLanguage ?? 'en',
+      companies: m.companies ?? [],
+      keywords: m.keywords ?? [],
+      collection: c ? { tmdbId: c.tmdbId, name: c.name } : null,
+    };
+  }
+  async collection(id: number): Promise<TmdbCollection> {
+    this.check(`collection:${id}`);
+    const c = COLLECTIONS.find((x) => x.tmdbId === id);
+    if (!c) throw new TmdbError(404, 'not found');
+    const parts = MOVIES.filter((m) => m.collection === id || c.extra.includes(m.tmdbId))
+      .map((m) => ({ tmdbId: m.tmdbId, title: m.title, year: m.year, releaseDate: `${m.year}-06-01`, posterPath: m.posterPath, overview: `About ${m.title}.` }))
+      .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
+    return { tmdbId: c.tmdbId, name: c.name, overview: `Every film in ${c.name}.`, posterPath: `/c${id}.jpg`, backdropPath: null, parts };
   }
   async show(id: number): Promise<TmdbShow> {
     this.check(`show:${id}`);

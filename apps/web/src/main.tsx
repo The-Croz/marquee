@@ -1,3 +1,4 @@
+import { UnwatchedPage } from './components/WatchingTools';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router';
@@ -29,6 +30,7 @@ import { ManualImportPage } from './pages/ManualImport';
 import { LeftOutPage } from './pages/LeftOut';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
+import { CollectionPage, ListsPage } from './pages/GettingIn';
 import { BackupsPage, HealthPage, LogsPage } from './pages/System';
 import './styles.css';
 
@@ -66,6 +68,7 @@ const router = createBrowserRouter([
       { path: 'shows/:id', element: <ShowDetailPage /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'library/import', element: <RequireUser render={(s) => <AdminOnly status={s}><ManualImportPage /></AdminOnly>} /> },
+      { path: 'library/unwatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnwatchedPage /></AdminOnly>} /> },
       { path: 'library/left-out', element: <RequireUser render={(s) => <AdminOnly status={s}><LeftOutPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
@@ -76,6 +79,7 @@ const router = createBrowserRouter([
       { path: 'activity', element: <RequireUser render={(s) => <AdminOnly status={s}><ActivityPage /></AdminOnly>} /> },
       { path: 'quality', element: <Navigate to="/settings/quality" replace /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'collections/:id', element: <RequireUser render={(s) => <CollectionPage user={s.user} />} /> },
       { path: 'history', element: <MyHistoryPage /> },
       {
         path: 'settings',
@@ -99,6 +103,7 @@ const router = createBrowserRouter([
           { path: 'services', element: <ServicesPage /> },
           { path: 'sources', element: <SourcesPage /> },
           { path: 'downloader', element: <DownloaderPage /> },
+          { path: 'lists', element: <RequireUser render={(st) => <AdminOnly status={st}><ListsPage /></AdminOnly>} /> },
           { path: 'automation', element: <RequireUser render={(st) => <AdminOnly status={st}><AutomationPage /></AdminOnly>} /> },
           { path: 'health', element: <RequireUser render={(st) => <AdminOnly status={st}><HealthPage /></AdminOnly>} /> },
           { path: 'backups', element: <RequireUser render={(st) => <AdminOnly status={st}><BackupsPage /></AdminOnly>} /> },

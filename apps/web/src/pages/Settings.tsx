@@ -41,8 +41,9 @@ export function settingsGroups(role: Role): SettingsGroup[] {
                 to: '/settings/quality',
                 label: 'Quality',
                 blurb: 'Profiles: what a good copy looks like',
-                info: 'A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything can be changed. The built-in profiles start from the TRaSH Guides.',
+                info: 'A profile is what you want for a title: which qualities, which rules and how many points each is worth, sizes, and when a copy is good enough. Everything can be changed. The built-in profiles start from Dictionarry’s space-saving profiles; TRaSH’s are there too.',
               },
+              { to: '/settings/lists', label: 'Lists', blurb: 'Plex watchlists, Trakt, IMDb and Letterboxd lists' },
               { to: '/settings/automation', label: 'Automatic searching', blurb: 'Looking for wanted titles by itself' },
             ],
           },
@@ -379,6 +380,31 @@ function UsersAdmin({ status }: Ctx) {
                 </option>
               ))}
             </select>
+            {u.role !== 'admin' && (
+              <div className="flex flex-wrap items-center gap-3 basis-full sm:basis-auto">
+                <label className="flex min-h-11 items-center gap-2 text-sm text-soft">
+                  <input
+                    type="checkbox"
+                    checked={u.skipApproval}
+                    onChange={(e) => update(u.id, { skipApproval: e.target.checked }, e.target.checked ? `${u.displayName}’s requests now skip approval${u.role === 'kid' ? ' (kids’ titles only)' : ''}.` : `${u.displayName}’s requests wait for approval again.`)}
+                    className="size-5 accent-amber"
+                  />
+                  Requests skip approval
+                </label>
+                <label className="flex items-center gap-2 text-sm text-soft">
+                  Weekly limit
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    defaultValue={u.weeklyLimit}
+                    aria-label={`Requests a week for ${u.displayName} (0 for no limit)`}
+                    onBlur={(e) => Number(e.target.value) !== u.weeklyLimit && update(u.id, { weeklyLimit: Math.max(0, Math.round(Number(e.target.value) || 0)) }, `${u.displayName}: ${Number(e.target.value) || 'no'} limit a week.`)}
+                    className="h-10 w-[72px] rounded-lg border border-line-strong bg-ink px-2.5 text-right text-sm text-text"
+                  />
+                </label>
+              </div>
+            )}
             <Button
               variant="ghost"
               className="h-10 px-3.5 text-sm"

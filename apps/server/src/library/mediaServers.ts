@@ -58,6 +58,8 @@ export interface NowPlayingItem extends WatchItem {
   /** 0 to 1 */
   progress: number;
   transcoding: boolean;
+  /** Why the server is converting it, in plain words; null when it isn't (or doesn't say). */
+  convertReason?: string | null;
 }
 export interface PlayRecord extends WatchItem {
   /** The server's id for the person, and the name it shows. */
@@ -93,6 +95,56 @@ export interface MediaServerApi {
   watchedUsers?(): Promise<MediaPerson[]>;
   watchedLibrary?(userId: string): Promise<SyncItem[]>;
   setWatched?(userId: string, ref: string, watched: boolean): Promise<void>;
+  /** Resume points: sets where someone stopped (ms). */
+  setPosition?(userId: string, ref: string, ms: number): Promise<void>;
+}
+
+/** Plex's decisions on a converted stream, in plain words (it gives the decisions, not a reason). */
+export function plexConvertReason(t: { videoDecision?: string; audioDecision?: string; subtitleDecision?: string; sourceVideoCodec?: string; videoCodec?: string; sourceAudioCodec?: string; audioCodec?: string } | undefined): string | null {
+  if (!t) return null;
+  const parts: string[] = [];
+  if (t.subtitleDecision === 'burn') parts.push('the subtitles are drawn onto the picture (this device can’t show them itself)');
+  if (t.videoDecision === 'transcode') parts.push(t.sourceVideoCodec && t.videoCodec && t.sourceVideoCodec !== t.videoCodec ? `the picture is converted from ${t.sourceVideoCodec.toUpperCase()} to ${t.videoCodec.toUpperCase()}` : 'the picture is converted (often a lower quality setting in the app, or a slow connection)');
+  if (t.audioDecision === 'transcode') parts.push(t.sourceAudioCodec && t.audioCodec ? `the sound is converted from ${t.sourceAudioCodec.toUpperCase()} to ${t.audioCodec.toUpperCase()}` : 'the sound is converted');
+  if (!parts.length) return null;
+  const s = parts.join('; ');
+  return `${s.charAt(0).toUpperCase()}${s.slice(1)}.`;
+}
+
+const JF_REASONS: Record<string, string> = {
+  ContainerNotSupported: 'the device can’t open this kind of file',
+  VideoCodecNotSupported: 'the device can’t play this picture format',
+  AudioCodecNotSupported: 'the device can’t play this sound format',
+  SubtitleCodecNotSupported: 'the subtitles have to be drawn onto the picture',
+  AudioIsExternal: 'the sound is in a separate file',
+  SecondaryAudioNotSupported: 'the device can’t switch to this sound track',
+  VideoProfileNotSupported: 'the device can’t play this picture profile',
+  VideoLevelNotSupported: 'the device can’t play this picture level',
+  VideoResolutionNotSupported: 'the picture is bigger than the device can show',
+  VideoBitDepthNotSupported: 'the device can’t play 10-bit picture',
+  VideoFramerateNotSupported: 'the device can’t play this frame rate',
+  RefFramesNotSupported: 'the device can’t play this encoding',
+  AnamorphicVideoNotSupported: 'the device can’t play stretched picture',
+  InterlacedVideoNotSupported: 'the device can’t play interlaced picture',
+  AudioChannelsNotSupported: 'the device can’t play this many sound channels',
+  AudioProfileNotSupported: 'the device can’t play this sound profile',
+  AudioSampleRateNotSupported: 'the device can’t play this sound sample rate',
+  AudioBitDepthNotSupported: 'the device can’t play this sound bit depth',
+  ContainerBitrateExceedsLimit: 'the copy is more than the connection or app’s quality setting allows',
+  VideoBitrateNotSupported: 'the picture is more than the connection or app’s quality setting allows',
+  AudioBitrateNotSupported: 'the sound is more than the connection allows',
+  UnknownVideoStreamInfo: 'Jellyfin couldn’t read the picture',
+  UnknownAudioStreamInfo: 'Jellyfin couldn’t read the sound',
+  DirectPlayError: 'playing it directly failed',
+  VideoRangeTypeNotSupported: 'the device can’t show this HDR',
+};
+
+/** Jellyfin's TranscodeReasons, in plain words. */
+export function jellyfinConvertReason(reasons: string[] | string | undefined): string | null {
+  const list = (Array.isArray(reasons) ? reasons : (reasons ?? '').split(',')).map((r) => r.trim()).filter(Boolean);
+  if (!list.length) return null;
+  const s = [...new Set(list.map((r) => JF_REASONS[r] ?? r.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()))].join('; ');
+  return `${s.charAt(0).toUpperCase()}${s.slice(1)}.`;
 }
 
 /** One movie or episode as one person sees it, for watched sync. */
@@ -106,6 +158,10 @@ export interface SyncItem {
   keys: string[];
   watched: boolean;
   title: string;
+  /** Where they stopped, in ms (0 = from the start). */
+  position?: number;
+  /** When they last played it (ms), to tell which server has the newer place. */
+  lastPlayed?: number;
 }
 
 /** "tmdb://603", "imdb://tt0133093" or a Jellyfin ProviderIds map → "tmdb:603", "imdb:tt0133093". */
@@ -162,7 +218,8 @@ interface PlexMeta {
   Player?: { title?: string; product?: string; platform?: string; state?: string };
   Session?: { id?: string };
   Media?: { videoResolution?: string }[];
-  TranscodeSession?: { videoDecision?: string };
+  TranscodeSession?: { videoDecision?: string; audioDecision?: string; subtitleDecision?: string; sourceVideoCodec?: string; videoCodec?: string; sourceAudioCodec?: string; audioCodec?: string };
+  lastViewedAt?: number;
   Guid?: { id: string }[];
   viewCount?: number;
   grandparentRatingKey?: string | number;
@@ -251,13 +308,13 @@ export class PlexServerClient implements MediaServerApi {
       const key = encodeURIComponent(lib.id);
       if (lib.kind === 'movie') {
         for (const m of await list(`/library/sections/${key}/all?type=1&includeGuids=1`)) {
-          out.push({ ref: String(m.ratingKey), keys: idKeys(plexIds(m.Guid)).map((k) => `m:${k}`), watched: (m.viewCount ?? 0) > 0, title: m.year ? `${m.title} (${m.year})` : m.title });
+          out.push({ ref: String(m.ratingKey), keys: idKeys(plexIds(m.Guid)).map((k) => `m:${k}`), watched: (m.viewCount ?? 0) > 0, title: m.year ? `${m.title} (${m.year})` : m.title, position: m.viewOffset ?? 0, lastPlayed: (m.lastViewedAt ?? 0) * 1000 });
         }
       } else if (lib.kind === 'tv') {
         const shows = new Map((await list(`/library/sections/${key}/all?type=2&includeGuids=1`)).map((m) => [String(m.ratingKey), idKeys(plexIds(m.Guid))]));
         for (const m of await list(`/library/sections/${key}/all?type=4&includeGuids=1`)) {
           const show = shows.get(String(m.grandparentRatingKey)) ?? [];
-          out.push({ ref: String(m.ratingKey), keys: sxe(show, m.parentIndex, m.index), watched: (m.viewCount ?? 0) > 0, title: `${m.grandparentTitle ?? ''} S${String(m.parentIndex ?? 0).padStart(2, '0')}E${String(m.index ?? 0).padStart(2, '0')}` });
+          out.push({ ref: String(m.ratingKey), keys: sxe(show, m.parentIndex, m.index), watched: (m.viewCount ?? 0) > 0, title: `${m.grandparentTitle ?? ''} S${String(m.parentIndex ?? 0).padStart(2, '0')}E${String(m.index ?? 0).padStart(2, '0')}`, position: m.viewOffset ?? 0, lastPlayed: (m.lastViewedAt ?? 0) * 1000 });
         }
       }
     }
@@ -266,6 +323,10 @@ export class PlexServerClient implements MediaServerApi {
 
   async setWatched(userId: string, ref: string, watched: boolean): Promise<void> {
     await this.get(`/:/${watched ? 'scrobble' : 'unscrobble'}?identifier=com.plexapp.plugins.library&key=${encodeURIComponent(ref)}`, await this.tokenFor(userId));
+  }
+
+  async setPosition(userId: string, ref: string, ms: number): Promise<void> {
+    await this.get(`/:/progress?identifier=com.plexapp.plugins.library&key=${encodeURIComponent(ref)}&time=${Math.round(ms)}&state=stopped`, await this.tokenFor(userId));
   }
 
   async ping() {
@@ -302,6 +363,7 @@ export class PlexServerClient implements MediaServerApi {
       state: m.Player?.state === 'paused' ? 'paused' : m.Player?.state === 'buffering' ? 'buffering' : 'playing',
       progress: m.duration ? Math.min(1, (m.viewOffset ?? 0) / m.duration) : 0,
       transcoding: Boolean(m.TranscodeSession && m.TranscodeSession.videoDecision !== 'copy'),
+      convertReason: plexConvertReason(m.TranscodeSession),
     }));
   }
 
@@ -349,7 +411,7 @@ interface JfItem {
   RunTimeTicks?: number;
   Height?: number;
   ProviderIds?: Record<string, string>;
-  UserData?: { LastPlayedDate?: string; Played?: boolean };
+  UserData?: { LastPlayedDate?: string; Played?: boolean; PlaybackPositionTicks?: number };
   SeriesId?: string;
 }
 
@@ -419,7 +481,7 @@ export class JellyfinClient implements MediaServerApi {
   }
 
   async nowPlaying(): Promise<NowPlayingItem[]> {
-    type S = { Id?: string; UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string } };
+    type S = { Id?: string; UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string }; TranscodingInfo?: { TranscodeReasons?: string[] | string } };
     const rows = (await (await this.send('/Sessions')).json()) as S[];
     return rows.filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode')).map((r) => ({
       ...jfItem(r.NowPlayingItem!),
@@ -431,6 +493,7 @@ export class JellyfinClient implements MediaServerApi {
       state: r.PlayState?.IsPaused ? 'paused' : 'playing',
       progress: r.NowPlayingItem!.RunTimeTicks ? Math.min(1, (r.PlayState?.PositionTicks ?? 0) / r.NowPlayingItem!.RunTimeTicks) : 0,
       transcoding: r.PlayState?.PlayMethod === 'Transcode',
+      convertReason: r.PlayState?.PlayMethod === 'Transcode' ? jellyfinConvertReason(r.TranscodingInfo?.TranscodeReasons) : null,
     }));
   }
 
@@ -468,6 +531,8 @@ export class JellyfinClient implements MediaServerApi {
         ref: i.Id ?? '',
         keys: ep ? sxe(shows.get(i.SeriesId ?? '') ?? [], i.ParentIndexNumber, i.IndexNumber) : idKeys(i.ProviderIds ?? {}).map((k) => `m:${k}`),
         watched: Boolean(i.UserData?.Played),
+        position: Math.round((i.UserData?.PlaybackPositionTicks ?? 0) / 10_000),
+        lastPlayed: i.UserData?.LastPlayedDate ? Date.parse(i.UserData.LastPlayedDate) || 0 : 0,
         title: ep ? `${i.SeriesName ?? ''} S${String(i.ParentIndexNumber ?? 0).padStart(2, '0')}E${String(i.IndexNumber ?? 0).padStart(2, '0')}` : i.ProductionYear ? `${i.Name} (${i.ProductionYear})` : i.Name,
       };
     });
@@ -475,6 +540,14 @@ export class JellyfinClient implements MediaServerApi {
 
   async setWatched(userId: string, ref: string, watched: boolean): Promise<void> {
     await this.send(`/Users/${encodeURIComponent(userId)}/PlayedItems/${encodeURIComponent(ref)}`, { method: watched ? 'POST' : 'DELETE' });
+  }
+
+  async setPosition(userId: string, ref: string, ms: number): Promise<void> {
+    await this.send(`/Users/${encodeURIComponent(userId)}/Items/${encodeURIComponent(ref)}/UserData`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ PlaybackPositionTicks: Math.round(ms * 10_000) }),
+    });
   }
 
   async scan(_library: MediaLibrary, folder: string): Promise<void> {

@@ -28,6 +28,8 @@ type Deps = {
   clients: Pick<Clients, 'plexServer' | 'jellyfin'>;
   now: () => number;
   notify?: () => NotifyDeps;
+  /** Called when someone stops a play (after at least 30 seconds), e.g. to sync watched ticks right away. */
+  onStopped?: (server: ServerKind) => void;
 };
 
 interface Live {
@@ -203,7 +205,7 @@ export class ActivityMonitor {
     const vars: Vars = {
       user: it.user, title: what.title, subtitle: what.subtitle, show: it.show, season: it.season, episode: it.episode, year: it.year,
       device: it.device, app: it.platform, quality: it.resolution ? (/^\d+$/.test(it.resolution) ? `${it.resolution}p` : it.resolution.toUpperCase()) : null,
-      converting: it.transcoding, server: SERVER_NAME[server], poster: this.poster(it), ...extra,
+      converting: it.transcoding, reason: it.convertReason ?? null, server: SERVER_NAME[server], poster: this.poster(it), ...extra,
     };
     tell(this.deps.notify?.(), 'admins', event, { vars, link: '/activity' });
   }
@@ -269,6 +271,11 @@ export class ActivityMonitor {
     this.deps.db.update(streams).set({ endedAt: at, lastSeenAt: at, watchedMs: live.watchedMs, progress: live.progress, transcoding: live.item.transcoding || live.transcodeTold }).where(eq(streams.id, live.rowId)).run();
     if (live.watchedMs >= MIN_STOP_MS) {
       this.tell('stream_stopped', live.server, live.item, { minutes: minutes(live.watchedMs), percent: Math.round(live.progress * 100) });
+      try {
+        this.deps.onStopped?.(live.server);
+      } catch (err) {
+        console.error('[activity] after a play stopped:', (err as Error).message);
+      }
     }
   }
 
@@ -288,6 +295,7 @@ export class ActivityMonitor {
         state: l.item.state,
         progress: l.item.progress,
         transcoding: l.item.transcoding,
+        convertReason: l.item.convertReason ?? null,
         startedAt: l.startedAt,
         href: hrefFor(this.deps.db, l.item),
       }));

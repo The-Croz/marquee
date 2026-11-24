@@ -284,13 +284,14 @@ authRoutes.post('/plex/check', async (c) => {
     if (existing && existing.id !== flow.linkUserId) {
       return c.json<PlexPinCheck>({ status: 'denied', message: 'That Plex account is already linked to another Marquee user.' });
     }
-    const user = updateUser(db, flow.linkUserId, { plexId: account.id, plexUsername: account.username });
+    // Their token is kept (never shown) so Marquee can read their Plex watchlist.
+    const user = updateUser(db, flow.linkUserId, { plexId: account.id, plexUsername: account.username, plexToken: token });
     return c.json<PlexPinCheck>({ status: 'ok', user: toSessionUser(user) });
   }
 
   let user: User | undefined = existing;
   if (user) {
-    user = updateUser(db, user.id, { plexUsername: account.username });
+    user = updateUser(db, user.id, { plexUsername: account.username, plexToken: token });
   } else {
     const { autoCreate, serverId } = config.plex;
     const allowed = autoCreate && serverId !== null && countUsers(db) > 0 && (await client.canAccessServer(token, serverId));
@@ -315,6 +316,7 @@ authRoutes.post('/plex/check', async (c) => {
       role: 'member',
       plexId: account.id,
       plexUsername: account.username,
+      plexToken: token,
     });
   }
   signIn(c, user);
