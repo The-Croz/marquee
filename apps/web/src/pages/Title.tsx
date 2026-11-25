@@ -1,14 +1,14 @@
 import { RequestsLeft, SomethingWrong } from '../components/Family';
 import { ShowEpisodesChoice } from './GettingIn';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, EpisodeDetailView, HistoryView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
+import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, EpisodeDetailView, HistoryView, MovieDetail, RequestState, RequestView, SeasonPreview, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
 import { api, ApiFailure, queryClient, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { DownloadList, useDownloads } from '../components/Downloads';
 import { NeverPickList, copyFacts, useNeverPick } from '../components/History';
-import { Row, Trailer, useRequest } from '../components/Discover';
+import { Row, Trailer, UndoNote, useRequest } from '../components/Discover';
 import { WantedToggle } from '../components/Wanted';
 import { TitleTools } from '../components/LibraryCare';
 import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/Poster';
@@ -177,6 +177,7 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
         </section>
       )}
 
+      {!show && kind === 'series' && info && info.seasons.length > 0 && <SeasonPreviews info={info} />}
       {show && <Seasons show={show} admin={admin} onFind={(season, episode) => setFinding({ season, ...(episode !== undefined ? { episode } : {}) })} />}
 
       {info && info.cast.length > 0 && <Cast cast={info.cast} />}
@@ -337,23 +338,33 @@ function WatchButtons({ kind, id }: { kind: 'movie' | 'series'; id: number }) {
 /** Trailer, asking for it, finding a copy, watching, and More, in one row. */
 function Actions({ kind, info, lib, admin, onTrailer, onFind, onReport }: { kind: 'movie' | 'series'; info?: DiscoverTitle; lib?: MovieDetail | ShowDetail; admin: boolean; onTrailer: () => void; onFind: () => void; onReport: () => void }) {
   const navigate = useNavigate();
-  const { ask, busy, message } = useRequest();
+  const { ask, undo, waiting, busy, message } = useRequest();
   const [picking, setPicking] = useState(false);
+  const undoing = waiting !== null;
+  const alive = useRef(true);
+  useEffect(() => () => void (alive.current = false), []);
   // Admins manage a title already in the library with Wanted and Find, not requests.
   const canAsk = !!info?.canRequest && !(lib && admin);
   async function request(seasons?: number[]) {
     if (!info) return;
-    const r = await ask(info.card, seasons);
     setPicking(false);
+    // Three seconds to take it back (the button reads Undo); null means it was.
+    const r = await ask(info.card, seasons);
     // An approved request has a library page: go there, where it shows what happens next.
-    if (r?.href && !lib) navigate(r.href, { replace: true });
+    if (r?.href && !lib && alive.current) navigate(r.href, { replace: true });
   }
   return (
     <div className="flex flex-col gap-2 pt-1">
       <div className="flex flex-wrap items-center gap-3">
         {canAsk && (
-          <Button type="button" disabled={busy !== null} onClick={() => (kind === 'series' && info!.seasons.length > 1 ? setPicking(true) : request())} className="h-12 rounded-full px-6">
-            {busy !== null ? 'Asking…' : lib ? 'Ask for the rest' : 'Request'}
+          <Button
+            type="button"
+            variant={undoing ? 'ghost' : 'primary'}
+            disabled={busy !== null}
+            onClick={() => (undoing ? undo() : kind === 'series' && info!.seasons.length > 1 ? setPicking(true) : void request())}
+            className="h-12 rounded-full px-6"
+          >
+            {undoing ? 'Undo' : busy !== null ? 'Asking…' : lib ? 'Ask for the rest' : 'Request'}
           </Button>
         )}
         {info?.trailerKey && (
@@ -379,6 +390,7 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind, onReport }: { kind
           Part of {info.collection.name} →
         </Link>
       )}
+      <UndoNote show={undoing} />
       {canAsk && !admin && <RequestsLeft />}
       {info?.note && !info.canRequest && !lib && info.card.state === 'none' && <p className="m-0 text-sm text-soft">{info.note}</p>}
       {message && <Notice tone="error">{message}</Notice>}
@@ -462,6 +474,72 @@ function RequestProgress({ r }: { r: RequestView }) {
 }
 
 // ---------------- Show: seasons and episodes ----------------
+
+/** A show that isn't in the library yet: each season opens to its episodes, so you can look before asking. */
+function SeasonPreviews({ info }: { info: DiscoverTitle }) {
+  const ordered = [...info.seasons.filter((s) => s.season !== 0), ...info.seasons.filter((s) => s.season === 0)];
+  return (
+    <section aria-labelledby="seasons-h" className="flex flex-col gap-3">
+      <h2 id="seasons-h" className="m-0 text-lg font-semibold">
+        Seasons
+      </h2>
+      <ol className="m-0 flex list-none flex-col gap-2 p-0">
+        {ordered.map((s) => (
+          <PreviewSeason key={s.season} tmdbId={info.card.tmdbId} season={s.season} count={s.episodeCount} state={s.state} />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+const SEASON_STATE: Record<string, string> = { in_library: 'In your library', approved: 'Asked for', pending: 'Asked for', downloading: 'Downloading' };
+
+function PreviewSeason({ tmdbId, season, count, state }: { tmdbId: number; season: number; count: number; state: string }) {
+  const [open, setOpen] = useState(false);
+  const label = season === 0 ? 'Specials' : `Season ${season}`;
+  const id = `preview-season-${season}`;
+  const q = useQuery({ queryKey: ['discover', 'season', tmdbId, season], queryFn: () => api<SeasonPreview>(`/discover/title/series/${tmdbId}/season/${season}`), enabled: open, staleTime: 10 * 60_000 });
+  return (
+    <li className="overflow-hidden rounded-2xl border border-line bg-panel">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={id} className="flex min-h-12 w-full items-center gap-4 px-4 py-2 text-left text-text sm:px-5">
+        <span aria-hidden="true" className={cx('text-muted transition-transform motion-reduce:transition-none', open && 'rotate-90')}>
+          ›
+        </span>
+        <span className="flex-1 text-heading font-semibold">{label}</span>
+        <span className="text-sm text-dim tabular-nums">{count} {count === 1 ? 'episode' : 'episodes'}</span>
+        {SEASON_STATE[state] && <span className="text-xs text-muted">{SEASON_STATE[state]}</span>}
+      </button>
+      {open && (
+        <div id={id} className="border-t border-line">
+          {q.isLoading && <p className="m-0 px-5 py-3 text-sm text-muted">Loading the episodes…</p>}
+          {q.error && (
+            <p className="m-0 px-5 py-3 text-sm text-warn">
+              {q.error instanceof ApiFailure ? q.error.message : 'Couldn’t load the episodes.'}{' '}
+              <button type="button" onClick={() => void q.refetch()} className="min-h-11 font-semibold text-amber underline-offset-4 hover:underline">
+                Try again
+              </button>
+            </p>
+          )}
+          {q.data && q.data.episodes.length === 0 && <p className="m-0 px-5 py-3 text-sm text-muted">No episodes are listed for this season yet.</p>}
+          {q.data && q.data.episodes.length > 0 && (
+            <ol className="m-0 list-none p-0">
+              {q.data.episodes.map((e) => (
+                <li key={e.episode} className="flex gap-x-3 border-b border-line px-4 py-3 last:border-b-0 sm:gap-x-4 sm:px-5">
+                  <span className="w-6 flex-none text-sm font-semibold text-muted tabular-nums sm:w-8">{e.episode}</span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-body">{e.title ?? `Episode ${e.episode}`}</span>
+                    <span className="text-xs text-dim">{e.airDate ? (e.aired ? pretty(e.airDate) : `Out ${pretty(e.airDate)}`) : 'No date yet'}</span>
+                    {e.overview && <span className="line-clamp-3 text-sm leading-snug text-muted">{e.overview}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
 
 function Seasons({ show, admin, onFind }: { show: ShowDetail; admin: boolean; onFind: (season: number, episode?: number) => void }) {
   // The latest season with something missing opens first; otherwise none.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DiscoverTitle, PersonDetail } from '@marquee/shared';
+import type { DiscoverTitle, PersonDetail, SeasonPreview } from '@marquee/shared';
 import { FakeTmdb } from './fakes/tmdb.js';
 import { FakeRatings } from './fakes/ratings.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
@@ -15,6 +15,26 @@ async function setup(mdblistKey: string | null = 'good-mdblist-key') {
   await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', ...(mdblistKey ? { mdblistKey } : {}) }, admin);
   return { ...t, admin, ratings };
 }
+
+describe('Looking at a show’s seasons before asking', () => {
+  it('lists a season’s episodes, marking the ones not out yet', async () => {
+    const t = await setup(null);
+    const r = await call(t.app, 'GET', '/api/discover/title/series/95396/season/2', undefined, t.admin);
+    expect(r.status).toBe(200);
+    expect((r.body as SeasonPreview).episodes.map((e) => [e.episode, e.title, e.aired])).toEqual([
+      [1, 'Hello, Ms. Cobel', true],
+      [2, 'Not Yet Aired', false],
+    ]);
+  });
+
+  it('keeps kid profiles out of shows that aren’t for them', async () => {
+    const t = await setup(null);
+    await call(t.app, 'POST', '/api/users', { username: 'kiddo', displayName: 'Kiddo', role: 'kid', password: 'kiddo password' }, t.admin);
+    const kid = (await call(t.app, 'POST', '/api/auth/login', { username: 'kiddo', password: 'kiddo password' })).cookie!;
+    const r = await call(t.app, 'GET', '/api/discover/title/series/95396/season/1', undefined, kid);
+    expect([r.status, (r.body as { error: string }).error]).toEqual([403, 'not_for_kids']);
+  });
+});
 
 describe('Title page scores', () => {
   it('shows TMDB’s score, and IMDb, Rotten Tomatoes and Metacritic with an MDBList key', async () => {
