@@ -62,7 +62,7 @@ function quality(f: MediaFile): QualityView {
   return { resolution: f.resolution, source: f.source, hdr: f.hdr, codec: f.codec, group: f.releaseGroup, label: qualityLabel(f) };
 }
 
-function fileView(f: MediaFile): MediaFileView {
+export function fileView(f: MediaFile): MediaFileView {
   return { id: f.id, path: f.path, sizeBytes: f.size, quality: quality(f), addedAt: f.addedAt };
 }
 

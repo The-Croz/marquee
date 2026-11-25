@@ -523,6 +523,40 @@ export interface EpisodeView {
   file: MediaFileView | null;
 }
 
+/** One episode up close (admins): its files and the downloads in qBittorrent that hold it. */
+export interface EpisodeDetailView {
+  seriesId: number;
+  season: number;
+  episode: number;
+  title: string | null;
+  airDate: string | null;
+  overview: string | null;
+  aired: boolean;
+  wanted: boolean;
+  files: (MediaFileView & {
+    name: string;
+    /** Other episodes in the same file (a two-episode file). */
+    otherEpisodes: number[];
+    /** A hardlink shared with a download, so setting it aside frees no space until that download goes. */
+    shared: boolean;
+  })[];
+  torrents: {
+    hash: string;
+    name: string;
+    /** Marquee follows it; otherwise another app (Sonarr) sent it and Marquee found it by the shared file. */
+    followed: boolean;
+    inDownloader: boolean;
+    /** Holds more than this episode: removing it stops sharing all of them (library files stay). */
+    wholeSeason: boolean;
+  }[];
+  downloaderNote: string | null;
+}
+
+export interface RemoveEpisodeInput {
+  stopWanting: boolean;
+  torrents: string[];
+}
+
 export interface SeasonView {
   season: number;
   have: number;
