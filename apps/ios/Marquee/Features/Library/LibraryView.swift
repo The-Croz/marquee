@@ -119,7 +119,7 @@ struct LibraryView: View {
                         NavigationLink(value: TitleRoute(kind: item.isMovie ? .movie : .show, id: item.id)) {
                             VStack(alignment: .leading, spacing: 5) {
                                 PosterView(path: item.posterPath, color: item.posterColor, title: item.title)
-                                    .overlay(alignment: .bottomLeading) { badge(item) }
+                                    .overlay(alignment: .topLeading) { badge(item) }
                                 Text(item.title).font(.caption.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1)
                             }
                         }

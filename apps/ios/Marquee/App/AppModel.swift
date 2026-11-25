@@ -101,6 +101,15 @@ final class AppModel {
 
     /// The face of the app on launch: signed in if the saved token still works.
     func start() async {
+        #if DEBUG
+        // For checking screens by hand against demo mode: --demo-sign-in=josh (or mia, kiddo).
+        if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--demo-sign-in=") }) {
+            let name = String(arg.dropFirst("--demo-sign-in=".count))
+            try? await connect(home: "localhost:9797", outside: "")
+            if let user = try? await client.signIn(username: name, password: name == "josh" ? "correct horse battery" : "\(name) password", device: .current) { signedIn(user) }
+            return
+        }
+        #endif
         guard phase == .launching else { return }
         do {
             let me: MeResponse = try await client.get("/api/me")

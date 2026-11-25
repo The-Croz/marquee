@@ -234,7 +234,7 @@ struct HomeView: View {
     private func needsYouCard(_ item: HomeData.Attention, model: HomeModel) -> some View {
         if let id = item.approveId {
             HStack(spacing: 10) {
-                PosterView(path: item.posterPath, color: nil, title: item.title, size: .w185).frame(width: 42)
+                PosterView(path: item.posterPath, color: nil, title: "", size: .w185).frame(width: 42).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.title).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2)
                     if let detail = item.detail { Text(detail).font(.caption).foregroundStyle(.muted).lineLimit(1) }

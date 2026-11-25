@@ -71,6 +71,7 @@ struct DiscoverView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(card.title), \(stateLine(card))")
+                    .accessibilityIdentifier("featured-\(card.tmdbId)")
                 }
             }
             .padding(.horizontal, 16)
@@ -138,6 +139,7 @@ struct DiscoverView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(card.title), \(stateLine(card))")
+                        .accessibilityIdentifier("card-\(card.tmdbId)")
                     }
                 }
                 .padding(.horizontal, 16)

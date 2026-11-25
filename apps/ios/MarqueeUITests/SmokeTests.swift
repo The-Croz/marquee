@@ -45,5 +45,26 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["undo"].waitForExistence(timeout: 10))
         let gone = NSPredicate { _, _ in approve.count < before }
         wait(for: [XCTNSPredicateExpectation(predicate: gone, object: nil)], timeout: 10)
+
+        // Library → a title.
+        app.tabBars.buttons["Library"].tap()
+        let dune = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Dune'")).firstMatch
+        XCTAssertTrue(dune.waitForExistence(timeout: 10), "Library should list Dune")
+        dune.tap()
+        XCTAssertTrue(app.buttons["something-wrong"].waitForExistence(timeout: 10), "The title page should open")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        // Discover → ask for something, then take it back inside three seconds.
+        app.tabBars.buttons["Discover"].tap()
+        let gladiator = app.buttons["card-558449"].firstMatch
+        XCTAssertTrue(gladiator.waitForExistence(timeout: 10))
+        gladiator.tap()
+        let ask = app.buttons["ask"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 10))
+        ask.tap()
+        XCTAssertEqual(ask.label, "Undo")
+        ask.tap()
+        sleep(4)
+        XCTAssertEqual(ask.label, "Ask for it", "Nothing should have been sent")
     }
 }
