@@ -1,0 +1,85 @@
+name: Marquee
+options:
+  bundleIdPrefix: app.marquee
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+# Signing: Josh's personal Apple team only. Never the Renovation Church team
+# (P73FA44C6D), even though Xcode is signed in to it. When the paid personal
+# account is set up, its team id replaces the one below.
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: 5BHPMRU3T8
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  MarqueeKit:
+    path: Packages/MarqueeKit
+
+targets:
+  Marquee:
+    type: application
+    platform: iOS
+    sources:
+      - path: Marquee
+        excludes:
+          - Resources/Info.plist
+    dependencies:
+      - package: MarqueeKit
+    info:
+      path: Marquee/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Marquee
+        UILaunchScreen:
+          UIColorName: LaunchInk
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIUserInterfaceStyle: Dark
+        UIAppFonts:
+          - InstrumentSerif-Regular.ttf
+        CFBundleURLTypes:
+          - CFBundleURLName: app.marquee.ios
+            CFBundleURLSchemes:
+              - marquee
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Marquee talks to your Marquee server on your home network.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+
+  MarqueeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MarqueeUITests
+    dependencies:
+      - target: Marquee
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.uitests
+        TEST_TARGET_NAME: Marquee
+
+schemes:
+  Marquee:
+    build:
+      targets:
+        Marquee: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MarqueeUITests
