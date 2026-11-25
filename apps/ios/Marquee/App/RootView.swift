@@ -33,7 +33,7 @@ struct RootView: View {
         }
         .onOpenURL { url in
             // marquee://signed-in comes back to the sign-in sheet, which handles it; the rest are links into the app.
-            if app.phase == .signedIn, let link = DeepLink(url: url) { app.open(link) }
+            if let link = DeepLink(url: url) { if app.phase == .signedIn { app.open(link) } else { app.pendingLink = link } }
         }
     }
 }

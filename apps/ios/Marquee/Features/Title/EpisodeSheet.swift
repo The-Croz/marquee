@@ -36,7 +36,7 @@ struct EpisodeSheet: View {
 
                     if let d = detail.value {
                         if d.files.isEmpty {
-                            Text("No file for this episode yet.").font(.subheadline).foregroundStyle(.muted)
+                            Text(wanted ? "No file for this episode yet. Marquee keeps looking while it's Wanted." : "No file for this episode, and it's not Wanted, so Marquee leaves it alone.").font(.subheadline).foregroundStyle(.muted)
                         }
                         ForEach(d.files) { f in
                             VStack(alignment: .leading, spacing: 2) {
@@ -48,7 +48,7 @@ struct EpisodeSheet: View {
                             .accessibilityElement(children: .combine)
                         }
                         ForEach(d.torrents) { t in
-                            Text("In qBittorrent: \(t.name)\(t.wholeSeason ? " (the whole season)" : "")").font(.caption).foregroundStyle(.soft)
+                            Text("In your downloader: \(t.name)\(t.wholeSeason ? " (the whole season)" : "")").font(.caption).foregroundStyle(.soft)
                         }
                         if let note = d.downloaderNote { Text(note).font(.caption).foregroundStyle(.muted) }
                     } else if detail.loading {

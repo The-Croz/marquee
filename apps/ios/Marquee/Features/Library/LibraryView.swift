@@ -101,6 +101,7 @@ struct LibraryView: View {
                 }
             }
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
+            .onAppear { Task { await model.load(app) } }
         }
         .task(id: "\(model.kind.rawValue)|\(model.filter.rawValue)|\(model.sort.rawValue)|\(model.query)") {
             if !model.query.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }

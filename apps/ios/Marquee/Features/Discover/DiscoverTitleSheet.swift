@@ -55,7 +55,7 @@ struct DiscoverTitleSheet: View {
             }
         }
         .presentationBackground(Color.ink)
-        .onChange(of: app.askMessage) { _, _ in Task { await load() } }
+        .onChange(of: app.asked[card.id]?.id) { _, _ in Task { await load() } }
         .problemAlert(Binding(get: { app.askProblem }, set: { app.askProblem = $0 }))
         .onDisappear { Task { await app.asker.flush() } }
     }
@@ -92,7 +92,7 @@ struct DiscoverTitleSheet: View {
                     app.open(TitleRoute(kind: card.isMovie ? .movie : .show, id: id))
                 }
                 .buttonStyle(PrimaryButtonStyle())
-            } else if t.canRequest {
+            } else if t.canRequest && app.asked[card.id] == nil {
                 if card.isMovie {
                     Button { holding ? app.asker.undo() : app.asker.ask(.init(kind: "movie", tmdbId: card.tmdbId)) } label: {
                         Text(holding ? "Undo" : sending ? "Asking…" : "Ask for it")

@@ -27,27 +27,28 @@ public final class AskCoordinator {
     private let delay: Duration
     private let send: @MainActor (Ask) async -> Void
     private var timer: Task<Void, Never>?
+    /// Asks that are decided and waiting their turn to be sent, in order.
+    private var outbox: [Ask] = []
+    private var draining = false
 
     public init(delay: Duration = .seconds(3), send: @escaping @MainActor (Ask) async -> Void) {
         self.delay = delay
         self.send = send
     }
 
-    public func isBusy(_ cardId: String) -> Bool { waiting?.cardId == cardId || sending?.cardId == cardId }
-
-    /// Starts the take-back window. Asking for something already held or being sent does nothing.
-    public func ask(_ ask: Ask) {
-        if isBusy(ask.cardId) { return }
-        // Something else was waiting: it goes now, they did ask for it.
-        if waiting != nil { Task { await flush(); hold(ask) } } else { hold(ask) }
+    public func isBusy(_ cardId: String) -> Bool {
+        waiting?.cardId == cardId || sending?.cardId == cardId || outbox.contains { $0.cardId == cardId }
     }
 
-    private func hold(_ ask: Ask) {
+    /// Starts the take-back window. Asking for something already held or being sent does nothing.
+    /// Something else that was waiting goes now (they did ask for it), and nothing is ever dropped.
+    public func ask(_ ask: Ask) {
+        if isBusy(ask.cardId) { return }
+        release()
         waiting = ask
-        timer?.cancel()
         timer = Task { [delay] in
             try? await Task.sleep(for: delay)
-            if !Task.isCancelled { await fire() }
+            if !Task.isCancelled { await flush() }
         }
     }
 
@@ -58,18 +59,32 @@ public final class AskCoordinator {
         waiting = nil
     }
 
-    /// Sends the held ask now.
+    /// Sends the held ask now (and anything still queued), and returns when they are all sent.
     public func flush() async {
-        timer?.cancel()
-        timer = nil
-        await fire()
+        release()
+        await drain()
     }
 
-    private func fire() async {
-        guard let ask = waiting else { return }
-        waiting = nil
-        sending = ask
-        await send(ask)
-        sending = nil
+    /// Moves the held ask to the outbox and starts sending.
+    private func release() {
+        timer?.cancel()
+        timer = nil
+        if let held = waiting {
+            waiting = nil
+            outbox.append(held)
+            Task { await drain() }
+        }
+    }
+
+    private func drain() async {
+        guard !draining else { return }
+        draining = true
+        while !outbox.isEmpty {
+            let next = outbox.removeFirst()
+            sending = next
+            await send(next)
+            sending = nil
+        }
+        draining = false
     }
 }

@@ -78,7 +78,15 @@ final class TitleModel {
     }
 
     struct Wanted: Encodable { var wanted: Bool }
-    struct Profile: Encodable { var profile: String? }
+    /// `{"profile": null}` hands the title back to the rules; the key must be there even when empty.
+    struct Profile: Encodable {
+        var profile: String?
+        enum Keys: String, CodingKey { case profile }
+        func encode(to encoder: any Encoder) throws {
+            var c = encoder.container(keyedBy: Keys.self)
+            try c.encode(profile, forKey: .profile)
+        }
+    }
     struct Ok: Decodable, Sendable {}
 
     private func write(_ app: AppModel, _ method: String, _ path: String, _ body: some Encodable & Sendable) async {

@@ -68,4 +68,19 @@ private final class Sent {
         try await Task.sleep(for: .milliseconds(150))
         #expect(sent.asks == [dune])
     }
+
+    @Test func nothingIsLostWhenTheFirstSendIsSlow() async throws {
+        let sent = Sent()
+        let c = AskCoordinator(delay: .milliseconds(40)) { ask in
+            if ask.tmdbId == 1 { try? await Task.sleep(for: .milliseconds(80)) }
+            sent.asks.append(ask)
+        }
+        let third = AskCoordinator.Ask(kind: "movie", tmdbId: 3)
+        c.ask(dune)
+        c.ask(bluey)
+        try await Task.sleep(for: .milliseconds(10))
+        c.ask(third)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(sent.asks == [dune, bluey, third])
+    }
 }

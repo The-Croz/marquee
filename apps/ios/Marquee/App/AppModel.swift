@@ -24,6 +24,8 @@ final class AppModel {
     /// Shown on the sign-in screen after something signed the phone out.
     var notice: String?
     var showingYou = false
+    /// A link that arrived before sign-in finished (the app was opened by a notification).
+    var pendingLink: DeepLink?
     /// Which Activity section to open (set by Home's tiles).
     var activitySection: ActivitySection = .downloads
     var selectedTab: AppTab = .home
@@ -48,11 +50,15 @@ final class AppModel {
     func open(_ link: DeepLink) {
         switch link {
         case .title(let route): open(route)
-        case .requests:
-            activitySection = .requests
-            selectedTab = .activity
-        case .downloads:
-            activitySection = .downloads
+        case .requests, .downloads:
+            // Kids have no Activity tab, so a link to it lands on Home.
+            let sections = ActivityTabs.sections(for: user?.role ?? .kid)
+            let wanted: ActivitySection = link == .requests ? .requests : .downloads
+            guard sections.contains(wanted) else {
+                selectedTab = .home
+                return
+            }
+            activitySection = wanted
             selectedTab = .activity
         }
     }
@@ -115,6 +121,10 @@ final class AppModel {
             let me: MeResponse = try await client.get("/api/me")
             user = me.user
             phase = .signedIn
+            if let link = pendingLink {
+                pendingLink = nil
+                open(link)
+            }
         } catch {
             if case .signedOut = error {
                 phase = .signedOut
@@ -167,6 +177,10 @@ final class AppModel {
         notice = nil
         selectedTab = .home
         phase = .signedIn
+        if let link = pendingLink {
+            pendingLink = nil
+            open(link)
+        }
     }
 
     func retryLaunch() async {
@@ -178,7 +192,15 @@ final class AppModel {
         phase = .needsAddress
     }
 
+    private func forgetAsks() {
+        asker.undo()
+        asked = [:]
+        askMessage = nil
+        askProblem = nil
+    }
+
     func signOut() async {
+        forgetAsks()
         await client.signOut()
         user = nil
         showingYou = false
@@ -188,6 +210,7 @@ final class AppModel {
     /// Every screen passes its failures here: a signed-out answer sends the phone back to sign-in.
     func handle(_ error: MarqueeError) {
         if case .signedOut = error {
+            forgetAsks()
             user = nil
             showingYou = false
             notice = "You were signed out. Sign in again."
