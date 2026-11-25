@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { AuthStatus, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
+import type { AuthStatus, DeviceView, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { ServerPeople } from '../components/ServerPeople';
@@ -257,7 +257,54 @@ export function AccountPage() {
           <p className="m-0 text-sm text-muted">Plex and single sign-on are turned off. An admin can turn them on with environment variables (see the README).</p>
         )}
       </Card>
+
+      <YourPhones />
     </div>
+  );
+}
+
+function phoneAgo(t: number): string {
+  const min = Math.round((Date.now() - t) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `${h} h ago`;
+  return `${Math.round(h / 24)} days ago`;
+}
+
+function YourPhones() {
+  const { data } = useQuery({ queryKey: ['phones'], queryFn: () => api<{ devices: DeviceView[] }>('/me/devices') });
+  const [error, setError] = useState<string | null>(null);
+  const signOut = useMutation({
+    mutationFn: (id: string) => api(`/me/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['phones'] }),
+    onError: (e) => setError(errMsg(e)),
+  });
+  const phones = data?.devices ?? [];
+  return (
+    <Card className="flex flex-col gap-1">
+      <h2 className="m-0 mb-3 text-lg font-semibold">Your phones</h2>
+      {error && <Notice tone="error">{error}</Notice>}
+      {phones.length === 0 && <p className="m-0 text-sm text-muted">No phones are signed in. Sign in on the Marquee app on your iPhone and it will show up here.</p>}
+      {phones.map((p) => (
+        <div key={p.id} className="flex flex-wrap items-center gap-4 border-t border-line py-3.5">
+          <div className="flex-1">
+            <div className="text-body font-medium">{p.name}</div>
+            <div className={cx('text-sm', p.signedIn ? 'text-dim' : 'text-muted')}>
+              {p.signedIn ? `Signed in · last used ${phoneAgo(p.lastSeenAt)}` : `Signed out · last used ${phoneAgo(p.lastSeenAt)}`}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (window.confirm(`Sign out ${p.name}? It will need to sign in again.`)) signOut.mutate(p.id);
+            }}
+          >
+            Sign out this phone
+          </Button>
+        </div>
+      ))}
+    </Card>
   );
 }
 

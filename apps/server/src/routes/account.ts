@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
-import { deleteUserSessions } from '../auth/sessions.js';
+import { deleteUserSessions, hashToken } from '../auth/sessions.js';
+import { listDevices, removeDevice } from '../auth/devices.js';
 import { toSessionUser, updateUser } from '../auth/users.js';
-import { HttpError, requireUser, signIn, type Env } from '../http.js';
+import { HttpError, requireUser, sessionToken, signIn, type Env } from '../http.js';
 import type { User } from '../db/schema.js';
 import { passwordSchema } from './auth.js';
 
@@ -53,4 +54,18 @@ accountRoutes.delete('/links/:provider{plex|oidc}', (c) => {
     provider === 'plex' ? { plexId: null, plexUsername: null, plexToken: null } : { oidcIssuer: null, oidcSubject: null },
   );
   return c.json({ user: toSessionUser(updated) });
+});
+
+// ---------- Your phones ----------
+
+accountRoutes.get('/devices', (c) => {
+  const user = requireUser(c);
+  const token = sessionToken(c);
+  return c.json({ devices: listDevices(c.get('deps').db, user.id, token ? hashToken(token) : undefined) });
+});
+
+accountRoutes.delete('/devices/:id', (c) => {
+  const user = requireUser(c);
+  if (!removeDevice(c.get('deps').db, user.id, c.req.param('id'))) throw new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
+  return c.json({ ok: true });
 });
