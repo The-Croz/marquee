@@ -47,6 +47,21 @@ public struct DiscoverCard: Codable, Hashable, Sendable, Identifiable {
 
     public var id: String { "\(kind)-\(tmdbId)" }
     public var isMovie: Bool { kind == "movie" }
+
+    public init(kind: String, tmdbId: Int, title: String, year: Int?, posterPath: String?, backdropPath: String?, overview: String, score: Double?, genres: [String], state: CardState, libraryId: Int?, badge: String?) {
+        self.kind = kind
+        self.tmdbId = tmdbId
+        self.title = title
+        self.year = year
+        self.posterPath = posterPath
+        self.backdropPath = backdropPath
+        self.overview = overview
+        self.score = score
+        self.genres = genres
+        self.state = state
+        self.libraryId = libraryId
+        self.badge = badge
+    }
 }
 
 public struct DiscoverRow: Codable, Hashable, Sendable, Identifiable {

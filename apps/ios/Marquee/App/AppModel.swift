@@ -57,6 +57,13 @@ final class AppModel {
         }
     }
 
+    /// Asking for something: the three-second take-back window lives here so it survives closing a sheet.
+    private(set) var asker: AskCoordinator!
+    /// What each card turned into once asked, and the words to say about it.
+    private(set) var asked: [String: RequestView] = [:]
+    var askMessage: String?
+    var askProblem: String?
+
     let client: APIClient
     private let tokens: TokenStore
     private let store = AddressStore()
@@ -72,6 +79,24 @@ final class AppModel {
         savedAddresses = addresses
         client = APIClient(addresses: addresses ?? ServerAddresses(home: URL(string: "http://localhost:9797")!), tokens: tokens, session: session)
         if addresses == nil { phase = .needsAddress }
+        asker = AskCoordinator { [weak self] ask in await self?.sendAsk(ask) }
+    }
+
+    private struct AskBody: Encodable, Sendable {
+        var kind: String
+        var tmdbId: Int
+        var seasons: [Int]?
+    }
+
+    private func sendAsk(_ ask: AskCoordinator.Ask) async {
+        do {
+            let r: RequestView = try await client.send("POST", "/api/requests", body: AskBody(kind: ask.kind, tmdbId: ask.tmdbId, seasons: ask.seasons))
+            asked[ask.cardId] = r
+            askMessage = r.stateText
+        } catch {
+            if case .signedOut = error { handle(error); return }
+            askProblem = error.fullText
+        }
     }
 
     /// The face of the app on launch: signed in if the saved token still works.
