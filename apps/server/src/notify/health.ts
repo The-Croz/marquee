@@ -1,10 +1,10 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { getSetting, setSetting } from '../db/index.js';
-import { episodes, series, sources } from '../db/schema.js';
+import { downloads, episodes, series, sources } from '../db/schema.js';
 import type { Clients } from '../http.js';
 import { readMediaServer } from '../library/mediaServers.js';
-import { checkDownloader, readDownloader, DOWNLOADER_TEXT } from '../downloads/service.js';
+import { checkDownloader, checkNoPeers, readDownloader, DOWNLOADER_TEXT } from '../downloads/service.js';
 import { STATE_TEXT } from '../sources/service.js';
 import { notifyAdmins, type NotifyDeps } from './service.js';
 import { diskViews, readDiskSettings, realDiskProbe, size } from '../system/disk.js';
@@ -43,6 +43,22 @@ export async function checkHealth(deps: NotifyDeps & { clients: Pick<Clients, 'q
     const bad = !['working', 'firewalled', 'not_set_up'].includes(h.state);
     if (changed(db, 'downloader', bad ? h.state : null)) {
       await notifyAdmins(deps, 'downloader_problem', { vars: { problem: h.label, fix: DOWNLOADER_TEXT[h.state].fix ?? null }, link: '/settings/downloader' });
+    }
+  }
+
+  // qBittorrent answers but can't find anyone for most of what's on the way: told once until it clears.
+  if (dl.url) {
+    const client = clients.qbittorrent(dl.url, dl.username, dl.password ?? '');
+    const rows = db.select({ infoHash: downloads.infoHash, state: downloads.state, addedAt: downloads.addedAt }).from(downloads).where(inArray(downloads.state, ['sent', 'downloading'])).all();
+    const stuck = await checkNoPeers(client, rows, now());
+    if (changed(db, 'downloader.peers', stuck ? 'no_peers' : null)) {
+      await notifyAdmins(deps, 'downloader_problem', {
+        vars: {
+          problem: `${stuck!.stuck} of ${stuck!.total} downloads can’t find anyone to download from`,
+          fix: 'If qBittorrent runs behind a VPN, check the VPN’s forwarded port is working and matches the port in qBittorrent → Options → Connection; restarting the VPN container, then qBittorrent, often fixes it. Otherwise those copies may have nobody sharing them: raise “Fewest people sharing a copy” in Settings → Downloader.',
+        },
+        link: '/downloads',
+      });
     }
   }
 

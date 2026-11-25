@@ -302,6 +302,8 @@ export interface DownloaderView {
   privateKeepSharing: boolean;
   /** Remove a download from qBittorrent once it's in the library and has shared enough. */
   removeWhenShared: boolean;
+  /** A copy needs at least this many people sharing it to be picked (1 = anyone at all). */
+  minSeeders: number;
 }
 
 export interface DownloaderUpdate {
@@ -318,6 +320,7 @@ export interface DownloaderUpdate {
   seedDays?: number;
   privateKeepSharing?: boolean;
   removeWhenShared?: boolean;
+  minSeeders?: number;
 }
 
 export interface DownloaderHealth {

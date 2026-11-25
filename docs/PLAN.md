@@ -482,6 +482,12 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 - **Undo for 3 seconds.** Pressing Request (cards, Discover's banner, the preview, a title's page, the season picker's confirm) sends nothing yet: the button reads **Undo** for 3 seconds, and pressing it cancels. After that the request goes through. Leaving the page in that time sends it straight away rather than losing it. (`useRequest` in `components/Discover.tsx`; no server change.)
 - **Seasons before requesting.** A show that isn't in the library has a Seasons list; each season opens to its episodes (name, air date or "Out …", short description). `GET /api/discover/title/series/:id/season/:n` (`discoverSeason`) reads it from TMDB; kids get the same kid-safe check as the title page. Tests: `test/title-page.test.ts`.
 
+## Watching count, fewest sharing, qBittorrent alerts (2026-11-25) ✅
+
+- **Watching** in the menu shows how many streams are playing now (teal, like Downloads' blue count). `GET /api/activity/count` reads what's already known, so it's cheap to ask every 15 s.
+- **Fewest people sharing a copy** (Settings → Downloader → When downloads get stuck, default 1 = as before): copies with fewer seeders are turned down ("Only 3 people are sharing it; your minimum is 5"). Copies whose Source doesn't say are let through. Passed into `decide` as `Wanted.minSeeders`.
+- **Alert when qBittorrent can't find anyone:** `checkNoPeers` in the health check. When two or more downloads on the way, and at least 60% of them, have waited 30+ minutes on the file list or stalled with nobody connected, admins get one "qBittorrent stopped working" message (and again only after it clears). One stuck download is a bad copy, not an alert. Marquee doesn't restart anything: it has no Docker access, and the usual cause is the VPN's forwarded port (seen 2026-11-25: gluetun + hotio PIA script logging "Port bind failed" every 2 minutes).
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

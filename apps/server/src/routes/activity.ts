@@ -20,6 +20,12 @@ activityRoutes.get('/now', async (c) => {
   return c.json<{ sessions: NowPlayingView[]; problems: string[]; live: { server: 'plex' | 'jellyfin'; live: boolean }[] }>({ ...activity.view(), live: activity.status() });
 });
 
+/** How many streams are playing, for the menu. From what's already known, so it is cheap to ask often. */
+activityRoutes.get('/count', (c) => {
+  requireAdmin(c);
+  return c.json<{ playing: number }>({ playing: c.get('deps').activity.view().sessions.length });
+});
+
 /** The same list, pushed the moment it changes (server-sent events). A heartbeat keeps proxies from closing it. */
 activityRoutes.get('/live', (c) => {
   requireAdmin(c);

@@ -77,6 +77,7 @@ function DownloaderAdmin() {
       tryAnother: d.get('tryAnother') === 'on',
       seedRatio: Number(d.get('seedRatio')),
       seedDays: Number(d.get('seedDays')),
+      minSeeders: Number(d.get('minSeeders')),
       privateKeepSharing: d.get('privateKeepSharing') === 'on',
       removeWhenShared: d.get('removeWhenShared') === 'on',
       folderPairs: [0, 1]
@@ -175,6 +176,7 @@ function DownloaderAdmin() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
           <Field label="Call it stuck after (hours)" name="stuckHours" type="number" min={1} max={168} defaultValue={data.stuckHours} hint="With no progress for this long, the Downloads page says it's stuck." />
           <Field label="Try another copy after (hours)" name="giveUpHours" type="number" min={1} max={720} defaultValue={data.giveUpHours} hint="Some copies come back after a while; this is how long to wait." />
+          <Field label="Fewest people sharing a copy" name="minSeeders" type="number" min={1} max={1000} defaultValue={data.minSeeders} hint="Copies with fewer people sharing them aren’t picked. Raise it if downloads sit stuck. A Source that doesn’t say how many share a copy is let through." />
         </div>
       </Card>
       <Card className="flex flex-col gap-4">

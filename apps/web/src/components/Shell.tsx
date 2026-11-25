@@ -80,6 +80,9 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   // Downloads on their way: the menu lights up with a count when one starts.
   const { data: dl } = useQuery({ queryKey: ['downloads', 'summary'], queryFn: () => api<{ active: number }>('/downloads/summary'), refetchInterval: 15_000, enabled: user.role !== 'kid' });
   const active = dl?.active ?? 0;
+  // Streams playing now: the Watching entry lights up with a count, the way Downloads does.
+  const { data: nowPlaying } = useQuery({ queryKey: ['activity', 'count'], queryFn: () => api<{ playing: number }>('/activity/count'), refetchInterval: 15_000, enabled: user.role === 'admin' });
+  const playing = nowPlaying?.playing ?? 0;
   const isActive = useActive();
   const items = GROUPS.flatMap((g) => g.items).filter((n) => allowed(n, user.role));
   const tabs = TABS[user.role].map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n);
@@ -108,6 +111,10 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
     ) : n.to === '/downloads' && active > 0 ? (
       <span aria-label={`${active} on the way`} className="rounded-full bg-blue px-1.5 text-caption font-bold text-blue-ink">
         {active}
+      </span>
+    ) : n.to === '/activity' && playing > 0 ? (
+      <span aria-label={`${playing} ${playing === 1 ? 'stream' : 'streams'} playing`} className="rounded-full bg-teal px-1.5 text-caption font-bold text-teal-ink">
+        {playing}
       </span>
     ) : null;
 
