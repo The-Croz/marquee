@@ -55,6 +55,7 @@ const db = openDb(path.join(config.dataDir, 'marquee.sqlite'), {
 const clientId = plexClientId(db);
 watchSecrets(db);
 
+const apnsClient = ApnsClient.forDb(db);
 const clients = {
   tmdb: (key: string) => new TmdbClient(key, db),
   streamingTop: (key: string) => new StreamingAvailabilityClient(key, db),
@@ -67,7 +68,8 @@ const clients = {
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
   jellyfinLogin: (url: string, username: string, password: string) => jellyfinCheckLogin(url, username, password),
-  push: new HttpPushClient(fetch, ApnsClient.forDb(db)),
+  push: new HttpPushClient(fetch, apnsClient),
+  apns: apnsClient,
   siteFetch: realSiteFetch,
   solver: (url: string) => new FlareSolverrClient(url),
   fetchCatalogue: async () => {

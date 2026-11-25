@@ -787,6 +787,7 @@ export const migrations: string[] = [
     download_id INTEGER NOT NULL REFERENCES downloads (id) ON DELETE CASCADE,
     device_id TEXT NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
     token TEXT NOT NULL,
+    environment TEXT NOT NULL DEFAULT 'production',
     last_percent INTEGER NOT NULL DEFAULT 0,
     last_state TEXT NOT NULL DEFAULT '',
     started_at INTEGER NOT NULL

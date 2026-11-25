@@ -11,7 +11,7 @@ export interface ApnsConfig {
   bundleId: string;
 }
 
-const K = { key: 'apns.key', keyId: 'apns.key_id', teamId: 'apns.team_id', bundleId: 'apns.bundle_id' } as const;
+const K = { key: 'apns.private_key', keyId: 'apns.key_id', teamId: 'apns.team_id', bundleId: 'apns.bundle_id' } as const;
 
 export function readApns(db: Db): ApnsConfig | null {
   const key = getSetting(db, K.key);

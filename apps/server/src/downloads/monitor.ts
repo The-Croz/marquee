@@ -1,3 +1,4 @@
+import { updateLiveActivities } from './liveActivity.js';
 import { tell, type NotifyDeps } from '../notify/service.js';
 import type { Vars } from '../notify/template.js';
 import { posterUrl } from '../notify/vars.js';
@@ -46,7 +47,7 @@ export const IMPORT_RETRY_MS = 15 * 60_000;
 
 export interface MonitorDeps {
   db: Db;
-  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin' | 'disk' | 'unpacker'>;
+  clients: Pick<Clients, 'qbittorrent' | 'fetchTorrent' | 'plexServer' | 'jellyfin' | 'disk' | 'unpacker' | 'apns'>;
   sources: SourceService;
   now: () => number;
   /** Tells people about finished, imported and problem downloads (and what they asked for being ready). */
@@ -167,6 +168,15 @@ export class DownloadMonitor {
 
   /** Brings every followed download up to date with qBittorrent. Throws QbitError when it can't be reached. */
   async check(): Promise<{ replaced: number }> {
+    try {
+      return await this.checkDownloads();
+    } finally {
+      // Lock Screen cards follow whatever just changed (they never stop the check).
+      await updateLiveActivities({ db: this.deps.db, apns: this.deps.clients.apns ?? null, now: this.deps.now }).catch(() => {});
+    }
+  }
+
+  private async checkDownloads(): Promise<{ replaced: number }> {
     const { db, now } = this.deps;
     const qbit = this.qbit();
     const rows = db

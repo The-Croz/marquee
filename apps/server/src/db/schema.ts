@@ -626,6 +626,7 @@ export const liveActivities = sqliteTable(
     deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
     /** Apple's push token for this one activity. A secret: never sent back. */
     token: text('token').notNull(),
+    environment: text('environment', { enum: ['production', 'sandbox'] }).notNull().default('production'),
     lastPercent: integer('last_percent').notNull().default(0),
     lastState: text('last_state').notNull().default(''),
     startedAt: integer('started_at').notNull(),
