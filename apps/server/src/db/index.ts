@@ -719,6 +719,37 @@ export const migrations: string[] = [
   DELETE FROM settings WHERE key = 'services.omdb_key';
   DELETE FROM tmdb_cache WHERE key LIKE 'omdb:%';
   `,
+  // 34: a list's first read waits for you to choose (started_at is set once it has); each list title's poster;
+  // History records files set aside, put back and deleted by hand from Library → Clean up
+  `
+  ALTER TABLE import_lists ADD COLUMN started_at INTEGER;
+  UPDATE import_lists SET started_at = COALESCE(last_sync_at, created_at);
+  ALTER TABLE list_items ADD COLUMN poster_path TEXT;
+  CREATE TABLE history_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    event TEXT NOT NULL CHECK (event IN ('sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed', 'set_aside', 'put_back', 'deleted')),
+    kind TEXT NOT NULL CHECK (kind IN ('movie', 'tv')),
+    movie_id INTEGER REFERENCES movies (id) ON DELETE SET NULL,
+    series_id INTEGER REFERENCES series (id) ON DELETE SET NULL,
+    season INTEGER,
+    episodes TEXT,
+    download_id INTEGER REFERENCES downloads (id) ON DELETE SET NULL,
+    copy TEXT,
+    title TEXT NOT NULL,
+    source TEXT,
+    quality TEXT,
+    size INTEGER,
+    detail TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE SET NULL
+  );
+  INSERT INTO history_new SELECT * FROM history;
+  DROP TABLE history;
+  ALTER TABLE history_new RENAME TO history;
+  CREATE INDEX history_at ON history (at);
+  CREATE INDEX history_movie ON history (movie_id);
+  CREATE INDEX history_series ON history (series_id);
+  `,
 ];
 
 export interface OpenOptions {

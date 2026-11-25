@@ -254,6 +254,12 @@ function Replaced() {
               </p>
             )}
             {done && <Notice tone="success">{done}</Notice>}
+            <p className="m-0 text-sm">
+              <Link to="/library/clean-up?tab=bin" className="text-amber">
+                Go through it file by file
+              </Link>{' '}
+              <span className="text-muted">in Library → Clean up, to put things back or delete only some.</span>
+            </p>
             {v.files > 0 && (
               <div>
                 <Button type="button" variant="danger" onClick={() => setConfirming(true)}>

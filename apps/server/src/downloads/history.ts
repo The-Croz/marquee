@@ -11,7 +11,7 @@ import { history, movies, series, users, type Download } from '../db/schema.js';
  * added. A title's own History and the History page both read from here.
  */
 
-export const HISTORY_EVENTS: HistoryEvent[] = ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed'];
+export const HISTORY_EVENTS: HistoryEvent[] = ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed', 'set_aside', 'put_back', 'deleted'];
 
 const LOOK: Record<HistoryEvent, { label: string; tone: HistoryItem['tone'] }> = {
   sent: { label: 'Sent to qBittorrent', tone: 'busy' },
@@ -23,6 +23,9 @@ const LOOK: Record<HistoryEvent, { label: string; tone: HistoryItem['tone'] }> =
   allowed_again: { label: 'Taken off Never pick', tone: 'quiet' },
   title_removed: { label: 'Removed from Marquee', tone: 'quiet' },
   renamed: { label: 'Renamed', tone: 'quiet' },
+  set_aside: { label: 'Set aside by hand', tone: 'quiet' },
+  put_back: { label: 'Put back', tone: 'quiet' },
+  deleted: { label: 'Deleted for good', tone: 'quiet' },
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');

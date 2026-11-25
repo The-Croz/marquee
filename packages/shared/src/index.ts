@@ -886,7 +886,7 @@ export interface DownloadsView {
 }
 
 /** What happened to a download, for the History page and a title's History. */
-export type HistoryEvent = 'sent' | 'in_library' | 'upgraded' | 'replaced' | 'removed' | 'import_failed' | 'allowed_again' | 'title_removed' | 'renamed';
+export type HistoryEvent = 'sent' | 'in_library' | 'upgraded' | 'replaced' | 'removed' | 'import_failed' | 'allowed_again' | 'title_removed' | 'renamed' | 'set_aside' | 'put_back' | 'deleted';
 
 export interface HistoryItem {
   id: number;
@@ -1344,6 +1344,8 @@ export interface ListView {
   /** Titles seen on it so far, and how many it added or asked for. */
   seen: number;
   added: number;
+  /** Titles from the first read waiting for you to choose which to take. */
+  waiting: number;
 }
 
 export interface ListItemView {
@@ -1351,9 +1353,20 @@ export interface ListItemView {
   tmdbId: number;
   title: string;
   year: number | null;
+  posterPath: string | null;
   seenAt: number;
+  /** 'waiting' (for you to choose), 'skipped' (left out when you chose), 'added', 'asked', 'already'… */
   outcome: string;
   outcomeText: string;
+  /** Waiting or left-out titles: where it already stands ("In your library", "Already asked for"), or null. */
+  standing: string | null;
+}
+
+export interface ListChoiceResult {
+  taken: number;
+  leftOut: number;
+  message: string;
+  list: ListView;
 }
 
 export interface ListsView {
@@ -1928,6 +1941,96 @@ export interface ReplacedView {
   bytes: number;
   /** What emptying them gives back. Files still shared by a download in qBittorrent free nothing. */
   freedBytes: number;
+}
+
+// ---------------------------------------------------------------- Library → Clean up
+
+export interface CleanupFileView {
+  /** Where it is, as Marquee sees it. */
+  path: string;
+  name: string;
+  /** Its folder under the library folder. */
+  folder: string;
+  sizeBytes: number;
+  /** Another hardlink keeps it (usually the download qBittorrent shares), so removing it frees no space yet. */
+  shared: boolean;
+}
+
+/** A movie, or an episode, with more than one video file. */
+export interface CopyGroup {
+  key: string;
+  kind: 'movie' | 'series';
+  titleId: number;
+  /** "Dune (2021)" or "Severance · S01E02". */
+  title: string;
+  href: string;
+  files: (CleanupFileView & {
+    addedAt: number | null;
+    /** "2160p · WEB-DL · DV · x265 · FLUX". */
+    quality: string | null;
+    /** What the title's profile calls it. */
+    judged: string;
+    /** The one the title's profile likes best: Clean up suggests keeping it. */
+    best: boolean;
+  })[];
+}
+
+/** One thing in the recycle bin (a set-aside folder). */
+export interface SetAsideItem {
+  path: string;
+  name: string;
+  root: 'movies' | 'tv' | 'downloads';
+  rootLabel: string;
+  /** Where it was, and its folder there. */
+  originalPath: string;
+  originalFolder: string;
+  sizeBytes: number;
+  /** What deleting it gives back (0 when another hardlink keeps it). */
+  freedBytes: number;
+  setAsideAt: number;
+  title: { name: string; href: string } | null;
+  /** Nothing is where it was, so it can go back. */
+  canPutBack: boolean;
+}
+
+export interface SetAsideView {
+  items: SetAsideItem[];
+  bytes: number;
+  freedBytes: number;
+}
+
+export interface CleanupDownloadsView {
+  /** False when Marquee can't tell what qBittorrent uses; then nothing is listed and `problem` says why and what to do. */
+  ok: boolean;
+  problem: string | null;
+  folder: string;
+  items: {
+    path: string;
+    name: string;
+    folder: string;
+    isFolder: boolean;
+    files: number;
+    sizeBytes: number;
+    freedBytes: number;
+    /** Every file in it is also in the library (hardlinked), so removing it frees nothing. */
+    inLibrary: boolean;
+    modifiedAt: number;
+  }[];
+}
+
+export interface UntrackedFile extends CleanupFileView {
+  root: 'movies' | 'tv';
+  modifiedAt: number;
+  /** Why it isn't any title's, in plain words. */
+  reason: string;
+  /** Where to sort it out (a title page, Needs a match, Left out), if anywhere. */
+  href: string | null;
+}
+
+export interface CleanupResult {
+  done: number;
+  problems: string[];
+  message: string;
 }
 
 // ---------------------------------------------------------------- Something wrong?

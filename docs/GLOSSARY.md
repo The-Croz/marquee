@@ -29,6 +29,10 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **List of sites** | The site files Marquee can run: Prowlarr's catalogue, updated daily, plus your own. | Indexer definitions |
 | **Bring sites over** | Turns Prowlarr's sites into sites Marquee searches itself. | — |
 | **Bot check** / **Solve bot checks** | A "checking your browser" page (Cloudflare) in front of a site, and the solver inside Marquee that gets past it. | FlareSolverr |
+| **Clean up** | Library → Clean up: titles with two copies, downloads nobody uses, files with no title, and the recycle bin. | — |
+| **Set aside** | Moved into a hidden `.marquee-replaced` folder, where Plex and Jellyfin don't look. Can be put back; nothing is deleted. | Recycle bin (Radarr/Sonarr) |
+| **Recycle bin** | What's been set aside, file by file: put back, delete for good, or empty it. Never emptied by itself. | Recycling bin |
+| **Waiting for you to choose** | What was already on a list when you added it. Nothing is asked for until you tick it. | — |
 
 ## Source health
 

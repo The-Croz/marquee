@@ -1,7 +1,7 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { ListItemView, ListView, ListsView, NewRequest } from '@marquee/shared';
 import { getSetting, type Db } from '../db/index.js';
-import { importLists, letterboxdFilms, listExclusions, listItems, movies, series, users, type User } from '../db/schema.js';
+import { importLists, letterboxdFilms, listExclusions, listItems, mediaFiles, movies, requests, series, users, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
 import { ProfileService } from '../releases/profiles.js';
 import type { LibraryScanner } from './scanner.js';
@@ -17,6 +17,11 @@ import { setMoviesWanted } from './wanted.js';
  * title is handled once, when it first shows up on a list; taking it off the
  * list later changes nothing, and nothing is ever removed. Titles on the
  * exclusions list are never added.
+ *
+ * The **first read** of a list (and the first after it's switched back on)
+ * only records what's there: each title waits for you to choose, so adding a
+ * long watchlist doesn't start dozens of downloads. Whatever shows up after
+ * that goes through by itself. Titles you leave out can still be taken later.
  */
 
 export type ListKind = 'plex_watchlist' | 'trakt' | 'imdb' | 'letterboxd';
@@ -225,6 +230,8 @@ export interface SyncResult {
 }
 
 const OUTCOME = {
+  waiting: 'Waiting for you to choose',
+  skipped: 'Left out when you added the list',
   added: 'Added and Wanted',
   wanted: 'Already here; now Wanted',
   asked: 'Asked for',
@@ -241,9 +248,12 @@ export async function syncList(deps: ListDeps, row: ListRow): Promise<SyncResult
   try {
     const entries = await read(deps, row);
     const tmdb = deps.tmdb();
+    // The first read only records what's there, for you to choose from.
+    const staging = row.startedAt == null;
     let added = 0;
     let unknown = 0;
     let fresh = 0;
+    let waiting = 0;
     for (const e of entries) {
       const found = await resolve(tmdb, e);
       if (!found) {
@@ -252,13 +262,22 @@ export async function syncList(deps: ListDeps, row: ListRow): Promise<SyncResult
       }
       if (db.select().from(listItems).where(and(eq(listItems.listId, row.id), eq(listItems.kind, found.kind), eq(listItems.tmdbId, found.tmdbId))).get()) continue;
       fresh++;
+      if (staging) {
+        const s = await stage(deps, found, e);
+        if (s.outcome === 'waiting') waiting++;
+        db.insert(listItems).values({ listId: row.id, kind: found.kind, tmdbId: found.tmdbId, title: s.title, year: s.year, posterPath: s.posterPath, seenAt: now(), outcome: s.outcome }).onConflictDoNothing().run();
+        continue;
+      }
       const { outcome, title, year } = await handle(deps, row, found, e);
       if (outcome === 'added' || outcome === 'asked' || outcome === 'wanted') added++;
       db.insert(listItems).values({ listId: row.id, kind: found.kind, tmdbId: found.tmdbId, title, year, seenAt: now(), outcome }).onConflictDoNothing().run();
     }
     const verb = row.kind === 'plex_watchlist' ? 'asked for' : 'added';
-    const parts = [`${entries.length} on the list`, fresh ? `${fresh} new` : 'nothing new', added ? `${added} ${verb}` : null, unknown ? `${unknown} not found on TMDB` : null].filter(Boolean);
+    const parts = staging
+      ? [`${entries.length} on the list`, waiting ? `${waiting} waiting for you to choose` : 'nothing to choose', unknown ? `${unknown} not found on TMDB` : null].filter(Boolean)
+      : [`${entries.length} on the list`, fresh ? `${fresh} new` : 'nothing new', added ? `${added} ${verb}` : null, unknown ? `${unknown} not found on TMDB` : null].filter(Boolean);
     result = { ok: true, message: `${parts.join(', ')}.`, added };
+    if (staging) db.update(importLists).set({ startedAt: now() }).where(eq(importLists.id, row.id)).run();
   } catch (err) {
     const message = err instanceof ListError || err instanceof HttpError ? err.message : `Couldn’t read it: ${(err as Error).message}`;
     result = { ok: false, message: `${message} Marquee tries again by itself.`, added: 0 };
@@ -281,6 +300,54 @@ async function read(deps: ListDeps, row: ListRow): Promise<ListEntry[]> {
     case 'letterboxd':
       return readLetterboxd(deps.db, deps.fetchPage, row.url!, deps.now());
   }
+}
+
+/** A title from a list's first read: kept to choose from (with its name and poster from TMDB), unless it's on the exclusions list. */
+async function stage(deps: ListDeps, found: { kind: 'movie' | 'series'; tmdbId: number }, e: ListEntry): Promise<{ outcome: Outcome; title: string; year: number | null; posterPath: string | null }> {
+  const excluded = deps.db.select().from(listExclusions).where(and(eq(listExclusions.kind, found.kind), eq(listExclusions.tmdbId, found.tmdbId))).get();
+  if (excluded) return { outcome: 'excluded', title: excluded.title, year: excluded.year, posterPath: null };
+  try {
+    const d = found.kind === 'movie' ? await deps.tmdb().movie(found.tmdbId) : await deps.tmdb().show(found.tmdbId);
+    return { outcome: 'waiting', title: d.title, year: d.year, posterPath: d.posterPath };
+  } catch {
+    return { outcome: 'waiting', title: e.title, year: e.year, posterPath: null };
+  }
+}
+
+export interface ListPick {
+  kind: 'movie' | 'series';
+  tmdbId: number;
+}
+
+/**
+ * Your choice from a list's waiting titles: `take` are asked for (a Plex
+ * watchlist) or added as Wanted (other lists), the usual way; `leaveOut` are
+ * marked as left out, and can be taken later. Only waiting or left-out titles
+ * can be taken; anything else on the list was already handled.
+ */
+export async function chooseFromList(deps: ListDeps, row: ListRow, take: ListPick[], leaveOut: ListPick[]): Promise<{ taken: number; leftOut: number; message: string }> {
+  const { db } = deps;
+  const item = (p: ListPick) => db.select().from(listItems).where(and(eq(listItems.listId, row.id), eq(listItems.kind, p.kind), eq(listItems.tmdbId, p.tmdbId))).get();
+  let taken = 0;
+  let failed = 0;
+  for (const p of take) {
+    const it = item(p);
+    if (!it || (it.outcome !== 'waiting' && it.outcome !== 'skipped')) continue;
+    const r = await handle(deps, row, p, { kind: p.kind, title: it.title, year: it.year });
+    db.update(listItems).set({ outcome: r.outcome, title: r.title, year: r.year }).where(and(eq(listItems.listId, row.id), eq(listItems.kind, p.kind), eq(listItems.tmdbId, p.tmdbId))).run();
+    if (r.outcome === 'added' || r.outcome === 'asked' || r.outcome === 'wanted') taken++;
+    if (r.outcome === 'failed') failed++;
+  }
+  let left = 0;
+  for (const p of leaveOut) {
+    if (item(p)?.outcome !== 'waiting') continue;
+    db.update(listItems).set({ outcome: 'skipped' }).where(and(eq(listItems.listId, row.id), eq(listItems.kind, p.kind), eq(listItems.tmdbId, p.tmdbId))).run();
+    left++;
+  }
+  const verb = row.kind === 'plex_watchlist' ? 'Asked for' : 'Added';
+  const parts = [taken ? `${verb} ${taken}` : null, left ? `left out ${left}` : null, failed ? `${failed} couldn’t be added (Marquee’s log says why)` : null].filter(Boolean) as string[];
+  const message = parts.length ? `${parts.join(', ').replace(/^./, (c) => c.toUpperCase())}.` : 'Nothing changed.';
+  return { taken, leftOut: left, message };
 }
 
 async function handle(deps: ListDeps, row: ListRow, found: { kind: 'movie' | 'series'; tmdbId: number }, e: ListEntry): Promise<{ outcome: Outcome; title: string; year: number | null }> {
@@ -359,18 +426,40 @@ export function listView(db: Db, row: ListRow): ListView {
     lastMessage: row.lastMessage,
     seen: counts.length,
     added: counts.filter((c) => c.outcome === 'added' || c.outcome === 'asked' || c.outcome === 'wanted').length,
+    waiting: counts.filter((c) => c.outcome === 'waiting').length,
   };
 }
 
-export function listItemsView(db: Db, listId: number): ListItemView[] {
-  return db
-    .select()
-    .from(listItems)
-    .where(eq(listItems.listId, listId))
-    .orderBy(desc(listItems.seenAt))
-    .limit(200)
-    .all()
-    .map((i) => ({ kind: i.kind, tmdbId: i.tmdbId, title: i.title, year: i.year, seenAt: i.seenAt, outcome: i.outcome, outcomeText: OUTCOME[i.outcome as Outcome] ?? i.outcome }));
+/** Where a title on a list already stands, so choosing is easy: "In your library", "Already Wanted", "Already asked for". */
+function standing(db: Db, kind: 'movie' | 'series', tmdbId: number): string | null {
+  if (kind === 'movie') {
+    const m = db.select().from(movies).where(eq(movies.tmdbId, tmdbId)).get();
+    if (m && db.select({ id: mediaFiles.id }).from(mediaFiles).where(eq(mediaFiles.movieId, m.id)).get()) return 'In your library';
+    if (m?.monitored) return 'Already Wanted';
+  } else {
+    const s = db.select().from(series).where(eq(series.tmdbId, tmdbId)).get();
+    if (s?.monitored) return 'Already Wanted';
+    if (s && db.select({ id: mediaFiles.id }).from(mediaFiles).where(eq(mediaFiles.seriesId, s.id)).get()) return 'Some of it is in your library';
+  }
+  const asked = db.select({ id: requests.id }).from(requests).where(and(eq(requests.kind, kind), eq(requests.tmdbId, tmdbId), inArray(requests.status, ['pending', 'approved']))).get();
+  return asked ? 'Already asked for' : null;
+}
+
+/** What a list has seen, newest first (the last 200), or with `waiting`, every title waiting for you to choose. */
+export function listItemsView(db: Db, listId: number, opts: { waiting?: boolean } = {}): ListItemView[] {
+  const where = opts.waiting ? and(eq(listItems.listId, listId), eq(listItems.outcome, 'waiting')) : eq(listItems.listId, listId);
+  const q = db.select().from(listItems).where(where).orderBy(desc(listItems.seenAt), listItems.title);
+  return (opts.waiting ? q.all() : q.limit(200).all()).map((i) => ({
+    kind: i.kind,
+    tmdbId: i.tmdbId,
+    title: i.title,
+    year: i.year,
+    posterPath: i.posterPath,
+    seenAt: i.seenAt,
+    outcome: i.outcome,
+    outcomeText: OUTCOME[i.outcome as Outcome] ?? i.outcome,
+    standing: i.outcome === 'waiting' || i.outcome === 'skipped' ? standing(db, i.kind, i.tmdbId) : null,
+  }));
 }
 
 export function listsView(db: Db): ListsView {

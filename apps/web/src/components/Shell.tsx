@@ -92,6 +92,7 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
       ? [
           { to: '/downloads/history', label: 'Download history', group: 'Page', keywords: 'sent imported upgraded replaced removed failed log' },
           { to: '/downloads/never-pick', label: 'Never pick', group: 'Page', keywords: 'turned down copies fakes' },
+          { to: '/library/clean-up', label: 'Clean up', group: 'Page', keywords: 'duplicates two copies recycle bin set aside replaced delete orphaned leftover downloads space' },
         ]
       : [{ to: '/history', label: 'My history', group: 'Page' }]),
     ...settingsGroups(user.role)

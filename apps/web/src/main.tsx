@@ -28,6 +28,7 @@ import { TmdbPersonPage } from './pages/TmdbPerson';
 import { UnmatchedPage } from './pages/Unmatched';
 import { ManualImportPage } from './pages/ManualImport';
 import { LeftOutPage } from './pages/LeftOut';
+import { CleanupPage } from './pages/Cleanup';
 import { SearchPage } from './pages/Search';
 import { QualityPage } from './pages/Quality';
 import { CollectionPage, ListsPage } from './pages/GettingIn';
@@ -70,6 +71,7 @@ const router = createBrowserRouter([
       { path: 'library/import', element: <RequireUser render={(s) => <AdminOnly status={s}><ManualImportPage /></AdminOnly>} /> },
       { path: 'library/unwatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnwatchedPage /></AdminOnly>} /> },
       { path: 'library/left-out', element: <RequireUser render={(s) => <AdminOnly status={s}><LeftOutPage /></AdminOnly>} /> },
+      { path: 'library/clean-up', element: <RequireUser render={(s) => <AdminOnly status={s}><CleanupPage /></AdminOnly>} /> },
       { path: 'search', element: <RequireUser render={(s) => (s.user.role === 'kid' ? <Navigate to="/" replace /> : <SearchPage user={s.user} />)} /> },
       { path: 'requests', element: <RequireUser render={(s) => <RequestsPage user={s.user} />} /> },
       { path: 'downloads', element: <DownloadsPage /> },

@@ -434,6 +434,19 @@ From [`docs/design/holyarrs-releases-2026-11.md`](design/holyarrs-releases-2026-
 - Title page: the back link sits over the banner's corner, so the banner starts at the top.
 - Requests: no "Find something to ask for" link; filters (status, movies/shows, who asked) and sorting; "Recently answered" (last 14 days) under the waiting list.
 
+## Choose from lists, and Clean up (2026-11-24) ✅
+
+Josh switched on his Plex watchlist and it asked for everything on it at once, which started a pile of downloads. Design: [`docs/superpowers/specs/2026-11-24-list-review-and-cleanup-design.md`](superpowers/specs/2026-11-24-list-review-and-cleanup-design.md).
+
+- **The first read of a list waits for you** (`library/lists.ts`): adding a Trakt, IMDb or Letterboxd list, or switching on someone's Plex watchlist, only records what's on it (*Waiting for you to choose*, with TMDB's name and poster). Settings → Lists shows "12 titles are waiting for you to choose · Choose": a sheet with Select all, Select none and "Only what isn't here yet", nothing ticked to start with, each title saying where it already stands (In your library, Already Wanted, Already asked for). **Ask for 3** / **Add 3 as Wanted**; the rest are *Left out when you added the list* and keep an **Ask for it now** / **Add it now** button. After that first read, new titles go through by themselves as before. Switching a list off and on again makes what's new since then wait too. Lists already followed carry on as they were (migration 34 sets `import_lists.started_at`). `POST /api/lists/:id/choose { take, leaveOut }`, `GET /api/lists/:id/items?waiting=1`.
+- **Library → Clean up** (`library/cleanup.ts`, `routes/cleanup.ts`, `/library/clean-up`, admins), four tabs, found on demand:
+  - **Two copies**: a movie or an episode with more than one video file (two folders for one movie included). The copy to keep is the sharpest picture, then the title's profile, then size; it's left unticked, the others ticked. A title's last copy is never set aside here (Remove from Marquee does that).
+  - **Recycle bin**: every file in the `.marquee-replaced` folders, one by one, with its title, when it was set aside and what deleting it frees. **Put back** (if nothing's there now; then a library scan), **Delete for good** (confirm names every file), **Empty the recycle bin**. Settings → Health's Replaced files links here.
+  - **Unused downloads**: what in the downloads folder no torrent in qBittorrent points at, in any category (qBittorrent's save and category folders are looked inside, never listed whole). Lists nothing while qBittorrent can't answer, or when none of its torrents are in the downloads folder as Marquee sees it (folder pairs missing), so nothing looks unused by mistake. Hardlinked into the library = "frees nothing".
+  - **No title**: video files in the library folders no title counts, with why (loose in the folder, waiting for a match, ignored, left out, can't tell which episode) and a link to sort it out.
+- Getting rid of anything only **sets it aside** into the hidden folder of its own library or downloads folder (`<downloads>/.marquee-replaced` is new, and Empty covers it), and Plex and Jellyfin are told to look at the folder again. The server only moves what it would list itself. History gains **Set aside by hand**, **Put back** and **Deleted for good** (migration 34 rebuilds its check). New `allTorrents()` on the qBittorrent client.
+- Tests: `test/gettingIn.test.ts` (waiting, choosing, left out then taken, new titles automatic, off and on again, where it stands), `test/cleanup.test.ts`. Demo mode has two copies of The Matrix and of Severance S01E01, an old Radarr download and a loose file.
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

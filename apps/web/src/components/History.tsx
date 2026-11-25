@@ -21,6 +21,9 @@ export const HISTORY_KINDS = [
   ['allowed_again', 'Taken off Never pick'],
   ['renamed', 'Renamed'],
   ['title_removed', 'Removed from Marquee'],
+  ['set_aside', 'Set aside by hand'],
+  ['put_back', 'Put back'],
+  ['deleted', 'Deleted for good'],
 ] as const;
 
 export const when = (ms: number) => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
