@@ -38,7 +38,7 @@ import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
 import { FakeRadarr } from '../test/fakes/radarr.js';
-import { FakeQbit, fakeFetchTorrent } from '../test/fakes/qbittorrent.js';
+import { FakeQbit, fakeFetchTorrent, qbitTorrent } from '../test/fakes/qbittorrent.js';
 import { FakeMediaServer } from '../test/fakes/mediaServers.js';
 import { FakeUnpacker, fakeRar } from '../test/fakes/unpack.js';
 import { BOT_CHECK, FakeSolver, FakeWeb, catalogueZip } from '../test/fakes/sites.js';
@@ -160,6 +160,21 @@ const qbit = new FakeQbit();
 setSetting(db, 'downloader.url', 'http://qbittorrent:8080');
 setSetting(db, 'downloader.username', 'admin');
 setSetting(db, 'downloader.password', 'adminadmin');
+// Clean up → In qBittorrent: torrents another app sent: one feeding The Matrix (done sharing), two nobody uses, one whose files are gone, one stuck.
+fs.mkdirSync(path.join(root, 'torrents/radarr/The.Matrix.1999.1080p.BluRay-GRP'), { recursive: true });
+fs.linkSync(path.join(root, 'movies/The Matrix (1999)/The Matrix (1999) Bluray-1080p.mkv'), path.join(root, 'torrents/radarr/The.Matrix.1999.1080p.BluRay-GRP/The Matrix (1999) Bluray-1080p.mkv'));
+file('torrents/tv-sonarr/Some.Show.S03E04.720p-X/some.show.mkv', 400 * 1024 ** 2, 30);
+const tor = (cat: string, name: string) => ({ name, category: cat, savePath: path.join(root, 'torrents', cat), contentPath: path.join(root, 'torrents', cat, name) });
+qbit.list.push(
+  qbitTorrent('1'.repeat(40), { ...tor('radarr', 'The.Matrix.1999.1080p.BluRay-GRP'), state: 'stalledUP', progress: 1, size: 8 * GB, ratio: 4.1, seedingSeconds: 90 * 86_400 }),
+  qbitTorrent('2'.repeat(40), { ...tor('radarr', 'Old.Movie.2001.720p.BluRay.x264-X'), state: 'stalledUP', progress: 1, size: 4 * GB, ratio: 1.2, seedingSeconds: 40 * 86_400 }),
+  qbitTorrent('3'.repeat(40), { ...tor('tv-sonarr', 'Some.Show.S03E04.720p-X'), state: 'uploading', progress: 1, size: 400 * 1024 ** 2, ratio: 0.4, isPrivate: true }),
+  qbitTorrent('4'.repeat(40), { ...tor('radarr', 'Lost.Movie.2015.1080p-Y'), state: 'missingFiles', progress: 1, size: 6 * GB }),
+  qbitTorrent('5'.repeat(40), { ...tor('tv-sonarr', 'Rare.Show.S01E02.1080p-Z'), state: 'stalledDL', progress: 0.03, size: 2 * GB, addedOn: Date.now() - 9 * 86_400_000 }),
+);
+qbit.fileLists.set('1'.repeat(40), [{ name: 'The.Matrix.1999.1080p.BluRay-GRP/The Matrix (1999) Bluray-1080p.mkv', size: 8 * GB }]);
+qbit.fileLists.set('2'.repeat(40), [{ name: 'Old.Movie.2001.720p.BluRay.x264-X/old.movie.mkv', size: 4 * GB }]);
+qbit.fileLists.set('3'.repeat(40), [{ name: 'Some.Show.S03E04.720p-X/some.show.mkv', size: 400 * 1024 ** 2 }]);
 const qbitTvHashes = new Set<string>();
 /** The copy name for each fake torrent, so finished ones get a real-looking file name. */
 const qbitNames = new Map<string, string>();

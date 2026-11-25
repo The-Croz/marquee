@@ -75,6 +75,8 @@ export interface QbitTorrent {
   tags?: string[];
   /** Seconds it has been running. */
   activeSeconds?: number;
+  /** From a private tracker, when qBittorrent says (5.0+); null when it doesn't. */
+  isPrivate?: boolean | null;
 }
 
 export interface QbitFile {
@@ -191,7 +193,7 @@ export class QbitClient implements QbitApi {
       hash: string; name: string; category: string; state: string; progress: number; size: number; save_path: string;
       dlspeed?: number; eta?: number; num_seeds?: number; num_complete?: number; content_path?: string; ratio?: number; seeding_time?: number;
       upspeed?: number; num_leechs?: number; num_incomplete?: number; downloaded?: number; uploaded?: number; added_on?: number; completion_on?: number;
-      tracker?: string; tags?: string; time_active?: number;
+      tracker?: string; tags?: string; time_active?: number; private?: boolean;
     };
     const rows = await this.json<T[]>(`/torrents/info?hashes=${hashes.map((h) => h.toLowerCase()).join('|')}`);
     return rows.map((r) => ({
@@ -219,6 +221,7 @@ export class QbitClient implements QbitApi {
       tracker: r.tracker ?? '',
       tags: (r.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean),
       activeSeconds: r.time_active ?? 0,
+      ...(r.private !== undefined ? { isPrivate: r.private } : {}),
     }));
   }
 

@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { CleanupDownloadsView, CleanupResult, CopyGroup, SetAsideView, UntrackedFile } from '@marquee/shared';
+import type { CleanupDownloadsView, CleanupResult, CopyGroup, ReconcileView, SetAsideView, UntrackedFile } from '@marquee/shared';
+import { reconcileView, removeTorrents } from '../library/reconcile.js';
+import { sharedMonitor } from '../downloads/monitor.js';
 import { requireAdmin, type Deps, type Env } from '../http.js';
 import { copyGroups, deleteForGood, putBack, setAsideByHand, setAsideView, unusedDownloads, untrackedFiles, type CleanupDeps } from '../library/cleanup.js';
 import { tellMediaServers } from '../library/mediaServers.js';
@@ -77,4 +79,23 @@ cleanupRoutes.post('/delete', async (c) => {
   const r = await deleteForGood(d.db, input.paths, d.now(), user.id);
   console.info(`[cleanup] ${user.displayName} deleted ${r.done} set-aside ${r.done === 1 ? 'file' : 'files'} (${size(r.bytes)})`);
   return c.json<CleanupResult>({ done: r.done, problems: r.problems, message: r.done ? `${r.message.replace(/\.$/, '')}, giving back ${size(r.bytes)}.` : r.message });
+});
+
+/** In qBittorrent: every torrent, grouped. `?fresh=1` checks again instead of using the last 10 minutes' answer. */
+cleanupRoutes.get('/downloader', async (c) => {
+  requireAdmin(c);
+  return c.json<ReconcileView>(await reconcileView(cleanupDeps(c.get('deps')), { fresh: c.req.query('fresh') === '1' }));
+});
+
+/** Removes chosen torrents from qBittorrent, with their files when asked. Only by hand, behind a confirm. */
+cleanupRoutes.post('/downloader/remove', async (c) => {
+  const user = requireAdmin(c);
+  const input = z
+    .object({ hashes: z.array(z.string().regex(/^[0-9a-f]{40,64}$/)).min(1, 'Pick something first.').max(2000), deleteFiles: z.boolean(), confirm: z.literal(true, { message: 'Confirm first.' }) })
+    .parse(await c.req.json());
+  const d = c.get('deps');
+  const monitor = sharedMonitor({ db: d.db, clients: d.clients, sources: d.sources, now: d.now });
+  const r = await removeTorrents({ ...cleanupDeps(d), removeFollowed: async (id, files) => void (await monitor.remove(id, files, user.id)) }, input.hashes, input.deleteFiles, user.id);
+  console.info(`[cleanup] ${user.displayName} removed ${r.done} from qBittorrent${input.deleteFiles ? ' with files' : ''}`);
+  return c.json<CleanupResult>({ done: r.done, problems: r.problems, message: r.message });
 });

@@ -2074,6 +2074,44 @@ export interface UntrackedFile extends CleanupFileView {
   href: string | null;
 }
 
+export type ReconcileGroupKey = 'missing' | 'stuck' | 'orphan' | 'done' | 'sharing' | 'downloading';
+
+/** One torrent in qBittorrent, as Clean up → In qBittorrent sees it. */
+export interface ReconcileTorrent {
+  hash: string;
+  name: string;
+  /** What qBittorrent says, in plain words. */
+  status: string;
+  group: ReconcileGroupKey;
+  /** "Marquee", "Radarr", "Sonarr", "Another app (category)". */
+  sentBy: string;
+  /** Marquee follows it on the Downloads page. */
+  followed: boolean;
+  /** The library title one of its files is (a hardlink), if any. */
+  feeds: { name: string; href: string } | null;
+  sizeBytes: number;
+  /** What removing it with its files gives back (files with another hardlink free nothing). */
+  freedBytes: number;
+  progress: number;
+  ratio: number;
+  sharingDays: number;
+  /** Its sharing rule, in plain words. */
+  rule: string;
+  /** From a private tracker (qBittorrent 5+ says); null when unknown. */
+  isPrivate: boolean | null;
+  addedAt: number | null;
+  /** Saved inside a library folder: can only be removed without its files. */
+  inLibraryFolder: boolean;
+}
+
+export interface ReconcileView {
+  ok: boolean;
+  problem: string | null;
+  checkedAt: number;
+  total: number;
+  groups: { key: ReconcileGroupKey; label: string; explain: string; items: ReconcileTorrent[]; freedBytes: number }[];
+}
+
 export interface CleanupResult {
   done: number;
   problems: string[];

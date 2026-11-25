@@ -456,6 +456,27 @@ Josh switched on his Plex watchlist and it asked for everything on it at once, w
 - **An episode up close** (`library/episodeCare.ts`, `routes/episodes.ts`, admins): tap an episode's name on a show's page for its air date, overview, file (quality, size, full path, when it arrived, whether it's shared with a download, other episodes in the same file) and the torrents in qBittorrent that hold it: the ones Marquee follows, and ones another app (Sonarr) sent, found by name and confirmed by the hardlinked file (same inode). **Remove…** sets its file aside into the recycle bin, can stop looking for it (on by default, so it isn't downloaded again), and can remove chosen torrents from qBittorrent with their files (a whole-season torrent says the other episodes stop sharing; their library files stay). Torrents go first, while the library file is there to check against. History records it.
 - Tests: `test/gettingIn.test.ts` (several shows at once, Undo, the card facts), `test/libraryCare.test.ts` (filters combine), `test/episodes.test.ts`.
 
+## Clean up → In qBittorrent (2026-11-24) ✅
+
+From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md).
+
+- **In qBittorrent** tab (`library/reconcile.ts`, `GET /api/cleanup/downloader[?fresh=1]`): every torrent in every category, grouped:
+  - **Files missing**: finished, files gone, or qBittorrent's missingFiles. An unfinished one with nothing on disk yet isn't counted.
+  - **Stuck or errored**: an error, or waiting/getting its file list longer than the stuck time.
+  - **Not in your library**: finished, and no file shares an inode with a library file.
+  - **Done sharing**: in the library and past its rule.
+  - **Still sharing**, and **Downloading**.
+- Each row shows who sent it (Marquee from its own download; Radarr/Sonarr/another app from category and tags), the title it feeds (link), size, ratio, days sharing, its rule, what removing with files frees, and **Private site** when qBittorrent 5 says so.
+- Kept 10 minutes; **Check again**. One `files()` call per torrent, 8 at a time; state in chunks of 200 hashes.
+- Lists nothing when qBittorrent can't answer, or when Marquee can see none of its files (folder pairs).
+- **Remove with files** / **Remove, keep files** (`POST /api/cleanup/downloader/remove`, confirm naming each; shortcuts "All not in your library", "All done sharing"):
+  - only what's listed, checked again;
+  - never with files for a torrent saved inside a library folder;
+  - Marquee's own downloads go through its Remove, others straight to qBittorrent, and History records it;
+  - private sites not yet past a rule get a warning.
+- Decisions made without asking (Josh to confirm): another app's torrents use the default sharing rule (or keep sharing if private and "private sites keep sharing" is on); private ones are flagged, not hidden; small ones are shown.
+- Tests: `test/reconcile.test.ts`. Demo mode has a torrent of each kind.
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

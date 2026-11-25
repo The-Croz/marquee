@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CleanupDownloadsView, CleanupResult, CopyGroup, SetAsideView, UntrackedFile } from '@marquee/shared';
+import type { CleanupDownloadsView, CleanupResult, CopyGroup, ReconcileTorrent, ReconcileView, SetAsideView, UntrackedFile } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { EmptyState, PageHeader } from '../components/Page';
 import { Sheet, useToast } from '../components/Overlay';
@@ -15,9 +15,10 @@ import { Button, Notice, cx } from '../components/ui';
  * deleted for good, by hand.
  */
 
-type Tab = 'copies' | 'bin' | 'downloads' | 'untracked';
+type Tab = 'copies' | 'bin' | 'downloads' | 'untracked' | 'downloader';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'copies', label: 'Two copies' },
+  { key: 'downloader', label: 'In qBittorrent' },
   { key: 'bin', label: 'Recycle bin' },
   { key: 'downloads', label: 'Unused downloads' },
   { key: 'untracked', label: 'No title' },
@@ -376,10 +377,162 @@ function Untracked() {
   );
 }
 
+// ---------------------------------------------------------------- in qBittorrent
+
+/** Groups that are open to start with: the ones with something to do. */
+const ACT_ON = new Set(['missing', 'stuck', 'orphan', 'done']);
+
+function InQbittorrent() {
+  const [fresh, setFresh] = useState(0);
+  const q = useQuery({ queryKey: [...CLEANUP, 'downloader', fresh], queryFn: () => api<ReconcileView>(`/cleanup/downloader${fresh ? '?fresh=1' : ''}`) });
+  const v = q.data;
+  const all = v?.groups.flatMap((g) => g.items) ?? [];
+  const { picked, setPicked, flip } = usePicks(() => [], [v]);
+  const [confirm, setConfirm] = useState<'with' | 'without' | null>(null);
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const chosen = all.filter((i) => picked.has(i.hash));
+  const frees = chosen.reduce((n, i) => n + i.freedBytes, 0);
+  const libraryFolder = chosen.some((i) => i.inLibraryFolder);
+  async function remove(deleteFiles: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<CleanupResult>('/cleanup/downloader/remove', { body: { hashes: chosen.map((i) => i.hash), deleteFiles, confirm: true } });
+      toast({ message: r.message });
+      if (r.problems.length) setError(r.problems.join(' '));
+      setConfirm(null);
+      setFresh((n) => n + 1);
+      await queryClient.invalidateQueries({ queryKey: ['downloads'] });
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (q.isError) return <Notice tone="error">{errMsg(q.error)}</Notice>;
+  if (!v) return <p className="text-muted">Asking qBittorrent about every torrent… with a few hundred this takes a few seconds.</p>;
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="m-0 max-w-[760px] text-sm text-soft">
+        Every torrent in qBittorrent, in every category (yours, Radarr’s and Sonarr’s), and whether it still earns its place. A torrent feeds a title when one of its files is the same file as the library’s (a hardlink). Nothing here is removed by itself.
+      </p>
+      {!v.ok && <Notice tone="error">{v.problem}</Notice>}
+      {v.ok && (
+        <>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+            <span>
+              {v.total} {v.total === 1 ? 'torrent' : 'torrents'} · checked {new Date(v.checkedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+            </span>
+            <Button variant="ghost" disabled={q.isFetching} onClick={() => setFresh((n) => n + 1)}>
+              {q.isFetching ? 'Checking…' : 'Check again'}
+            </Button>
+          </div>
+          <SelectBar all={all.map((i) => i.hash)} picked={picked} setPicked={setPicked}>
+            <Button variant="ghost" onClick={() => setPicked(new Set(v.groups.find((g) => g.key === 'orphan')!.items.map((i) => i.hash)))}>
+              All not in your library
+            </Button>
+            <Button variant="ghost" onClick={() => setPicked(new Set(v.groups.find((g) => g.key === 'done')!.items.map((i) => i.hash)))}>
+              All done sharing
+            </Button>
+          </SelectBar>
+          {v.groups.map((g) => (
+            <details key={g.key} open={ACT_ON.has(g.key) && g.items.length > 0} className="rounded-2xl border border-line bg-panel">
+              <summary className="flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+                <span className="font-semibold text-text">{g.label}</span>
+                <span className="text-sm text-muted tabular-nums">{g.items.length}</span>
+                {g.freedBytes > 0 && <span className="text-sm text-warn">removing frees {formatBytes(g.freedBytes)}</span>}
+              </summary>
+              <p className="m-0 border-t border-line px-4 py-2 text-caption text-muted">{g.explain}</p>
+              {g.items.length > 0 && (
+                <ul className="m-0 flex list-none flex-col p-0 px-2">
+                  {g.items.map((i) => (
+                    <TorrentRow key={i.hash} i={i} picked={picked.has(i.hash)} onFlip={() => flip(i.hash)} />
+                  ))}
+                </ul>
+              )}
+            </details>
+          ))}
+          {error && <Notice tone="error">{error}</Notice>}
+          <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+            <Button variant="danger" disabled={busy || !chosen.length || libraryFolder} onClick={() => setConfirm('with')}>
+              {chosen.length ? `Remove ${chosen.length} with files…` : 'Remove with files…'}
+            </Button>
+            <Button variant="ghost" disabled={busy || !chosen.length} onClick={() => setConfirm('without')}>
+              {chosen.length ? `Remove ${chosen.length}, keep files…` : 'Remove, keep files…'}
+            </Button>
+            {chosen.length > 0 && <span className="text-label text-muted">With files gives back {formatBytes(frees)}.</span>}
+            {libraryFolder && <span className="text-label text-warn">One you picked is saved inside your library folder: remove it keeping its files.</span>}
+          </div>
+        </>
+      )}
+      <Sheet open={!!confirm} onClose={() => setConfirm(null)} title={confirm === 'with' ? `Remove ${chosen.length} with their files?` : `Remove ${chosen.length} from qBittorrent?`}>
+        <div className="flex flex-col gap-4 pt-1 pb-2">
+          <p className="m-0 text-sm text-soft">
+            {confirm === 'with'
+              ? `qBittorrent removes these and deletes their files, giving back about ${formatBytes(frees)}. Library copies stay (they’re their own hardlinks).`
+              : 'qBittorrent stops sharing these; their files stay where they are (they then show under Unused downloads).'}
+          </p>
+          <ul className="m-0 flex max-h-60 list-none flex-col gap-1 overflow-y-auto p-0 text-xs break-all text-muted">
+            {chosen.map((i) => (
+              <li key={i.hash}>
+                {i.name} <span className="text-dim">· {i.sentBy}{i.isPrivate ? ' · private site' : ''}</span>
+              </li>
+            ))}
+          </ul>
+          {chosen.some((i) => i.isPrivate && i.group !== 'done') && <p className="m-0 text-sm text-warn">Some are from private sites and haven’t met a sharing rule: removing them early can count against your account there.</p>}
+          {confirm === 'with' && <p className="m-0 text-sm text-warn">Deleting can’t be undone.</p>}
+          {error && <Notice tone="error">{error}</Notice>}
+          <div className="flex flex-wrap gap-3">
+            <Button variant="danger" disabled={busy} onClick={() => void remove(confirm === 'with')}>
+              {busy ? 'Removing…' : `Remove ${chosen.length}`}
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirm(null)}>
+              Keep them
+            </Button>
+          </div>
+        </div>
+      </Sheet>
+    </div>
+  );
+}
+
+function TorrentRow({ i, picked, onFlip }: { i: ReconcileTorrent; picked: boolean; onFlip: () => void }) {
+  const pct = Math.floor(i.progress * 100);
+  return (
+    <li className="flex items-start gap-1 border-t border-line py-1.5">
+      <Tick checked={picked} onChange={onFlip} label={`Choose ${i.name}`} />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 py-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-sm break-all text-text">{i.name}</span>
+          <Badge>{i.sentBy}</Badge>
+          {i.isPrivate && <Badge tone="warn">Private site</Badge>}
+          {i.feeds && (
+            <Link to={i.feeds.href} className="text-label text-amber">
+              {i.feeds.name}
+            </Link>
+          )}
+        </span>
+        <span className="text-caption text-muted">
+          {i.status}
+          {pct < 100 ? ` · ${pct}%` : ''} · {formatBytes(i.sizeBytes)} · ratio {i.ratio.toFixed(2)}
+          {i.sharingDays ? ` · shared ${i.sharingDays} ${i.sharingDays === 1 ? 'day' : 'days'}` : ''}
+          {i.group === 'done' || i.group === 'sharing' ? ` · rule: ${i.rule}` : ''}
+        </span>
+        <span className="text-caption text-dim">
+          {i.freedBytes ? `Removing with files frees ${formatBytes(i.freedBytes)}` : 'Removing frees nothing (its files are also in your library, or gone)'}
+          {i.inLibraryFolder ? ' · saved inside your library folder' : ''}
+        </span>
+      </span>
+    </li>
+  );
+}
+
 export function CleanupPage() {
   const [params, setParams] = useSearchParams();
   const tab = (TABS.find((t) => t.key === params.get('tab'))?.key ?? 'copies') as Tab;
-  const body = useMemo(() => ({ copies: <Copies />, bin: <Bin />, downloads: <Downloads />, untracked: <Untracked /> })[tab], [tab]);
+  const body = useMemo(() => ({ copies: <Copies />, bin: <Bin />, downloads: <Downloads />, untracked: <Untracked />, downloader: <InQbittorrent /> })[tab], [tab]);
   return (
     <>
       <PageHeader
