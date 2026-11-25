@@ -265,21 +265,54 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
   );
 }
 
+/** Status filter groups, in plain words. */
+const STATUS = {
+  any: { label: 'Any status', match: () => true },
+  pending: { label: 'Waiting for OK', match: (r: RequestView) => r.state === 'pending' },
+  working: { label: 'On the way', match: (r: RequestView) => ['unreleased', 'searching', 'looking', 'downloading'].includes(r.state) },
+  ready: { label: 'Ready', match: (r: RequestView) => r.state === 'ready' },
+  declined: { label: 'Turned down', match: (r: RequestView) => r.state === 'declined' },
+} as const;
+const SORT = {
+  newest: { label: 'Newest first', by: (a: RequestView, b: RequestView) => b.createdAt - a.createdAt },
+  oldest: { label: 'Oldest first', by: (a: RequestView, b: RequestView) => a.createdAt - b.createdAt },
+  answered: { label: 'Recently answered', by: (a: RequestView, b: RequestView) => (b.decidedAt ?? 0) - (a.decidedAt ?? 0) || b.createdAt - a.createdAt },
+  title: { label: 'Title A–Z', by: (a: RequestView, b: RequestView) => a.title.localeCompare(b.title) },
+} as const;
+/** How far back "Recently answered" reaches under the waiting list, and how many it shows. */
+const RECENT_DAYS = 14;
+const RECENT_MAX = 10;
+
+const selectClass = 'h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text';
+
 export function RequestsPage({ user }: { user: SessionUser }) {
   const admin = user.role === 'admin';
   const [search] = useSearchParams();
   const [tab, setTab] = useState<'waiting' | 'all' | 'mine' | 'problems'>(search.get('tab') === 'problems' ? 'problems' : admin ? 'waiting' : 'mine');
+  const [status, setStatus] = useState<keyof typeof STATUS>('any');
+  const [kind, setKind] = useState<'any' | 'movie' | 'series'>('any');
+  const [who, setWho] = useState<number | 'any'>('any');
+  const [sort, setSort] = useState<keyof typeof SORT>('newest');
   const scope = tab === 'mine' ? 'mine' : 'all';
   const { data, isLoading, error } = useQuery({
     queryKey: ['requests', scope],
     queryFn: () => api<{ items: RequestView[] }>(`/requests?scope=${scope}`),
     refetchInterval: 30_000,
   });
-  const items = (data?.items ?? []).filter((r) => tab !== 'waiting' || r.state === 'pending');
-  const waiting = admin ? (data?.items ?? []).filter((r) => r.state === 'pending').length : 0;
+  const everything = data?.items ?? [];
+  const waiting = admin ? everything.filter((r) => r.state === 'pending').length : 0;
+  const people = [...new Map(everything.flatMap((r) => (r.requestedBy ? [[r.requestedBy.id, r.requestedBy.name] as const] : []))).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const showWho = admin && tab !== 'mine' && people.length > 1;
+  const filtered = everything.filter((r) => (kind === 'any' || r.kind === kind) && (!showWho || who === 'any' || r.requestedBy?.id === who));
+  const items = filtered.filter(tab === 'waiting' ? STATUS.pending.match : STATUS[status].match).sort(SORT[sort].by);
+  // Under the waiting list: what was answered lately, so the page isn't empty once everything's handled.
+  const since = Date.now() - RECENT_DAYS * 86_400_000;
+  const recent = tab === 'waiting' ? filtered.filter((r) => r.state !== 'pending' && (r.decidedAt ?? r.createdAt) >= since).sort(SORT.answered.by).slice(0, RECENT_MAX) : [];
+  const filtering = kind !== 'any' || (showWho && who !== 'any') || (tab !== 'waiting' && status !== 'any');
   const tabs: [typeof tab, string][] = admin
     ? [['waiting', 'Waiting for you'], ['all', 'Everyone'], ['mine', 'Mine'], ['problems', 'Something wrong?']]
     : [['mine', 'My requests'], ['problems', 'Problems I reported']];
+  const rowAdmin = admin && tab !== 'mine';
 
   return (
     <>
@@ -288,23 +321,87 @@ export function RequestsPage({ user }: { user: SessionUser }) {
         info={admin ? 'Approve what the family asks for. Your own requests go straight through.' : 'Ask for a movie or show from Discover. An admin approves it, and you’ll hear when it’s ready.'}
       />
       <Tabs label="Requests" value={tab} onChange={setTab} items={tabs.map(([v, label]) => ({ value: v, label, count: v === 'waiting' && waiting > 0 ? waiting : undefined }))} />
-      <nav aria-label="More" className="-mt-2 flex">
-        <Link to="/discover" className="ml-auto flex min-h-11 items-center text-sm font-semibold">
-          Find something to ask for →
-        </Link>
-      </nav>
       {!admin && <RequestsLeft />}
       {tab === 'problems' && <ProblemsList admin={admin} />}
-      {tab !== 'problems' && error && <Notice tone="error">{errMsg(error)}</Notice>}
-      {tab !== 'problems' && isLoading && <p className="text-muted">Loading…</p>}
-      {tab !== 'problems' && data && items.length === 0 && (
-        <Notice>{tab === 'waiting' ? 'Nothing is waiting for you.' : 'No requests yet. Find something in Discover and press Request.'}</Notice>
+      {tab !== 'problems' && (
+        <>
+          {everything.length > 1 && (
+            <div role="group" aria-label="Sort and filter" className="flex flex-wrap items-center gap-2">
+              {tab !== 'waiting' && (
+                <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as keyof typeof STATUS)} className={selectClass}>
+                  {Object.entries(STATUS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <select aria-label="Movies or shows" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} className={selectClass}>
+                <option value="any">Movies and shows</option>
+                <option value="movie">Movies</option>
+                <option value="series">Shows</option>
+              </select>
+              {showWho && (
+                <select aria-label="Who asked" value={who} onChange={(e) => setWho(e.target.value === 'any' ? 'any' : Number(e.target.value))} className={selectClass}>
+                  <option value="any">Everyone</option>
+                  {people.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <label className="ml-auto flex items-center gap-2 text-label text-muted">
+                Sort
+                <select value={sort} onChange={(e) => setSort(e.target.value as keyof typeof SORT)} className={selectClass}>
+                  {Object.entries(SORT).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {filtering && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatus('any');
+                    setKind('any');
+                    setWho('any');
+                  }}
+                  className="min-h-11 text-sm font-medium text-amber"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+          {error && <Notice tone="error">{errMsg(error)}</Notice>}
+          {isLoading && <p className="text-muted">Loading…</p>}
+          {data && items.length === 0 && (
+            <Notice>
+              {filtering ? 'Nothing matches these filters.' : tab === 'waiting' ? 'Nothing is waiting for you.' : 'No requests yet. Find something in Discover and press Request.'}
+            </Notice>
+          )}
+          <ul className="m-0 flex list-none flex-col gap-3 p-0" hidden={items.length === 0}>
+            {items.map((r) => (
+              <RequestRow key={r.id} r={r} admin={rowAdmin} />
+            ))}
+          </ul>
+          {recent.length > 0 && (
+            <section aria-labelledby="recent-h" className="flex flex-col gap-3 border-t border-line pt-5">
+              <h2 id="recent-h" className="m-0 text-xs font-normal tracking-[.08em] text-dim uppercase">
+                Recently answered · last {RECENT_DAYS} days
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-3 p-0">
+                {recent.map((r) => (
+                  <RequestRow key={r.id} r={r} admin={rowAdmin} />
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
-      <ul className="m-0 flex list-none flex-col gap-3 p-0" hidden={tab === 'problems'}>
-        {items.map((r) => (
-          <RequestRow key={r.id} r={r} admin={admin && tab !== 'mine'} />
-        ))}
-      </ul>
     </>
   );
 }

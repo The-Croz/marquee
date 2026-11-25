@@ -24,7 +24,7 @@ export async function refreshAfterCare() {
 
 // ---------------- The title page's tools ----------------
 
-export function TitleTools({ kind, id, title }: { kind: 'movie' | 'series'; id: number; title: string }) {
+export function TitleTools({ kind, id, title, onReport }: { kind: 'movie' | 'series'; id: number; title: string; onReport?: () => void }) {
   const [open, setOpen] = useState<'remove' | 'rename' | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
@@ -56,6 +56,11 @@ export function TitleTools({ kind, id, title }: { kind: 'movie' | 'series'; id: 
           </span>
         }
       >
+        {onReport && (
+          <button type="button" role="menuitem" className={menuItemClass} onClick={onReport}>
+            Something wrong? Report a problem…
+          </button>
+        )}
         <button type="button" role="menuitem" className={menuItemClass} disabled={busy} onClick={() => void refresh()}>
           Refresh from TMDB
         </button>

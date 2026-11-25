@@ -22,6 +22,30 @@ function badges(c: CopyView): string[] {
   return [c.qualityLabel, hdr, d.atmos ? 'Atmos' : d.audio, d.service, ...d.editions, d.repack ? 'Fixed re-release' : null].filter((x): x is string => !!x);
 }
 
+/** How the list can be ordered. "Best first" is Marquee's own order: quality first, then points. */
+const SORTS = {
+  best: 'Best first',
+  points: 'Most points',
+  sharing: 'Most people sharing',
+  big: 'Biggest',
+  small: 'Smallest',
+  new: 'Newest',
+} as const;
+type Sort = keyof typeof SORTS;
+const last = (n: number | null, dir: 1 | -1) => (n === null ? Infinity : dir * n);
+function sorted(list: CopyView[], by: Sort): CopyView[] {
+  if (by === 'best') return list;
+  const key: Record<Exclude<Sort, 'best'>, (c: CopyView) => number> = {
+    points: (c) => -c.score,
+    sharing: (c) => last(c.seeders, -1),
+    big: (c) => last(c.sizeBytes, -1),
+    small: (c) => last(c.sizeBytes, 1),
+    new: (c) => last(c.publishedAt, -1),
+  };
+  // Stable: ties keep Marquee's order.
+  return [...list].sort((a, b) => key[by](a) - key[by](b));
+}
+
 function sharing(c: CopyView): string {
   if (c.seeders === null) return 'Sharing unknown';
   return c.seeders === 1 ? '1 person sharing' : `${c.seeders.toLocaleString()} people sharing`;
@@ -178,6 +202,9 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
   const [season, setSeason] = useState(start?.season ?? firstSeason?.season ?? 1);
   const [episode, setEpisode] = useState<number | 'all'>(start?.episode ?? 'all');
   const [showAllDown, setShowAllDown] = useState(false);
+  const [sort, setSort] = useState<Sort>('best');
+  // Every copy in one list, whatever the profile says (turned-down ones still say why).
+  const [every, setEvery] = useState(false);
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api<ProfilesView>('/settings/profiles') });
   const mine = profiles.data?.profiles.filter((p) => p.kind === kind) ?? [];
 
@@ -202,8 +229,10 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
   }, [autoSearch, search]);
 
   const r = search.data;
-  const accepted = r?.copies.filter((c) => c.accepted) ?? [];
-  const down = r?.copies.filter((c) => !c.accepted) ?? [];
+  const bestId = r?.copies.find((c) => c.accepted)?.id;
+  const accepted = sorted(r?.copies.filter((c) => c.accepted) ?? [], sort);
+  const down = sorted(r?.copies.filter((c) => !c.accepted) ?? [], sort);
+  const all = sorted(r?.copies ?? [], sort);
   // A Source you paused or set to TV only isn't news; one that's failing is.
   const failed = r?.sources.filter((s) => s.status === 'failed' || (s.status === 'skipped' && !/^(Paused|Not used)/.test(s.message ?? ''))) ?? [];
   const episodes = seasons?.find((s) => s.season === season)?.episodes ?? [];
@@ -240,7 +269,9 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-label text-muted">
-            Profile
+            <span>
+              Profile <span className="text-xs text-dim">· {byHand ? 'you picked it' : 'picked by the rules'}</span>
+            </span>
             <select
               value={profile}
               disabled={change.isPending || !mine.length}
@@ -255,7 +286,6 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
                 </option>
               ))}
             </select>
-            <span className="text-xs text-dim">{byHand ? 'You picked it' : 'Picked by the rules'}</span>
           </label>
           {kind === 'tv' && seasons && (
             <>
@@ -324,13 +354,44 @@ export function CopiesPanel({ kind, titleId, profile, byHand, seasons, start, au
               {s.name} {s.status === 'skipped' ? 'wasn’t asked' : 'didn’t answer'}: {s.message}
             </Notice>
           ))}
-          {accepted.length === 0 && <Notice>None of these suit {r.profile.name}. The reasons are below each copy; changing the profile can let some through.</Notice>}
-          <ul className="m-0 flex list-none flex-col gap-3 p-0">
-            {accepted.map((c, i) => (
-              <CopyRow key={r.searchId + c.title + i} c={c} best={i === 0} profile={r.profile.name} searchId={r.searchId} />
-            ))}
-          </ul>
-          {down.length > 0 && (
+          {r.copies.length === 0 ? (
+            <Notice>No Source had a copy of this. Try again later, or add more Sources in Settings → Sources.</Notice>
+          ) : (
+            accepted.length === 0 && !every && <Notice>None of these suit {r.profile.name}. The reasons are below each copy; changing the profile, or showing every copy, can let some through.</Notice>
+          )}
+          {r.copies.length > 1 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-label text-muted">
+                Sort by
+                <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="h-11 rounded-lg border border-line-strong bg-ink px-2.5 text-sm text-text">
+                  {Object.entries(SORTS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {down.length > 0 && (
+                <button type="button" aria-pressed={every} onClick={() => setEvery(!every)} className="h-11 text-sm font-medium text-amber">
+                  {every ? `Only what ${r.profile.name} would take` : `Show every copy (${r.copies.length}), whatever the profile`}
+                </button>
+              )}
+            </div>
+          )}
+          {every ? (
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {all.map((c, i) => (
+                <CopyRow key={r.searchId + c.title + i} c={c} best={c.id === bestId} profile={r.profile.name} searchId={r.searchId} />
+              ))}
+            </ul>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              {accepted.map((c, i) => (
+                <CopyRow key={r.searchId + c.title + i} c={c} best={c.id === bestId} profile={r.profile.name} searchId={r.searchId} />
+              ))}
+            </ul>
+          )}
+          {!every && down.length > 0 && (
             <>
               <h3 className="m-0 pt-2 text-xs font-normal tracking-[.08em] text-dim uppercase">Turned down · {down.length}</h3>
               <ul className="m-0 flex list-none flex-col gap-2 p-0">

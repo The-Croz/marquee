@@ -464,7 +464,7 @@ function UsersAdmin({ status }: Ctx) {
 
 // ---------------- Services (admin) ----------------
 
-function ServiceTest({ service, getValues }: { service: 'tmdb' | 'streamingTop' | 'omdb' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
+function ServiceTest({ service, getValues }: { service: 'tmdb' | 'streamingTop' | 'mdblist' | 'radarr' | 'sonarr' | 'plex' | 'jellyfin'; getValues: () => { url?: string; apiKey?: string } }) {
   const [result, setResult] = useState<ServiceTestResult | null>(null);
   const [busy, setBusy] = useState(false);
   async function test() {
@@ -672,7 +672,7 @@ function ServicesAdmin() {
       if (d.has(k)) body[k] = String(d.get(k) ?? '');
     }
     // Blank secret fields mean "keep what's saved".
-    for (const k of ['tmdbApiKey', 'streamingTopKey', 'omdbKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
+    for (const k of ['tmdbApiKey', 'streamingTopKey', 'mdblistKey', 'radarrApiKey', 'sonarrApiKey', 'plexToken', 'jellyfinApiKey'] as const) {
       const v = String(d.get(k) ?? '').trim();
       if (v) body[k] = v;
     }
@@ -701,8 +701,8 @@ function ServicesAdmin() {
     setMessage({ tone: 'success', text: 'Key removed. Discover shows what’s popular on each service instead.' });
   }
 
-  async function clearOmdb() {
-    await api('/settings/services', { method: 'PUT', body: { omdbKey: null } });
+  async function clearMdbList() {
+    await api('/settings/services', { method: 'PUT', body: { mdblistKey: null } });
     await queryClient.invalidateQueries({ queryKey: ['services'] });
     await queryClient.invalidateQueries({ queryKey: ['discover'] });
     setMessage({ tone: 'success', text: 'Key removed. Title pages show TMDB’s score only.' });
@@ -765,20 +765,20 @@ function ServicesAdmin() {
       <Card className="flex flex-col gap-4">
         <div>
           <h2 className="m-0 text-lg font-semibold">
-            IMDb and Rotten Tomatoes scores <span className="text-sm font-normal text-dim">optional</span>
+            IMDb, Rotten Tomatoes and Metacritic scores <span className="text-sm font-normal text-dim">optional</span>
           </h2>
           <p className="m-0 mt-1 text-sm text-muted">
-            Title pages always show TMDB’s score. With a free OMDb key they also show IMDb, Rotten Tomatoes and Metacritic.{' '}
-            <InfoTip className="-my-3.5 align-middle" label="About OMDb">
-              Get a free key at omdbapi.com (the free plan allows 1,000 lookups a day). Marquee keeps each title’s scores for 3 days, so a normal day uses far fewer. If OMDb is down or the day’s limit is used up, pages show TMDB’s score and try again later.
+            Title pages always show TMDB’s score. With a free MDBList key they also show IMDb, Rotten Tomatoes and Metacritic, for movies and shows.{' '}
+            <InfoTip className="-my-3.5 align-middle" label="About MDBList">
+              Sign in at mdblist.com and copy your key from Preferences (the free plan allows 1,000 lookups a day). Marquee keeps each title’s scores for 3 days, so a normal day uses far fewer. If MDBList is down or the day’s limit is used up, pages show TMDB’s score and try again later. Marquee used OMDb for this before; OMDb stopped sending Rotten Tomatoes scores in November 2026.
             </InfoTip>
           </p>
         </div>
-        <Field label="OMDb key" name="omdbKey" id="omdbKey" type="password" autoComplete="off" placeholder={data.omdb.configured ? '••••••••••••' : ''} hint={savedHint(data.omdb.configured)} />
+        <Field label="MDBList key" name="mdblistKey" id="mdblistKey" type="password" autoComplete="off" placeholder={data.mdblist.configured ? '••••••••••••' : ''} hint={savedHint(data.mdblist.configured)} />
         <div className="flex flex-wrap items-center gap-3">
-          <ServiceTest service="omdb" getValues={() => ({ apiKey: val('omdbKey') })} />
-          {data.omdb.configured && (
-            <button type="button" onClick={clearOmdb} className="h-11 text-sm font-medium text-warn">
+          <ServiceTest service="mdblist" getValues={() => ({ apiKey: val('mdblistKey') })} />
+          {data.mdblist.configured && (
+            <button type="button" onClick={clearMdbList} className="h-11 text-sm font-medium text-warn">
               Remove the key
             </button>
           )}

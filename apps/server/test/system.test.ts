@@ -259,9 +259,10 @@ describe('free space', () => {
 // ---------------- Backups ----------------
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
+/** Undoes the newest migration (33, which tidies away OMDb): puts an old OMDb key back, which the upgrade removes. */
 const UNDO_NEWEST = {
-  sql: ['DROP TABLE notification_priorities'],
-  tables: ['notification_priorities'],
+  sql: ["INSERT OR REPLACE INTO settings (key, value) VALUES ('services.omdb_key', 'old-key')"],
+  tables: [] as string[],
 };
 
 describe('backups', () => {
@@ -379,6 +380,7 @@ describe('backups', () => {
     expect(v.v).toBe(migrations.length);
     const tables = (t.db.$client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((c) => c.name);
     expect(tables).toEqual(expect.arrayContaining([...UNDO_NEWEST.tables, 'history']));
+    expect(t.db.$client.prepare("SELECT value FROM settings WHERE key = 'services.omdb_key'").get()).toBeUndefined();
     expect(t.db.select().from(schema.history).all().map((h) => h.title)).toContain('Kept through the upgrade');
   });
 

@@ -33,7 +33,7 @@ export interface Wanted {
   originalLanguage?: string;
 }
 
-export type RejectionCode = 'wrong_title' | 'wrong_year' | 'not_a_movie' | 'wrong_episode' | 'season_pack' | 'no_episode' | 'sample' | 'quality' | 'too_small' | 'too_big' | 'no_seeders' | 'never' | 'low_score';
+export type RejectionCode = 'wrong_title' | 'wrong_year' | 'not_a_movie' | 'wrong_episode' | 'season_pack' | 'not_whole_season' | 'no_episode' | 'sample' | 'quality' | 'too_small' | 'too_big' | 'no_seeders' | 'never' | 'low_score';
 
 export interface Rejection {
   code: RejectionCode;
@@ -128,6 +128,9 @@ function judge(wanted: Wanted, group: FoundRelease[], profile: FullProfile): Dec
     else if (wanted.season !== undefined && !seasons.includes(wanted.season)) reject('wrong_episode', `It's ${describeEpisodes(parsed)}; you asked for season ${wanted.season}.`);
     else if (wanted.episode !== undefined && parsed.fullSeason) reject('season_pack', `It's the whole of ${describeEpisodes(parsed)}; you asked for one episode.`);
     else if (wanted.episode !== undefined && !parsed.episodes.includes(wanted.episode)) reject('wrong_episode', `It's ${describeEpisodes(parsed)}; you asked for episode ${wanted.episode}.`);
+    // A whole-season search wants the whole season: one episode (or a few) is a copy of something smaller.
+    else if (wanted.episode === undefined && !parsed.fullSeason && !(wanted.seasonEpisodes && parsed.episodes.length >= wanted.seasonEpisodes))
+      reject('not_whole_season', `It's only ${describeEpisodes(parsed)}; you asked for the whole of season ${wanted.season}.`);
   }
   if (parsed.sample) reject('sample', 'It’s only a short sample clip.');
 
@@ -260,7 +263,7 @@ function sizeKey(d: Decision, wanted: Wanted, profile: FullProfile): number {
 
 /** Turned down because it's another title or episode: listed after the near misses. */
 /** Copies of something else (another title, episode or season). */
-export const OFF_TARGET = new Set<RejectionCode>(['wrong_title', 'wrong_year', 'not_a_movie', 'wrong_episode', 'no_episode', 'season_pack']);
+export const OFF_TARGET = new Set<RejectionCode>(['wrong_title', 'wrong_year', 'not_a_movie', 'wrong_episode', 'no_episode', 'season_pack', 'not_whole_season']);
 const offTarget = (d: Decision) => Number(d.rejections.some((r) => OFF_TARGET.has(r.code)));
 
 function compare(a: Decision, b: Decision, wanted: Wanted, profile: FullProfile): number {

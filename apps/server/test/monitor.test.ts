@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CopiesResult, DownloadsView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { QbitError } from '../src/downloads/qbittorrent.js';
-import { fakeReason } from '../src/downloads/monitor.js';
+import { fakeReason, libraryFilesText } from '../src/downloads/monitor.js';
 import { FakeQbit, fakeFetchTorrent, qbitTorrent } from './fakes/qbittorrent.js';
 import { FakeSites, release } from './fakes/sources.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
@@ -215,6 +215,16 @@ describe('following downloads', () => {
   });
 });
 
+describe('the "Added to the library" message', () => {
+  it('names one file, but sums up a season pack instead of listing every episode', () => {
+    expect(libraryFilesText(['Dune Part Two (2024).mkv'])).toBe('Dune Part Two (2024).mkv');
+    const pack = Array.from({ length: 10 }, (_, i) => `Severance - S02E${String(i + 1).padStart(2, '0')} - Some Long Episode Title.mkv`);
+    expect(libraryFilesText(pack)).toBe('Season 2 (10 episodes)');
+    expect(libraryFilesText(['Show S01E01.mkv', 'Show S01E02.mkv', 'Show S02E01.mkv', 'Extras.mkv'])).toBe('Season 1 (2 episodes), Season 2 (episode 1), 1 other file');
+    expect(libraryFilesText(['a.mkv', 'b.mkv'])).toBe('2 files');
+  });
+});
+
 describe('download buttons', () => {
   it('pauses, resumes and removes, with or without files', async () => {
     const t = await setup();
@@ -242,6 +252,14 @@ describe('download buttons', () => {
     t.later(48 * HOUR);
     await t.view();
     expect(t.qbit.actions).toEqual([]);
+  });
+
+  it('counts only downloads on their way on the menu, not finished ones another app sent', async () => {
+    const t = await setup();
+    const count = async () => (await call(t.app, 'GET', '/api/downloads/summary', undefined, t.cookie)).body.active;
+    expect(await count()).toBe(1);
+    t.db.update(schema.downloads).set({ adopted: true, state: 'done', importedAt: null }).run();
+    expect(await count()).toBe(0);
   });
 
   it('checks the stuck times', async () => {

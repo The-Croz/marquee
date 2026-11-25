@@ -12,7 +12,7 @@ import type { RateLimiter } from './auth/rateLimit.js';
 import { SESSION_COOKIE, SESSION_TTL, createSession } from './auth/sessions.js';
 import type { StreamingTopApi } from './discover/streamingTop.js';
 import type { TmdbApi } from './library/tmdb.js';
-import type { OmdbApi } from './library/omdb.js';
+import type { RatingsApi } from './library/mdblist.js';
 import type { ArrApi } from './library/arr.js';
 import type { LibraryScanner } from './library/scanner.js';
 import type { SourceClients, SourceService } from './sources/service.js';
@@ -32,8 +32,8 @@ export interface Clients extends SourceClients {
   tmdb(apiKey: string): TmdbApi;
   /** The streaming services' own Top 10s (Streaming Availability). */
   streamingTop(apiKey: string): StreamingTopApi;
-  /** IMDb and Rotten Tomatoes scores (OMDb). */
-  omdb(apiKey: string): OmdbApi;
+  /** IMDb, Rotten Tomatoes and Metacritic scores (MDBList). */
+  mdblist(apiKey: string): RatingsApi;
   arr(kind: 'radarr' | 'sonarr', url: string, apiKey: string): ArrApi;
   /** qBittorrent (Web API v2). */
   qbittorrent(url: string, username: string, password: string): QbitApi;

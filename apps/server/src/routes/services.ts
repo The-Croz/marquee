@@ -43,7 +43,7 @@ servicesRoutes.get('/', (c) => {
   const view: ServicesView = {
     tmdb: { configured: !!s.tmdbApiKey, fromEnvironment: !getSetting(db, 'services.tmdb_api_key') && !!config.tmdbApiKey },
     streamingTop: { configured: !!s.streamingTopKey },
-    omdb: { configured: !!s.omdbKey },
+    mdblist: { configured: !!s.mdblistKey },
     radarr: { url: s.radarrUrl, configured: !!(s.radarrUrl && s.radarrApiKey) },
     sonarr: { url: s.sonarrUrl, configured: !!(s.sonarrUrl && s.sonarrApiKey) },
     moviesRoot: s.moviesRoot,
@@ -61,7 +61,7 @@ servicesRoutes.put('/', async (c) => {
     .object({
       tmdbApiKey: secret.nullable().optional(),
       streamingTopKey: secret.nullable().optional(),
-      omdbKey: secret.nullable().optional(),
+      mdblistKey: secret.nullable().optional(),
       radarrUrl: url.nullable().optional(),
       radarrApiKey: secret.nullable().optional(),
       sonarrUrl: url.nullable().optional(),
@@ -152,12 +152,15 @@ servicesRoutes.post('/name-example', async (c) => {
   return c.json({ example, problem: null });
 });
 
+/** A well-known movie the MDBList test looks up, so you can see which scores come back. */
+const SAMPLE_MOVIE = { tmdbId: 278, title: 'The Shawshank Redemption' };
+
 /** Tries a connection using the typed values if given, else the saved ones. */
 servicesRoutes.post('/test', async (c) => {
   requireAdmin(c);
   const { db, config, clients } = c.get('deps');
   const input = z
-    .object({ service: z.enum(['tmdb', 'streamingTop', 'omdb', 'radarr', 'sonarr', 'plex', 'jellyfin']), url: url.optional(), apiKey: secret.optional() })
+    .object({ service: z.enum(['tmdb', 'streamingTop', 'mdblist', 'radarr', 'sonarr', 'plex', 'jellyfin']), url: url.optional(), apiKey: secret.optional() })
     .parse(await c.req.json());
   const saved = readServices(db, config);
   const result = async (): Promise<ServiceTestResult> => {
@@ -173,11 +176,16 @@ servicesRoutes.post('/test', async (c) => {
       await clients.streamingTop(key).ping();
       return { ok: true, message: 'Connected to Streaming Availability. Discover shows each service’s own Top 10.' };
     }
-    if (input.service === 'omdb') {
-      const key = input.apiKey || saved.omdbKey;
-      if (!key) return { ok: false, message: 'Enter your OMDb key first.' };
-      await clients.omdb(key).ping();
-      return { ok: true, message: 'Connected to OMDb. Title pages show IMDb and Rotten Tomatoes scores.' };
+    if (input.service === 'mdblist') {
+      const key = input.apiKey || saved.mdblistKey;
+      if (!key) return { ok: false, message: 'Enter your MDBList key first.' };
+      const api = clients.mdblist(key);
+      const { used, perDay } = await api.ping();
+      // One real lookup, so the message shows what title pages will get.
+      const s = await api.ratings('movie', SAMPLE_MOVIE.tmdbId);
+      const got = [s.imdb && `IMDb ${s.imdb.score.toFixed(1)}`, s.rottenTomatoes !== null && `Rotten Tomatoes ${s.rottenTomatoes}%`, s.metacritic !== null && `Metacritic ${s.metacritic}`].filter(Boolean).join(', ');
+      const allowance = perDay !== null ? ` ${used !== null ? `${used.toLocaleString()} of ` : ''}${perDay.toLocaleString()} lookups a day used.` : '';
+      return { ok: true, message: `Connected to MDBList.${allowance} ${SAMPLE_MOVIE.title}: ${got || 'no scores yet'}.` };
     }
     if (input.service === 'plex' || input.service === 'jellyfin') {
       const api = mediaServerFor(c, input.service, { url: input.url, secret: input.apiKey });

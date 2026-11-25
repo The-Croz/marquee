@@ -22,6 +22,7 @@ import { recordHistory } from './history.js';
 import { noRoomReason } from '../system/disk.js';
 import { seedRule, sharedEnough, sharingProgress } from './seeding.js';
 import { tellMediaServers } from '../library/mediaServers.js';
+import { parseEpisode } from '../library/parse.js';
 
 /**
  * Follows Marquee's downloads in qBittorrent: progress, finished, gone,
@@ -61,6 +62,27 @@ const ARCHIVE = /\.(rar|zip|7z|r\d\d|\d\d\d)$/i;
  * video (or isn't known yet). A .rar set is fine: it's unpacked when it
  * finishes, and what's inside is checked then.
  */
+/**
+ * What went in, for the "Added to the library" message. One file: its name. A season pack: "Season 2 (10 episodes)"
+ * rather than every file name. Files it can't read as episodes are counted at the end.
+ */
+export function libraryFilesText(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  const seasons = new Map<number, Set<number>>();
+  let other = 0;
+  for (const n of names) {
+    const e = parseEpisode(n);
+    if (!e) other++;
+    else for (const ep of e.episodes) (seasons.get(e.season) ?? seasons.set(e.season, new Set()).get(e.season)!).add(ep);
+  }
+  if (!seasons.size) return `${names.length} files`;
+  const parts = [...seasons.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([season, eps]) => `Season ${season} (${eps.size === 1 ? `episode ${[...eps][0]}` : `${eps.size} episodes`})`);
+  if (other) parts.push(`${other} other file${other === 1 ? '' : 's'}`);
+  return parts.join(', ');
+}
+
 export function fakeReason(files: QbitFile[]): string | null {
   if (files.length === 0) return null;
   const program = files.find((f) => PROGRAMS.test(f.name));
@@ -406,7 +428,7 @@ export class DownloadMonitor {
       .set({ importedAt: now(), importedPaths: JSON.stringify(r.paths), importCopied: r.copied, importUnpacked: r.unpacked, importError: null, importTriedAt: now(), scanPending: true })
       .where(eq(downloads.id, id))
       .run();
-    const names = r.paths.map((p) => p.split('/').at(-1)).join(', ');
+    const names = libraryFilesText(r.paths.map((p) => path.basename(p)));
     const how = [
       r.unpacked ? 'Unpacked from .rar files, so the library file is its own file, not a hardlink.' : null,
       r.copied ? 'Copied, not linked: the download folder and the library are on different disks.' : null,

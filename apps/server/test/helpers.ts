@@ -37,8 +37,8 @@ export function makeApp(opts: TestOptions = {}) {
     streamingTop: () => {
       throw new Error('no Streaming Availability in this test');
     },
-    omdb: () => {
-      throw new Error('no OMDb in this test');
+    mdblist: () => {
+      throw new Error('no MDBList in this test');
     },
     torznab: () => {
       throw new Error('no Torznab feeds in this test');

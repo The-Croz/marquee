@@ -1,29 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import type { DiscoverTitle, PersonDetail } from '@marquee/shared';
 import { FakeTmdb } from './fakes/tmdb.js';
-import { FakeOmdb } from './fakes/omdb.js';
+import { FakeRatings } from './fakes/ratings.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 import { cleanProviders } from '../src/library/tmdb.js';
-import { readOmdb } from '../src/library/omdb.js';
+import { MdbListClient, readMdbList } from '../src/library/mdblist.js';
+import { openDb } from '../src/db/index.js';
 import { movieHomeDate, movieStage } from '../src/library/availability.js';
 
-async function setup(omdbKey: string | null = 'good-omdb-key') {
-  const omdb = new FakeOmdb();
-  const t = makeApp({ clients: { tmdb: () => new FakeTmdb(), omdb: (k) => omdb.as(k) } });
+async function setup(mdblistKey: string | null = 'good-mdblist-key') {
+  const ratings = new FakeRatings();
+  const t = makeApp({ clients: { tmdb: () => new FakeTmdb(), mdblist: (k) => ratings.as(k) } });
   const admin = await setupAdmin(t.app);
-  await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', ...(omdbKey ? { omdbKey } : {}) }, admin);
-  return { ...t, admin, omdb };
+  await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', ...(mdblistKey ? { mdblistKey } : {}) }, admin);
+  return { ...t, admin, ratings };
 }
 
 describe('Title page scores', () => {
-  it('shows TMDB’s score, and IMDb and Rotten Tomatoes with an OMDb key', async () => {
+  it('shows TMDB’s score, and IMDb, Rotten Tomatoes and Metacritic with an MDBList key', async () => {
     const t = await setup();
     const page = (await call(t.app, 'GET', '/api/discover/title/movie/693134', undefined, t.admin)).body as DiscoverTitle;
     expect(page.ratings.tmdb).toEqual({ score: 8.1, votes: 1200 });
     expect(page.ratings.imdbId).toBe('tt0693134');
     expect(page.ratings.imdb?.score).toBeGreaterThan(0);
     expect(page.ratings.rottenTomatoes).toBeGreaterThan(0);
-    expect(t.omdb.calls).toEqual(['tt0693134']);
+    expect(page.ratings.metacritic).toBeGreaterThan(0);
+    expect(t.ratings.calls).toEqual(['movie:693134']);
   });
 
   it('without a key (or with a bad one) shows TMDB only, and the page still loads', async () => {
@@ -37,16 +39,59 @@ describe('Title page scores', () => {
 
   it('the key can be tested from Settings → Services and is never sent back', async () => {
     const t = await setup();
-    expect((await call(t.app, 'POST', '/api/settings/services/test', { service: 'omdb' }, t.admin)).body).toMatchObject({ ok: true });
-    expect((await call(t.app, 'POST', '/api/settings/services/test', { service: 'omdb', apiKey: 'nope' }, t.admin)).body).toMatchObject({ ok: false, message: 'OMDb turned the key down. Check it in Settings → Services.' });
+    expect((await call(t.app, 'POST', '/api/settings/services/test', { service: 'mdblist' }, t.admin)).body).toEqual({
+      ok: true,
+      message: 'Connected to MDBList. 12 of 1,000 lookups a day used. The Shawshank Redemption: IMDb 6.8, Rotten Tomatoes 98%, Metacritic 58.',
+    });
+    expect((await call(t.app, 'POST', '/api/settings/services/test', { service: 'mdblist', apiKey: 'nope' }, t.admin)).body).toMatchObject({ ok: false, message: 'MDBList turned the key down. Check it in Settings → Services.' });
     const view = (await call(t.app, 'GET', '/api/settings/services', undefined, t.admin)).body;
-    expect(view).toMatchObject({ omdb: { configured: true } });
-    expect(JSON.stringify(view)).not.toContain('good-omdb-key');
+    expect(view).toMatchObject({ mdblist: { configured: true } });
+    expect(JSON.stringify(view)).not.toContain('good-mdblist-key');
   });
 
-  it('reads OMDb’s answer, with N/A as nothing', () => {
-    expect(readOmdb({ imdbRating: '7.8', imdbVotes: '1,234,567', Ratings: [{ Source: 'Rotten Tomatoes', Value: '93%' }, { Source: 'Metacritic', Value: '80/100' }] })).toEqual({ imdb: { score: 7.8, votes: 1234567 }, rottenTomatoes: 93, metacritic: 80 });
-    expect(readOmdb({ imdbRating: 'N/A', Metascore: 'N/A' })).toEqual({ imdb: null, rottenTomatoes: null, metacritic: null });
+  it('reads MDBList’s answer: IMDb out of 10, the others out of 100, missing ones as nothing', () => {
+    const body = {
+      ratings: [
+        { source: 'imdb', value: 7.8, score: 78, votes: 1234567 },
+        { source: 'metacritic', value: 80, score: 80, votes: 40 },
+        { source: 'tomatoes', value: 93, score: 93, votes: 300 },
+        { source: 'popcorn', value: 88, score: 88, votes: 5000 },
+        { source: 'letterboxd', value: 3.9, score: 78, votes: 9 },
+      ],
+    };
+    expect(readMdbList(body)).toEqual({ imdb: { score: 7.8, votes: 1234567 }, rottenTomatoes: 93, metacritic: 80 });
+    expect(readMdbList({ ratings: [{ source: 'imdb', value: null, score: null }, { source: 'tomatoes', value: null, score: 0 }] })).toEqual({ imdb: null, rottenTomatoes: null, metacritic: null });
+    // Only MDBList's 0–100 score: IMDb comes back out of 10.
+    expect(readMdbList({ ratings: [{ source: 'imdb', score: 81, votes: 5 }] }).imdb).toEqual({ score: 8.1, votes: 5 });
+    expect(readMdbList(null)).toEqual({ imdb: null, rottenTomatoes: null, metacritic: null });
+  });
+
+  it('asks MDBList by TMDB id, keeps scores 3 days, and asks again after 6 hours when it had none', async () => {
+    let at = 0;
+    const asked: string[] = [];
+    let body: unknown = { ratings: [] };
+    let status = 200;
+    const f = (async (u: string | URL) => {
+      asked.push(String(u));
+      return new Response(JSON.stringify(body), { status });
+    }) as unknown as typeof fetch;
+    const api = new MdbListClient('k', openDb(':memory:'), () => at, f);
+    await api.ratings('series', 95396);
+    expect(asked[0]).toBe('https://api.mdblist.com/tmdb/show/95396?apikey=k');
+    at += 7 * 3_600_000;
+    body = { ratings: [{ source: 'tomatoes', value: 91 }] };
+    expect((await api.ratings('series', 95396)).rottenTomatoes).toBe(91);
+    at += 2 * 86_400_000;
+    await api.ratings('series', 95396);
+    expect(asked).toHaveLength(2);
+    // A title MDBList doesn't have is no scores, not an error; a bad key and the daily limit say so plainly.
+    status = 404;
+    expect(await api.ratings('movie', 1)).toEqual({ imdb: null, rottenTomatoes: null, metacritic: null });
+    status = 401;
+    await expect(api.ratings('movie', 2)).rejects.toThrow('MDBList turned the key down. Check it in Settings → Services.');
+    status = 429;
+    body = { error: 'Daily API limit exceeded!' };
+    await expect(api.ratings('movie', 3)).rejects.toThrow(/daily limit is used up/);
   });
 });
 
@@ -67,6 +112,20 @@ describe('Where to watch', () => {
   it('folds add-on channels and ad plans into the service', () => {
     const names = cleanProviders(['HBO Max Amazon Channel', 'Cinemax Amazon Channel', 'HBO Max', 'Cinemax Apple TV Channel', 'Netflix Standard with Ads', 'Netflix'].map((name) => ({ name }))).map((p) => p.name);
     expect(names).toEqual(['HBO Max', 'Cinemax', 'Netflix']);
+  });
+
+  it('shows Paramount+ once, whatever plan or channel TMDB lists, with its own logo', () => {
+    const list = ['Paramount+ Amazon Channel', 'Paramount Plus', 'Paramount Plus Apple TV Channel', 'Paramount+ with Showtime', 'Paramount Plus Essential', 'Paramount+ Roku Premium Channel', 'Paramount+', 'Hulu'];
+    const out = cleanProviders(list.map((name, i) => ({ name, logoPath: `/${i}.png` })));
+    expect(out).toEqual([
+      { name: 'Paramount+', logoPath: '/6.png' },
+      { name: 'Hulu', logoPath: '/7.png' },
+    ]);
+  });
+
+  it('shows Peacock once, whether it’s Premium or Premium Plus', () => {
+    const out = cleanProviders(['Peacock Premium', 'Peacock Premium Plus', 'Peacock Premium Amazon Channel'].map((name) => ({ name }))).map((p) => p.name);
+    expect(out).toEqual(['Peacock']);
   });
 });
 

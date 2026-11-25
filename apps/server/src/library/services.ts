@@ -13,8 +13,8 @@ export interface ServiceSettings {
   tmdbApiKey: string | null;
   /** Streaming Availability (RapidAPI or Movie of the Night), for the services' own Top 10s. Optional. */
   streamingTopKey: string | null;
-  /** OMDb, for IMDb and Rotten Tomatoes scores. Optional. */
-  omdbKey: string | null;
+  /** MDBList, for IMDb, Rotten Tomatoes and Metacritic scores. Optional. */
+  mdblistKey: string | null;
   radarrUrl: string | null;
   radarrApiKey: string | null;
   sonarrUrl: string | null;
@@ -26,7 +26,7 @@ export interface ServiceSettings {
 const KEYS = {
   tmdbApiKey: 'services.tmdb_api_key',
   streamingTopKey: 'services.streaming_top_key',
-  omdbKey: 'services.omdb_key',
+  mdblistKey: 'services.mdblist_key',
   radarrUrl: 'services.radarr_url',
   radarrApiKey: 'services.radarr_api_key',
   sonarrUrl: 'services.sonarr_url',
@@ -40,7 +40,7 @@ export function readServices(db: Db, config: Config): ServiceSettings {
   return {
     tmdbApiKey: get('tmdbApiKey') ?? config.tmdbApiKey,
     streamingTopKey: get('streamingTopKey'),
-    omdbKey: get('omdbKey'),
+    mdblistKey: get('mdblistKey'),
     radarrUrl: get('radarrUrl'),
     radarrApiKey: get('radarrApiKey'),
     sonarrUrl: get('sonarrUrl'),

@@ -6,6 +6,9 @@ import { api, queryClient } from '../api';
 import { Icon } from './Icon';
 import { cx } from './ui';
 
+/** Longer messages than this show a "More" button. */
+const BODY_LIMIT = 140;
+
 const ago = (ms: number) => {
   const m = Math.round((Date.now() - ms) / 60000);
   if (m < 1) return 'just now';
@@ -19,6 +22,8 @@ export function Bell({ up = false }: { up?: boolean }) {
   const [open, setOpen] = useState(false);
   // Which way the panel opens: towards whichever side of the bell has room, so it never runs off the screen.
   const [side, setSide] = useState<'left' | 'right'>('right');
+  // Long messages are cut short with a "More" button; these are the ones opened up.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const box = useRef<HTMLDivElement>(null);
   const { data } = useQuery({ queryKey: ['notifications'], queryFn: () => api<{ items: NotificationInboxItem[]; unread: number }>('/notifications'), refetchInterval: 30_000 });
   const unread = data?.unread ?? 0;
@@ -67,6 +72,9 @@ export function Bell({ up = false }: { up?: boolean }) {
           <ul className="m-0 flex list-none flex-col overflow-y-auto p-0">
             {(data?.items ?? []).length === 0 && <li className="px-4 py-6 text-sm text-muted">Nothing yet. You’ll hear here when something you asked for is ready.</li>}
             {(data?.items ?? []).map((n) => {
+              const long = n.body.length > BODY_LIMIT;
+              const full = expanded.has(n.id);
+              const body = long && !full ? `${n.body.slice(0, BODY_LIMIT).trimEnd()}…` : n.body;
               const inner = (
                 <span className="flex gap-3">
                   {n.image && <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} src={n.image} alt="" loading="lazy" className="h-14 w-10 flex-none rounded-md bg-raised object-cover" />}
@@ -75,7 +83,7 @@ export function Bell({ up = false }: { up?: boolean }) {
                       <span className={cx('text-sm', n.read ? 'text-soft' : 'font-semibold text-text')}>{n.title}</span>
                       <span className="flex-none text-xs text-dim">{ago(n.createdAt)}</span>
                     </span>
-                    <span className="text-label text-muted">{n.body}</span>
+                    <span className="text-label break-words text-muted">{body}</span>
                   </span>
                 </span>
               );
@@ -87,6 +95,16 @@ export function Bell({ up = false }: { up?: boolean }) {
                     </Link>
                   ) : (
                     <div className="flex flex-col gap-0.5 px-4 py-3">{inner}</div>
+                  )}
+                  {long && (
+                    <button
+                      type="button"
+                      aria-expanded={full}
+                      onClick={() => setExpanded((s) => (s.has(n.id) ? new Set([...s].filter((x) => x !== n.id)) : new Set(s).add(n.id)))}
+                      className={cx('-mt-2 mb-1 min-h-11 px-4 text-sm font-medium text-amber', n.image && 'ml-[52px]')}
+                    >
+                      {full ? 'Less' : 'More'}
+                    </button>
                   )}
                 </li>
               );

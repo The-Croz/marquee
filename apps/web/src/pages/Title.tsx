@@ -3,7 +3,7 @@ import { ShowEpisodesChoice } from './GettingIn';
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MediaFileView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
+import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
 import { api, ApiFailure, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { DownloadList, useDownloads } from '../components/Downloads';
@@ -15,6 +15,7 @@ import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/
 import { Sheet } from '../components/Overlay';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { useDocTitle } from '../components/Page';
+import { ImdbMark, MetacriticMark, TmdbMark, TomatoMark } from '../components/ScoreIcons';
 
 /**
  * One page for a movie or show, whether it's in your library or not.
@@ -89,6 +90,8 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
   // "Find a better copy" from a problem report opens the search straight away (?find=1).
   const [finding, setFinding] = useState<{ season?: number; episode?: number } | null>(params.get('find') === '1' && admin ? {} : null);
   const { data: prefs } = useQuery({ queryKey: ['discover', 'prefs'], queryFn: () => api<DiscoverPrefs>('/discover/prefs') });
+  // "Something wrong?" opens from the More menu (admins) or a small link (everyone else).
+  const [reporting, setReporting] = useState(false);
   const lib = movie ?? show;
   const libId = lib?.id;
   const downloads = useDownloads(admin && libId ? (kind === 'movie' ? { movieId: libId } : { seriesId: libId }) : undefined);
@@ -113,9 +116,6 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
 
   return (
     <>
-      <Link to={lib ? (kind === 'movie' ? '/library/movies' : '/library/shows') : '/discover'} viewTransition className="-mt-2 flex min-h-11 items-center self-start text-sm text-muted no-underline hover:text-text">
-        ← {lib ? (kind === 'movie' ? 'Movies' : 'Shows') : 'Discover'}
-      </Link>
 
       {trailer && info?.trailerKey && (
         <section aria-label="Trailer" className="flex flex-col gap-2">
@@ -134,7 +134,15 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
         )}
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/70 to-ink/20" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink/70 via-transparent to-transparent" />
-        <div className="relative flex flex-wrap items-end gap-6 px-5 pt-6 pb-7 sm:pt-28 sm:gap-8 sm:px-10 sm:pb-9">
+        {/* Back sits over the banner's top corner, so the banner starts at the top of the page. */}
+        <Link
+          to={lib ? (kind === 'movie' ? '/library/movies' : '/library/shows') : '/discover'}
+          viewTransition
+          className="absolute top-3 left-3 z-10 inline-flex min-h-11 items-center gap-1 rounded-full bg-ink/55 px-3.5 text-sm font-medium text-text no-underline backdrop-blur hover:bg-ink/80 hover:text-text sm:top-4 sm:left-4"
+        >
+          ← {lib ? (kind === 'movie' ? 'Movies' : 'Shows') : 'Discover'}
+        </Link>
+        <div className="relative flex flex-wrap items-end gap-6 px-5 pt-16 pb-7 sm:pt-24 sm:gap-8 sm:px-10 sm:pb-9">
           <Poster title={title} path={lib?.posterPath ?? c?.posterPath} color={color} transition={lib ? posterTransition(href) : undefined} size="w500" className="w-[112px] flex-none shadow-2xl sm:w-[190px]" />
           <div className="flex min-w-[260px] flex-1 flex-col gap-3">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-soft">
@@ -145,15 +153,18 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
             <h1 className="m-0 font-display text-display leading-[0.95] font-normal text-balance sm:text-display-lg">{title}</h1>
             {info?.tagline && <p className="m-0 text-body text-soft italic">{info.tagline}</p>}
             {info && <Scores r={info.ratings} />}
-            <StatusLine kind={kind} movie={movie} show={show} info={info} active={active[0]} />
-            <Actions kind={kind} info={info} lib={lib} admin={admin} onTrailer={() => setTrailer(true)} onFind={() => setFinding({})} />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <StatusLine kind={kind} movie={movie} show={show} info={info} active={active[0]} />
+              {admin && lib && <WantedToggle compact offLabel="Not wanted" path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
+            </div>
+            <Actions kind={kind} info={info} lib={lib} admin={admin} onTrailer={() => setTrailer(true)} onFind={() => setFinding({})} onReport={() => setReporting(true)} />
             {info && info.watchOn.length > 0 && <WatchOn list={info.watchOn} />}
           </div>
         </div>
       </section>
 
       {info?.request && info.request.state !== 'ready' && info.request.state !== 'declined' && <RequestProgress r={info.request} />}
-      {lib && <SomethingWrong kind={kind} id={lib.id} seasons={show?.seasons} />}
+      {lib && <SomethingWrong kind={kind} id={lib.id} seasons={show?.seasons} open={reporting} onClose={() => setReporting(false)} />}
 
       {(lib?.overview ?? c?.overview) && <p className="m-0 max-w-[720px] text-heading leading-relaxed text-soft">{lib?.overview ?? c?.overview}</p>}
 
@@ -166,7 +177,6 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
         </section>
       )}
 
-      {movie && <YourCopy movie={movie} admin={admin} onFind={() => setFinding({})} />}
       {show && <Seasons show={show} admin={admin} onFind={(season, episode) => setFinding({ season, ...(episode !== undefined ? { episode } : {}) })} />}
 
       {info && info.cast.length > 0 && <Cast cast={info.cast} />}
@@ -174,7 +184,16 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
       {admin && lib && <History kind={kind} lib={lib} />}
       {admin && lib && <NeverPick kind={kind} lib={lib} />}
       {info?.similar && <Row row={info.similar} trailers={prefs?.trailers ?? true} />}
-      {lib?.path && <p className="m-0 text-xs break-all text-dim">Folder on disk: {lib.path}</p>}
+      {lib?.path && (
+        <div className="flex flex-col gap-0.5 text-xs break-all text-dim">
+          <p className="m-0">Folder on disk: {lib.path}</p>
+          {movie?.files.map((f) => (
+            <p key={f.id} className="m-0">
+              File: {f.path}
+            </p>
+          ))}
+        </div>
+      )}
 
       {admin && lib && (
         <Sheet open={finding !== null} onClose={() => setFinding(null)} title={finding?.episode !== undefined ? `Find a copy of episode ${finding.episode}` : finding?.season !== undefined ? `Find copies of season ${finding.season}` : `Find a copy of ${title}`} size="full">
@@ -200,19 +219,20 @@ function TitlePage({ kind, movie, show, info }: { kind: 'movie' | 'series'; movi
 
 /** TMDB, IMDb, Rotten Tomatoes and Metacritic, each with its own label. */
 function Scores({ r }: { r: TitleRatings }) {
-  const items: { label: string; value: string; title: string; href?: string; tone?: string }[] = [];
-  if (r.tmdb) items.push({ label: 'TMDB', value: r.tmdb.score.toFixed(1), title: `TMDB: ${r.tmdb.score.toFixed(1)} out of 10 from ${r.tmdb.votes.toLocaleString()} votes` });
-  if (r.imdb) items.push({ label: 'IMDb', value: r.imdb.score.toFixed(1), title: `IMDb: ${r.imdb.score.toFixed(1)} out of 10 from ${r.imdb.votes.toLocaleString()} votes`, ...(r.imdbId ? { href: `https://www.imdb.com/title/${r.imdbId}/` } : {}) });
-  if (r.rottenTomatoes !== null) items.push({ label: 'Rotten Tomatoes', value: `${r.rottenTomatoes}%`, title: `Rotten Tomatoes critics: ${r.rottenTomatoes}%` });
-  if (r.metacritic !== null) items.push({ label: 'Metacritic', value: String(r.metacritic), title: `Metacritic: ${r.metacritic} out of 100` });
+  const items: { label: string; value: string; title: string; mark: React.ReactNode; href?: string; tone?: string }[] = [];
+  if (r.tmdb) items.push({ label: 'TMDB', mark: <TmdbMark />, value: r.tmdb.score.toFixed(1), title: `TMDB: ${r.tmdb.score.toFixed(1)} out of 10 from ${r.tmdb.votes.toLocaleString()} votes` });
+  if (r.imdb) items.push({ label: 'IMDb', mark: <ImdbMark />, value: r.imdb.score.toFixed(1), title: `IMDb: ${r.imdb.score.toFixed(1)} out of 10 from ${r.imdb.votes.toLocaleString()} votes`, ...(r.imdbId ? { href: `https://www.imdb.com/title/${r.imdbId}/` } : {}) });
+  if (r.rottenTomatoes !== null)
+    items.push({ label: 'Rotten Tomatoes', mark: <TomatoMark score={r.rottenTomatoes} />, value: `${r.rottenTomatoes}%`, title: `Rotten Tomatoes critics: ${r.rottenTomatoes}% (${r.rottenTomatoes >= 60 ? 'fresh' : 'rotten'})` });
+  if (r.metacritic !== null) items.push({ label: 'Metacritic', mark: <MetacriticMark score={r.metacritic} />, value: String(r.metacritic), title: `Metacritic: ${r.metacritic} out of 100` });
   if (!items.length) return null;
   return (
     <ul aria-label="Scores" className="m-0 flex list-none flex-wrap gap-2 p-0">
       {items.map((i) => {
         const body = (
           <>
+            {i.mark}
             <span className={cx('text-body font-bold tabular-nums', i.tone ?? 'text-text')}>{i.value}</span>
-            <span className="text-caption text-muted">{i.label}</span>
           </>
         );
         return (
@@ -245,7 +265,13 @@ function StatusLine({ kind, movie, show, info, active }: { kind: 'movie' | 'seri
     progress = active.progress > 0 ? Math.round(active.progress * 100) : null;
   } else if (movie && movie.files[0]) {
     tone = 'good';
-    text = `In your library · ${movie.files[0].quality.label} · ${formatBytes(movie.files.reduce((n, f) => n + f.sizeBytes, 0))}`;
+    // What "Your copy" used to say, in one line: quality, how it was made, and size.
+    const size = formatBytes(movie.files.reduce((n, f) => n + f.sizeBytes, 0));
+    if (movie.files.length > 1) text = `In your library · ${movie.files.length} copies (${[...new Set(movie.files.map((f) => f.quality.label))].join(', ')}) · ${size}`;
+    else {
+      const q = movie.files[0].quality;
+      text = ['In your library', q.label, [q.source, q.hdr, q.codec].filter(Boolean).join(', ') || null, q.group ? `by ${q.group}` : null, size].filter(Boolean).join(' · ');
+    }
   } else if (show) {
     const real = show.seasons.filter((s) => s.season !== 0);
     const have = real.reduce((n, s) => n + s.have, 0);
@@ -308,8 +334,8 @@ function WatchButtons({ kind, id }: { kind: 'movie' | 'series'; id: number }) {
   );
 }
 
-/** Trailer, asking for it, finding a copy, and Wanted, in one row. */
-function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' | 'series'; info?: DiscoverTitle; lib?: MovieDetail | ShowDetail; admin: boolean; onTrailer: () => void; onFind: () => void }) {
+/** Trailer, asking for it, finding a copy, watching, and More, in one row. */
+function Actions({ kind, info, lib, admin, onTrailer, onFind, onReport }: { kind: 'movie' | 'series'; info?: DiscoverTitle; lib?: MovieDetail | ShowDetail; admin: boolean; onTrailer: () => void; onFind: () => void; onReport: () => void }) {
   const navigate = useNavigate();
   const { ask, busy, message } = useRequest();
   const [picking, setPicking] = useState(false);
@@ -341,8 +367,12 @@ function Actions({ kind, info, lib, admin, onTrailer, onFind }: { kind: 'movie' 
           </button>
         )}
         {lib && <WatchButtons kind={kind} id={lib.id} />}
-        {admin && lib && <WantedToggle path={`/${kind === 'movie' ? 'movies' : 'shows'}/${lib.id}/wanted`} wanted={lib.monitored} label={`Wanted: Marquee looks for ${lib.title} by itself`} />}
-        {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} />}
+        {admin && lib && <TitleTools kind={kind} id={lib.id} title={lib.year ? `${lib.title} (${lib.year})` : lib.title} onReport={onReport} />}
+        {!admin && lib && (
+          <button type="button" onClick={onReport} className="inline-flex min-h-12 items-center px-2 text-sm font-medium text-soft hover:text-text">
+            Something wrong?
+          </button>
+        )}
       </div>
       {info?.collection && (
         <Link to={`/collections/${info.collection.tmdbId}`} className="self-start text-sm font-semibold">
@@ -427,49 +457,6 @@ function RequestProgress({ r }: { r: RequestView }) {
         {r.requestedBy && <span className="text-dim"> · asked by {r.requestedBy.name}</span>}
       </p>
     </section>
-  );
-}
-
-// ---------------- Movie: your copy ----------------
-
-function YourCopy({ movie, admin, onFind }: { movie: MovieDetail; admin: boolean; onFind: () => void }) {
-  if (!movie.files.length && !admin) return null;
-  return (
-    <section aria-labelledby="copy-h" className="flex flex-col gap-3">
-      <h2 id="copy-h" className="m-0 text-lg font-semibold">
-        {movie.files.length > 1 ? 'Your copies' : 'Your copy'}
-      </h2>
-      {movie.files.length === 0 ? (
-        <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-dashed border-line-strong px-5 py-4">
-          <p className="m-0 flex-1 text-sm text-soft">{movie.monitored ? 'Nothing on disk yet. Marquee searches for it by itself while it’s Wanted.' : 'Nothing on disk, and Marquee isn’t looking for it. Turn on Wanted, or find a copy yourself.'}</p>
-          <Button type="button" variant="ghost" onClick={onFind}>
-            Find a copy
-          </Button>
-        </div>
-      ) : (
-        <ul className="m-0 flex list-none flex-col gap-2 p-0">
-          {movie.files.map((f) => (
-            <FileRow key={f.id} f={f} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function FileRow({ f }: { f: MediaFileView }) {
-  const q = f.quality;
-  const details = [q.source, q.hdr, q.codec, q.group && `by ${q.group}`].filter(Boolean).join(', ');
-  return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-line bg-panel px-4 py-3">
-      <span className="rounded-md bg-amber/15 px-2 py-1 text-xs font-semibold text-amber-hi">{q.label}</span>
-      <span className="min-w-0 flex-1 text-sm text-soft">{details || 'Quality unknown'}</span>
-      <span className="text-sm text-muted tabular-nums">{formatBytes(f.sizeBytes)}</span>
-      <details className="w-full text-xs text-dim">
-        <summary className="flex min-h-8 cursor-pointer items-center hover:text-text">Where it is</summary>
-        <span className="font-mono break-all">{f.path}</span>
-      </details>
-    </li>
   );
 }
 

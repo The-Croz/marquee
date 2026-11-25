@@ -320,7 +320,7 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 ### UI round 3 (Nov 2026) ✅
 
 - **One title page** (`pages/Title.tsx`) for library and Discover titles. Discover's page sends you to the library page once the title is there (or a request for it is approved), so asking for something lands you on its own page with no "Open it" link. Discover cards open the library page directly when there is one.
-- **Hero**: age rating, year, length, genres; **scores** for TMDB and, with an optional **OMDb** key (Settings → Services, `library/omdb.ts`, kept 3 days), IMDb, Rotten Tomatoes and Metacritic; one plain **status line**; Request / Trailer / Find a copy / **Wanted** switch in one row; "Streaming on" with service logos. Add-on channels and ad plans fold into the service (`cleanProviders`: "HBO Max Amazon Channel" → HBO Max).
+- **Hero**: age rating, year, length, genres; **scores** for TMDB and, with an optional **MDBList** key (Settings → Services, `library/mdblist.ts`, kept 3 days; was OMDb until 2026-11-24), IMDb, Rotten Tomatoes and Metacritic; one plain **status line**; Request / Trailer / Find a copy / **Wanted** switch in one row; "Streaming on" with service logos. Add-on channels and ad plans fold into the service (`cleanProviders`: "HBO Max Amazon Channel" → HBO Max).
 - **Tabs and the Wanted bar are gone.** Movies: **Your copy** (quality, size, "Where it is" folded away) with Find a copy / Find a better copy in a Sheet. Shows: **Seasons** with a progress bar, a Wanted switch and **Find copies** on each season, and Wanted + **Find / Replace** on each episode (the Sheet opens on that season and episode and searches at once). **On its way** shows active downloads; **History** is one timeline of downloads, plays (Plex/Jellyfin) and when it arrived.
 - **Cast with photos** in a row; each opens a **person page** (`/discover/person/:id`, `GET /api/discover/person/:id`): photo, born, bio, and everything they've been in (Everything/Movies/Shows), each with its state. **More like this** and Details on every title page.
 - **Request flow**: approval answers within 1.5 s; a slower first search carries on in the background and the request says **Searching…** (new `searching` state), then moves on by itself (the page checks every few seconds). A sent copy reads "Found a copy. The download is starting." until it has progress, then "Downloading now · 42%". A **progress strip** (Approved → Searching/Still looking/Waiting for it to come out → Downloading → Ready) shows on the title page. Requesting updates every Discover row, search result and Home at once. **Downloads** in the menu and phone tab bar shows a count while anything is on its way (`GET /api/downloads/summary`).
@@ -329,7 +329,7 @@ From the [UI audit](design/ui-audit-2026-11.md) (scored 24/40). Six phases; the 
 - **Discover**: the Everything/Movies/Shows chips and the genre dropdown are gone. Search works as you type, with a Movies/Shows switch on the results when both turn up. **Browse by genre** tiles open a genre's rows, which have their own Movies/Shows switch.
 - **Home**: no search box. "Needs you" and "On its way" moved into a pill on the banner that opens a Sheet, so the banner is taller. Just arrived is one sideways row; **This week** is a row of pictures with the day on each; Recent requests moved below, with short labels that stay on one line; **Your library in numbers** tiles (movies, shows, episode files, added this week, size, free space, automatic searching).
 - Sideways rows line up with the page edge (scroll padding) and use the phone's 16px gutter; checked at 375px with no sideways scroll.
-- Tests: `test/title-page.test.ts` (scores, OMDb key, people, providers, when a movie is out), plus the searching state in `test/requests.test.ts`, cinema rules in `test/wanted.test.ts`, the scan memory in `test/library.test.ts`. Demo mode has a fake OMDb.
+- Tests: `test/title-page.test.ts` (scores, MDBList key, people, providers, when a movie is out), plus the searching state in `test/requests.test.ts`, cinema rules in `test/wanted.test.ts`, the scan memory in `test/library.test.ts`. Demo mode has a fake MDBList.
 
 ### Phone pass (Nov 2026) ✅
 
@@ -422,6 +422,17 @@ From [`docs/design/holyarrs-releases-2026-11.md`](design/holyarrs-releases-2026-
 - **Try another copy reuses the last search** (`downloads/search.ts`, `monitor.ts`): copies a search for the same title brought back in the last 3 hours are judged again (Never pick, profile and your file as they are now) instead of asking every Source again; only when none suits is there a fresh search. Saves Source limits on fakes and quick retries.
 - **Docker image build**: the Actions cache answering 503 no longer fails the build (`cache-to: …,ignore-error=true`); that's what stopped the image for PR #44.
 - Tests: `test/onServers.test.ts` (links, remembered ids, kids, labels), new cases in `monitor.test.ts` (no internet, all stopped at once, reused search), `requests.test.ts` (why nothing was picked), `system.test.ts` (backup before an update, and refusing to start without one). Demo mode's fake Plex and Jellyfin have Dune (and Plex Severance) for the buttons.
+
+## Polish from use (2026-11-24) ✅
+
+- Downloads count on the menu matches "On the way" (finished downloads another app sent no longer count forever).
+- "Added to the library" sums up season packs ("Season 2 (10 episodes)"); long notifications fold behind More.
+- Where to watch: one Paramount+ and one Peacock, whatever plan or channel TMDB lists.
+- Whole-season searches turn down single episodes (`not_whole_season`); Find copies can sort (points, people sharing, size, newest) and show every copy whatever the profile.
+- Title page: the copy's quality and size live in the banner's status line (full file path at the bottom), Wanted sits beside it, and "Something wrong?" moved into More (a small link for members and kids). Scores have their own marks (fresh/rotten tomato, Metacritic colours). Answers with no scores are asked again after 6 hours instead of 3 days.
+- Scores come from **MDBList** instead of OMDb (OMDb stopped sending Rotten Tomatoes in November 2026). Looked up by TMDB id, so shows get them too. Its Test shows the scores for one real movie. Migration 33 removes the old OMDb key and its kept answers.
+- Title page: the back link sits over the banner's corner, so the banner starts at the top.
+- Requests: no "Find something to ask for" link; filters (status, movies/shows, who asked) and sorting; "Recently answered" (last 14 days) under the waiting list.
 
 ## Milestone 7: iPhone app ⬜
 

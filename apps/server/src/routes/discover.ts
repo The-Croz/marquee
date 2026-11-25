@@ -13,7 +13,7 @@ export const discoverRoutes = new Hono<Env>();
 const deps = (c: Ctx): DiscoverDeps => {
   const { db, config, clients, now } = c.get('deps');
   const s = readServices(db, config);
-  return { db, tmdb: scanSources(c).tmdb, now, top: s.streamingTopKey ? clients.streamingTop(s.streamingTopKey) : null, omdb: s.omdbKey ? clients.omdb(s.omdbKey) : null, isAdmin: c.get('user')?.role === 'admin' };
+  return { db, tmdb: scanSources(c).tmdb, now, top: s.streamingTopKey ? clients.streamingTop(s.streamingTopKey) : null, ratings: s.mdblistKey ? clients.mdblist(s.mdblistKey) : null, isAdmin: c.get('user')?.role === 'admin' };
 };
 
 const pageQuery = z.object({
