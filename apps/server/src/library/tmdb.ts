@@ -155,7 +155,7 @@ export interface TmdbPerson {
  * Streaming add-ons ("HBO Max Amazon Channel", "Cinemax Apple TV Channel",
  * "Netflix Standard with Ads") fold into the service's own name, and repeats go.
  */
-export function cleanProviders<T extends { name: string }>(list: T[]): T[] {
+export function cleanProviders<T extends { name: string; logoPath?: string | null }>(list: T[], standardLogos?: Map<string, string>): T[] {
   const base = (n: string) => {
     const name = n
       .replace(/\s+(Amazon|Apple TV|Roku Premium|Prime Video)\s+Channels?$/i, '')
@@ -166,13 +166,17 @@ export function cleanProviders<T extends { name: string }>(list: T[]): T[] {
     if (/^peacock\b/i.test(name)) return 'Peacock';
     return name;
   };
+  const isChannel = (n: string) => /\s+(Amazon|Apple TV|Roku Premium|Prime Video)\s+Channels?$/i.test(n);
   const out: T[] = [];
   for (const p of list) {
     const name = base(p.name);
+    // A channel's logo carries the Amazon, Apple or Roku badge. Use the service's own standard logo, or none (the page shows the name).
+    const entry = isChannel(p.name) && 'logoPath' in p ? { ...p, name, logoPath: standardLogos?.get(name.toLowerCase()) ?? null } : { ...p, name };
     const i = out.findIndex((o) => o.name.toLowerCase() === name.toLowerCase());
-    if (i < 0) out.push({ ...p, name });
-    // Keep the plain service's own logo over a channel's (which carries the Amazon or Apple badge).
-    else if (p.name.toLowerCase() === name.toLowerCase()) out[i] = { ...p, name };
+    if (i < 0) out.push(entry);
+    // Keep the plain service's own logo over a channel's.
+    else if (p.name.toLowerCase() === name.toLowerCase()) out[i] = entry;
+    else if (!out[i]!.logoPath && entry.logoPath) out[i] = { ...out[i]!, logoPath: entry.logoPath };
   }
   return out;
 }
@@ -609,14 +613,30 @@ export class TmdbClient implements TmdbApi {
       genres: (r.genres ?? []).map((g) => g.name),
       trailerKey: trailer?.key ?? null,
       cast: (r.credits?.cast ?? []).slice(0, 20).map((c) => ({ id: c.id ?? null, name: c.name, character: c.character || null, profilePath: c.profile_path ?? null })),
-      ...(() => {
-        const watchOn = cleanProviders((r['watch/providers']?.results?.US?.flatrate ?? []).map((p) => ({ name: p.provider_name, logoPath: p.logo_path ?? null })));
+      ...(await (async () => {
+        const flat = r['watch/providers']?.results?.US?.flatrate ?? [];
+        const standardLogos = flat.some((p) => /\sChannels?$/i.test(p.provider_name)) ? await this.standardProviderLogos() : undefined;
+        const watchOn = cleanProviders(flat.map((p) => ({ name: p.provider_name, logoPath: p.logo_path ?? null })), standardLogos);
         return { watchOn, providers: watchOn.map((p) => p.name) };
-      })(),
+      })()),
       imdbId: r.external_ids?.imdb_id || null,
       status: r.status ?? null,
       seasons: (r.seasons ?? []).filter((x) => x.season_number > 0).map((x) => ({ season: x.season_number, episodeCount: x.episode_count })),
     };
+  }
+
+  /** TMDB's US streaming-service catalogue, by lowercase name → logo, for services whose own entry isn't a channel. */
+  async standardProviderLogos(): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    try {
+      for (const kind of ['movie', 'tv']) {
+        const r = await this.get<{ results?: { provider_name: string; logo_path?: string | null }[] }>(`/watch/providers/${kind}`, { watch_region: 'US', language: 'en-US' }, 7 * DAY);
+        for (const p of r.results ?? []) if (p.logo_path && !/\sChannels?$/i.test(p.provider_name)) out.set(p.provider_name.toLowerCase(), p.logo_path);
+      }
+    } catch {
+      // No catalogue: channel logos are dropped and the page shows names.
+    }
+    return out;
   }
 
   async collection(id: number): Promise<TmdbCollection> {
