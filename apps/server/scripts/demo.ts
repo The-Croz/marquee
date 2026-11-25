@@ -12,6 +12,8 @@
  * fake sites can be brought over too.
  * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
  * Copies whose name ends in -SCENE finish as .rar files, so Downloads shows them unpacking (a fake 7-Zip, a few seconds).
+ * iPhone app push: a fake Apple push service is already set up (Settings → Notifications → Shared alerts → iPhone app);
+ * every push the app would get is logged as "[demo] Apple push to …". apps/ios/scripts/seed-demo.sh turns it on for the demo phone.
  * Library → More: The Matrix has Radarr-style names to rename, and the downloads folder has two finished files
  * to put in your library by hand. Settings → Health shows a set-aside file under Replaced files.
  */
@@ -20,6 +22,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from '../src/app.js';
+import { ApnsClient } from '../src/notify/apns.js';
+import { readApns, writeApns } from '../src/notify/apnsSettings.js';
+import { HttpPushClient } from '../src/notify/push.js';
+import { FakeApple } from '../test/fakes/apns.js';
 import { Jobs } from '../src/system/jobs.js';
 import { captureConsole, serverLog, watchSecrets } from '../src/system/logs.js';
 import { KEEP_DAYS, nightlyBackup } from '../src/system/backups.js';
@@ -287,6 +293,15 @@ setSetting(db, 'services.streaming_top_key', 'good-top-key');
 const ratings = new FakeRatings();
 setSetting(db, 'services.mdblist_key', 'good-mdblist-key');
 
+// A fake Apple push service: the iPhone app's pushes (and Lock Screen updates) are checked and logged here, never sent anywhere.
+const apple = await new FakeApple().start();
+apple.onPush = (p) => {
+  const alert = p.payload.aps?.alert;
+  const what = alert ? `"${alert.title}": ${alert.body}` : `${p.payload.aps?.event} ${JSON.stringify(p.payload.aps?.['content-state'])}`;
+  console.log(`[demo] Apple push to ${p.token.slice(0, 8)}… (${p.headers['apns-push-type']}${p.payload.aps?.category ? `, ${p.payload.aps.category}` : ''}): ${what}`);
+};
+writeApns(db, { key: apple.privateKeyPem, keyId: 'DEMOKEY123', teamId: 'DEMOTEAM12', bundleId: 'app.marquee.ios' });
+const apnsClient = new ApnsClient(() => readApns(db), apple.url);
 const clients = {
   streamingTop: (key: string) => streamingTop.as(key),
   mdblist: (key: string) => ratings.as(key),
@@ -303,7 +318,8 @@ const clients = {
     return t;
   },
   tmdb: () => tmdb, arr: (kind: 'radarr' | 'sonarr') => (kind === 'sonarr' ? sonarr : radarr), torznab: sites.torznab, prowlarr: sites.prowlarr,
-  push: { send: async () => {} },
+  push: new HttpPushClient(fetch, apnsClient),
+  apns: apnsClient,
   siteFetch: web.fetch,
   solver: () => solver,
   fetchCatalogue: async () => catalogue,

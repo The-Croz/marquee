@@ -20,6 +20,8 @@ export class FakeApple {
   readonly keys = generateKeyPairSync('ec', { namedCurve: 'P-256' });
   readonly privateKeyPem = this.keys.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
   url = '';
+  /** Called for every push (demo mode logs them). */
+  onPush: ((p: ApplePush) => void) | null = null;
   private server = http2.createServer();
 
   async start(): Promise<this> {
@@ -42,7 +44,9 @@ export class FakeApple {
         }
         const flat: Record<string, string> = {};
         for (const [k, v] of Object.entries(headers)) flat[k] = String(v);
-        this.pushes.push({ token, headers: flat, payload: JSON.parse(body || '{}'), jwtOk, jwtKeyId, jwtTeamId });
+        const push = { token, headers: flat, payload: JSON.parse(body || '{}'), jwtOk, jwtKeyId, jwtTeamId };
+        this.pushes.push(push);
+        this.onPush?.(push);
         const answer = this.answers.get(token);
         if (!jwtOk) {
           stream.respond({ ':status': 403 });
