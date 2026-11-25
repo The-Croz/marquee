@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import type { NotificationChannelView, NotificationEventInfo, NotificationInboxItem, NotificationPreview, NotificationPriority, NotificationTemplateView } from '@marquee/shared';
+import type { ApnsSettingsView, NotificationChannelView, NotificationEventInfo, NotificationInboxItem, NotificationPreview, NotificationPriority, NotificationTemplateView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { notificationChannels, notificationPriorities, notifications, notificationTemplates, userPrefs, type NotificationChannel, type User } from '../db/schema.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
-import { COMMON_VARS, DEFAULT_ADMIN_EVENTS, EVENTS, eventInfo, eventsFor, PRIORITIES } from '../notify/events.js';
+import { COMMON_VARS, DEFAULT_ADMIN_EVENTS, EVENTS, defaultEventsFor, eventInfo, eventsFor, PRIORITIES } from '../notify/events.js';
 import { compose, priorityFor, templateFor, type NotifyDeps } from '../notify/service.js';
 import { unknownNames } from '../notify/template.js';
+import { apnsView, writeApns } from '../notify/apnsSettings.js';
 
 /**
  * Notifications:
@@ -72,7 +73,7 @@ function channelView(ch: NotificationChannel): NotificationChannelView {
     name: ch.name,
     enabled: ch.enabled,
     events: JSON.parse(ch.events) as string[],
-    detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : ch.kind === 'webhook' ? (c.url ?? '').replace(/^(https?:\/\/[^/]+).*$/, '$1/…') : 'Pushover',
+    detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : ch.kind === 'webhook' ? (c.url ?? '').replace(/^(https?:\/\/[^/]+).*$/, '$1/…') : ch.kind === 'apns' ? 'iPhone app' : 'Pushover',
     lastOkAt: ch.lastOkAt,
     lastError: ch.lastError,
   };
@@ -107,7 +108,7 @@ const MINE: Scope = {
   where: (u) => eq(notificationChannels.userId, u.id),
   owner: (u) => u.id,
   allowed: (u) => eventsFor(u.role).map((e) => e.key),
-  defaults: (u) => eventsFor(u.role).filter((e) => !e.quiet).map((e) => e.key),
+  defaults: (u) => defaultEventsFor(u),
 };
 
 const eventList = z.array(z.string().max(40)).max(60);
@@ -270,6 +271,52 @@ channelRoutes.delete('/templates/:event', (c) => {
   const { db } = c.get('deps');
   db.delete(notificationTemplates).where(eq(notificationTemplates.event, event)).run();
   return c.json<NotificationTemplateView>(view(db, event));
+});
+
+
+// ---------------- iPhone app (Apple push key, admin) ----------------
+
+const apnsBody = z.object({
+  key: z.string().max(5000).optional(),
+  keyId: z.string().trim().regex(/^[A-Z0-9]{10}$/, 'A key id is 10 letters and numbers, like ABC123DEFG.'),
+  teamId: z.string().trim().regex(/^[A-Z0-9]{10}$/, 'A team id is 10 letters and numbers, like ABC123DEFG.'),
+  bundleId: z.string().trim().regex(/^[A-Za-z0-9.-]{3,100}$/, 'The app id looks like app.marquee.ios.'),
+});
+
+channelRoutes.get('/apns', (c) => {
+  requireAdmin(c);
+  return c.json<ApnsSettingsView>(apnsView(c.get('deps').db));
+});
+
+channelRoutes.put('/apns', async (c) => {
+  requireAdmin(c);
+  const { db } = c.get('deps');
+  const body = apnsBody.parse(await c.req.json());
+  if (!body.key?.trim() && !apnsView(db).keySet) throw new HttpError(400, 'invalid_input', 'Paste the Apple push key (the .p8 file’s text) to set this up.');
+  writeApns(db, body);
+  return c.json<ApnsSettingsView>(apnsView(db));
+});
+
+/** Sends a test to the admin's own iPhones. */
+channelRoutes.post('/apns/test', async (c) => {
+  const user = requireAdmin(c);
+  const { db, clients, now } = c.get('deps');
+  if (!apnsView(db).ready) return c.json({ ok: false, message: 'Fill in the Apple key, key id, team id and app id first.' });
+  const mine = db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, user.id), eq(notificationChannels.kind, 'apns'))).all();
+  if (mine.length === 0) return c.json({ ok: false, message: 'None of your iPhones is signed in with notifications on. Open the Marquee app, then You → Notifications on this iPhone.' });
+  let sent = 0;
+  let problem: string | null = null;
+  for (const ch of mine) {
+    try {
+      await clients.push.send({ kind: 'apns', config: cfg(ch) }, { title: 'Marquee test', body: 'If you can read this, Marquee can reach your iPhone.', link: null, event: 'test' });
+      db.update(notificationChannels).set({ lastOkAt: now(), lastError: null }).where(eq(notificationChannels.id, ch.id)).run();
+      sent++;
+    } catch (err) {
+      problem = (err as Error).message;
+      db.update(notificationChannels).set({ lastError: problem }).where(eq(notificationChannels.id, ch.id)).run();
+    }
+  }
+  return c.json({ ok: sent > 0, message: sent > 0 ? `Sent to ${sent} ${sent === 1 ? 'iPhone' : 'iPhones'}. Check your phone.` : (problem ?? 'It didn’t go through.') });
 });
 
 channelRoutes.route('/', channelRoutesFor(SHARED));

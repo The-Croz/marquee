@@ -1,5 +1,6 @@
 import { markReady } from './requests/service.js';
 import { HttpPushClient } from './notify/push.js';
+import { ApnsClient } from './notify/apns.js';
 import path from 'node:path';
 import { serve } from '@hono/node-server';
 import { loadConfig } from './config.js';
@@ -66,7 +67,7 @@ const clients = {
   plexServer: (url: string, token: string) => new PlexServerClient(url, token),
   jellyfin: (url: string, key: string) => new JellyfinClient(url, key),
   jellyfinLogin: (url: string, username: string, password: string) => jellyfinCheckLogin(url, username, password),
-  push: new HttpPushClient(),
+  push: new HttpPushClient(fetch, ApnsClient.forDb(db)),
   siteFetch: realSiteFetch,
   solver: (url: string) => new FlareSolverrClient(url),
   fetchCatalogue: async () => {

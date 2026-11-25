@@ -1,6 +1,8 @@
 /** Sending one message through Pushover, ntfy or a webhook (a JSON POST). Errors say what happened in plain words. */
 
 import type { NotificationPriority } from '@marquee/shared';
+import { GonePushError, PushError } from './pushError.js';
+import { ApnsClient, apnsPayload, explain, isGone } from './apns.js';
 
 /** Pushover's levels. 1 is Time Sensitive on an iPhone; 2 (keeps buzzing until you answer) isn't offered. */
 const PUSHOVER_PRIORITY: Record<NotificationPriority, string> = { silent: '-2', quiet: '-1', normal: '0', high: '1' };
@@ -23,7 +25,7 @@ export interface PushMessage {
 }
 
 export interface PushConfig {
-  kind: 'pushover' | 'ntfy' | 'webhook';
+  kind: 'pushover' | 'ntfy' | 'webhook' | 'apns';
   config: Record<string, string>;
 }
 
@@ -31,20 +33,32 @@ export interface PushClient {
   send(channel: PushConfig, msg: PushMessage): Promise<void>;
 }
 
-export class PushError extends Error {}
+export { PushError, GonePushError };
 
 export class HttpPushClient implements PushClient {
-  constructor(private readonly fetchImpl: typeof fetch = fetch) {}
+  constructor(
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly apns: ApnsClient | null = null,
+  ) {}
 
   async send({ kind, config }: PushConfig, msg: PushMessage): Promise<void> {
     try {
-      if (kind === 'pushover') await this.pushover(config, msg);
+      if (kind === 'apns') await this.apnsSend(config, msg);
+      else if (kind === 'pushover') await this.pushover(config, msg);
       else if (kind === 'webhook') await this.webhook(config, msg);
       else await this.ntfy(config, msg);
     } catch (err) {
       if (err instanceof PushError) throw err;
-      throw new PushError(`Couldn’t reach ${kind === 'pushover' ? 'Pushover' : kind === 'webhook' ? 'the webhook address' : 'ntfy'}. Check the address and your internet.`);
+      throw new PushError(`Couldn’t reach ${kind === 'apns' ? 'Apple' : kind === 'pushover' ? 'Pushover' : kind === 'webhook' ? 'the webhook address' : 'ntfy'}. Check the address and your internet.`);
     }
+  }
+
+  private async apnsSend(c: Record<string, string>, msg: PushMessage) {
+    if (!this.apns) throw new PushError('iPhone push isn’t available here.');
+    const answer = await this.apns.send({ token: c.token ?? '', environment: c.environment === 'sandbox' ? 'sandbox' : 'production', payload: apnsPayload(msg) });
+    if (answer.status === 200) return;
+    if (isGone(answer)) throw new GonePushError('That iPhone stopped listening, so Marquee stopped sending to it.');
+    throw new PushError(explain(answer));
   }
 
   private async pushover(c: Record<string, string>, msg: PushMessage) {

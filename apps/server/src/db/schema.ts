@@ -602,7 +602,7 @@ export const userPrefs = sqliteTable('user_prefs', {
 
 export const notificationChannels = sqliteTable('notification_channels', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  kind: text('kind', { enum: ['pushover', 'ntfy', 'webhook'] }).notNull(),
+  kind: text('kind', { enum: ['pushover', 'ntfy', 'webhook', 'apns'] }).notNull(),
   name: text('name').notNull(),
   /** Whose channel this is. Null = a shared admin channel (Settings → Notifications). */
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
@@ -616,6 +616,22 @@ export const notificationChannels = sqliteTable('notification_channels', {
   lastError: text('last_error'),
 });
 export type NotificationChannel = typeof notificationChannels.$inferSelect;
+
+/** A Live Activity on someone's Lock Screen following one download, and where we last left it. */
+export const liveActivities = sqliteTable(
+  'live_activities',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    downloadId: integer('download_id').notNull().references(() => downloads.id, { onDelete: 'cascade' }),
+    deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    /** Apple's push token for this one activity. A secret: never sent back. */
+    token: text('token').notNull(),
+    lastPercent: integer('last_percent').notNull().default(0),
+    lastState: text('last_state').notNull().default(''),
+    startedAt: integer('started_at').notNull(),
+  },
+  (t) => [uniqueIndex('live_activities_one').on(t.downloadId, t.deviceId)],
+);
 
 export const notifications = sqliteTable('notifications', {
   id: integer('id').primaryKey({ autoIncrement: true }),
