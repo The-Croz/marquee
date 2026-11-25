@@ -468,6 +468,19 @@ export interface LibraryCard {
   addedAt: number;
   /** You want Marquee to look for it. */
   wanted: boolean;
+  /** Something is missing and Marquee is looking for it (a Wanted movie with no file; a show with Wanted episodes that are out but not on disk). */
+  looking: boolean;
+  /** Marquee watches for what comes next: a show's new episodes, or a better copy of a movie you have. */
+  watching: boolean;
+}
+
+/** A show's Wanted episodes as they were, so a "which episodes" change to several shows can be undone. */
+export interface ShowWantedSnapshot {
+  seriesId: number;
+  monitored: boolean;
+  wantNew: boolean;
+  /** Episode ids that were Wanted. */
+  wantedEpisodes: number[];
 }
 
 export interface MediaFileView {
@@ -508,6 +521,40 @@ export interface EpisodeView {
   /** Wanted (only counts while the show is wanted). */
   wanted: boolean;
   file: MediaFileView | null;
+}
+
+/** One episode up close (admins): its files and the downloads in qBittorrent that hold it. */
+export interface EpisodeDetailView {
+  seriesId: number;
+  season: number;
+  episode: number;
+  title: string | null;
+  airDate: string | null;
+  overview: string | null;
+  aired: boolean;
+  wanted: boolean;
+  files: (MediaFileView & {
+    name: string;
+    /** Other episodes in the same file (a two-episode file). */
+    otherEpisodes: number[];
+    /** A hardlink shared with a download, so setting it aside frees no space until that download goes. */
+    shared: boolean;
+  })[];
+  torrents: {
+    hash: string;
+    name: string;
+    /** Marquee follows it; otherwise another app (Sonarr) sent it and Marquee found it by the shared file. */
+    followed: boolean;
+    inDownloader: boolean;
+    /** Holds more than this episode: removing it stops sharing all of them (library files stay). */
+    wholeSeason: boolean;
+  }[];
+  downloaderNote: string | null;
+}
+
+export interface RemoveEpisodeInput {
+  stopWanting: boolean;
+  torrents: string[];
 }
 
 export interface SeasonView {

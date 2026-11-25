@@ -464,6 +464,9 @@ describe('Wanted, nothing yet and Not good enough yet', () => {
     expect((await w.api('GET', '/api/shows?filter=wanted_missing')).body.items.map((i: { id: number }) => i.id)).toEqual([id]);
     // A 4K WEB file with no rule points yet hasn't reached 4K Quality's "good enough" points.
     expect((await w.api('GET', '/api/shows?filter=not_good_enough')).body.items.map((i: { id: number }) => i.id)).toEqual([id]);
+    // On disk and Needs a look combine.
+    expect((await w.api('GET', '/api/shows?filter=missing&need=wanted_missing')).body.items.map((i: { id: number }) => i.id)).toEqual([id]);
+    expect((await w.api('GET', '/api/shows?filter=have&need=wanted_missing')).body.items).toEqual([]);
   });
 });
 

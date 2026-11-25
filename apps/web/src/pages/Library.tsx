@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { LibraryCard, ScanStatusView, SessionUser, UnmatchedItem } from '@marquee/shared';
+import type { LibraryCard, ScanStatusView, SessionUser, ShowPreset, ShowWantedSnapshot, UnmatchedItem } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Poster, formatBytes, posterTransition } from '../components/Poster';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { Chips, PageHeader, Tabs } from '../components/Page';
-import { Menu, MenuDivider, menuItemClass, useToast } from '../components/Overlay';
+import { Menu, MenuDivider, Sheet, menuItemClass, useToast } from '../components/Overlay';
+import { SHOW_PRESETS } from './GettingIn';
 import { refreshLibrary } from '../components/Wanted';
 import { RenameSheet } from '../components/LibraryCare';
 import { SearchBox } from './Search';
@@ -131,9 +132,14 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   }, [kind]);
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
-  const filter = params.get('filter') ?? 'all';
+  // Older links put Needs a look in `filter`; it has its own place now.
+  const rawFilter = params.get('filter') ?? 'all';
+  const filter = rawFilter === 'have' || rawFilter === 'missing' ? rawFilter : 'all';
+  const need = params.get('need') ?? (rawFilter === 'wanted_missing' || rawFilter === 'not_good_enough' ? rawFilter : '');
   const sort = params.get('sort') ?? 'added';
   const wantedFilter = params.get('wanted') ?? 'all';
+  const [filtering, setFiltering] = useState(false);
+  const [bulkPreset, setBulkPreset] = useState<ShowPreset>('all');
   const isAdmin = user.role === 'admin';
   const [selecting, setSelecting] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -143,15 +149,28 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
   const scan = useScan();
   const endpoint = kind === 'movie' ? '/movies' : '/shows';
   const { data, isLoading } = useQuery({
-    queryKey: ['library', kind, q, filter, sort, wantedFilter],
-    queryFn: () => api<{ items: LibraryCard[] }>(`${endpoint}?${new URLSearchParams({ q, filter, sort, ...(wantedFilter !== 'all' ? { wanted: wantedFilter } : {}) })}`),
+    queryKey: ['library', kind, q, filter, sort, wantedFilter, need],
+    queryFn: () => api<{ items: LibraryCard[] }>(`${endpoint}?${new URLSearchParams({ q, filter, sort, ...(wantedFilter !== 'all' ? { wanted: wantedFilter } : {}), ...(need ? { need } : {}) })}`),
   });
   const set = (k: string, v: string) => {
     const next = new URLSearchParams(params);
+    if (k === 'filter' || k === 'need') {
+      // Drop an older link's Needs a look from `filter` once anything is chosen.
+      if (rawFilter === 'wanted_missing' || rawFilter === 'not_good_enough') {
+        next.delete('filter');
+        if (k !== 'need' && need) next.set('need', need);
+      }
+    }
     if (v && v !== 'all' && !(k === 'sort' && v === 'added')) next.set(k, v);
     else next.delete(k);
     setParams(next, { replace: true });
   };
+  // What's filtered, as removable chips.
+  const active = [
+    filter !== 'all' && { key: 'filter', label: filter === 'have' ? (kind === 'movie' ? 'On disk' : 'Complete') : kind === 'movie' ? 'Missing' : 'Incomplete' },
+    isAdmin && wantedFilter !== 'all' && { key: 'wanted', label: wantedFilter === 'yes' ? 'Wanted' : 'Not wanted' },
+    isAdmin && need && { key: 'need', label: need === 'not_good_enough' ? 'Not good enough yet' : kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing' },
+  ].filter((a): a is { key: string; label: string } => !!a);
   const items = data?.items ?? [];
   const total = items.reduce((n, i) => n + i.sizeBytes, 0);
   const title = kind === 'movie' ? 'Movies' : 'Shows';
@@ -193,6 +212,28 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
       setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
     }
   }
+  /** "Which episodes" for every show picked, with Undo putting each back as it was. */
+  async function setEpisodesPicked() {
+    setBulkError(null);
+    const n = picked.size;
+    try {
+      const r = await api<{ changed: number; before: ShowWantedSnapshot[] }>('/shows/episodes-wanted', { body: { ids: [...picked], preset: bulkPreset } });
+      await refreshLibrary();
+      setPicked(new Set());
+      setSelecting(false);
+      const label = SHOW_PRESETS.find((p) => p.value === bulkPreset)!.label;
+      toast({
+        message: `${label}: ${r.changed || n} ${r.changed === 1 ? 'show' : 'shows'}.`,
+        undo: async () => {
+          await api('/shows/episodes-wanted/restore', { body: { before: r.before } });
+          await refreshLibrary();
+        },
+      });
+    } catch (e) {
+      setBulkError(e instanceof ApiFailure ? e.message : 'That didn’t save. Try again.');
+    }
+  }
+
   const togglePick = (id: number) => setPicked((prev) => new Set(prev.has(id) ? [...prev].filter((x) => x !== id) : [...prev, id]));
 
   return (
@@ -241,49 +282,23 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           placeholder={`Filter ${title.toLowerCase()}`}
           className="order-1 h-11 min-w-0 flex-[1_1_200px] rounded-xl border border-line bg-panel px-4 text-body text-text placeholder:text-dim focus:border-amber focus:outline-none"
         />
-        <Chips<string>
-          label="Show"
-          className="order-3 w-full sm:order-2 sm:w-auto"
-          value={filter}
-          onChange={(v) => set('filter', v)}
-          items={[
-            { value: 'all', label: 'All' },
-            { value: 'have', label: kind === 'movie' ? 'On disk' : 'Complete' },
-            { value: 'missing', label: kind === 'movie' ? 'Missing' : 'Incomplete' },
-            ...(isAdmin
-              ? [
-                  { value: 'wanted_missing', label: kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing' },
-                  { value: 'not_good_enough', label: 'Not good enough yet' },
-                ]
-              : []),
-          ]}
-        />
         <div className="order-4 flex w-full gap-2 sm:order-3 sm:w-auto">
-        <label htmlFor="lib-sort" className="sr-only">
-          Sort by
-        </label>
-        <select id="lib-sort" value={sort} onChange={(e) => set('sort', e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel px-3 text-sm text-text sm:flex-none">
-          <option value="added">Recently added</option>
-          <option value="title">Title</option>
-          <option value="year">Year</option>
-        </select>
-        {isAdmin && (
-          <>
-            <label htmlFor="lib-wanted" className="sr-only">
-              Wanted
-            </label>
-            <select id="lib-wanted" value={wantedFilter} onChange={(e) => set('wanted', e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel px-3 text-sm text-text sm:flex-none">
-              <option value="all">Wanted and not</option>
-              <option value="yes">Wanted</option>
-              <option value="no">Not wanted</option>
-            </select>
-            {selecting && (
-              <Button type="button" variant="ghost" onClick={() => (setSelecting(false), setPicked(new Set()))}>
-                Done choosing
-              </Button>
-            )}
-          </>
-        )}
+          <Button type="button" variant="ghost" className="h-11 flex-1 sm:flex-none" aria-haspopup="dialog" onClick={() => setFiltering(true)}>
+            Filter{active.length ? ` · ${active.length}` : ''}
+          </Button>
+          <label htmlFor="lib-sort" className="sr-only">
+            Sort by
+          </label>
+          <select id="lib-sort" value={sort} onChange={(e) => set('sort', e.target.value)} className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-panel px-3 text-sm text-text sm:flex-none">
+            <option value="added">Recently added</option>
+            <option value="title">Title</option>
+            <option value="year">Year</option>
+          </select>
+          {selecting && (
+            <Button type="button" variant="ghost" onClick={() => (setSelecting(false), setPicked(new Set()))}>
+              Done choosing
+            </Button>
+          )}
         </div>
         {isAdmin && (
           <Menu
@@ -321,9 +336,6 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             >
               {selecting ? 'Stop choosing' : 'Choose several…'}
             </button>
-            <Link to={`/search?kind=${kind}`} role="menuitem" className={menuItemClass}>
-              {kind === 'movie' ? 'Add a movie' : 'Add a show'}
-            </Link>
             <Link to="/library/import" role="menuitem" className={menuItemClass}>
               Put files in your library…
             </Link>
@@ -339,23 +351,66 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <Link to="/library/unwatched" role="menuitem" className={menuItemClass}>
               Not watched
             </Link>
-            <Link to="/calendar" role="menuitem" className={menuItemClass}>
-              What’s coming out
-            </Link>
-            <MenuDivider />
-            <Link to="/settings/quality" role="menuitem" className={menuItemClass}>
-              Quality profiles
-            </Link>
-            <Link to="/settings/services" role="menuitem" className={menuItemClass}>
-              Library folders and file names
-            </Link>
           </Menu>
         )}
       </div>
-      {isAdmin && !selecting && items.length > 0 && (filter === 'wanted_missing' || filter === 'not_good_enough') && (
+      {active.length > 0 && (
+        <div role="group" aria-label="Filters on" className="flex flex-wrap items-center gap-1.5">
+          {active.map((a) => (
+            <button key={a.key} type="button" onClick={() => set(a.key, '')} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-amber/60 bg-amber/10 px-3 text-sm text-text hover:bg-amber/20" aria-label={`Remove filter: ${a.label}`}>
+              {a.label} <span aria-hidden="true" className="text-muted">×</span>
+            </button>
+          ))}
+          {active.length > 1 && (
+            <button type="button" onClick={() => setParams(q ? { q } : {}, { replace: true })} className="h-9 px-2 text-sm text-amber">
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+      <Sheet open={filtering} onClose={() => setFiltering(false)} title={`Filter ${title.toLowerCase()}`}>
+        <div className="flex flex-col gap-5 pt-1 pb-2">
+          <FilterGroup label="On disk" value={filter} onChange={(v) => set('filter', v)} items={[{ value: 'all', label: 'All' }, { value: 'have', label: kind === 'movie' ? 'On disk' : 'Complete' }, { value: 'missing', label: kind === 'movie' ? 'Missing' : 'Incomplete' }]} />
+          {isAdmin && (
+            <>
+              <FilterGroup label="Looking for" value={wantedFilter} onChange={(v) => set('wanted', v)} items={[{ value: 'all', label: 'Any' }, { value: 'yes', label: 'Wanted' }, { value: 'no', label: 'Not wanted' }]} />
+              <FilterGroup
+                label="Needs a look"
+                value={need || 'all'}
+                onChange={(v) => set('need', v)}
+                items={[{ value: 'all', label: 'Anything' }, { value: 'wanted_missing', label: kind === 'movie' ? 'Wanted, nothing yet' : 'Wanted, episodes missing' }, { value: 'not_good_enough', label: 'Not good enough yet' }]}
+              />
+            </>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" onClick={() => setFiltering(false)}>
+              Show {items.length} {kind === 'movie' ? (items.length === 1 ? 'movie' : 'movies') : items.length === 1 ? 'show' : 'shows'}
+            </Button>
+            {active.length > 0 && (
+              <Button type="button" variant="ghost" onClick={() => setParams(q ? { q } : {}, { replace: true })}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </div>
+      </Sheet>
+      {isAdmin && items.length > 0 && (
+        <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted" aria-label="What the corner labels mean">
+          <span>
+            <span className="text-amber">●</span> {kind === 'movie' ? 'watching for a better copy' : 'watching for new episodes'}
+          </span>
+          <span>
+            <span className="mr-1 inline-block size-2.5 rounded-sm bg-amber align-middle" /> missing, Marquee is looking
+          </span>
+          <span>
+            <span className="mr-1 inline-block size-2.5 rounded-sm bg-line-strong align-middle" /> missing, not looking
+          </span>
+        </p>
+      )}
+      {isAdmin && !selecting && items.length > 0 && (need === 'wanted_missing' || need === 'not_good_enough') && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3">
           <span className="min-w-[200px] flex-1 text-sm text-soft">
-            {filter === 'wanted_missing'
+            {need === 'wanted_missing'
               ? kind === 'movie'
                 ? 'Wanted, with nothing on disk yet. Marquee looks for these by itself every few hours; Look for these searches now.'
                 : 'Wanted, with episodes that are out but not on disk. Look for these searches now.'
@@ -379,12 +434,35 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => setPicked(new Set(items.map((i) => i.id)))}>
             Pick all {items.length} shown
           </Button>
-          <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => void lookFor()}>
-            Look for these
-          </Button>
-          <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(false)}>
-            Stop looking for these
-          </Button>
+          {kind === 'series' ? (
+            <>
+              <label className="flex items-center gap-2 text-sm text-soft">
+                Which episodes
+                <select value={bulkPreset} onChange={(e) => setBulkPreset(e.target.value as ShowPreset)} className="h-11 rounded-lg border border-line-strong bg-panel px-2.5 text-sm text-text">
+                  {SHOW_PRESETS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => void setEpisodesPicked()}>
+                Apply to {picked.size || ''} {picked.size === 1 ? 'show' : 'shows'}
+              </Button>
+              <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => void lookFor()}>
+                Look for these now
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => void lookFor()}>
+                Look for these
+              </Button>
+              <Button type="button" variant="ghost" className="h-11 px-3.5 text-sm" disabled={!picked.size} onClick={() => markPicked(false)}>
+                Stop looking for these
+              </Button>
+            </>
+          )}
           {bulkError && <span className="text-sm text-warn">{bulkError}</span>}
         </div>
       )}
@@ -413,15 +491,7 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <>
             <div className="relative">
               <Poster title={i.title} path={i.posterPath} color={i.posterColor} transition={posterTransition(`${endpoint}/${i.id}`)} className={cx('transition group-hover:ring-2 group-hover:ring-amber', !i.complete && 'opacity-60')} />
-              <span
-                className={cx(
-                  'absolute top-2 left-2 rounded-md px-2 py-0.5 text-caption font-semibold',
-                  i.complete ? 'bg-ink/85 text-soft' : 'bg-warn/90 text-warn-ink',
-                )}
-              >
-                {i.badge}
-              </span>
-              {isAdmin && i.wanted && <span className="absolute top-2 right-2 rounded-md bg-amber px-2 py-0.5 text-caption font-semibold text-amber-ink">Wanted</span>}
+              <CornerLabel card={i} isAdmin={isAdmin} />
               {selecting && (
                 <span aria-hidden="true" className={cx('absolute right-2 bottom-2 flex size-6 items-center justify-center rounded-full border-2 text-sm font-bold', picked.has(i.id) ? 'border-amber bg-amber text-amber-ink' : 'border-white/70 bg-ink/70')}>
                   {picked.has(i.id) ? '✓' : ''}
@@ -446,5 +516,39 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
         })}
       </div>
     </>
+  );
+}
+
+/** One group in the Filter sheet: a heading and its choices. */
+function FilterGroup({ label, value, onChange, items }: { label: string; value: string; onChange: (v: string) => void; items: { value: string; label: string }[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-label font-semibold text-muted">{label}</span>
+      <Chips<string> label={label} value={value} onChange={onChange} items={items} className="sm:flex-wrap" />
+    </div>
+  );
+}
+
+/**
+ * The poster's one corner label. Shows: "5 of 8" episodes; movies: the
+ * quality, or Looking / Not on disk. For admins its colour says whether
+ * Marquee is looking (amber) or not (grey) for what's missing, and the dot
+ * whether it watches for what comes next (new episodes, a better copy).
+ */
+function CornerLabel({ card, isAdmin }: { card: LibraryCard; isAdmin: boolean }) {
+  const missing = !card.complete && card.badge !== 'Not aired yet';
+  const text = card.kind === 'movie' && missing && isAdmin ? (card.looking ? 'Looking' : 'Not on disk') : card.badge;
+  const tone = !missing ? 'bg-ink/85 text-soft' : !isAdmin ? 'bg-warn/90 text-warn-ink' : card.looking ? 'bg-amber text-amber-ink' : 'bg-line-strong/95 text-soft';
+  const meaning = isAdmin
+    ? [missing ? (card.looking ? 'Marquee is looking for what’s missing' : 'Missing, and Marquee isn’t looking') : null, card.watching ? (card.kind === 'movie' ? 'watching for a better copy' : 'watching for new episodes') : null].filter(Boolean).join('; ')
+    : '';
+  return (
+    <span className={cx('absolute top-2 left-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-caption font-semibold tabular-nums', tone)} title={meaning || undefined}>
+      {isAdmin && card.watching && (
+        <span aria-hidden="true" className={cx('size-1.5 rounded-full', missing && card.looking ? 'bg-amber-ink' : 'bg-amber')} />
+      )}
+      {text}
+      {meaning && <span className="sr-only"> ({meaning})</span>}
+    </span>
   );
 }

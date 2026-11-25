@@ -170,8 +170,8 @@ describe('library scan', () => {
     const { app, admin } = await scannedApp();
     const shows = await call(app, 'GET', '/api/shows?sort=title', undefined, admin);
     expect(shows.body.items.map((s: { title: string; badge: string }) => [s.title, s.badge])).toEqual([
-      ['Bluey', 'All 3 episodes'],
-      ['Severance', 'All 3 episodes'],
+      ['Bluey', '3 of 3'],
+      ['Severance', '3 of 3'],
     ]);
     const sev = await call(app, 'GET', `/api/shows/${shows.body.items[1].id}`, undefined, admin);
     expect(sev.body.seasons.map((s: { season: number; have: number; aired: number; total: number }) => [s.season, s.have, s.aired, s.total])).toEqual([
@@ -217,7 +217,7 @@ describe('library scan', () => {
       'searchShow:Totally Unknown Show:',
     ]);
     const shows = await call(app, 'GET', '/api/shows?q=sev', undefined, admin);
-    expect(shows.body.items[0].badge).toBe('2 of 3 episodes');
+    expect(shows.body.items[0].badge).toBe('2 of 3');
   });
 
   it('keeps the facts profile rules use, and fetches them once for titles matched before', async () => {

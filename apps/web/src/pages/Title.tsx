@@ -3,8 +3,8 @@ import { ShowEpisodesChoice } from './GettingIn';
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, HistoryView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
-import { api, ApiFailure, useAuthStatus } from '../api';
+import type { CastMember, DiscoverPrefs, DiscoverTitle, DownloadView, EpisodeDetailView, HistoryView, MovieDetail, RequestState, RequestView, SeasonView, ShowDetail, TitleRatings, WatchersView, WatchLink } from '@marquee/shared';
+import { api, ApiFailure, queryClient, useAuthStatus } from '../api';
 import { CopiesPanel } from '../components/Copies';
 import { DownloadList, useDownloads } from '../components/Downloads';
 import { NeverPickList, copyFacts, useNeverPick } from '../components/History';
@@ -12,7 +12,7 @@ import { Row, Trailer, useRequest } from '../components/Discover';
 import { WantedToggle } from '../components/Wanted';
 import { TitleTools } from '../components/LibraryCare';
 import { Poster, formatBytes, posterTransition, tmdbImage } from '../components/Poster';
-import { Sheet } from '../components/Overlay';
+import { Sheet, useToast } from '../components/Overlay';
 import { Button, Notice, Progress, cx } from '../components/ui';
 import { useDocTitle } from '../components/Page';
 import { ImdbMark, MetacriticMark, TmdbMark, TomatoMark } from '../components/ScoreIcons';
@@ -486,6 +486,7 @@ function Seasons({ show, admin, onFind }: { show: ShowDetail; admin: boolean; on
 }
 
 function SeasonRow({ s, show, admin, open, onToggle, onFind }: { s: SeasonView; show: ShowDetail; admin: boolean; open: boolean; onToggle: () => void; onFind: (season: number, episode?: number) => void }) {
+  const [up, setUp] = useState<number | null>(null);
   const label = s.season === 0 ? 'Specials' : `Season ${s.season}`;
   const done = s.aired > 0 && s.have >= s.aired;
   const pct = s.aired ? Math.round((s.have / s.aired) * 100) : 0;
@@ -522,7 +523,13 @@ function SeasonRow({ s, show, admin, open, onToggle, onFind }: { s: SeasonView; 
             <li key={e.episode} className="flex items-center gap-x-3 border-b border-line px-4 py-2 last:border-b-0 sm:gap-x-4 sm:px-5">
               <span className="w-6 flex-none text-sm font-semibold text-muted tabular-nums sm:w-8">{e.episode}</span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-body">{e.title ?? `Episode ${e.episode}`}</span>
+                {admin ? (
+                  <button type="button" onClick={() => setUp(e.episode)} className="min-h-11 text-left text-body text-text underline-offset-4 hover:underline" aria-label={`Episode ${e.episode}: ${e.title ?? 'details'}. Open its file and downloads`}>
+                    {e.title ?? `Episode ${e.episode}`}
+                  </button>
+                ) : (
+                  <span className="text-body">{e.title ?? `Episode ${e.episode}`}</span>
+                )}
                 <span className="text-xs text-dim">
                   {e.airDate ? pretty(e.airDate) : 'No date yet'}
                   {/* On phones the state sits under the name, so the name keeps the width. */}
@@ -540,7 +547,137 @@ function SeasonRow({ s, show, admin, open, onToggle, onFind }: { s: SeasonView; 
           ))}
         </ol>
       )}
+      {admin && up !== null && <EpisodeSheet show={show} season={s.season} episode={up} onClose={() => setUp(null)} />}
     </li>
+  );
+}
+
+/**
+ * One episode up close: its file, the downloads in qBittorrent that hold it,
+ * and Remove: the file goes to the recycle bin, and if you tick them, the
+ * downloads leave qBittorrent with their files.
+ */
+function EpisodeSheet({ show, season, episode, onClose }: { show: ShowDetail; season: number; episode: number; onClose: () => void }) {
+  const toast = useToast();
+  const base = `/shows/${show.id}/seasons/${season}/episodes/${episode}`;
+  const q = useQuery({ queryKey: ['episode', show.id, season, episode], queryFn: () => api<EpisodeDetailView>(base) });
+  const [removing, setRemoving] = useState(false);
+  const [stopWanting, setStopWanting] = useState(true);
+  const [torrents, setTorrents] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const d = q.data;
+  const code = `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ message: string; problems: string[] }>(`${base}/remove`, { body: { stopWanting, torrents: [...torrents] } });
+      toast({ message: r.message });
+      if (r.problems.length) toast({ message: r.problems.join(' '), tone: 'error' });
+      // The show page, the Library and the recycle bin all change.
+      await queryClient.invalidateQueries({ queryKey: ['library'] });
+      await queryClient.invalidateQueries({ queryKey: ['cleanup'] });
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiFailure ? e.message : 'That didn’t work. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Sheet open onClose={onClose} title={`${code} · ${d?.title ?? `Episode ${episode}`}`}>
+      <div className="flex flex-col gap-4 pt-1 pb-2">
+        {q.isLoading && <p className="m-0 text-muted">Looking…</p>}
+        {q.error && <Notice tone="error">{q.error instanceof ApiFailure ? q.error.message : 'Couldn’t load it.'}</Notice>}
+        {d && (
+          <>
+            <p className="m-0 text-sm text-muted">
+              {d.airDate ? `Out ${pretty(d.airDate)}` : 'No date yet'} · {d.wanted ? 'Wanted' : 'Not Wanted'}
+            </p>
+            {d.overview && <p className="m-0 text-sm text-soft">{d.overview}</p>}
+            <section className="flex flex-col gap-2">
+              <h3 className="m-0 text-label font-semibold text-muted">In your library</h3>
+              {!d.files.length && <p className="m-0 text-sm text-dim">No file.</p>}
+              {d.files.map((f) => (
+                <div key={f.id} className="flex flex-col gap-0.5 rounded-xl border border-line px-3 py-2">
+                  <span className="text-sm text-text">
+                    {[f.quality.label, f.quality.source, f.quality.codec, f.quality.group].filter(Boolean).join(' · ')} · {formatBytes(f.sizeBytes)}
+                  </span>
+                  <span className="font-mono text-xs break-all text-dim">{f.path}</span>
+                  <span className="text-caption text-muted">
+                    Arrived {new Date(f.addedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {f.shared ? ' · shared with a download in qBittorrent' : ''}
+                    {f.otherEpisodes.length ? ` · also holds episode ${f.otherEpisodes.join(', ')}` : ''}
+                  </span>
+                </div>
+              ))}
+            </section>
+            <section className="flex flex-col gap-2">
+              <h3 className="m-0 text-label font-semibold text-muted">In qBittorrent</h3>
+              {!d.torrents.length && <p className="m-0 text-sm text-dim">No download holds it.</p>}
+              {d.torrents.map((t) => (
+                <div key={t.hash} className="flex flex-col gap-0.5 rounded-xl border border-line px-3 py-2">
+                  <span className="text-sm break-all text-text">{t.name}</span>
+                  <span className="text-caption text-muted">
+                    {t.followed ? 'Marquee follows it' : 'Another app sent it (found by the shared file)'}
+                    {t.wholeSeason ? ' · holds more than this episode' : ''}
+                    {t.inDownloader ? '' : ' · not in qBittorrent any more'}
+                  </span>
+                </div>
+              ))}
+              {d.downloaderNote && <p className="m-0 text-caption text-warn">{d.downloaderNote}</p>}
+            </section>
+            {!removing ? (
+              <div className="flex flex-wrap gap-3">
+                <Button variant="danger" onClick={() => setRemoving(true)} disabled={!d.files.length && !d.torrents.length}>
+                  Remove…
+                </Button>
+                <Button variant="ghost" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 rounded-xl border border-warn/40 bg-warn/5 p-3">
+                <p className="m-0 text-sm text-soft">
+                  {d.files.length ? `Its file goes to the recycle bin (Library → Clean up), where you can put it back or delete it for good. Plex and Jellyfin stop showing it.` : 'It has no file in the library.'}
+                </p>
+                <label className="flex min-h-11 items-center gap-3 text-sm text-text">
+                  <input type="checkbox" checked={stopWanting} onChange={(e) => setStopWanting(e.target.checked)} className="size-5 accent-amber" />
+                  Stop looking for it, so it isn’t downloaded again
+                </label>
+                {d.torrents.filter((t) => t.inDownloader).map((t) => (
+                  <label key={t.hash} className="flex min-h-11 items-start gap-3 text-sm text-text">
+                    <input
+                      type="checkbox"
+                      checked={torrents.has(t.hash)}
+                      onChange={() => setTorrents((x) => new Set(x.has(t.hash) ? [...x].filter((h) => h !== t.hash) : [...x, t.hash]))}
+                      className="mt-0.5 size-5 flex-none accent-amber"
+                    />
+                    <span className="flex flex-col">
+                      <span>Also remove it from qBittorrent, with its files</span>
+                      <span className="text-caption break-all text-muted">
+                        {t.name}
+                        {t.wholeSeason ? ' · it holds more than this episode: they stop sharing too (their library files stay)' : ''}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+                {error && <Notice tone="error">{error}</Notice>}
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="danger" disabled={busy} onClick={() => void remove()}>
+                    {busy ? 'Removing…' : `Remove ${code}`}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setRemoving(false)}>
+                    Keep it
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Sheet>
   );
 }
 

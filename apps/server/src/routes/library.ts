@@ -25,7 +25,13 @@ import { useRules } from '../releases/choose.js';
 import { notGoodEnough, wantedNothingYet } from '../library/filters.js';
 
 /** Keeps the cards a filter asks for. */
-function byFilter(c: Ctx, kind: 'movie' | 'series', filter: z.infer<typeof listQuery>['filter'], cards: LibraryCard[]): LibraryCard[] {
+/** On disk (`filter`) and Needs a look (`need`) are separate choices, so both can apply. */
+function byFilter(c: Ctx, kind: 'movie' | 'series', filter: z.infer<typeof listQuery>['filter'], cards: LibraryCard[], need?: z.infer<typeof listQuery>['need']): LibraryCard[] {
+  const first = byOne(c, kind, filter, cards);
+  return need ? byOne(c, kind, need, first) : first;
+}
+
+function byOne(c: Ctx, kind: 'movie' | 'series', filter: z.infer<typeof listQuery>['filter'], cards: LibraryCard[]): LibraryCard[] {
   const { db, now } = c.get('deps');
   if (filter === 'have' || filter === 'missing') return cards.filter((card) => (filter === 'have') === card.complete);
   if (filter === 'wanted_missing') {
@@ -56,7 +62,7 @@ function quality(f: MediaFile): QualityView {
   return { resolution: f.resolution, source: f.source, hdr: f.hdr, codec: f.codec, group: f.releaseGroup, label: qualityLabel(f) };
 }
 
-function fileView(f: MediaFile): MediaFileView {
+export function fileView(f: MediaFile): MediaFileView {
   return { id: f.id, path: f.path, sizeBytes: f.size, quality: quality(f), addedAt: f.addedAt };
 }
 
@@ -208,6 +214,8 @@ const listQuery = z.object({
   filter: z.enum(['all', 'have', 'missing', 'wanted_missing', 'not_good_enough']).default('all'),
   sort: z.enum(['added', 'title', 'year']).default('added'),
   wanted: z.enum(['yes', 'no']).optional(),
+  /** Needs a look, on top of `filter`. */
+  need: z.enum(['wanted_missing', 'not_good_enough']).optional(),
 });
 
 export const movieRoutes = new Hono<Env>();
@@ -215,7 +223,7 @@ export const movieRoutes = new Hono<Env>();
 movieRoutes.get('/', (c) => {
   const user = requireUser(c);
   const { db } = c.get('deps');
-  const { q, filter, sort, wanted } = listQuery.parse(c.req.query());
+  const { q, filter, sort, wanted, need } = listQuery.parse(c.req.query());
   const rows = db
     .select()
     .from(movies)
@@ -252,9 +260,11 @@ movieRoutes.get('/', (c) => {
         sizeBytes: fs.reduce((n, f) => n + f.size, 0),
         addedAt: m.addedAt,
         wanted: m.monitored,
+        looking: m.monitored && !best,
+        watching: m.monitored && !!best,
       };
     });
-  return c.json({ items: byFilter(c, 'movie', filter, cards) });
+  return c.json({ items: byFilter(c, 'movie', filter, cards, need) });
 });
 
 movieRoutes.get('/:id{[0-9]+}', (c) => {
@@ -302,7 +312,7 @@ export const showRoutes = new Hono<Env>();
 /** Have / aired episode counts per show, ignoring specials (season 0). */
 function episodeCounts(c: Ctx, seriesIds: number[]) {
   const { db } = c.get('deps');
-  const counts = new Map<number, { have: number; aired: number }>();
+  const counts = new Map<number, { have: number; aired: number; missingWanted: number }>();
   if (seriesIds.length === 0) return counts;
   const eps = db.select().from(episodes).where(inArray(episodes.seriesId, seriesIds)).all();
   const files = db.select().from(mediaFiles).where(inArray(mediaFiles.seriesId, seriesIds)).all();
@@ -310,10 +320,12 @@ function episodeCounts(c: Ctx, seriesIds: number[]) {
   const t = today();
   for (const e of eps) {
     if (e.season === 0) continue;
-    const row = counts.get(e.seriesId) ?? { have: 0, aired: 0 };
+    const row = counts.get(e.seriesId) ?? { have: 0, aired: 0, missingWanted: 0 };
     const got = have.has(`${e.seriesId}:${e.season}:${e.episode}`);
+    const aired = !!(e.airDate && e.airDate <= t);
     if (got) row.have++;
-    if (got || (e.airDate && e.airDate <= t)) row.aired++;
+    if (got || aired) row.aired++;
+    if (!got && aired && e.monitored) row.missingWanted++;
     counts.set(e.seriesId, row);
   }
   return counts;
@@ -322,7 +334,7 @@ function episodeCounts(c: Ctx, seriesIds: number[]) {
 showRoutes.get('/', (c) => {
   const user = requireUser(c);
   const { db } = c.get('deps');
-  const { q, filter, sort, wanted } = listQuery.parse(c.req.query());
+  const { q, filter, sort, wanted, need } = listQuery.parse(c.req.query());
   const rows = db
     .select()
     .from(series)
@@ -349,7 +361,7 @@ showRoutes.get('/', (c) => {
   );
   const cards: LibraryCard[] = rows
     .map((s) => {
-      const n = counts.get(s.id) ?? { have: 0, aired: 0 };
+      const n = counts.get(s.id) ?? { have: 0, aired: 0, missingWanted: 0 };
       return {
         id: s.id,
         kind: 'series' as const,
@@ -359,13 +371,15 @@ showRoutes.get('/', (c) => {
         posterColor: s.posterColor,
         certification: s.certification,
         complete: n.aired > 0 && n.have >= n.aired,
-        badge: n.aired === 0 ? 'Not aired yet' : n.have >= n.aired ? `All ${n.aired} episodes` : `${n.have} of ${n.aired} episodes`,
+        badge: n.aired === 0 ? 'Not aired yet' : `${n.have} of ${n.aired}`,
         sizeBytes: sizes.get(s.id) ?? 0,
         addedAt: s.addedAt,
         wanted: s.monitored,
+        looking: s.monitored && n.missingWanted > 0,
+        watching: s.monitored && s.wantNew,
       };
     });
-  return c.json({ items: byFilter(c, 'series', filter, cards) });
+  return c.json({ items: byFilter(c, 'series', filter, cards, need) });
 });
 
 /** "Watch in Plex / Jellyfin": where this show opens in each server that has it. */
