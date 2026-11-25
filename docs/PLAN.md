@@ -488,7 +488,7 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 - **Fewest people sharing a copy** (Settings → Downloader → When downloads get stuck, default 1 = as before): copies with fewer seeders are turned down ("Only 3 people are sharing it; your minimum is 5"). Copies whose Source doesn't say are let through. Passed into `decide` as `Wanted.minSeeders`.
 - **Alert when qBittorrent can't find anyone:** `checkNoPeers` in the health check. When two or more downloads on the way, and at least 60% of them, have waited 30+ minutes on the file list or stalled with nobody connected, admins get one "qBittorrent stopped working" message (and again only after it clears). One stuck download is a bad copy, not an alert. Marquee doesn't restart anything: it has no Docker access, and the usual cause is the VPN's forwarded port (seen 2026-11-25: gluetun + hotio PIA script logging "Port bind failed" every 2 minutes).
 
-## Milestone 7: iPhone app 🔨 (design)
+## Milestone 7: iPhone app 🔨 (Phase 1 built; PRs open, none merged)
 
 Mockups: the "iPhone app · D + E" row on the [mockup canvas](https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT) (2026-11-25). Direction: **D · Backdrop** (artwork fills the top of Home and title pages, under the status bar) with **E · Shelves** (count tiles, wide progress cards, poster rows). Cinematic dark tokens and words from the web app; iOS 26+ Liquid Glass for the tab bar, floating buttons and sheets.
 
@@ -499,20 +499,20 @@ Who it's for: Josh first (admin: monitoring, approving, asking for things), shar
 - Artwork everywhere: TMDB posters and backdrops, cached on the phone.
 
 **Screens and what they cover (everything the web app has today)**
-- ⬜ **Home** (`/api/home`): hero (Now showing → Ready to watch → Just arrived), counts (on the way, watching, need you), Needs you (requests with Approve, stuck/failed downloads, qBittorrent and Source problems, Plex/Jellyfin), On its way, Recent requests, Just arrived, This week.
+- ✅ (phase 1) **Home** (`/api/home`): hero (Now showing → Ready to watch → Just arrived), counts (on the way, watching, need you), Needs you (requests with Approve, stuck/failed downloads, qBittorrent and Source problems, Plex/Jellyfin), On its way, Recent requests, Just arrived, This week.
 - ⬜ **Discover** (`/api/discover`): featured carousel with trailer, All / Movies / Shows, service chips (hidden ones from settings), rows, kids-only Discover, ask for a movie, a whole show or chosen seasons (look at a show's seasons first), take back a request for a few seconds, "already here" / "already asked for", TMDB attribution. Person pages.
 - ⬜ **Search**: library and TMDB together; admins can add a missing title with a profile and Which episodes.
 - ⬜ **Library** (Movies / Shows): poster grid, filters (4K, missing, wanted, kids, not watched), sort, counts and size. Collections.
 - ⬜ **Title pages** (movie, show, episode up close): backdrop, facts, Watch in Plex / Jellyfin, progress strip (Approved → Searching → Downloading → Ready), files and quality, profile picker, Which episodes, seasons and episodes with states, Copies we found (best pick first, Why?, near misses), History timeline, Something wrong? (issues). Admin More: rename with preview, remove to the recycle bin, look again.
-- ⬜ **Activity → Downloads**: qBittorrent status line, On the way / Sharing / History / Never pick, plain states with what happens next, pause/resume/remove, find a better copy, sharing rules per torrent.
-- ⬜ **Activity → Requests**: waiting (approve, approve with a profile and seasons, turn down with a reason, approve all, undo), recent with plain states. Members and kids see their own.
+- ✅ (phase 1; History and Never pick come later) **Activity → Downloads**: qBittorrent status line, On the way / Sharing / History / Never pick, plain states with what happens next, pause/resume/remove, find a better copy, sharing rules per torrent.
+- ✅ (phase 1; "Approve with…" profile and seasons come with Discover) **Activity → Requests**: waiting (approve, approve with a profile and seasons, turn down with a reason, approve all, undo), recent with plain states. Members and kids see their own.
 - ⬜ **Activity → Watching** (admin): who is watching now (live), 30-day numbers and chart, most watched, people.
 - ⬜ **Calendar**: episodes and movies by day with states; kids see kids' titles.
 - ⬜ **Manage** (admin): Health (per-stage checks, run now), Quality profiles (read and switch per title; full editor stays on the web), Sources (working / failing, test), People (roles, requests skip approval), Library care (needs a match, left out, clean-up).
-- ⬜ **Sign in**: server address (LAN or Pangolin URL), username and password, Pocket ID (OIDC) and Plex, all in the system web sheet.
+- ✅ (phase 1) **Sign in**: server address (LAN or Pangolin URL), username and password, Pocket ID (OIDC) and Plex, all in the system web sheet.
 
 **Server work**
-- ⬜ Token sign-in for the app (bearer token per device, listed and revocable in Settings → Account); OIDC and Plex finish into the app by a custom URL scheme. Writes stay JSON.
+- ✅ (phase 1) Token sign-in for the app (bearer token per device, listed and revocable in Settings → Account); OIDC and Plex finish into the app by a custom URL scheme. Writes stay JSON.
 - ⬜ Push: APNs (token-based key, set in Settings → Notifications) as a per-device channel in the existing grid, with the Silently / Quietly / Normally / Right away levels mapped to iOS interruption levels (Right away = Time Sensitive). Actionable notifications: Approve / Turn down a request from the Lock Screen.
 - ⬜ Live Activity for a download on its way (start from the app, updated by push).
 - Images: none needed. The phone loads sized TMDB images directly (`w185`/`w342`/`w1280`), like the web app, with `posterColor` as the placeholder.
@@ -522,7 +522,13 @@ Who it's for: Josh first (admin: monitoring, approving, asking for things), shar
 
 Needs a Mac with Xcode (have: Xcode 27.2) and an Apple developer account for push and TestFlight.
 
+**Built so far**
+- Phase 1, Foundations: server bearer tokens, a `devices` table, app sign-in (password, Jellyfin, Plex, Pocket ID by one-time code), **Your phones** in Settings → Account, fixtures the app's tests decode; the iPhone project in `apps/ios` (XcodeGen, `MarqueeKit` package, design system), address and sign-in screens, tabs, Home and Activity (Downloads, Requests with approve / turn down / undo). Checks: `pnpm test`, `pnpm typecheck`, `make -C apps/ios test`, `apps/ios/scripts/smoke.sh` (demo mode).
+- Not built yet: Discover, Library, titles, Search, Calendar (phase 2); push and Live Activity (phase 3); Watching, Manage, TestFlight (phase 4).
+
 **Josh's steps** (things only you can do; the build adds to this list as it goes)
 - ⬜ Enroll the personal Apple account (not the Renovation Church one) in the Apple Developer Program, then pass on the new team id.
 - ⬜ In Pangolin, add a rule to the Marquee resource that skips Pangolin's sign-in for `/api/*`.
-- ⬜ Install the app on your iPhone from Xcode (personal team) and sign in at your Home address and your Outside address.
+- ⬜ Install the app on your iPhone from Xcode (personal team) and sign in at your Home address and your Outside address. In Xcode, check that the `Marquee` target offers only your personal team (never Renovation Church).
+- ⬜ After the new Marquee image is running: open the live `marquee` container's logs (Dozzle) while signing in from the app, and check there are no token values and no errors from the app's calls.
+- ⬜ Compare the app with the mockups on your phone (real artwork shows there; demo mode has none) and list anything that differs.

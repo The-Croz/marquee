@@ -193,6 +193,7 @@ struct HomeView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                         .frame(minHeight: 52)
                         .accessibilityElement(children: .combine)
                         if u.id != data.upcoming.last?.id { Divider().overlay(Color.line) }
