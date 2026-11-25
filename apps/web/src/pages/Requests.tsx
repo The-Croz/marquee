@@ -172,66 +172,56 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
       setError(errMsg(e));
     }
   };
+  const btn = 'h-11 px-3 text-sm';
   return (
-    <li>
-      <Card className="flex flex-col gap-3 p-4">
-        <div className="flex gap-4">
-          <Poster title={r.title} path={r.posterPath} className="w-[64px] flex-none rounded-lg" size="w185" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-baseline gap-x-3">
-              <h3 className="m-0 text-heading font-semibold">
-                <Link to={`/discover/${r.kind}/${r.tmdbId}`} className="text-text no-underline hover:text-amber">
-                  {r.title}
-                </Link>{' '}
-                {r.year && <span className="text-sm font-normal text-muted">({r.year})</span>}
-              </h3>
-              <span className="text-xs text-dim">{r.kind === 'movie' ? 'Movie' : 'Show'}</span>
+    <li className="flex flex-col gap-2 border-b border-line py-2.5 last:border-b-0">
+        <div className="flex items-center gap-3">
+          <Poster title={r.title} path={r.posterPath} className="w-[40px] flex-none rounded-md [&_span]:hidden" size="w185" />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {/* In the library: the title opens its page there; otherwise its Discover page. */}
+              <Link to={r.href ?? `/discover/${r.kind}/${r.tmdbId}`} className="min-w-0 truncate font-semibold text-text no-underline hover:text-amber">
+                {r.title}
+              </Link>
+              <span className="text-xs text-dim">
+                {r.year ? `${r.year} · ` : ''}
+                {r.kind === 'movie' ? 'Movie' : 'Show'}
+              </span>
+              <span className={cx('rounded-full px-2 py-0.5 text-caption font-semibold', st.tone)}>{st.label}</span>
+              {seasonsText(r.seasons) && <span className="text-caption text-soft">{seasonsText(r.seasons)}</span>}
+              {r.profile && <span className="text-caption text-soft">{r.profile}</span>}
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-label">
-              <span className={cx('rounded-full px-2.5 py-1 font-semibold', st.tone)}>{st.label}</span>
-              {seasonsText(r.seasons) && <span className="text-soft">{seasonsText(r.seasons)}</span>}
-              {r.profile && <span className="text-soft">{r.profile}</span>}
-            </div>
-            <p className="m-0 text-sm text-muted">
+            <p className="m-0 truncate text-xs text-muted sm:whitespace-normal">
               {admin && r.requestedBy ? `${r.requestedBy.name} asked ${when(r.createdAt)}. ` : `Asked ${when(r.createdAt)}. `}
               {r.state === 'declined' ? (r.reason ? `Turned down: ${r.reason}` : 'Turned down.') : r.state === 'pending' ? 'An admin will look at it.' : r.stateText}
               {r.decidedBy && r.state !== 'pending' && ` (${r.decidedBy})`}
+              {admin && r.searchNote && ` Last search, ${when(r.searchNote.at)}: ${r.searchNote.text}`}
             </p>
-            {admin && r.searchNote && (
-              <p className="m-0 text-sm text-soft">
-                Last search, {when(r.searchNote.at)}: {r.searchNote.text}
-              </p>
-            )}
-            {r.href && (
-              <Link to={r.href} className="flex min-h-11 items-center self-start text-sm font-semibold">
-                Open it →
-              </Link>
-            )}
           </div>
-          <div className="flex flex-none flex-col items-end gap-2">
+          <div className="flex flex-none flex-wrap items-center justify-end gap-1.5">
             {admin && r.state === 'pending' && !panel && (
               <>
-                <Button type="button" className="h-11 px-4 text-sm" onClick={() => setPanel('approve')}>
+                <Button type="button" className={btn} onClick={() => setPanel('approve')}>
                   Approve
                 </Button>
-                <Button type="button" variant="ghost" className="h-11 px-4 text-sm" onClick={() => setPanel('decline')}>
+                <Button type="button" variant="ghost" className={btn} onClick={() => setPanel('decline')}>
                   Turn down
                 </Button>
               </>
             )}
             {!admin && r.state === 'pending' && (
-              <Button type="button" variant="ghost" className="h-11 px-4 text-sm" onClick={() => call(`/requests/${r.id}`, { method: 'DELETE' })}>
+              <Button type="button" variant="ghost" className={btn} onClick={() => call(`/requests/${r.id}`, { method: 'DELETE' })}>
                 Take it back
               </Button>
             )}
             {admin && r.state !== 'pending' && (
               <>
                 {r.state === 'declined' && (
-                  <Button type="button" variant="ghost" className="h-11 px-4 text-sm" onClick={() => call(`/requests/${r.id}/reopen`)}>
+                  <Button type="button" variant="ghost" className={btn} onClick={() => call(`/requests/${r.id}/reopen`)}>
                     Put back
                   </Button>
                 )}
-                <Button type="button" variant="ghost" className="h-11 px-4 text-sm" onClick={() => call(`/requests/${r.id}`, { method: 'DELETE' })}>
+                <Button type="button" variant="ghost" className={btn} onClick={() => call(`/requests/${r.id}`, { method: 'DELETE' })}>
                   Remove
                 </Button>
               </>
@@ -260,7 +250,6 @@ function RequestRow({ r, admin }: { r: RequestView; admin: boolean }) {
           </div>
         )}
         {error && <Notice tone="error">{error}</Notice>}
-      </Card>
     </li>
   );
 }
@@ -383,7 +372,7 @@ export function RequestsPage({ user }: { user: SessionUser }) {
               {filtering ? 'Nothing matches these filters.' : tab === 'waiting' ? 'Nothing is waiting for you.' : 'No requests yet. Find something in Discover and press Request.'}
             </Notice>
           )}
-          <ul className="m-0 flex list-none flex-col gap-3 p-0" hidden={items.length === 0}>
+          <ul className="m-0 flex list-none flex-col rounded-2xl border border-line bg-panel px-3 sm:px-4" hidden={items.length === 0}>
             {items.map((r) => (
               <RequestRow key={r.id} r={r} admin={rowAdmin} />
             ))}
@@ -393,7 +382,7 @@ export function RequestsPage({ user }: { user: SessionUser }) {
               <h2 id="recent-h" className="m-0 text-xs font-normal tracking-[.08em] text-dim uppercase">
                 Recently answered · last {RECENT_DAYS} days
               </h2>
-              <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              <ul className="m-0 flex list-none flex-col rounded-2xl border border-line bg-panel px-3 sm:px-4">
                 {recent.map((r) => (
                   <RequestRow key={r.id} r={r} admin={rowAdmin} />
                 ))}
