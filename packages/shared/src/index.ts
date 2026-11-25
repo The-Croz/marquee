@@ -1343,6 +1343,12 @@ export interface DiscoverTitle {
   collection: { tmdbId: number; name: string } | null;
 }
 
+/** One season of a show that may not be in the library yet, from TMDB, so you can look before asking. */
+export interface SeasonPreview {
+  season: number;
+  episodes: { episode: number; title: string | null; airDate: string | null; overview: string | null; aired: boolean }[];
+}
+
 /** A movie collection ("The Matrix Collection") and where each film stands. */
 export interface CollectionView {
   tmdbId: number;

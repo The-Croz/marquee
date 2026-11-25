@@ -56,11 +56,21 @@ export function StateBadge({ state, className }: { state: CardState; className?:
   return <span className={cx('rounded-md px-2 py-0.5 text-caption font-semibold', STATE_TONE[state], className)}>{label}</span>;
 }
 
-/** Asks for a title (a whole show for a show). Shows what happened in plain words. */
+/** How long a request can be taken back before it is sent. */
+export const UNDO_MS = 3000;
+
+/**
+ * Asks for a title (a whole show for a show). Nothing is sent for three seconds:
+ * in that time the Request button reads "Undo", and pressing it cancels. Leaving the
+ * page in that time sends it straight away (they did ask). Shows what happened in plain words.
+ */
 export function useRequest() {
   const [busy, setBusy] = useState<number | null>(null);
+  const [waiting, setWaiting] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  async function ask(c: Pick<DiscoverCard, 'kind' | 'tmdbId'>, seasons?: number[]) {
+  const held = useRef<{ timer: ReturnType<typeof setTimeout>; send: () => void; cancel: () => void } | null>(null);
+
+  async function send(c: Pick<DiscoverCard, 'kind' | 'tmdbId'>, seasons?: number[]) {
     setBusy(c.tmdbId);
     setMessage(null);
     try {
@@ -77,7 +87,48 @@ export function useRequest() {
       setBusy(null);
     }
   }
-  return { ask, busy, message, clear: () => setMessage(null) };
+
+  /** Starts the three seconds. Resolves with the request once sent, or null if it was taken back (or failed). */
+  function ask(c: Pick<DiscoverCard, 'kind' | 'tmdbId'>, seasons?: number[]): Promise<RequestView | null> {
+    held.current?.send();
+    setMessage(null);
+    return new Promise((resolve) => {
+      const go = () => {
+        if (!held.current) return;
+        clearTimeout(held.current.timer);
+        held.current = null;
+        setWaiting(null);
+        void send(c, seasons).then(resolve);
+      };
+      const cancel = () => {
+        if (!held.current) return;
+        clearTimeout(held.current.timer);
+        held.current = null;
+        setWaiting(null);
+        resolve(null);
+      };
+      held.current = { timer: setTimeout(go, UNDO_MS), send: go, cancel };
+      setWaiting(c.tmdbId);
+    });
+  }
+
+  const undo = () => held.current?.cancel();
+  // Leaving the page doesn't lose the request.
+  useEffect(() => () => held.current?.send(), []);
+
+  /** What a title's Request button says, and what pressing it does. */
+  const button = (c: Pick<DiscoverCard, 'kind' | 'tmdbId'>, idle = 'Request') => ({
+    label: waiting === c.tmdbId ? 'Undo' : busy === c.tmdbId ? 'Asking…' : idle,
+    undoing: waiting === c.tmdbId,
+    disabled: busy !== null,
+    press: () => (waiting === c.tmdbId ? undo() : void ask(c)),
+  });
+  return { ask, undo, busy, waiting, message, button, clear: () => setMessage(null) };
+}
+
+/** Said aloud to screen readers while the undo window is open. */
+export function UndoNote({ show }: { show: boolean }) {
+  return <span role="status" className="sr-only">{show ? 'Requested. Press Undo within 3 seconds to take it back.' : ''}</span>;
 }
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -109,7 +160,8 @@ function previewPosition(el: HTMLElement) {
 
 /** The bigger preview that rises above a cover after you rest on it: the trailer, then a little about it. Clicking anywhere on it opens the title. */
 function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard; videoKey: string; pos: { left: number; top: number; width: number }; onEnter: () => void; onLeave: () => void }) {
-  const { ask, busy, message } = useRequest();
+  const { button, message } = useRequest();
+  const req = button(card);
   const canAsk = card.state === 'none' || card.state === 'declined';
   return createPortal(
     <div
@@ -136,8 +188,8 @@ function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard
         <p className="m-0 line-clamp-3 text-label leading-snug text-muted">{card.overview}</p>
         <div className="flex flex-wrap items-center gap-2">
           {canAsk ? (
-            <button type="button" onClick={() => ask(card)} disabled={busy !== null} className="h-11 rounded-lg bg-amber px-4 text-sm font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60">
-              {busy === card.tmdbId ? 'Asking…' : 'Request'}
+            <button type="button" onClick={req.press} disabled={req.disabled} className={cx('h-11 rounded-lg px-4 text-sm font-semibold disabled:opacity-60', req.undoing ? 'border border-line-strong text-text hover:bg-white/10' : 'bg-amber text-amber-ink hover:bg-amber-hi')}>
+              {req.label}
             </button>
           ) : (
             <StateBadge state={card.state} className="px-2.5 py-1" />
@@ -155,7 +207,8 @@ function Preview({ card, videoKey, pos, onEnter, onLeave }: { card: DiscoverCard
 
 /** One cover with its state. Rest on it for a little about it; rest a couple of seconds more and the trailer rises above it. Clicking the cover or the trailer opens the title. */
 export function TitleCard({ card, trailers = true, className }: { card: DiscoverCard; trailers?: boolean; className?: string }) {
-  const { ask, busy, message } = useRequest();
+  const { button, message } = useRequest();
+  const req = button(card);
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const closer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -224,15 +277,16 @@ export function TitleCard({ card, trailers = true, className }: { card: Discover
         {canAsk ? (
           <button
             type="button"
-            onClick={() => ask(card)}
-            disabled={busy !== null}
-            className="pointer-events-auto absolute right-3 bottom-3 left-3 z-10 flex h-11 items-center justify-center rounded-lg bg-amber px-3 text-label font-semibold text-amber-ink hover:bg-amber-hi disabled:opacity-60"
+            onClick={req.press}
+            disabled={req.disabled}
+            className={cx('pointer-events-auto absolute right-3 bottom-3 left-3 z-10 flex h-11 items-center justify-center rounded-lg px-3 text-label font-semibold disabled:opacity-60', req.undoing ? 'border border-line-strong bg-ink/80 text-text hover:bg-ink' : 'bg-amber text-amber-ink hover:bg-amber-hi')}
           >
-            {busy === card.tmdbId ? 'Asking…' : 'Request'}
+            {req.label}
           </button>
         ) : (
           <StateBadge state={card.state} className="absolute top-2 left-2" />
         )}
+        <UndoNote show={req.undoing} />
         {message && <span className="absolute right-3 bottom-16 left-3 text-caption text-warn">{message}</span>}
       </div>
 
@@ -281,7 +335,7 @@ export function Row({ row, trailers }: { row: DiscoverRow; trailers: boolean }) 
 export function Hero({ items }: { items: DiscoverCard[] }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
-  const { ask, busy, message } = useRequest();
+  const { button, message } = useRequest();
   const still = reducedMotion();
   useEffect(() => {
     if (paused || still || items.length < 2) return;
@@ -322,8 +376,8 @@ export function Hero({ items }: { items: DiscoverCard[] }) {
         <p className="m-0 line-clamp-2 max-w-[640px] text-base sm:line-clamp-3 leading-relaxed text-soft">{c.overview}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
           {canAsk ? (
-            <Button type="button" onClick={() => ask(c)} disabled={busy !== null}>
-              {busy === c.tmdbId ? 'Asking…' : 'Request'}
+            <Button type="button" variant={button(c).undoing ? 'ghost' : 'primary'} onClick={button(c).press} disabled={button(c).disabled}>
+              {button(c).label}
             </Button>
           ) : (
             <StateBadge state={c.state} className="px-3 py-2 text-label" />

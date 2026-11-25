@@ -477,6 +477,11 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 - Decisions made without asking (Josh to confirm): another app's torrents use the default sharing rule (or keep sharing if private and "private sites keep sharing" is on); private ones are flagged, not hidden; small ones are shown.
 - Tests: `test/reconcile.test.ts`. Demo mode has a torrent of each kind.
 
+## Take back a request, and look at seasons first (2026-11-25) ✅
+
+- **Undo for 3 seconds.** Pressing Request (cards, Discover's banner, the preview, a title's page, the season picker's confirm) sends nothing yet: the button reads **Undo** for 3 seconds, and pressing it cancels. After that the request goes through. Leaving the page in that time sends it straight away rather than losing it. (`useRequest` in `components/Discover.tsx`; no server change.)
+- **Seasons before requesting.** A show that isn't in the library has a Seasons list; each season opens to its episodes (name, air date or "Out …", short description). `GET /api/discover/title/series/:id/season/:n` (`discoverSeason`) reads it from TMDB; kids get the same kid-safe check as the title page. Tests: `test/title-page.test.ts`.
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

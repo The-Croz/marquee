@@ -1,5 +1,5 @@
 import { and, desc, eq, or } from 'drizzle-orm';
-import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle, PersonDetail, ServiceTop, TitleRatings } from '@marquee/shared';
+import type { CardState, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverRow, DiscoverTitle, PersonDetail, SeasonPreview, ServiceTop, TitleRatings } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { movies, requests, series, userPrefs, type User } from '../db/schema.js';
 import { HttpError } from '../http.js';
@@ -283,6 +283,21 @@ function toCard(c: TmdbCard, st: { state: CardState; libraryId: number | null },
 }
 
 // ---------------- One title ----------------
+
+/** The episodes of one season, for looking before asking. Same rules as the title page (kids only see kid-safe shows). */
+export async function discoverSeason(deps: DiscoverDeps, user: User, tmdbId: number, season: number): Promise<SeasonPreview> {
+  const { tmdb, now } = deps;
+  try {
+    if (user.role === 'kid' && !isKidSafe('series', (await tmdb.extras('series', tmdbId)).certification)) throw new HttpError(403, 'not_for_kids', 'That one isn’t for kid profiles.');
+    const today = iso(now());
+    const episodes = await tmdb.season(tmdbId, season);
+    return { season, episodes: episodes.map((e) => ({ episode: e.episode, title: e.title, airDate: e.airDate, overview: e.overview || null, aired: !!e.airDate && e.airDate <= today })) };
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    if (err instanceof TmdbError && err.status === 404) throw new HttpError(404, 'not_found', 'TMDB doesn’t have that season.');
+    throw new HttpError(502, 'tmdb_failed', 'TMDB didn’t answer. Try again in a moment.');
+  }
+}
 
 export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie' | 'series', tmdbId: number): Promise<DiscoverTitle> {
   const { db, tmdb, now } = deps;

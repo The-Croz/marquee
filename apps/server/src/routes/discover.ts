@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { PersonDetail, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverTitle, ServiceTop } from '@marquee/shared';
-import { discoverPerson, discoverPage, discoverSearch, discoverTitle, readPrefs, serviceTop, writePrefs, type DiscoverDeps } from '../discover/service.js';
+import type { PersonDetail, DiscoverCard, DiscoverPage, DiscoverPrefs, DiscoverTitle, SeasonPreview, ServiceTop } from '@marquee/shared';
+import { discoverPerson, discoverPage, discoverSearch, discoverSeason, discoverTitle, readPrefs, serviceTop, writePrefs, type DiscoverDeps } from '../discover/service.js';
 import { SERVICES } from '../library/tmdb.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
 import { scanSources } from './library.js';
@@ -51,6 +51,11 @@ discoverRoutes.put('/prefs', async (c) => {
 discoverRoutes.get('/title/:kind{movie|series}/:id{[0-9]+}', async (c) => {
   const user = requireUser(c);
   return c.json<DiscoverTitle>(await discoverTitle(deps(c), user, c.req.param('kind') as 'movie' | 'series', Number(c.req.param('id'))));
+});
+
+discoverRoutes.get('/title/series/:id{[0-9]+}/season/:season{[0-9]+}', async (c) => {
+  const user = requireUser(c);
+  return c.json<SeasonPreview>(await discoverSeason(deps(c), user, Number(c.req.param('id')), Number(c.req.param('season'))));
 });
 
 discoverRoutes.get('/person/:id{[0-9]+}', async (c) => {
