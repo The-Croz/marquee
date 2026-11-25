@@ -148,7 +148,7 @@ describe('fixtures for the iPhone app', () => {
     t.db.insert(schema.history).values({ at: clock - 3_600_000, event: 'in_library', kind: 'movie', movieId: dune.id, title: 'Dune: Part Two (2024)', source: 'TPB', quality: 'WEBDL-2160p', size: 25 * GB }).run();
 
     const get = (p: string, who: string | undefined = admin) => call(t.app, 'GET', p, undefined, who);
-    await call(t.app, 'POST', '/api/issues', { kind: 'movie', id: dune.id, problem: 'sound', note: 'Dialogue is quiet.' }, admin);
+    await call(t.app, 'POST', '/api/issues', { kind: 'movie', id: dune.id, problem: 'sound', message: 'Dialogue is quiet.' }, admin);
     const copies = await call(t.app, 'POST', `/api/movies/${dune.id}/search`, {}, admin);
     const answers: [string, { status: number; body: unknown }][] = [
       ['movies', await get('/api/movies')],

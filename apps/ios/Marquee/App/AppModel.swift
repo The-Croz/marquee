@@ -27,6 +27,35 @@ final class AppModel {
     /// Which Activity section to open (set by Home's tiles).
     var activitySection: ActivitySection = .downloads
     var selectedTab: AppTab = .home
+    /// What's open on top of each tab, so a link can open a title from anywhere.
+    var homePath = NavigationPath()
+    var discoverPath = NavigationPath()
+    var libraryPath = NavigationPath()
+    var searchPath = NavigationPath()
+
+    /// Opens a movie or show on the tab the person is on (Library when they're on Activity).
+    func open(_ route: TitleRoute) {
+        switch selectedTab {
+        case .home: homePath.append(route)
+        case .discover: discoverPath.append(route)
+        case .search: searchPath.append(route)
+        case .library, .activity:
+            selectedTab = .library
+            libraryPath.append(route)
+        }
+    }
+
+    func open(_ link: DeepLink) {
+        switch link {
+        case .title(let route): open(route)
+        case .requests:
+            activitySection = .requests
+            selectedTab = .activity
+        case .downloads:
+            activitySection = .downloads
+            selectedTab = .activity
+        }
+    }
 
     let client: APIClient
     private let tokens: TokenStore
@@ -138,4 +167,4 @@ final class AppModel {
     }
 }
 
-enum AppTab: Hashable { case home, activity }
+enum AppTab: Hashable { case home, discover, library, activity, search }

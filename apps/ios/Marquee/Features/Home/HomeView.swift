@@ -7,10 +7,15 @@ struct HomeView: View {
     @State private var model: HomeModel?
 
     var body: some View {
-        Group {
-            if let model { content(model) } else { Color.ink }
+        @Bindable var app = app
+        NavigationStack(path: $app.homePath) {
+            Group {
+                if let model { content(model) } else { Color.ink }
+            }
+            .background(.ink)
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
         }
-        .background(.ink)
         .task { model = HomeModel(app: app) }
     }
 
@@ -66,6 +71,7 @@ struct HomeView: View {
     @ViewBuilder
     private func hero(_ model: HomeModel) -> some View {
         if let hero = model.data?.hero {
+            TitleLink(href: hero.href) {
             BackdropHero(
                 path: hero.backdropPath,
                 kicker: hero.eyebrow,
@@ -73,6 +79,7 @@ struct HomeView: View {
                 detail: ([hero.chips.joined(separator: " · ")] + [hero.note].compactMap { $0 }).filter { !$0.isEmpty }.joined(separator: " · "),
                 progress: hero.progress.map { $0 / 100 }
             )
+            }
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Marquee").font(.titleSerif(40)).foregroundStyle(.amber)
@@ -164,12 +171,14 @@ struct HomeView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 10) {
                         ForEach(data.recent) { t in
+                            TitleLink(href: t.href) {
                             VStack(alignment: .leading, spacing: 4) {
                                 PosterView(path: t.posterPath, color: t.posterColor, title: t.title).frame(width: 110)
                                 Text(t.title).font(.footnote.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1).frame(width: 110, alignment: .leading)
                                 Text(t.sub).font(.caption2).foregroundStyle(.muted).lineLimit(1).frame(width: 110, alignment: .leading)
                             }
                             .accessibilityElement(children: .combine)
+                            }
                         }
                     }
                     .padding(.trailing, 16)
@@ -319,6 +328,20 @@ struct RequestRow: View {
         case .downloading, .searching: .downloading
         case .looking, .pending: .needsYou
         default: .neutral
+        }
+    }
+}
+
+/// Opens a title when the server gave a page for it, else just shows the content.
+struct TitleLink<Label: View>: View {
+    let href: String?
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        if let route = TitleRoute(webPath: href) {
+            NavigationLink(value: route) { label }.buttonStyle(.plain)
+        } else {
+            label
         }
     }
 }

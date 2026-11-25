@@ -31,7 +31,10 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await app.becameActive() } }
         }
-        .onOpenURL { _ in /* marquee://signed-in comes back to the web sign-in sheet, which handles it */ }
+        .onOpenURL { url in
+            // marquee://signed-in comes back to the sign-in sheet, which handles it; the rest are links into the app.
+            if app.phase == .signedIn, let link = DeepLink(url: url) { app.open(link) }
+        }
     }
 }
 
@@ -44,13 +47,14 @@ struct SignedInView: View {
         let sections = ActivityTabs.sections(for: role)
         @Bindable var app = app
         TabView(selection: $app.selectedTab) {
-            Tab("Home", systemImage: "house.fill", value: AppTab.home) {
-                HomeView()
-            }
+            Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView() }
+            Tab("Discover", systemImage: "safari.fill", value: AppTab.discover) { DiscoverView() }
+            Tab("Library", systemImage: "rectangle.stack.fill", value: AppTab.library) { LibraryView() }
             if !sections.isEmpty {
-                Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) {
-                    ActivityView(sections: sections)
-                }
+                Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityView(sections: sections) }
+            }
+            if role != .kid {
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) { SearchView() }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
