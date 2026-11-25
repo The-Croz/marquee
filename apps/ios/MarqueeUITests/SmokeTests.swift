@@ -66,5 +66,20 @@ final class SmokeTests: XCTestCase {
         ask.tap()
         sleep(4)
         XCTAssertEqual(ask.label, "Ask for it", "Nothing should have been sent")
+
+        // You → turn notifications on (allow the system prompt); the script then checks the fake Apple saw a push.
+        // The Discover sheet is still up from asking: close it, then open You from the tab's avatar.
+        if app.buttons["Done"].exists { app.buttons["Done"].tap() }
+        let avatars = app.buttons.matching(identifier: "avatar")
+        XCTAssertTrue(avatars.firstMatch.waitForExistence(timeout: 10))
+        (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
+        let toggle = app.switches.firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        toggle.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 10) { allow.tap() }
+        let on = NSPredicate(format: "value == '1'")
+        wait(for: [XCTNSPredicateExpectation(predicate: on, object: toggle)], timeout: 15)
     }
 }

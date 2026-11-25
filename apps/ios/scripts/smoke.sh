@@ -20,7 +20,18 @@ for _ in $(seq 1 40); do curl -fsS "localhost:$PORT/api/health" >/dev/null 2>&1 
 curl -fsS "localhost:$PORT/api/health" >/dev/null || { echo "Demo mode didn't start. Its log:" >&2; cat "$LOG" >&2; exit 1; }
 
 apps/ios/scripts/seed-demo.sh "http://localhost:$PORT"
-make -C apps/ios project >/dev/null
+make -C apps/ios project-push >/dev/null
+set +e
 xcodebuild test -project apps/ios/Marquee.xcodeproj -scheme Marquee \
   -destination "platform=iOS Simulator,name=$SIM" \
   -derivedDataPath apps/ios/build -only-testing:MarqueeUITests 2>&1 | tee "$LOG.test" | grep -E "error:|\*\* TEST" || tail -25 "$LOG.test"
+set -e
+grep -q "TEST SUCCEEDED" "$LOG.test" || exit 1
+# Phase 3: with notifications on, a member's request should have reached the fake Apple for the demo phone and this one.
+MIA=$(mktemp)
+curl -fsS -c "$MIA" -H 'Content-Type: application/json' -d '{"username":"mia","password":"mia password"}' "localhost:$PORT/api/auth/login" >/dev/null
+curl -fsS -b "$MIA" -H 'Content-Type: application/json' -d '{"kind":"movie","tmdbId":1241982}' "localhost:$PORT/api/requests" >/dev/null || true
+sleep 2
+PUSHES=$(grep "Apple push to" "$LOG" | awk '{print $5}' | sort -u | wc -l | tr -d " ")
+echo "Fake Apple pushed to $PUSHES different phone(s):"; grep "Apple push to" "$LOG" | tail -3
+[ "$PUSHES" -ge 2 ] || { echo "Expected a push for the demo phone and for the simulator." >&2; exit 1; }

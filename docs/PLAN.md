@@ -488,7 +488,7 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 - **Fewest people sharing a copy** (Settings → Downloader → When downloads get stuck, default 1 = as before): copies with fewer seeders are turned down ("Only 3 people are sharing it; your minimum is 5"). Copies whose Source doesn't say are let through. Passed into `decide` as `Wanted.minSeeders`.
 - **Alert when qBittorrent can't find anyone:** `checkNoPeers` in the health check. When two or more downloads on the way, and at least 60% of them, have waited 30+ minutes on the file list or stalled with nobody connected, admins get one "qBittorrent stopped working" message (and again only after it clears). One stuck download is a bad copy, not an alert. Marquee doesn't restart anything: it has no Docker access, and the usual cause is the VPN's forwarded port (seen 2026-11-25: gluetun + hotio PIA script logging "Port bind failed" every 2 minutes).
 
-## Milestone 7: iPhone app 🔨 (Phases 1 and 2 built; PRs open, none merged)
+## Milestone 7: iPhone app 🔨 (Phases 1, 2 and 3 built; PRs open, none merged)
 
 Mockups: the "iPhone app · D + E" row on the [mockup canvas](https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT) (2026-11-25). Direction: **D · Backdrop** (artwork fills the top of Home and title pages, under the status bar) with **E · Shelves** (count tiles, wide progress cards, poster rows). Cinematic dark tokens and words from the web app; iOS 26+ Liquid Glass for the tab bar, floating buttons and sheets.
 
@@ -513,8 +513,8 @@ Who it's for: Josh first (admin: monitoring, approving, asking for things), shar
 
 **Server work**
 - ✅ (phase 1) Token sign-in for the app (bearer token per device, listed and revocable in Settings → Account); OIDC and Plex finish into the app by a custom URL scheme. Writes stay JSON.
-- ⬜ Push: APNs (token-based key, set in Settings → Notifications) as a per-device channel in the existing grid, with the Silently / Quietly / Normally / Right away levels mapped to iOS interruption levels (Right away = Time Sensitive). Actionable notifications: Approve / Turn down a request from the Lock Screen.
-- ⬜ Live Activity for a download on its way (start from the app, updated by push).
+- ✅ (phase 3, against a fake Apple) Push: APNs (token-based key, set in Settings → Notifications) as a per-device channel in the existing grid, with the Silently / Quietly / Normally / Right away levels mapped to iOS interruption levels (Right away = Time Sensitive). Actionable notifications: Approve / Turn down a request from the Lock Screen.
+- ✅ (phase 3, against a fake Apple) Live Activity for a download on its way (start from the app, updated by push).
 - Images: none needed. The phone loads sized TMDB images directly (`w185`/`w342`/`w1280`), like the web app, with `posterColor` as the placeholder.
 - Design doc: `docs/superpowers/specs/2026-11-25-iphone-app-design.md`. Signing: Josh's personal Apple account only, never the work team.
 
@@ -525,11 +525,14 @@ Needs a Mac with Xcode (have: Xcode 27.2) and an Apple developer account for pus
 **Built so far**
 - Phase 1, Foundations: server bearer tokens, a `devices` table, app sign-in (password, Jellyfin, Plex, Pocket ID by one-time code), **Your phones** in Settings → Account, fixtures the app's tests decode; the iPhone project in `apps/ios` (XcodeGen, `MarqueeKit` package, design system), address and sign-in screens, tabs, Home and Activity (Downloads, Requests with approve / turn down / undo). Checks: `pnpm test`, `pnpm typecheck`, `make -C apps/ios test`, `apps/ios/scripts/smoke.sh` (demo mode).
 - Phase 2, Browse: Library (grid, filters, sort), title pages for movies and shows (backdrop, Watch in Plex / Jellyfin, progress strip, Wanted, profile, seasons and episodes, episode up close, Copies we found with Send, History, Something wrong?), Discover with asking (3-second take-back, whole show or chosen seasons with a look at each season), Search (library and TMDB, admins can add), Calendar and My requests in the You sheet, `marquee://` links. Person pages, rename and remove-to-recycle-bin stay on the web.
-- Not built yet: push and Live Activity (phase 3); Watching, Manage, TestFlight (phase 4).
+- Phase 3, Push: an `apns` channel per phone (one per phone, removed on sign-out or when Apple says it's gone), the Apple key in Settings → Notifications → Shared alerts → iPhone app (never shown again, Test button), signed sends over HTTP/2 with Node's own `http2` and `crypto`, the four levels as Apple interruption levels, Approve and Turn down on "someone asked" (Approve needs the phone unlocked), cover art through a Notification Service Extension, **Follow on Lock Screen** (a Live Activity updated by push every 5%, ended when it's in the library or after 8 hours). Everything is tested against a fake Apple push server; demo mode runs one and logs every push.
+- Not built yet: Watching, Manage, TestFlight (phase 4).
 
 **Josh's steps** (things only you can do; the build adds to this list as it goes)
 - ⬜ Enroll the personal Apple account (not the Renovation Church one) in the Apple Developer Program, then pass on the new team id.
 - ⬜ In Pangolin, add a rule to the Marquee resource that skips Pangolin's sign-in for `/api/*`.
 - ⬜ Install the app on your iPhone from Xcode (personal team) and sign in at your Home address and your Outside address. In Xcode, check that the `Marquee` target offers only your personal team (never Renovation Church).
 - ⬜ After the new Marquee image is running: open the live `marquee` container's logs (Dozzle) while signing in from the app, and check there are no token values and no errors from the app's calls.
+- ⬜ **Push, once the paid Apple account is ready:** create a push key (Apple Developer → Keys → Apple Push Notifications), then in Marquee Settings → Notifications → Shared alerts → iPhone app paste the .p8 text, its key id, your team id and the app id (`app.marquee.ios`), and press Send a test. Put the new team id in `apps/ios/project.yml` (still never the Renovation Church team) and build with `make -C apps/ios project-push` (it adds the push entitlement, which a free personal team can't sign).
+- ⬜ On your phone: You → Notifications on this iPhone, ask for something as a member, and check the banner has cover art and Approve / Turn down (Approve asks for Face ID or your passcode). Start **Follow on Lock Screen** on a download.
 - ⬜ Compare the app with the mockups on your phone (real artwork shows there; demo mode has none) and list anything that differs.

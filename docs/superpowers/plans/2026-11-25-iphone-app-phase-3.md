@@ -1,6 +1,6 @@
 # iPhone app · Phase 3 (Push) Implementation Plan
 
-> **For agentic workers:** execute inline with superpowers:executing-plans, task by task, ticking the boxes. Steps use checkbox (`- [ ]`) syntax.
+> **For agentic workers:** execute inline with superpowers:executing-plans, task by task, ticking the boxes. Steps use checkbox (`- [x]`) syntax.
 
 **Goal:** Marquee sends push notifications to the iPhone app through Apple (as a new per-phone channel next to Pushover and ntfy), with cover art, **Approve** and **Turn down** buttons on "someone asked for something", and a **Follow on Lock Screen** Live Activity for a download. All of it is built and tested against a **fake Apple push server**; the real Apple key is a step for Josh.
 
@@ -37,9 +37,9 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** `GET /api/settings/notifications/apns` → `ApnsSettingsView { keySet, keyId, teamId, bundleId, environment: 'production' | 'sandbox' }` (never the key); `PUT` takes `{ key?: string (the .p8 text), keyId, teamId, bundleId }` (a blank key keeps the saved one; checks it parses as an EC private key and says so plainly if not); `POST …/apns/test` sends a test to the admin's own phones. Stored with `setSetting` (`apns.*`); the key is encrypted the same way other secrets are (see `library/services.ts`).
 
-- [ ] Tests first: saved but never sent back; a bad key is refused with a plain message; blank key keeps the old one; admin only.
-- [ ] Implement the routes, the shared types and the **iPhone app** card under Shared alerts (explains what the key is, where to get it, a Test button).
-- [ ] Commit.
+- [x] Tests first: saved but never sent back; a bad key is refused with a plain message; blank key keeps the old one; admin only.
+- [x] Implement the routes, the shared types and the **iPhone app** card under Shared alerts (explains what the key is, where to get it, a Test button).
+- [x] Commit.
 
 ### Task 2: Sending through Apple (`ApnsClient`) and a fake Apple
 
@@ -47,8 +47,8 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** `ApnsClient { send({ token, environment, topic, payload, pushType, priority, collapseId, expiration }): Promise<{ status: number; reason: string | null }> }`, address from `APNS_URL` (tests and demo point it at the fake; default `api.push.apple.com` / `api.sandbox.push.apple.com`). JWT ES256 (kid = key id, iss = team id, `iat`), cached for 50 minutes. `levelFor(priority)` → `{ interruptionLevel, sound }`. `apnsPayload(message)`: `aps.alert` title and body, `interruption-level`, `mutable-content: 1`, `category: 'request_waiting'` for `request_pending`, and top-level `link`, `image`, `requestId`. The fake Apple is a local HTTP/2 server that checks the JWT (signature, `kid`, `iss`), the `apns-topic` and the token, records each push, and can answer 410 or 400 on request.
 
-- [ ] Tests: the right headers and signed JWT arrive; level mapping for all four; the category and `requestId`; 410 and `BadDeviceToken` mark the send as "gone".
-- [ ] Implement. **Commit.**
+- [x] Tests: the right headers and signed JWT arrive; level mapping for all four; the category and `requestId`; 410 and `BadDeviceToken` mark the send as "gone".
+- [x] Implement. **Commit.**
 
 ### Task 3: The phone's channel
 
@@ -56,15 +56,15 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** `POST /api/me/devices/:id/push { token, environment }` (own phone only; creates or updates this phone's one `apns` channel, with the events a person gets by default); `DELETE /api/me/devices/:id/push` (turns push off); `GET /api/me/devices` gains `push: boolean`. `sendTo` deletes an `apns` channel when Apple says the token is gone. Removing a phone (Your phones, or sign out from the web) removes its channel. The channel shows under Settings → Notifications → For me as "<phone name> (iPhone app)".
 
-- [ ] Tests: registering twice keeps one channel; another person's phone → 404; sign-out from the web removes it; a gone token removes it; events default to the bell's; muted events don't send.
-- [ ] Implement. **Commit.**
+- [x] Tests: registering twice keeps one channel; another person's phone → 404; sign-out from the web removes it; a gone token removes it; events default to the bell's; muted events don't send.
+- [x] Implement. **Commit.**
 
 ### Task 4: Actions and the request id
 
 **Files:** `apps/server/src/notify/vars.ts`, `notify/events.ts`, test `apns.test.ts`.
 
-- [ ] `requestVars` carries the request's id so the payload has `requestId`; a test checks that "Someone asked for something" to an admin's phone has category `request_waiting` and the right id, and that "Your request was approved" has no category.
-- [ ] **Commit.**
+- [x] `requestVars` carries the request's id so the payload has `requestId`; a test checks that "Someone asked for something" to an admin's phone has category `request_waiting` and the right id, and that "Your request was approved" has no category.
+- [x] **Commit.**
 
 ### Task 5: Live Activity (server)
 
@@ -72,8 +72,8 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** table `live_activities (id, download_id, device_id, token, last_percent, last_state, started_at)`; `POST /api/downloads/:id/live-activity { token }` (admin; one row per phone and download); the monitor's check calls `updateLiveActivities` which pushes (`apns-push-type: liveactivity`, topic `<bundle>.push-type.liveactivity`, `content-state { progress, status, eta }`) when the percent moved by 5 or the state changed, and ends it (`event: end`) at done/failed/removed or after 8 hours, then deletes the row. A 410 deletes the row.
 
-- [ ] Tests with the fake Apple: updates at +5% only; ends at done; ends at 8 hours; admin only; gone token removes the row.
-- [ ] Implement. **Commit.**
+- [x] Tests with the fake Apple: updates at +5% only; ends at done; ends at 8 hours; admin only; gone token removes the row.
+- [x] Implement. **Commit.**
 
 ### Task 6: The app asks, registers and acts
 
@@ -81,15 +81,15 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** After sign-in the You sheet's **Notifications on this iPhone** row shows On / Off / "Turn on". Turning on asks permission, registers for remote notifications and posts the token (`POST /api/me/devices/:id/push`, the id from `GET /api/me/devices` where `current` is true). Hex token encoding and the register/unregister bodies live in MarqueeKit and are tested. Category `request_waiting` has **Approve** (`.authenticationRequired`, calls `POST /api/requests/:id/approve` with the Keychain token, from the background) and **Turn down** (`.foreground`, opens the reason sheet). Tapping a notification opens its `link` (`marquee://…` or the web path) through the Phase 2 router. In the foreground a push shows as a banner.
 
-- [ ] Tests (MarqueeKit): token hex, bodies, action parsing (`request_waiting` + `requestId` → approve target).
-- [ ] Build the delegate, registration, You row, actions. **Commit.**
+- [x] Tests (MarqueeKit): token hex, bodies, action parsing (`request_waiting` + `requestId` → approve target).
+- [x] Build the delegate, registration, You row, actions. **Commit.**
 
 ### Task 7: Cover art on pushes (Notification Service Extension)
 
 **Files:** `apps/ios/MarqueeNotify/NotificationService.swift`, `project.yml` (target `MarqueeNotify`, an app extension embedded in `Marquee`).
 
-- [ ] The extension downloads the `image` address (only `https://image.tmdb.org/` addresses, 8 s limit, 2.5 MB cap) and attaches it; on any failure it delivers the plain notification. Pure checks (address allowed, size) live in MarqueeKit with tests.
-- [ ] Build; check with `xcrun simctl push` using a payload file with `mutable-content`. **Commit.**
+- [x] The extension downloads the `image` address (only `https://image.tmdb.org/` addresses, 8 s limit, 2.5 MB cap) and attaches it; on any failure it delivers the plain notification. Pure checks (address allowed, size) live in MarqueeKit with tests.
+- [x] Build; check with `xcrun simctl push` using a payload file with `mutable-content`. **Commit.**
 
 ### Task 8: Follow on Lock Screen (Live Activity)
 
@@ -97,13 +97,15 @@ Same as phases 1 and 2. Additionally:
 
 **Interfaces:** `DownloadActivityAttributes { title, posterPath, downloadId }` with state `{ progress, status, eta }`. **Follow on Lock Screen** (a swipe action on a download row and a button on its title page, admins only): starts the activity with `pushType: .token`, posts its push token to `/api/downloads/:id/live-activity` when the server has an Apple key (otherwise the app updates it itself while open, and the button says "Updates on the Lock Screen need the iPhone app key" once). `NSSupportsLiveActivities` in the app's Info.plist.
 
-- [ ] Build the activity UI (lock screen card and compact/expanded Dynamic Island), the controller (start, update from the 5-second Downloads refresh, end at done), the button. Check on the simulator.
-- [ ] **Commit.**
+- [x] Build the activity UI (lock screen card and compact/expanded Dynamic Island), the controller (start, update from the 5-second Downloads refresh, end at done), the button. Check on the simulator.
+- [x] **Commit.**
 
 ### Task 9: Demo mode, smoke test, push settings, plan and PR
 
 **Files:** `apps/server/scripts/demo.ts`, `apps/ios/scripts/{seed-demo,smoke}.sh`, `project.push.yml`, `Makefile` (`project-push`), `docs/PLAN.md`.
 
-- [ ] Demo mode starts a fake Apple server, fills in the Apple key settings, and logs each push ("[demo] Apple push to <token…>: <title>"); `seed-demo.sh` registers a fake push token for the demo phone, so approving or asking in demo mode shows the pushes in the log. Header of `demo.ts` says so.
-- [ ] Smoke test: turn on notifications in the You sheet (the simulator's permission prompt is accepted by an interruption monitor), then a member asks for something and the fake Apple server logs the push.
-- [ ] Screenshots; `pnpm test`, `pnpm typecheck`, `make -C apps/ios test`, smoke all pass. Update `docs/PLAN.md` (Josh's steps: the .p8 key, key id, team id, bundle id in Settings → Notifications → iPhone app; switch to `make project-push` after the paid enrollment; test on the phone). One review, fix, push `iphone-app-3`, PR against `iphone-app-2`.
+- [x] Demo mode starts a fake Apple server, fills in the Apple key settings, and logs each push ("[demo] Apple push to <token…>: <title>"); `seed-demo.sh` registers a fake push token for the demo phone, so approving or asking in demo mode shows the pushes in the log. Header of `demo.ts` says so.
+- [x] Smoke test: turn on notifications in the You sheet (the simulator's permission prompt is accepted by an interruption monitor), then a member asks for something and the fake Apple server logs the push.
+- [x] Screenshots; `pnpm test`, `pnpm typecheck`, `make -C apps/ios test`, smoke all pass. Update `docs/PLAN.md` (Josh's steps: the .p8 key, key id, team id, bundle id in Settings → Notifications → iPhone app; switch to `make project-push` after the paid enrollment; test on the phone). One review, fix, push `iphone-app-3`, PR against `iphone-app-2`.
+
+**Built differently from the plan:** Apple's phone token lives in the `apns` channel's config (not a `devices` column), so the existing channel machinery (muting, default events, the For me grid) just works. The Live Activity table also stores the push environment. Notifications arriving on the Lock Screen with the Approve button could not be driven in the simulator by script; `xcrun simctl push` showed the banner, and the action wiring is tested as pure logic (`PushSupport.action`). Following a download on the Lock Screen was built and compiled but not exercised against a live download in demo mode (its fake Sources have no copy that finishes); the server side is covered by `liveActivity.test.ts`.
