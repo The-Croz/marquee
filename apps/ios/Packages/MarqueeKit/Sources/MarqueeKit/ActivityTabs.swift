@@ -1,12 +1,13 @@
 import Foundation
 
 public enum ActivitySection: String, Sendable, Hashable, CaseIterable {
-    case downloads, requests
+    case downloads, requests, watching
 
     public var title: String {
         switch self {
         case .downloads: "Downloads"
         case .requests: "Requests"
+        case .watching: "Watching"
         }
     }
 }
@@ -15,7 +16,7 @@ public enum ActivitySection: String, Sendable, Hashable, CaseIterable {
 public enum ActivityTabs {
     public static func sections(for role: Role) -> [ActivitySection] {
         switch role {
-        case .admin: [.downloads, .requests]
+        case .admin: [.downloads, .requests, .watching]
         case .member: [.requests]
         case .kid, .unknown: []
         }

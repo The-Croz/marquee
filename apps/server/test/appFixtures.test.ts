@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { searchesSettled } from '../src/requests/service.js';
 import { schema } from '../src/db/index.js';
+import { FakeMediaServer } from './fakes/mediaServers.js';
 import { FakeQbit, fakeFetchTorrent, qbitTorrent } from './fakes/qbittorrent.js';
 import { FakeSites, release } from './fakes/sources.js';
 import { FakeTmdb } from './fakes/tmdb.js';
@@ -170,6 +171,51 @@ describe('fixtures for the iPhone app', () => {
       ['history-title', await get(`/api/history?movieId=${dune.id}`)],
       ['profiles', await get('/api/settings/profiles')],
       ['issues-title', await get(`/api/issues/title/movie/${dune.id}`)],
+    ];
+    fs.mkdirSync(DIR, { recursive: true });
+    for (const [name, res] of answers) {
+      expect(res.status, `${name} answered ${res.status}: ${JSON.stringify(res.body).slice(0, 200)}`).toBeLessThan(300);
+      const text = clean(res.body, []);
+      const file = path.join(DIR, `${name}.json`);
+      if (process.env.WRITE_FIXTURES) fs.writeFileSync(file, text);
+      else {
+        expect(fs.existsSync(file), `${name}.json is missing. ${STALE}`).toBe(true);
+        expect(JSON.parse(text), `${name}.json. ${STALE}`).toEqual(JSON.parse(fs.readFileSync(file, 'utf8')));
+      }
+    }
+  });
+
+  it('admin: watching and the things Josh looks after', async () => {
+    const plex = new FakeMediaServer('plex');
+    const sites = new FakeSites();
+    sites.feed('http://tpb.test/api', { releases: [release(DUNE, { size: 25 * GB })] });
+    const qbit = new FakeQbit();
+    const clock = Date.parse('2026-11-25T12:00:00Z');
+    const t = makeApp({ now: () => clock, clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), tmdb: () => new FakeTmdb(), plexServer: (u, k) => plex.as(u, k) } });
+    const admin = await setupAdmin(t.app);
+    await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key', plexUrl: 'http://plex:32400', plexToken: 'plex-token' }, admin);
+    await call(t.app, 'POST', '/api/settings/sources', { name: 'TPB', url: 'http://tpb.test/api', apiKey: 'good' }, admin);
+    await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, admin);
+    for (const [username, role] of [['mia', 'member'], ['kiddo', 'kid']] as const) {
+      await call(t.app, 'POST', '/api/users', { username, displayName: username[0]!.toUpperCase() + username.slice(1), role, password: `${username} password` }, admin);
+    }
+    plex.playing = [{ sessionId: 's1', platform: 'Roku', resolution: '1080', kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, user: 'mia', device: 'Living room TV', state: 'playing', progress: 0.4, transcoding: true }];
+    plex.plays = [
+      { kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, userId: 'u1', user: 'mia', key: 'k1', playedAt: clock - 3_600_000 },
+      { kind: 'episode', title: 'Pilot', show: 'Severance', season: 1, episode: 1, year: 2022, tmdbId: null, userId: 'u1', user: 'mia', key: 'k2', playedAt: clock - 86_400_000 },
+    ];
+    await call(t.app, 'POST', '/api/activity/sync', {}, admin);
+    t.db.insert(schema.scanItems).values({ kind: 'movie', path: '/data/media/movies/Odd.Folder.2019', seenAt: clock, parsedTitle: 'Odd Folder', parsedYear: 2019, candidates: '[{"tmdbId":14160,"title":"Up","year":2009,"posterPath":"/up.jpg"}]' }).run();
+    const get = (p: string) => call(t.app, 'GET', p, undefined, admin);
+    const answers: [string, { status: number; body: unknown }][] = [
+      ['activity-now', await get('/api/activity/now')],
+      ['activity-stats', await get('/api/activity/stats')],
+      ['activity-people', await get('/api/activity/people')],
+      ['system-health', await get('/api/system/health')],
+      ['sources', await get('/api/settings/sources')],
+      ['users', await get('/api/users').then((r) => ({ ...r, body: { users: (r.body as any).users.map((u: any) => ({ ...u, createdAt: 0, lastLoginAt: null })) } }))],
+      ['unmatched', await get('/api/library/unmatched')],
+      ['left-out', await get('/api/library/left-out')],
     ];
     fs.mkdirSync(DIR, { recursive: true });
     for (const [name, res] of answers) {

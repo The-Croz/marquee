@@ -1,0 +1,27 @@
+{
+  "sessions": [
+    {
+      "server": "plex",
+      "sessionId": "s1",
+      "user": "mia",
+      "title": "Dune: Part Two",
+      "subtitle": "2024",
+      "device": "Living room TV",
+      "platform": "Roku",
+      "resolution": "1080",
+      "state": "playing",
+      "progress": 0.4,
+      "transcoding": true,
+      "convertReason": null,
+      "startedAt": 1795608000000,
+      "href": null
+    }
+  ],
+  "problems": [],
+  "live": [
+    {
+      "server": "plex",
+      "live": false
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import Testing
 
 @Suite struct ActivityTabsTests {
     @Test func adminsSeeDownloadsAndRequests() {
-        #expect(ActivityTabs.sections(for: .admin) == [.downloads, .requests])
+        #expect(ActivityTabs.sections(for: .admin) == [.downloads, .requests, .watching])
     }
 
     @Test func membersSeeOnlyRequests() {

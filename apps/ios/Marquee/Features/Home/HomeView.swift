@@ -102,7 +102,7 @@ struct HomeView: View {
         if admin {
             HStack(spacing: 8) {
                 tile(data.onItsWay.count, "On the way", .downloadBlue, section: .downloads)
-                CountTile(count: data.watching.count, label: "Watching", tint: .readyTeal)
+                tile(data.watching.count, "Watching", .readyTeal, section: .watching)
                 tile(data.needsYou.count, "Need you", .warn, section: .requests)
             }
             .padding(.horizontal, 16)
