@@ -112,4 +112,75 @@ describe('fixtures for the iPhone app', () => {
       }
     }
   });
+
+  it('browse: library, titles, Discover, Calendar and copies', async () => {
+    const sites = new FakeSites();
+    sites.feed('http://tpb.test/api', { releases: [release(DUNE, { size: 25 * GB })] });
+    const qbit = new FakeQbit();
+    const clock = Date.parse('2026-11-25T12:00:00Z');
+    const t = makeApp({
+      now: () => clock,
+      clients: { torznab: sites.torznab, qbittorrent: (u, n, p) => qbit.as(u, n, p), fetchTorrent: fakeFetchTorrent(), tmdb: () => new FakeTmdb() },
+    });
+    const admin = await setupAdmin(t.app);
+    await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key' }, admin);
+    await call(t.app, 'POST', '/api/settings/sources', { name: 'TPB', url: 'http://tpb.test/api', apiKey: 'good' }, admin);
+    await call(t.app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: 'admin', password: 'adminadmin' }, admin);
+    await call(t.app, 'POST', '/api/users', { username: 'kiddo', displayName: 'Kiddo', role: 'kid', password: 'kiddo password' }, admin);
+    const kiddo = (await call(t.app, 'POST', '/api/auth/login', { username: 'kiddo', password: 'kiddo password' })).cookie!;
+
+    const movie = (tmdbId: number, title: string, extra: object = {}) =>
+      t.db.insert(schema.movies).values({ tmdbId, title, sortTitle: title.toLowerCase(), year: 2024, certification: 'PG-13', profile: 'cinema', addedAt: clock - 86_400_000, refreshedAt: 0, posterPath: `/${tmdbId}.jpg`, backdropPath: `/${tmdbId}-bg.jpg`, overview: 'A story.', genres: '["Science Fiction","Adventure"]', runtime: 166, ...extra }).returning().get();
+    const dune = movie(693134, 'Dune: Part Two', { monitored: true });
+    const up = movie(14160, 'Up', { certification: 'PG', year: 2009, monitored: true });
+    t.db.insert(schema.mediaFiles).values({ path: '/data/media/movies/Dune/Dune.mkv', movieId: dune.id, size: 25 * GB, mtime: 0, addedAt: clock - 3_600_000, seenAt: 0, resolution: '2160p', hdr: 'HDR', source: 'WEBDL', codec: 'x265', releaseGroup: 'FLUX' }).run();
+
+    const show = t.db.insert(schema.series).values({ tmdbId: 95396, tvdbId: 371980, title: 'Severance', sortTitle: 'severance', year: 2022, certification: 'TV-MA', profile: 'cinema', addedAt: clock - 5 * 86_400_000, refreshedAt: 0, posterPath: '/sev.jpg', backdropPath: '/sev-bg.jpg', overview: 'Work and life, split.', genres: '["Drama","Mystery"]', status: 'Returning Series', network: 'Apple TV+', monitored: true }).returning().get();
+    const eps = [
+      [1, 1, 'Good News About Hell', '2022-02-18'],
+      [1, 2, 'Half Loop', '2022-02-18'],
+      [2, 1, 'Hello, Ms. Cobel', '2025-01-17'],
+      [2, 2, 'Not Yet Aired', '2099-01-01'],
+      [2, 3, 'Coming This Week', '2026-11-27'],
+    ] as const;
+    for (const [season, episode, title, airDate] of eps) t.db.insert(schema.episodes).values({ seriesId: show.id, season, episode, title, airDate, monitored: true }).run();
+    t.db.insert(schema.mediaFiles).values({ path: '/data/media/tv/Severance/S01E01.mkv', seriesId: show.id, season: 1, episodes: '[1]', size: 3 * GB, mtime: 0, addedAt: clock - 86_400_000, seenAt: 0, resolution: '1080p', source: 'WEBDL', codec: 'x264', releaseGroup: 'NTb' }).run();
+    t.db.insert(schema.history).values({ at: clock - 3_600_000, event: 'in_library', kind: 'movie', movieId: dune.id, title: 'Dune: Part Two (2024)', source: 'TPB', quality: 'WEBDL-2160p', size: 25 * GB }).run();
+
+    const get = (p: string, who: string | undefined = admin) => call(t.app, 'GET', p, undefined, who);
+    await call(t.app, 'POST', '/api/issues', { kind: 'movie', id: dune.id, problem: 'sound', note: 'Dialogue is quiet.' }, admin);
+    const copies = await call(t.app, 'POST', `/api/movies/${dune.id}/search`, {}, admin);
+    const answers: [string, { status: number; body: unknown }][] = [
+      ['movies', await get('/api/movies')],
+      ['shows', await get('/api/shows')],
+      ['movies-kid', await get('/api/movies', kiddo)],
+      ['movie-detail', await get(`/api/movies/${dune.id}`)],
+      ['show-detail', await get(`/api/shows/${show.id}`)],
+      ['movie-watch', await get(`/api/movies/${dune.id}/watch`)],
+      ['episode-detail', await get(`/api/shows/${show.id}/seasons/1/episodes/1`)],
+      ['discover', await get('/api/discover')],
+      ['discover-kids', await get('/api/discover', kiddo)],
+      ['discover-title-movie', await get('/api/discover/title/movie/402431')],
+      ['discover-title-series', await get('/api/discover/title/series/95396')],
+      ['discover-season', await get('/api/discover/title/series/95396/season/2')],
+      ['discover-search', await get('/api/discover/search?q=dune')],
+      ['library-search', await get('/api/library/search?q=dune')],
+      ['calendar', await get('/api/calendar?from=2026-11-18&days=14')],
+      ['copies', { status: copies.status, body: { ...(copies.body as object), searchId: '<id>' } }],
+      ['history-title', await get(`/api/history?movieId=${dune.id}`)],
+      ['profiles', await get('/api/settings/profiles')],
+      ['issues-title', await get(`/api/issues/title/movie/${dune.id}`)],
+    ];
+    fs.mkdirSync(DIR, { recursive: true });
+    for (const [name, res] of answers) {
+      expect(res.status, `${name} answered ${res.status}: ${JSON.stringify(res.body).slice(0, 200)}`).toBeLessThan(300);
+      const text = clean(res.body, []);
+      const file = path.join(DIR, `${name}.json`);
+      if (process.env.WRITE_FIXTURES) fs.writeFileSync(file, text);
+      else {
+        expect(fs.existsSync(file), `${name}.json is missing. ${STALE}`).toBe(true);
+        expect(JSON.parse(text), `${name}.json. ${STALE}`).toEqual(JSON.parse(fs.readFileSync(file, 'utf8')));
+      }
+    }
+  });
 });

@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "kind": "movie",
+      "titleId": 1,
+      "title": "Dune: Part Two (2024)",
+      "where": null,
+      "href": "/movies/1",
+      "problem": "sound",
+      "problemText": "Sound problem",
+      "message": "",
+      "status": "open",
+      "by": "Josh",
+      "byId": 1,
+      "createdAt": 1795608000000,
+      "updatedAt": 1795608000000,
+      "fixedAt": null,
+      "comments": []
+    }
+  ]
+}

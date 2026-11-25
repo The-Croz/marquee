@@ -1,0 +1,38 @@
+{
+  "id": 1,
+  "tmdbId": 693134,
+  "imdbId": null,
+  "title": "Dune: Part Two",
+  "year": 2024,
+  "overview": "A story.",
+  "posterPath": "/693134.jpg",
+  "posterColor": null,
+  "backdropPath": "/693134-bg.jpg",
+  "runtime": 166,
+  "certification": "PG-13",
+  "genres": [
+    "Science Fiction",
+    "Adventure"
+  ],
+  "path": null,
+  "monitored": true,
+  "profile": "cinema",
+  "profileByHand": false,
+  "addedAt": 1795521600000,
+  "files": [
+    {
+      "id": 1,
+      "path": "/data/media/movies/Dune/Dune.mkv",
+      "sizeBytes": 26843545600,
+      "quality": {
+        "resolution": "2160p",
+        "source": "WEBDL",
+        "hdr": "HDR",
+        "codec": "x265",
+        "group": "FLUX",
+        "label": "4K HDR"
+      },
+      "addedAt": 1795604400000
+    }
+  ]
+}

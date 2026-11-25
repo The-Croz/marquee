@@ -1,0 +1,20 @@
+{
+  "from": "2026-11-18",
+  "to": "2026-12-01",
+  "today": "2026-11-25",
+  "items": [
+    {
+      "kind": "episode",
+      "seriesId": 1,
+      "movieId": null,
+      "show": "Severance",
+      "posterPath": "/sev.jpg",
+      "season": 2,
+      "episode": 3,
+      "title": "Coming This Week",
+      "airDate": "2026-11-27",
+      "state": "coming",
+      "note": "4K Quality"
+    }
+  ]
+}
