@@ -16,6 +16,13 @@ struct RootView: View {
                 SignInView()
             case .signedIn:
                 SignedInView()
+            case .cantReach(let error):
+                VStack(spacing: 16) {
+                    MessageView(title: error.title, detail: error.advice, actionTitle: "Try again") { Task { await app.retryLaunch() } }
+                    Button("Change server") { app.changeServer() }.font(.footnote.weight(.semibold)).foregroundStyle(.amber).frame(minHeight: 44)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.ink)
             }
         }
         .preferredColorScheme(.dark)

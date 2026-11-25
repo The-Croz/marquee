@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CryptoKit
 import MarqueeKit
 import Observation
 import SwiftUI
@@ -43,12 +44,15 @@ final class SignInModel {
         problem = nil
         defer { busy = false }
         let base = await app.client.activeAddress
-        guard let url = URL(string: base.absoluteString + "/api/auth/oidc/start?app=1") else { return }
+        // Only this app knows the verifier, so a code caught by another app on the phone is no use to it.
+        let verifier = Data((0..<32).map { _ in UInt8.random(in: 0...255) }).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let challenge = Data(SHA256.hash(data: Data(verifier.utf8))).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        guard let url = URL(string: base.absoluteString + "/api/auth/oidc/start?app=1&challenge=\(challenge)") else { return }
         do {
             let callback = try await session.authenticate(using: url, callbackURLScheme: "marquee")
             let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
             if let code = items.first(where: { $0.name == "code" })?.value {
-                app.signedIn(try await app.client.exchange(code: code, device: .current))
+                app.signedIn(try await app.client.exchange(code: code, verifier: verifier, device: .current))
             } else {
                 problem = Self.message(forSignInError: items.first(where: { $0.name == "error" })?.value)
             }
@@ -88,7 +92,13 @@ final class SignInModel {
         for _ in 0..<150 {
             if Task.isCancelled { return }
             do {
-                switch try await app.client.plexCheck(flowId: flowId) {
+                let answer = try await app.client.plexCheck(flowId: flowId)
+                if Task.isCancelled {
+                    // They closed the page just as it finished: don't leave the phone signed in behind their back.
+                    await app.client.forgetToken()
+                    return
+                }
+                switch answer {
                 case .ok(let user, _):
                     plexPage = nil
                     app.signedIn(user)

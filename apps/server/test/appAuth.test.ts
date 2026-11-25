@@ -56,13 +56,15 @@ describe('bearer tokens and devices', () => {
     expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(second))).status).toBe(200);
   });
 
-  it('another person on the same phone takes the device over', async () => {
+  it('another person on the same phone gets their own device and nobody is signed out', async () => {
     const t = await setup();
-    const other = (await call(t.app, 'POST', '/api/users', { username: 'sam', displayName: 'Sam', password: 'a long password', role: 'member' }, (await call(t.app, 'POST', '/api/auth/login', { username: 'josh', password: 'correct horse battery' })).cookie)).body;
-    signInDevice(t.db, t.josh, PHONE, undefined, t.clock());
-    const sam = findUserByUsername(t.db, 'sam') ?? other;
-    signInDevice(t.db, sam, PHONE, undefined, t.clock());
-    expect(t.db.select().from(devices).where(eq(devices.id, PHONE.id)).get()?.userId).toBe(sam.id);
+    await call(t.app, 'POST', '/api/users', { username: 'sam', displayName: 'Sam', password: 'a long password', role: 'member' }, (await call(t.app, 'POST', '/api/auth/login', { username: 'josh', password: 'correct horse battery' })).cookie);
+    const joshToken = signInDevice(t.db, t.josh, PHONE, undefined, t.clock());
+    const sam = findUserByUsername(t.db, 'sam')!;
+    const samToken = signInDevice(t.db, sam, PHONE, undefined, t.clock());
+    expect(t.db.select().from(devices).all()).toHaveLength(2);
+    expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(joshToken))).status).toBe(200);
+    expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(samToken))).status).toBe(200);
   });
 });
 
@@ -77,21 +79,21 @@ describe('your phones', () => {
     await login(t.app, 'josh', 'correct horse battery', PHONE);
     await login(t.app, 'sam', 'sam long password', { ...PHONE, id: 'phone-bbbb-2222', name: "Sam's iPhone" });
     const mine = await call(t.app, 'GET', '/api/me/devices', undefined, web.cookie);
-    expect(mine.body.devices).toEqual([{ id: PHONE.id, name: "Josh's iPhone", kind: 'ios', lastSeenAt: expect.any(Number), signedIn: true, current: false }]);
+    expect(mine.body.devices).toEqual([{ id: `1.${PHONE.id}`, name: "Josh's iPhone", kind: 'ios', lastSeenAt: expect.any(Number), signedIn: true, current: false }]);
   });
 
   it('marks the phone asking as the current one', async () => {
     const t = await setup();
     const phone = await login(t.app, 'josh', 'correct horse battery', PHONE);
     const res = await call(t.app, 'GET', '/api/me/devices', undefined, undefined, bearer(phone.body.token));
-    expect(res.body.devices[0]).toMatchObject({ id: PHONE.id, current: true });
+    expect(res.body.devices[0]).toMatchObject({ id: `1.${PHONE.id}`, current: true });
   });
 
   it('signing a device out stops its token', async () => {
     const t = await setup();
     const web = await login(t.app, 'josh', 'correct horse battery');
     const phone = await login(t.app, 'josh', 'correct horse battery', PHONE);
-    expect((await call(t.app, 'DELETE', `/api/me/devices/${PHONE.id}`, undefined, web.cookie)).status).toBe(200);
+    expect((await call(t.app, 'DELETE', `/api/me/devices/1.${PHONE.id}`, undefined, web.cookie)).status).toBe(200);
     expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(phone.body.token))).status).toBe(401);
     expect((await call(t.app, 'GET', '/api/me/devices', undefined, web.cookie)).body.devices).toEqual([]);
   });
@@ -101,7 +103,7 @@ describe('your phones', () => {
     const web = await login(t.app, 'josh', 'correct horse battery');
     await call(t.app, 'POST', '/api/users', { username: 'sam', displayName: 'Sam', password: 'sam long password', role: 'member' }, web.cookie);
     const sam = await login(t.app, 'sam', 'sam long password', { ...PHONE, id: 'phone-bbbb-2222' });
-    expect((await call(t.app, 'DELETE', '/api/me/devices/phone-bbbb-2222', undefined, web.cookie)).status).toBe(404);
+    expect((await call(t.app, 'DELETE', '/api/me/devices/2.phone-bbbb-2222', undefined, web.cookie)).status).toBe(404);
     expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(sam.body.token))).status).toBe(200);
   });
 
@@ -110,7 +112,7 @@ describe('your phones', () => {
     const web = await login(t.app, 'josh', 'correct horse battery');
     const phone = await login(t.app, 'josh', 'correct horse battery', PHONE);
     await call(t.app, 'POST', '/api/auth/logout', {}, undefined, bearer(phone.body.token));
-    expect((await call(t.app, 'GET', '/api/me/devices', undefined, web.cookie)).body.devices[0]).toMatchObject({ id: PHONE.id, signedIn: false });
+    expect((await call(t.app, 'GET', '/api/me/devices', undefined, web.cookie)).body.devices[0]).toMatchObject({ id: `1.${PHONE.id}`, signedIn: false });
   });
 
   it('changing your password signs your phones out too', async () => {

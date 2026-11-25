@@ -13,6 +13,8 @@ public actor APIClient {
     private let tokens: TokenStore
     private let session: URLSession
     private var onOutside = false
+    /// Whether the last failed try never reached the server (so sending the same request elsewhere is safe).
+    private var lastFailureWasConnecting = true
     private let decoder = JSONDecoder()
 
     public init(addresses: ServerAddresses, tokens: TokenStore, session: URLSession = .shared) {
@@ -68,6 +70,7 @@ public actor APIClient {
 
     private struct Exchange: Encodable {
         var code: String
+        var verifier: String
         var device: AppDeviceInput
     }
 
@@ -91,8 +94,8 @@ public actor APIClient {
     }
 
     /// Trades the one-time code from a browser sign-in (Pocket ID) for the token.
-    public func exchange(code: String, device: AppDeviceInput) async throws(MarqueeError) -> SessionUser {
-        let answer: MaybeToken = try await send("POST", "/api/auth/app-token", body: Exchange(code: code, device: device), signedIn: false)
+    public func exchange(code: String, verifier: String, device: AppDeviceInput) async throws(MarqueeError) -> SessionUser {
+        let answer: MaybeToken = try await send("POST", "/api/auth/app-token", body: Exchange(code: code, verifier: verifier, device: device), signedIn: false)
         return try keep(answer)
     }
 
@@ -158,6 +161,7 @@ public actor APIClient {
         }
 
         var lastUnreachable = tries[0]
+        lastFailureWasConnecting = true
         for (index, base) in tries.enumerated() {
             let isHomeWithFallback = index == 0 && tries.count > 1
             do {
@@ -167,6 +171,8 @@ public actor APIClient {
             } catch let error as MarqueeError {
                 if case .unreachable(let url) = error {
                     lastUnreachable = url
+                    // A write that may have gone through (it timed out, or the line dropped) is never sent again elsewhere.
+                    if method != "GET" && !lastFailureWasConnecting { throw error }
                     continue
                 }
                 throw error
@@ -205,6 +211,8 @@ public actor APIClient {
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
         } catch {
+            let code = (error as? URLError)?.code
+            lastFailureWasConnecting = code == .cannotConnectToHost || code == .cannotFindHost || code == .notConnectedToInternet || code == .dnsLookupFailed
             throw MarqueeError.unreachable(base)
         }
         guard let http = response as? HTTPURLResponse else { throw MarqueeError.unreachable(base) }

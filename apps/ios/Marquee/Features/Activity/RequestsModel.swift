@@ -15,11 +15,10 @@ final class RequestsModel {
     private var undoRequest: Int?
 
     private let app: AppModel
-    let isAdmin: Bool
+    var isAdmin: Bool { app.user?.role == .admin }
 
     init(app: AppModel) {
         self.app = app
-        isAdmin = app.user?.role == .admin
     }
 
     var waiting: [RequestView] { items.filter { $0.state == .pending } }
@@ -54,8 +53,16 @@ final class RequestsModel {
 
     func approveAll() async {
         let all = waiting
-        for r in all { await approve(r, announce: false) }
-        say("Approved \(all.count) \(all.count == 1 ? "request" : "requests").", undoing: nil)
+        var approved = 0
+        for r in all {
+            await approve(r, announce: false)
+            if actionProblem == nil { approved += 1 } else { break }
+        }
+        if approved == all.count {
+            say("Approved \(approved) \(approved == 1 ? "request" : "requests").", undoing: nil)
+        } else if approved > 0 {
+            say("Approved \(approved) of \(all.count). Try the rest again.", undoing: nil)
+        }
     }
 
     struct Reason: Encodable { var reason: String }

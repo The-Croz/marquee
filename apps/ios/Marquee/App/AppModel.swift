@@ -13,7 +13,7 @@ extension AppDeviceInput {
 /// Where the app is: starting, needs an address, needs sign-in, or signed in.
 @Observable @MainActor
 final class AppModel {
-    enum Phase: Equatable { case launching, needsAddress, signedOut, signedIn }
+    enum Phase: Equatable { case launching, needsAddress, signedOut, signedIn, cantReach(MarqueeError) }
 
     private(set) var phase: Phase = .launching
     private(set) var user: SessionUser?
@@ -53,8 +53,16 @@ final class AppModel {
             user = me.user
             phase = .signedIn
         } catch {
-            if case .signedOut = error { phase = .signedOut } else if await client.hasToken { phase = .signedIn } else { phase = .signedOut }
-            await loadSignInOptions()
+            if case .signedOut = error {
+                phase = .signedOut
+                await loadSignInOptions()
+            } else if await client.hasToken {
+                // We can't tell who this is until Marquee answers, so say so instead of guessing.
+                phase = .cantReach(error)
+            } else {
+                phase = .signedOut
+                await loadSignInOptions()
+            }
         }
     }
 
@@ -96,6 +104,11 @@ final class AppModel {
         notice = nil
         selectedTab = .home
         phase = .signedIn
+    }
+
+    func retryLaunch() async {
+        phase = .launching
+        await start()
     }
 
     func changeServer() {

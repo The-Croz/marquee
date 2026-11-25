@@ -17,7 +17,9 @@ export type AppDevice = z.infer<typeof appDeviceSchema>;
  * 180-day one. The same phone keeps one row however often it signs in, so
  * anything attached to it later (its alerts) is never duplicated.
  */
-export function signInDevice(db: Db, user: User, device: AppDevice, userAgent: string | undefined, now: number): string {
+export function signInDevice(db: Db, user: User, input: AppDevice, userAgent: string | undefined, now: number): string {
+  // One row per person per phone: someone else signing in on a shared phone never signs this person out.
+  const device = { ...input, id: `${user.id}.${input.id}` };
   const existing = db.select().from(devices).where(eq(devices.id, device.id)).get();
   if (existing?.sessionId) db.delete(sessions).where(eq(sessions.id, existing.sessionId)).run();
   const token = createSession(db, user.id, userAgent, now, APP_SESSION_TTL);

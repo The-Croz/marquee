@@ -69,6 +69,22 @@ private func json(_ text: String, status: Int = 200) -> StubURLProtocol.Reply { 
         #expect(await api.activeAddress.host == "t-home.test")
     }
 
+    @Test func aWriteThatTimedOutIsNotSentAgainElsewhere() async throws {
+        let (api, _) = client("t-slow.test", outside: "t-slow-out.test")
+        StubURLProtocol.answer(host: "t-slow.test") { _ in throw URLError(.timedOut) }
+        StubURLProtocol.answer(host: "t-slow-out.test") { _ in json("{}") }
+        let _: DownloadsSummary? = try? await api.post("/api/requests/1/approve")
+        #expect(StubURLProtocol.requests(host: "t-slow-out.test").isEmpty)
+    }
+
+    @Test func aWriteThatNeverConnectedMovesOn() async throws {
+        let (api, _) = client("t-dead.test", outside: "t-dead-out.test")
+        StubURLProtocol.answer(host: "t-dead.test") { _ in throw URLError(.cannotConnectToHost) }
+        StubURLProtocol.answer(host: "t-dead-out.test") { _ in json("{}") }
+        let _: DownloadsSummary? = try? await api.post("/api/requests/1/approve")
+        #expect(StubURLProtocol.requests(host: "t-dead-out.test").count == 1)
+    }
+
     @Test func noOutsideAddressMeansUnreachableHome() async throws {
         let (api, _) = client("t-down.test")
         StubURLProtocol.answer(host: "t-down.test") { _ in throw URLError(.cannotConnectToHost) }

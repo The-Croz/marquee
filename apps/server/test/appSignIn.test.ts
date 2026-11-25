@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { OAuth2Server } from 'oauth2-mock-server';
 import { call, makeApp, setupAdmin } from './helpers.js';
@@ -9,6 +10,8 @@ import type { PlexClient } from '../src/auth/plex.js';
 const PHONE = { id: 'phone-aaaa-1111', name: "Josh's iPhone", kind: 'ios' as const };
 const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
 const PASSWORD = 'correct horse battery';
+const VERIFIER = 'v'.repeat(43);
+const CHALLENGE = createHash('sha256').update(VERIFIER).digest('base64url');
 
 describe('password sign-in from the app', () => {
   it('login with a device returns a token and no cookie', async () => {
@@ -91,7 +94,7 @@ describe('Pocket ID sign-in from the app', () => {
   const oidcApp = (now?: () => number) =>
     makeApp({ ...(now ? { now } : {}), config: { baseUrl: 'http://marquee.test', oidc: { issuer, clientId: 'marquee', clientSecret: 'secret', name: 'Pocket ID', autoCreate: true } } });
 
-  async function browserDance(app: ReturnType<typeof oidcApp>['app'], query = '?app=1') {
+  async function browserDance(app: ReturnType<typeof oidcApp>['app'], query = `?app=1&challenge=${CHALLENGE}`) {
     const start = await call(app, 'GET', `/api/auth/oidc/start${query}`);
     expect(start.status).toBe(302);
     const flowCookie = start.setCookies.find((c) => c.startsWith('marquee_oidc='))!.split(';')[0]!;
@@ -108,11 +111,11 @@ describe('Pocket ID sign-in from the app', () => {
     expect(done.location).toMatch(/^marquee:\/\/signed-in\?code=/);
     expect(done.cookie).toBeUndefined();
     const code = new URL(done.location!).searchParams.get('code')!;
-    const swap = await call(app, 'POST', '/api/auth/app-token', { code, device: PHONE });
+    const swap = await call(app, 'POST', '/api/auth/app-token', { code, verifier: VERIFIER, device: PHONE });
     expect(swap.status).toBe(200);
     expect(swap.body.user.username).toBe('jess');
     expect((await call(app, 'GET', '/api/me', undefined, undefined, bearer(swap.body.token))).status).toBe(200);
-    const again = await call(app, 'POST', '/api/auth/app-token', { code, device: PHONE });
+    const again = await call(app, 'POST', '/api/auth/app-token', { code, verifier: VERIFIER, device: PHONE });
     expect(again.status).toBe(400);
     expect(again.body).toMatchObject({ error: 'code_expired', message: 'That sign-in took too long. Try again.' });
   });
@@ -124,12 +127,12 @@ describe('Pocket ID sign-in from the app', () => {
     const done = await browserDance(app);
     const code = new URL(done.location!).searchParams.get('code')!;
     clock += 61_000;
-    expect((await call(app, 'POST', '/api/auth/app-token', { code, device: PHONE })).status).toBe(400);
+    expect((await call(app, 'POST', '/api/auth/app-token', { code, verifier: VERIFIER, device: PHONE })).status).toBe(400);
   });
 
   it('a failed sign-in goes back to the app with the reason', async () => {
     const { app } = oidcApp();
-    const start = await call(app, 'GET', '/api/auth/oidc/start?app=1');
+    const start = await call(app, 'GET', `/api/auth/oidc/start?app=1&challenge=${CHALLENGE}`);
     const flowCookie = start.setCookies.find((c) => c.startsWith('marquee_oidc='))!.split(';')[0]!;
     const res = await call(app, 'GET', '/api/auth/oidc/callback?state=wrong&code=nope', undefined, flowCookie);
     expect(res.location).toBe('marquee://signed-in?error=oidc_failed');
@@ -138,12 +141,22 @@ describe('Pocket ID sign-in from the app', () => {
   it("the app can't link an account", async () => {
     const { app } = oidcApp();
     const admin = await setupAdmin(app);
-    const res = await call(app, 'GET', '/api/auth/oidc/start?app=1&link=1', undefined, admin);
+    const res = await call(app, 'GET', `/api/auth/oidc/start?app=1&challenge=${CHALLENGE}&link=1`, undefined, admin);
     expect(res.status).toBe(400);
+  });
+
+  it('a code is useless without the secret the app started with', async () => {
+    const { app } = oidcApp();
+    await setupAdmin(app);
+    const done = await browserDance(app);
+    const code = new URL(done.location!).searchParams.get('code')!;
+    expect((await call(app, 'POST', '/api/auth/app-token', { code, verifier: 'w'.repeat(43), device: PHONE })).status).toBe(400);
+    // The wrong guess also burns the code.
+    expect((await call(app, 'POST', '/api/auth/app-token', { code, verifier: VERIFIER, device: PHONE })).status).toBe(400);
   });
 
   it('an unknown code is refused', async () => {
     const { app } = makeApp();
-    expect((await call(app, 'POST', '/api/auth/app-token', { code: 'x'.repeat(30), device: PHONE })).status).toBe(400);
+    expect((await call(app, 'POST', '/api/auth/app-token', { code: 'x'.repeat(30), verifier: VERIFIER, device: PHONE })).status).toBe(400);
   });
 });

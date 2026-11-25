@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { and, eq } from 'drizzle-orm';
@@ -34,6 +35,8 @@ interface OidcFlow {
   linkUserId: number | null;
   /** The iPhone app started this: finish at marquee:// instead of the web page. */
   app?: boolean;
+  /** base64url SHA-256 of a secret only the app that started the sign-in knows. */
+  challenge?: string;
 }
 interface PlexFlow {
   pinId: number;
@@ -160,6 +163,8 @@ authRoutes.get('/oidc/start', async (c) => {
   const current = c.get('user');
   if (linking && !current) throw new HttpError(401, 'unauthenticated', 'Sign in before linking an account.');
   const app = c.req.query('app') === '1';
+  const challenge = c.req.query('challenge') ?? '';
+  if (app && !/^[A-Za-z0-9_-]{43}$/.test(challenge)) throw new HttpError(400, 'bad_request', 'Update the Marquee app to sign in this way.');
   if (app && linking) throw new HttpError(400, 'bad_request', "The app can't link an account. Do that on the web, under Settings → Account.");
 
   const redirectUri = `${publicOrigin(c)}/api/auth/oidc/callback`;
@@ -171,7 +176,7 @@ authRoutes.get('/oidc/start', async (c) => {
     return c.redirect(app ? 'marquee://signed-in?error=oidc_unreachable' : linking ? '/settings/account?error=oidc_unreachable' : '/login?error=oidc_unreachable', 302);
   }
   const { url, state, verifier, nonce } = started;
-  const flowId = createFlow<OidcFlow>(db, 'oidc', { state, verifier, nonce, redirectUri, linkUserId: linking ? current!.id : null, ...(app ? { app: true } : {}) }, FLOW_TTL);
+  const flowId = createFlow<OidcFlow>(db, 'oidc', { state, verifier, nonce, redirectUri, linkUserId: linking ? current!.id : null, ...(app ? { app: true, challenge } : {}) }, FLOW_TTL);
   setCookie(c, OIDC_COOKIE, flowId, { httpOnly: true, sameSite: 'Lax', secure: isSecure(c), path: '/api/auth/oidc', maxAge: FLOW_TTL / 1000 });
   return c.redirect(url, 302);
 });
@@ -223,7 +228,7 @@ authRoutes.get('/oidc/callback', async (c) => {
     });
   }
   if (flow.app) {
-    const code = createFlow<{ userId: number }>(db, 'app', { userId: user.id }, APP_CODE_TTL, c.get('deps').now());
+    const code = createFlow<{ userId: number; challenge: string }>(db, 'app', { userId: user.id, challenge: flow.challenge ?? '' }, APP_CODE_TTL, c.get('deps').now());
     return c.redirect(`marquee://signed-in?code=${code}`, 302);
   }
   signIn(c, user);
@@ -233,8 +238,13 @@ authRoutes.get('/oidc/callback', async (c) => {
 /** The app trades the one-time code from a browser sign-in for its token. */
 authRoutes.post('/app-token', async (c) => {
   const { db, now } = c.get('deps');
-  const { code, device } = z.object({ code: z.string().min(10).max(100), device: appDeviceSchema }).parse(await c.req.json());
-  const flow = readFlow<{ userId: number }>(db, 'app', code, now());
+  const { code, verifier, device } = z.object({ code: z.string().min(10).max(100), verifier: z.string().min(20).max(200), device: appDeviceSchema }).parse(await c.req.json());
+  const flow = readFlow<{ userId: number; challenge: string }>(db, 'app', code, now());
+  // The code only works for the app that started the sign-in: it must know what the challenge was made from.
+  if (flow && createHash('sha256').update(verifier).digest('base64url') !== flow.challenge) {
+    deleteFlow(db, code);
+    throw new HttpError(400, 'code_expired', 'That sign-in took too long. Try again.');
+  }
   if (!flow) throw new HttpError(400, 'code_expired', 'That sign-in took too long. Try again.');
   deleteFlow(db, code);
   const user = db.select().from(users).where(eq(users.id, flow.userId)).get();
