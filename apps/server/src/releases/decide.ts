@@ -31,6 +31,8 @@ export interface Wanted {
   seasonEpisodes?: number;
   /** From TMDB, e.g. "English", for rules about the original language. */
   originalLanguage?: string;
+  /** Fewest people that must be sharing a copy (Settings → Downloader). Copies whose Sources don't say are let through. */
+  minSeeders?: number;
 }
 
 export type RejectionCode = 'wrong_title' | 'wrong_year' | 'not_a_movie' | 'wrong_episode' | 'season_pack' | 'not_whole_season' | 'no_episode' | 'sample' | 'quality' | 'too_small' | 'too_big' | 'no_seeders' | 'never' | 'low_score';
@@ -143,7 +145,9 @@ function judge(wanted: Wanted, group: FoundRelease[], profile: FullProfile): Dec
     if (mb < limit.min * minutes) reject('too_small', `${gb(copy.size)} is too small for ${qualityLabel(quality)} at this length (at least ${gb(limit.min * minutes * MB)}). It's probably a poor copy or mislabeled.`);
     else if (!limit.unlimited && mb > limit.max * minutes) reject('too_big', `${gb(copy.size)} is bigger than ${profile.name} allows for ${qualityLabel(quality)} (up to ${gb(limit.max * minutes * MB)}).`);
   }
+  const minSeeders = Math.max(1, wanted.minSeeders ?? 1);
   if (seeders === 0) reject('no_seeders', 'Nobody is sharing it right now, so it would never finish.');
+  else if (seeders !== null && seeders < minSeeders) reject('no_seeders', `Only ${seeders} ${seeders === 1 ? 'person is' : 'people are'} sharing it; your minimum is ${minSeeders} (Settings → Downloader).`);
 
   // ---- rules and points
   const info = profile.defs ?? ruleInfo(wanted.kind);

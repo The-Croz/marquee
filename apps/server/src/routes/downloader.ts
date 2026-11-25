@@ -38,6 +38,7 @@ downloaderRoutes.put('/', async (c) => {
       seedDays: z.number().min(0, 'Days are 0 (no limit) or more.').max(3650).optional(),
       privateKeepSharing: z.boolean().optional(),
       removeWhenShared: z.boolean().optional(),
+      minSeeders: z.number().int().min(1, 'The minimum is at least 1 person sharing.').max(1000).optional(),
       folderPairs: z
         .array(
           z.object({

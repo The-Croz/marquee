@@ -94,7 +94,7 @@ const LIST: Omit<NotificationEventInfo, 'priority'>[] = [
     title: '{{source}} stopped working', body: '{{problem}}.{{#fix}} {{fix}}{{/fix}}', image: '',
   },
   {
-    key: 'downloader_problem', group: 'Problems', audience: 'admins', label: 'The downloader stopped working', description: 'Marquee can’t reach qBittorrent, or it has no internet.',
+    key: 'downloader_problem', group: 'Problems', audience: 'admins', label: 'The downloader stopped working', description: 'Marquee can’t reach qBittorrent, it has no internet, or most downloads can’t find anyone to download from.',
     vars: [v('problem', 'What’s wrong', 'Can’t reach qBittorrent'), v('fix', 'What to do', 'Check it is running.')],
     title: 'qBittorrent stopped working', body: '{{problem}}.{{#fix}} {{fix}}{{/fix}}', image: '',
   },

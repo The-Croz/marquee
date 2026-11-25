@@ -6,6 +6,7 @@ import { HttpError } from '../http.js';
 import { OFF_TARGET, decide, type Decision, type RejectionCode, type Wanted } from '../releases/decide.js';
 import { ProfileService, type FullProfile } from '../releases/profiles.js';
 import { compareToYours, judgeFile, worstFile, type YourFile } from '../releases/upgrade.js';
+import { readDownloader } from './service.js';
 import type { FoundRelease, SourceService } from '../sources/service.js';
 import type { SearchQuery } from '../sources/torznab.js';
 import type { CachedSearch, SearchTarget } from './cache.js';
@@ -65,6 +66,7 @@ export function prepareTitle(db: Db, now: () => number, target: SearchTarget): P
       .map((f) => f.path);
   }
   const profile = new ProfileService(db, now).forTitle(wanted.kind, profileKey);
+  wanted.minSeeders = readDownloader(db).minSeeders;
   return { wanted, query, profile, files };
 }
 
@@ -135,7 +137,7 @@ const WHY: Partial<Record<RejectionCode, string>> = {
   quality: 'not a quality it takes',
   too_small: 'too small',
   too_big: 'too big',
-  no_seeders: 'nobody sharing them',
+  no_seeders: 'too few people sharing them',
   never: 'on Never pick',
   low_score: 'not enough points',
   sample: 'samples',

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { checkHealth } from '../src/notify/health.js';
-import { notificationChannels, notifications, sources, series, episodes } from '../src/db/schema.js';
+import { downloads, notificationChannels, notifications, sources, series, episodes } from '../src/db/schema.js';
 import { QbitError } from '../src/downloads/qbittorrent.js';
-import { FakeQbit } from './fakes/qbittorrent.js';
+import { FakeQbit, qbitTorrent } from './fakes/qbittorrent.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
 
 async function setup() {
@@ -56,6 +56,32 @@ describe('health notifications', () => {
     await run();
     await run();
     expect(pushed).toEqual(['qBittorrent stopped working']);
+  });
+
+  it('tells admins once when most downloads on the way can’t find anyone, and again only after it clears', async () => {
+    const { app, admin, qbit, run, pushed, db } = await setup();
+    await call(app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: qbit.username, password: qbit.password }, admin);
+    const old = Date.parse('2026-11-18T12:00:00Z') - 3_600_000;
+    const row = (h: string) => db.insert(downloads).values({ kind: 'movie', title: h, infoHash: h, addedAt: old, state: 'downloading' }).run();
+    ['a', 'b', 'c'].forEach(row);
+    qbit.list = [qbitTorrent('a', { state: 'metaDL' }), qbitTorrent('b', { state: 'stalledDL' }), qbitTorrent('c', { state: 'downloading', progress: 0.4, seedsConnected: 3 })];
+    await run();
+    await run();
+    expect(pushed).toEqual(['qBittorrent stopped working']);
+    qbit.list = [qbitTorrent('a', { progress: 0.1, seedsConnected: 2 }), qbitTorrent('b', { progress: 0.1, seedsConnected: 2 }), qbitTorrent('c', { progress: 0.4, seedsConnected: 3 })];
+    await run();
+    qbit.list = [qbitTorrent('a', { state: 'metaDL' }), qbitTorrent('b', { state: 'metaDL' }), qbitTorrent('c', { state: 'metaDL' })];
+    await run();
+    expect(pushed).toHaveLength(2);
+  });
+
+  it('one stuck download alone is a bad copy, not a connection problem', async () => {
+    const { app, admin, qbit, run, pushed, db } = await setup();
+    await call(app, 'PUT', '/api/settings/downloader', { url: qbit.url, username: qbit.username, password: qbit.password }, admin);
+    db.insert(downloads).values({ kind: 'movie', title: 'a', infoHash: 'a', addedAt: 0, state: 'downloading' }).run();
+    qbit.list = [qbitTorrent('a', { state: 'metaDL' })];
+    await run();
+    expect(pushed).toEqual([]);
   });
 
   it('sends one message a day listing wanted episodes that aired', async () => {

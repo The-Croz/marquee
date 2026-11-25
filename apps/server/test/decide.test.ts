@@ -133,6 +133,15 @@ describe('decide: picking the best copy (TRaSH profiles)', () => {
     expect(d.accepted).toBe(true);
   });
 
+  it('turns down copies with fewer people sharing than your minimum, and lets through ones that don’t say', () => {
+    const name = 'Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP';
+    const few = decide({ ...dune, minSeeders: 5 }, [copy(name, { size: 20 * GB, seeders: 3 })], trash('movie', 'cinema'))[0]!;
+    expect(codes(few)).toEqual(['no_seeders']);
+    expect(few.rejections[0]!.message).toMatch(/Only 3 people are sharing it; your minimum is 5/);
+    expect(decide({ ...dune, minSeeders: 5 }, [copy(name, { size: 20 * GB, seeders: 5 })], trash('movie', 'cinema'))[0]!.accepted).toBe(true);
+    expect(decide({ ...dune, minSeeders: 5 }, [copy(name, { size: 20 * GB, seeders: null })], trash('movie', 'cinema'))[0]!.accepted).toBe(true);
+  });
+
   it('turns down copies nobody is sharing', () => {
     const d = decide(dune, [copy('Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.H.265-GROUP', { size: 20 * GB, seeders: 0 })], trash('movie', 'cinema'))[0]!;
     expect(codes(d)).toEqual(['no_seeders']);

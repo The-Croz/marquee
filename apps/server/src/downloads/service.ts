@@ -28,6 +28,8 @@ export interface DownloaderSettings {
   privateKeepSharing: boolean;
   /** Remove a download from qBittorrent once it's in the library and has shared enough. */
   removeWhenShared: boolean;
+  /** People that must be sharing a copy for it to be picked. */
+  minSeeders: number;
 }
 
 export interface FolderPair {
@@ -48,6 +50,7 @@ const KEYS = {
   folderPairs: 'downloader.folder_pairs',
   seedRatio: 'downloader.seed_ratio',
   seedDays: 'downloader.seed_days',
+  minSeeders: 'downloader.min_seeders',
   privateKeepSharing: 'downloader.private_keep_sharing',
   removeWhenShared: 'downloader.remove_when_shared',
 } as const;
@@ -74,6 +77,7 @@ export function readDownloader(db: Db): DownloaderSettings {
     seedDays: numberOr(getSetting(db, KEYS.seedDays), DEFAULT_SEED_DAYS),
     privateKeepSharing: getSetting(db, KEYS.privateKeepSharing) !== '0',
     removeWhenShared: getSetting(db, KEYS.removeWhenShared) === '1',
+    minSeeders: Math.max(1, numberOr(getSetting(db, KEYS.minSeeders), 1)),
   };
 }
 
@@ -86,7 +90,7 @@ function numberOr(v: string | undefined, fallback: number): number {
 
 export function downloaderView(db: Db): DownloaderView {
   const s = readDownloader(db);
-  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother, folderPairs: s.folderPairs, seedRatio: s.seedRatio, seedDays: s.seedDays, privateKeepSharing: s.privateKeepSharing, removeWhenShared: s.removeWhenShared };
+  return { url: s.url, username: s.username, hasPassword: !!s.password, category: s.category, stuckHours: s.stuckHours, giveUpHours: s.giveUpHours, tryAnother: s.tryAnother, folderPairs: s.folderPairs, seedRatio: s.seedRatio, seedDays: s.seedDays, privateKeepSharing: s.privateKeepSharing, removeWhenShared: s.removeWhenShared, minSeeders: s.minSeeders };
 }
 
 /**
@@ -96,7 +100,7 @@ export function downloaderView(db: Db): DownloaderView {
  */
 export function writeDownloader(
   db: Db,
-  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean; folderPairs?: FolderPair[]; seedRatio?: number; seedDays?: number; privateKeepSharing?: boolean; removeWhenShared?: boolean },
+  v: { url?: string | null; username?: string; password?: string | null; category?: string; stuckHours?: number; giveUpHours?: number; tryAnother?: boolean; folderPairs?: FolderPair[]; seedRatio?: number; seedDays?: number; privateKeepSharing?: boolean; removeWhenShared?: boolean; minSeeders?: number },
 ): void {
   const saved = readDownloader(db);
   if (v.url !== undefined) {
@@ -114,6 +118,7 @@ export function writeDownloader(
   if (v.seedDays !== undefined) setSetting(db, KEYS.seedDays, String(v.seedDays));
   if (v.privateKeepSharing !== undefined) setSetting(db, KEYS.privateKeepSharing, v.privateKeepSharing ? '1' : '0');
   if (v.removeWhenShared !== undefined) setSetting(db, KEYS.removeWhenShared, v.removeWhenShared ? '1' : '0');
+  if (v.minSeeders !== undefined) setSetting(db, KEYS.minSeeders, String(v.minSeeders));
   if (v.tryAnother !== undefined) setSetting(db, KEYS.tryAnother, v.tryAnother ? '1' : '0');
 }
 
@@ -157,6 +162,31 @@ export async function checkDownloader(client: QbitApi | null, category: string, 
       return health(state, now, { detail: err.message });
     }
     return health('error', now, { detail: (err as Error).message });
+  }
+}
+
+/** How long a download must have been waiting for people before it counts as "can't find anyone". */
+const NO_PEERS_MINUTES = 30;
+
+/**
+ * Downloads Marquee sent that qBittorrent can't get going: still fetching the file list, or
+ * stalled with nobody connected. One of these is a bad copy; two or more at once, and most of
+ * what's on the way, means qBittorrent can't reach anyone (a VPN with a dead forwarded port,
+ * say). Returns null when that isn't the case, or qBittorrent can't be asked. Never throws.
+ */
+export async function checkNoPeers(client: QbitApi, rows: { infoHash: string; state: string; addedAt: number }[], now: number): Promise<{ stuck: number; total: number } | null> {
+  const onTheWay = rows.filter((r) => r.state === 'sent' || r.state === 'downloading');
+  if (onTheWay.length < 2) return null;
+  try {
+    const found = new Map((await client.torrents(onTheWay.map((r) => r.infoHash))).map((t) => [t.hash, t]));
+    const waiting = onTheWay.filter((r) => {
+      const t = found.get(r.infoHash);
+      if (!t || t.progress >= 1 || now - r.addedAt < NO_PEERS_MINUTES * 60_000) return false;
+      return t.state === 'metaDL' || t.state === 'forcedMetaDL' || (t.state === 'stalledDL' && t.seedsConnected === 0);
+    }).length;
+    return waiting >= 2 && waiting >= Math.ceil(onTheWay.length * 0.6) ? { stuck: waiting, total: onTheWay.length } : null;
+  } catch {
+    return null;
   }
 }
 

@@ -122,6 +122,8 @@ describe('done sharing', () => {
 
   it('checks the numbers', async () => {
     const t = await setup();
+    expect((await call(t.app, 'PUT', '/api/settings/downloader', { minSeeders: 4 }, t.cookie)).body.minSeeders).toBe(4);
+    expect((await call(t.app, 'PUT', '/api/settings/downloader', { minSeeders: 0 }, t.cookie)).status).toBe(400);
     expect((await call(t.app, 'PUT', '/api/settings/downloader', { seedRatio: -1 }, t.cookie)).body.message).toMatch(/0 \(no limit\) or more/);
     expect((await call(t.app, 'PUT', `/api/settings/sources/${t.source.id}`, { seedDays: -3 }, t.cookie)).status).toBe(400);
   });
