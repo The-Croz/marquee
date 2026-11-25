@@ -71,6 +71,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.uitests
         TEST_TARGET_NAME: Marquee
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Marquee:

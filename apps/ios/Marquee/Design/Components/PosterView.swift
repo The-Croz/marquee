@@ -21,9 +21,9 @@ struct PosterView: View {
         ZStack(alignment: .bottomLeading) {
             Placeholder.fill(title: title, color: color)
             Text(title)
-                .font(.titleSerif(18))
+                .font(.titleSerif(size == .w185 ? 10 : 18))
                 .foregroundStyle(Color(hex: 0xF7F3EA))
-                .padding(8)
+                .padding(size == .w185 ? 4 : 8)
                 .lineLimit(4)
                 .minimumScaleFactor(0.7)
             if let url = TMDBImage.url(path: path, size: size) {

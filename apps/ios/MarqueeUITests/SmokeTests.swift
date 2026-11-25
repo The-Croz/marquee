@@ -1,3 +1,49 @@
 import XCTest
 
-final class SmokeTests: XCTestCase {}
+/// Against demo mode (scripts/smoke.sh starts it): sign in, see Home, approve a request.
+final class SmokeTests: XCTestCase {
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    func testSignInSeeHomeApprove() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["--reset-for-ui-tests"]
+        app.launch()
+
+        // Where is Marquee?
+        let address = app.textFields["address-field"]
+        XCTAssertTrue(address.waitForExistence(timeout: 10))
+        address.tap()
+        address.typeText("localhost:9797")
+        app.buttons["connect"].tap()
+
+        // Sign in.
+        let username = app.textFields["username"]
+        XCTAssertTrue(username.waitForExistence(timeout: 10), "Marquee should answer at localhost:9797 (is demo mode running?)")
+        username.tap()
+        username.typeText("josh")
+        let password = app.secureTextFields["password"]
+        password.tap()
+        password.typeText("correct horse battery")
+        app.buttons["sign-in"].tap()
+
+        // Home loads.
+        XCTAssertTrue(app.staticTexts["Needs you"].waitForExistence(timeout: 15), "Home should show Needs you")
+        XCTAssertTrue(app.buttons["avatar"].exists)
+
+        // Activity → Requests → approve the first one.
+        app.tabBars.buttons["Activity"].tap()
+        app.buttons["Requests"].tap()
+        let approve = app.buttons.matching(NSPredicate(format: "identifier MATCHES 'approve-[0-9]+'"))
+        XCTAssertTrue(approve.firstMatch.waitForExistence(timeout: 10))
+        let before = approve.count
+        XCTAssertGreaterThan(before, 0)
+        approve.firstMatch.tap()
+
+        // It leaves the Waiting list, and the undo toast shows.
+        XCTAssertTrue(app.buttons["undo"].waitForExistence(timeout: 10))
+        let gone = NSPredicate { _, _ in approve.count < before }
+        wait(for: [XCTNSPredicateExpectation(predicate: gone, object: nil)], timeout: 10)
+    }
+}

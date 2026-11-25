@@ -38,7 +38,7 @@ public actor APIClient {
         try await request("GET", path, body: nil, as: type)
     }
 
-    public func send<T: Decodable & Sendable>(_ method: String, _ path: String, body: some Encodable, as type: T.Type = T.self) async throws(MarqueeError) -> T {
+    public func send<T: Decodable & Sendable>(_ method: String, _ path: String, body: some Encodable & Sendable, as type: T.Type = T.self) async throws(MarqueeError) -> T {
         let data: Data
         do { data = try JSONEncoder().encode(body) } catch { throw .decoding("\(error)") }
         return try await request(method, path, body: data, as: type)
@@ -132,7 +132,7 @@ public actor APIClient {
         return answer.user
     }
 
-    private func send<T: Decodable & Sendable>(_ method: String, _ path: String, body: some Encodable, signedIn: Bool) async throws(MarqueeError) -> T {
+    private func send<T: Decodable & Sendable>(_ method: String, _ path: String, body: some Encodable & Sendable, signedIn: Bool) async throws(MarqueeError) -> T {
         let data: Data
         do { data = try JSONEncoder().encode(body) } catch { throw .decoding("\(error)") }
         return try await request(method, path, body: data, as: T.self, signedIn: signedIn)

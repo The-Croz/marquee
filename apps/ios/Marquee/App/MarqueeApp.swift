@@ -2,14 +2,12 @@ import SwiftUI
 
 @main
 struct MarqueeApp: App {
+    @State private var model = AppModel()
+
     var body: some Scene {
         WindowGroup {
-            Text("Marquee")
-                .font(.titleSerif(48))
-                .foregroundStyle(.amber)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.ink)
-                .preferredColorScheme(.dark)
+            RootView()
+                .environment(model)
         }
     }
 }
