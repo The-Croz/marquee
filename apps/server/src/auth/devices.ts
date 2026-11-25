@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { DeviceView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { devices, notificationChannels, sessions, type User } from '../db/schema.js';
+import { forgetPushForDevice } from './pushCleanup.js';
 import { defaultEventsFor } from '../notify/events.js';
 import { APP_SESSION_TTL, createSession, hashToken } from './sessions.js';
 
@@ -73,12 +74,8 @@ export function signOutDevice(db: Db, sessionId: string): void {
   db.update(devices).set({ sessionId: null }).where(eq(devices.sessionId, sessionId)).run();
 }
 
-/** Forgets this phone's push channel (signing out, or removing the phone, turns push off). */
-export function dropPush(db: Db, userId: number, deviceId: string): void {
-  for (const ch of db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, userId), eq(notificationChannels.kind, 'apns'))).all()) {
-    if ((JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId) db.delete(notificationChannels).where(eq(notificationChannels.id, ch.id)).run();
-  }
-}
+/** Forgets this phone's push channel and Lock Screen cards (signing out, or removing the phone, turns push off). */
+export const dropPush = forgetPushForDevice;
 
 /** Turns push on for this phone: one channel per phone, however often it registers. Its token is kept in the channel's config (never sent back). */
 export function registerPush(db: Db, user: User, deviceId: string, token: string, environment: 'production' | 'sandbox', now: number): boolean {

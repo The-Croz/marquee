@@ -56,11 +56,14 @@ export interface ApnsAnswer {
 export function explain(a: ApnsAnswer): string {
   if (a.status === 403) return 'Apple turned the key down. Check the key, key id and team id under Settings → Notifications → iPhone app.';
   if (a.status === 429) return 'Apple asked Marquee to slow down. It will try again with the next message.';
+  if (a.reason === 'DeviceTokenNotForTopic' || a.reason === 'BadTopic' || a.reason === 'TopicDisallowed') return 'Apple says this iPhone doesn’t belong to that app id. Check the app id under Settings → Notifications → iPhone app.';
+  if (a.reason === 'BadDeviceToken') return 'Apple turned this iPhone’s address down. Turn notifications off and on again in the app. If it keeps happening, the app and Marquee may be using different Apple environments (test or real).';
   return `Apple answered ${a.status}${a.reason ? ` (${a.reason})` : ''}. It will try again with the next message.`;
 }
 
 /** Has the phone stopped listening (the app was deleted, or the token is old)? Then stop sending to it. */
-export const isGone = (a: ApnsAnswer) => a.status === 410 || (a.status === 400 && (a.reason === 'BadDeviceToken' || a.reason === 'Unregistered' || a.reason === 'DeviceTokenNotForTopic'));
+/** Only when Apple says the phone has unregistered. Other 400s (a wrong app id, the wrong sandbox/production) are setup problems: the channel stays and says so. */
+export const isGone = (a: ApnsAnswer) => a.status === 410 || (a.status === 400 && a.reason === 'Unregistered');
 
 /** Sends one push to Apple over HTTP/2, signed with the admin's key. No new dependency: Node's own http2 and crypto. */
 export class ApnsClient {
@@ -99,18 +102,27 @@ export class ApnsClient {
     const c = this.config();
     if (!c) throw new PushError('iPhone push isn’t set up. An admin adds the Apple key under Settings → Notifications → iPhone app.');
     const origin = this.baseUrl ?? (r.environment === 'sandbox' ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com');
+    let bearer: string;
+    try {
+      bearer = this.token(c);
+    } catch {
+      throw new PushError('Marquee couldn’t use the saved Apple key. Paste the .p8 key again under Settings → Notifications → iPhone app.');
+    }
     const session = http2.connect(origin);
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await new Promise<ApnsAnswer>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new PushError('Couldn’t reach Apple. Check your internet.')), 10_000);
+        timer = setTimeout(() => {
+          session.destroy();
+          reject(new PushError('Couldn’t reach Apple. Check your internet.'));
+        }, 10_000);
         session.on('error', () => {
-          clearTimeout(timer);
           reject(new PushError('Couldn’t reach Apple. Check your internet.'));
         });
         const req = session.request({
           ':method': 'POST',
           ':path': `/3/device/${r.token}`,
-          authorization: `bearer ${this.token(c)}`,
+          authorization: `bearer ${bearer}`,
           'apns-topic': c.bundleId + (r.topicSuffix ?? ''),
           'apns-push-type': r.pushType ?? 'alert',
           'apns-priority': String(r.priority ?? 10),
@@ -122,7 +134,6 @@ export class ApnsClient {
         req.on('response', (h) => (status = Number(h[':status'])));
         req.on('data', (d: Buffer) => (body += d.toString()));
         req.on('end', () => {
-          clearTimeout(timer);
           let reason: string | null = null;
           try {
             reason = (JSON.parse(body) as { reason?: string }).reason ?? null;
@@ -132,13 +143,13 @@ export class ApnsClient {
           resolve({ status, reason });
         });
         req.on('error', () => {
-          clearTimeout(timer);
           reject(new PushError('Couldn’t reach Apple. Check your internet.'));
         });
         req.end(JSON.stringify(r.payload));
       });
     } finally {
-      session.close();
+      clearTimeout(timer);
+      session.destroy();
     }
   }
 }

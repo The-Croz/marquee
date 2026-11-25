@@ -38,10 +38,18 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
     func refresh() async {
         guard let app, app.phase == .signedIn else { return }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
-        if settings.authorizationStatus == .denied { status = .blocked; return }
+        if settings.authorizationStatus == .denied {
+            status = .blocked
+            // iOS says no, so Marquee must stop sending here too (the person can't switch it off any more).
+            if let id = await currentDeviceID() {
+                struct Ok: Decodable, Sendable {}
+                let _: Ok? = try? await app.client.send("DELETE", "/api/me/devices/\(id)/push", body: EmptyBody())
+            }
+            return
+        }
         let list: DevicesResponse? = try? await app.client.get("/api/me/devices")
         let on = list?.devices.first(where: \.current)?.push ?? false
-        status = on ? .on : (status == .unavailable ? .unavailable : .off)
+        status = on ? .on : .off
         if on, settings.authorizationStatus == .authorized { UIApplication.shared.registerForRemoteNotifications() }
     }
 
@@ -71,8 +79,8 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func didFail() {
-        status = .unavailable
-        problem = "This build of the app can't get notifications yet. It needs the paid Apple developer account. Everything else works."
+        status = .off
+        problem = "Couldn't register this iPhone. Check your connection and try again. If it keeps happening, this build may not be signed for notifications yet (that needs the paid Apple developer account)."
     }
 
     private func currentDeviceID() async -> String? {
@@ -82,7 +90,12 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func sendToken() async {
-        guard let app, let token, let id = await currentDeviceID() else { return }
+        guard let app, let token else { return }
+        guard let id = await currentDeviceID() else {
+            problem = "Couldn't reach Marquee to turn notifications on. Check your connection and try again."
+            status = .off
+            return
+        }
         #if DEBUG
         let body = PushSupport.Registration(token: token, debug: true)
         #else

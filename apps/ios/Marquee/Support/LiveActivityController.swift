@@ -27,7 +27,7 @@ final class LiveActivityController {
 
     func follow(_ d: DownloadView, app: AppModel) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            message = "Live Activities are off for Marquee. Turn them on in iOS Settings → Marquee."
+            message = "Lock Screen cards are off for Marquee. Turn them on in iOS Settings → Marquee."
             return
         }
         if isFollowing(d.id) { return }
@@ -50,7 +50,11 @@ final class LiveActivityController {
                     let body = Token(token: PushSupport.hex(data), environment: "production")
                     #endif
                     struct Ok: Decodable, Sendable {}
-                    let _: Ok? = try? await app.client.send("POST", "/api/downloads/\(id)/live-activity", body: body)
+                    do {
+                        let _: Ok = try await app.client.send("POST", "/api/downloads/\(id)/live-activity", body: body)
+                    } catch {
+                        await MainActor.run { self.message = "Started the card, but Marquee can't update it while the app is closed. Try again." }
+                    }
                 }
             }
         } catch {

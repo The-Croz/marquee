@@ -222,4 +222,26 @@ describe('sending to a phone', () => {
     expect(apple.pushes).toHaveLength(0);
     expect(t.db.select().from(notificationChannels).all().find((c) => c.kind === 'apns')?.lastError).toMatch(/isn’t set up/);
   });
+
+  it('a wrong app id is a setup problem: the channel stays and says what to check', async () => {
+    const t = await setup();
+    await t.configure();
+    const p = await t.signInPhone('josh', 'correct horse battery');
+    await call(t.app, 'POST', `/api/me/devices/${p.id}/push`, { token: TOKEN }, undefined, p.bearer);
+    apple.answers.set(TOKEN, { status: 400, reason: 'DeviceTokenNotForTopic' });
+    await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 693134 }, t.jessie);
+    const ch = t.db.select().from(notificationChannels).all().find((c) => c.kind === 'apns');
+    expect(ch?.lastError).toMatch(/Check the app id/);
+  });
+
+  it('a phone whose sign-in is cut off (password changed) stops getting pushes', async () => {
+    const t = await setup();
+    await t.configure();
+    const mine = await t.signInPhone('jessie', 'jessie password', phone('phone-bbbb-2222', "Jessie's iPhone"));
+    await call(t.app, 'POST', `/api/me/devices/${mine.id}/push`, { token: TOKEN2 }, undefined, mine.bearer);
+    const users = await call(t.app, 'GET', '/api/users', undefined, t.admin);
+    const jessieId = users.body.users.find((u: { username: string }) => u.username === 'jessie').id;
+    await call(t.app, 'PATCH', `/api/users/${jessieId}`, { password: 'a new long password' }, t.admin);
+    expect(t.db.select().from(notificationChannels).all().filter((c) => c.kind === 'apns')).toHaveLength(0);
+  });
 });

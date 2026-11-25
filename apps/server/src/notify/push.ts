@@ -54,7 +54,7 @@ export class HttpPushClient implements PushClient {
   }
 
   private async apnsSend(c: Record<string, string>, msg: PushMessage) {
-    if (!this.apns) throw new PushError('iPhone push isn’t available here.');
+    if (!this.apns) throw new PushError('iPhone push isn’t set up in this Marquee. An admin adds the Apple key under Settings → Notifications → iPhone app.');
     const answer = await this.apns.send({ token: c.token ?? '', environment: c.environment === 'sandbox' ? 'sandbox' : 'production', payload: apnsPayload(msg) });
     if (answer.status === 200) return;
     if (isGone(answer)) throw new GonePushError('That iPhone stopped listening, so Marquee stopped sending to it.');
