@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { DownloadActionResult, DownloadDetails, DownloadView, DownloadsView } from '@marquee/shared';
@@ -339,7 +339,7 @@ function DownloadDetailsPanel({ d }: { d: DownloadView }) {
   );
 }
 
-function TableRow({ d, open, onToggle, cols }: { d: DownloadView; open: boolean; onToggle: () => void; cols: number }) {
+function TableRow({ d, open, onToggle, cols, columns }: { d: DownloadView; open: boolean; onToggle: () => void; cols: number; columns: DownloadColumn[] }) {
   const { busy, note, act } = useDownloadActions(d);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const active = d.state === 'sent' || d.state === 'downloading';
@@ -373,29 +373,11 @@ function TableRow({ d, open, onToggle, cols }: { d: DownloadView; open: boolean;
             <div className={cx('h-full', BAR[d.status.tone])} style={{ width: `${Math.max(2, pct)}%` }} />
           </div>
         </td>
-        <td className={cx(td, 'hidden sm:table-cell')}>
-          <div className="flex flex-col gap-1">
-            <span className="text-caption text-soft tabular-nums">{pct}%</span>
-            <div className="h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Downloaded">
-              <div className={cx('h-full', BAR[d.status.tone])} style={{ width: `${Math.max(2, pct)}%` }} />
-            </div>
-          </div>
-        </td>
-        <td className={cx(td, 'hidden text-sm text-soft tabular-nums md:table-cell')}>{d.size !== null ? formatBytes(d.size) : '—'}</td>
-        <td className={cx(td, 'hidden text-caption text-soft tabular-nums lg:table-cell')}>
-          <span className="block">↓ {rate(d.speed)}</span>
-          <span className="block text-dim">↑ {rate(d.uploadSpeed)}</span>
-        </td>
-        <td className={cx(td, 'hidden text-sm text-soft tabular-nums xl:table-cell')}>{left(d.eta)}</td>
-        <td className={cx(td, 'hidden text-caption text-soft tabular-nums 2xl:table-cell')} title="People sharing the whole copy · others fetching it">
-          {d.seeds ?? '—'} · {d.peers ?? '—'}
-        </td>
-        <td className={cx(td, 'hidden text-sm text-soft tabular-nums xl:table-cell')}>{d.ratio !== null ? `${d.ratio.toFixed(2)}×` : '—'}</td>
-        <td className={cx(td, 'hidden text-caption text-soft 2xl:table-cell')}>
-          <span className="block truncate">{d.quality ?? '—'}</span>
-          <span className="block truncate text-dim">{d.sourceName ?? (d.adopted ? 'Another app' : '')}</span>
-        </td>
-        <td className={cx(td, 'hidden text-caption text-dim xl:table-cell')}>{shortDay(d.addedAt)}</td>
+        {columns.map((c) => (
+          <td key={c.key} className={cx(td, 'hidden sm:table-cell', c.cell)} title={c.title}>
+            {c.render(d)}
+          </td>
+        ))}
         <td className={cx(td, 'pr-0')}>
           {hasMenu && (
             <Menu label={`More for ${d.titleName}`} trigger={<span className="flex size-11 items-center justify-center text-xl leading-none text-muted">⋯</span>} className="w-11">
@@ -485,55 +467,146 @@ function TableRow({ d, open, onToggle, cols }: { d: DownloadView; open: boolean;
  * finished ones included. Open a row for everything else, read live.
  * Narrow screens drop the less important columns.
  */
-export function DownloadTable({ items, caption }: { items: DownloadView[]; caption: string }) {
+/** A column of the Downloads table beyond Title and Status: shown or hidden by choice, and sortable. */
+export interface DownloadColumn {
+  key: DownloadColumnKey;
+  label: string;
+  /** Width in pixels. */
+  width: number;
+  cell?: string;
+  title?: string;
+  render: (d: DownloadView) => ReactNode;
+  /** What sorting by it compares; null sorts last. */
+  sortBy: (d: DownloadView) => number | string | null;
+}
+
+export type DownloadColumnKey = 'done' | 'size' | 'speed' | 'left' | 'people' | 'shared' | 'quality' | 'source' | 'added';
+export type DownloadSortKey = 'title' | 'status' | DownloadColumnKey;
+
+export const DOWNLOAD_COLUMNS: DownloadColumn[] = [
+  {
+    key: 'done',
+    label: 'Done',
+    width: 88,
+    render: (d) => {
+      const pct = Math.floor(d.progress * 100);
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="text-caption text-soft tabular-nums">{pct}%</span>
+          <div className="h-1 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Downloaded">
+            <div className={cx('h-full', BAR[d.status.tone])} style={{ width: `${Math.max(2, pct)}%` }} />
+          </div>
+        </div>
+      );
+    },
+    sortBy: (d) => d.progress,
+  },
+  { key: 'size', label: 'Size', width: 80, cell: 'text-sm text-soft tabular-nums', render: (d) => (d.size !== null ? formatBytes(d.size) : '—'), sortBy: (d) => d.size },
+  {
+    key: 'speed',
+    label: 'Speed',
+    width: 100,
+    cell: 'text-caption text-soft tabular-nums',
+    render: (d) => (
+      <>
+        <span className="block">↓ {rate(d.speed)}</span>
+        <span className="block text-dim">↑ {rate(d.uploadSpeed)}</span>
+      </>
+    ),
+    sortBy: (d) => (d.speed ?? 0) + (d.uploadSpeed ?? 0),
+  },
+  { key: 'left', label: 'Left', width: 64, cell: 'text-sm text-soft tabular-nums', render: (d) => left(d.eta), sortBy: (d) => d.eta },
+  { key: 'people', label: 'People', width: 84, cell: 'text-caption text-soft tabular-nums', title: 'People sharing the whole copy · others fetching it', render: (d) => `${d.seeds ?? '—'} · ${d.peers ?? '—'}`, sortBy: (d) => d.seeds },
+  { key: 'shared', label: 'Shared', width: 70, cell: 'text-sm text-soft tabular-nums', title: 'How much it has shared, compared with its size', render: (d) => (d.ratio !== null ? `${d.ratio.toFixed(2)}×` : '—'), sortBy: (d) => d.ratio },
+  { key: 'quality', label: 'Quality', width: 120, cell: 'text-caption text-soft', render: (d) => <span className="block truncate">{d.quality ?? '—'}</span>, sortBy: (d) => d.quality },
+  { key: 'source', label: 'Source', width: 120, cell: 'text-caption text-soft', render: (d) => <span className="block truncate">{sourceOf(d)}</span>, sortBy: (d) => sourceOf(d) },
+  { key: 'added', label: 'Added', width: 76, cell: 'text-caption text-dim', render: (d) => shortDay(d.addedAt), sortBy: (d) => d.addedAt },
+];
+
+export const DEFAULT_COLUMNS: DownloadColumnKey[] = ['done', 'size', 'speed', 'shared', 'source', 'added'];
+
+/** The Source a copy came from, or who sent it when Marquee only follows it. */
+export const sourceOf = (d: DownloadView) => d.sourceName ?? (d.adopted ? 'Another app' : 'Unknown');
+
+/** Sorts by a column (or title/status), keeping rows with nothing to compare at the end. */
+export function sortDownloads(items: DownloadView[], key: DownloadSortKey, dir: 'asc' | 'desc'): DownloadView[] {
+  const value = (d: DownloadView): number | string | null =>
+    key === 'title' ? d.titleName.toLowerCase() : key === 'status' ? d.status.label : DOWNLOAD_COLUMNS.find((c) => c.key === key)!.sortBy(d);
+  return [...items].sort((a, b) => {
+    const x = value(a);
+    const y = value(b);
+    if (x === null && y === null) return b.addedAt - a.addedAt;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    const c = typeof x === 'string' ? x.localeCompare(String(y)) : x - (y as number);
+    return (dir === 'asc' ? c : -c) || b.addedAt - a.addedAt;
+  });
+}
+
+/**
+ * Downloads as a dense table: one line each, with the columns you chose
+ * (Columns menu). Headers sort; Title and Status always show. Phones show
+ * Title and Status only. Open a row for everything else, read live.
+ */
+export function DownloadTable({
+  items,
+  caption,
+  columns = DEFAULT_COLUMNS,
+  sort,
+  onSort,
+}: {
+  items: DownloadView[];
+  caption: string;
+  columns?: DownloadColumnKey[];
+  sort?: { key: DownloadSortKey; dir: 'asc' | 'desc' } | null;
+  onSort?: (key: DownloadSortKey) => void;
+}) {
   const [open, setOpen] = useState<Set<number>>(new Set());
+  const shown = DOWNLOAD_COLUMNS.filter((c) => columns.includes(c.key));
   // A row's opened part spans only the columns showing at this width; spanning
   // hidden ones too makes the browser add empty columns that squeeze the title.
   const head = useRef<HTMLTableRowElement>(null);
-  const [cols, setCols] = useState(11);
+  const [cols, setCols] = useState(3);
   useLayoutEffect(() => {
-    const count = () => setCols([...(head.current?.children ?? [])].filter((th) => getComputedStyle(th).display !== 'none').length || 11);
+    const count = () => setCols([...(head.current?.children ?? [])].filter((th) => getComputedStyle(th).display !== 'none').length || 3);
     count();
     window.addEventListener('resize', count);
     return () => window.removeEventListener('resize', count);
-  }, []);
+  }, [columns]);
   const toggle = (id: number) => setOpen((s) => new Set(s.has(id) ? [...s].filter((x) => x !== id) : [...s, id]));
   const th = 'px-2 pb-2 text-left text-caption font-semibold tracking-[.08em] text-dim uppercase';
+  const header = (key: DownloadSortKey, label: string) => {
+    if (!onSort) return label;
+    const on = sort?.key === key;
+    return (
+      <button type="button" onClick={() => onSort(key)} className={cx('inline-flex min-h-11 items-center gap-1 uppercase hover:text-text', on && 'text-text')}>
+        {label}
+        <span aria-hidden="true" className={cx('text-[10px]', !on && 'opacity-0')}>
+          {sort?.dir === 'asc' ? '▲' : '▼'}
+        </span>
+      </button>
+    );
+  };
+  const ariaSort = (key: DownloadSortKey) => (sort?.key === key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined);
+  // The title keeps at least 240px; when the chosen columns don't fit, the table scrolls sideways instead of squeezing it.
+  const minWidth = 240 + 160 + 44 + shown.reduce((n, c) => n + c.width, 0);
   return (
-    <table className="w-full table-fixed border-collapse">
+    <div className="-mx-1 overflow-x-auto px-1">
+    <table className="w-full table-fixed border-collapse sm:min-w-[var(--dl-min)]" style={{ '--dl-min': `${minWidth}px` } as CSSProperties}>
       <caption className="sr-only">{caption}</caption>
       <thead>
         <tr ref={head}>
-          <th scope="col" className={cx(th, 'pl-0')}>
-            Title
+          <th scope="col" className={cx(th, 'pl-0')} aria-sort={ariaSort('title')}>
+            {header('title', 'Title')}
           </th>
-          <th scope="col" className={cx(th, 'w-[130px] sm:w-[160px]')}>
-            Status
+          <th scope="col" className={cx(th, 'w-[130px] sm:w-[160px]')} aria-sort={ariaSort('status')}>
+            {header('status', 'Status')}
           </th>
-          <th scope="col" className={cx(th, 'hidden w-[88px] sm:table-cell')}>
-            Done
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[76px] md:table-cell')}>
-            Size
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[100px] lg:table-cell')}>
-            Speed
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[64px] xl:table-cell')}>
-            Left
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[84px] 2xl:table-cell')} title="People sharing the whole copy · others fetching it">
-            People
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[64px] xl:table-cell')} title="How much it has shared, compared with its size">
-            Shared
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[120px] 2xl:table-cell')}>
-            Quality
-          </th>
-          <th scope="col" className={cx(th, 'hidden w-[72px] xl:table-cell')}>
-            Added
-          </th>
+          {shown.map((c) => (
+            <th key={c.key} scope="col" className={cx(th, 'hidden sm:table-cell')} style={{ width: c.width }} title={c.title} aria-sort={ariaSort(c.key)}>
+              {header(c.key, c.label)}
+            </th>
+          ))}
           <th scope="col" className={cx(th, 'w-11 pr-0')}>
             <span className="sr-only">Actions</span>
           </th>
@@ -541,9 +614,10 @@ export function DownloadTable({ items, caption }: { items: DownloadView[]; capti
       </thead>
       <tbody>
         {items.map((d) => (
-          <TableRow key={d.id} d={d} open={open.has(d.id)} onToggle={() => toggle(d.id)} cols={cols} />
+          <TableRow key={d.id} d={d} open={open.has(d.id)} onToggle={() => toggle(d.id)} cols={cols} columns={shown} />
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
