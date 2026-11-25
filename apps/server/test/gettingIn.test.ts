@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import type { CollectionView, DiscoverTitle, ListItemView, ListsView, ListView, RequestView } from '@marquee/shared';
+import type { CollectionView, DiscoverTitle, ListChoiceResult, ListItemView, ListsView, ListView, RequestView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { followCollections } from '../src/library/collections.js';
 import { parseListUrl, type ListFetch } from '../src/library/lists.js';
@@ -146,6 +146,13 @@ describe('Collections', () => {
 
 // ---------------------------------------------------------------- lists
 
+const waitingOn = async (t: Awaited<ReturnType<typeof setup>>, id: number) => (await call(t.app, 'GET', `/api/lists/${id}/items?waiting=1`, undefined, t.admin)).body.items as ListItemView[];
+/** Takes every title waiting on a list, as ticking Select all does. */
+async function takeAll(t: Awaited<ReturnType<typeof setup>>, id: number): Promise<ListChoiceResult> {
+  const take = (await waitingOn(t, id)).map((i) => ({ kind: i.kind, tmdbId: i.tmdbId }));
+  return (await call(t.app, 'POST', `/api/lists/${id}/choose`, { take }, t.admin)).body as ListChoiceResult;
+}
+
 const PLEX = 'https://discover.provider.plex.tv/library/sections/watchlist/all?includeGuids=1&X-Plex-Container-Start=0&X-Plex-Container-Size=100';
 const watchlist = (items: object[]) => ({ MediaContainer: { totalSize: items.length, Metadata: items } });
 
@@ -160,8 +167,11 @@ describe('Plex watchlists', () => {
     t.web.set('https://discover.provider.plex.tv/library/metadata/abc', watchlist([{ type: 'show', Guid: [{ id: 'tvdb://353546' }, { id: 'imdb://tt7678620' }] }]));
     const res = await call(t.app, 'PUT', `/api/lists/watchlists/${jessie.id}`, { on: true }, t.admin);
     const me = (res.body as ListsView).people.find((p) => p.userId === jessie.id)!;
-    expect(me).toMatchObject({ plexLinked: true, canRead: true, watchlist: { kind: 'plex_watchlist', lastOk: true, lastMessage: '2 on the list, 2 new, 2 asked for.' } });
+    // The first read only records what's there: nothing is asked for until an admin chooses.
+    expect(me).toMatchObject({ plexLinked: true, canRead: true, watchlist: { kind: 'plex_watchlist', lastOk: true, lastMessage: '2 on the list, 2 waiting for you to choose.', waiting: 2 } });
     expect(t.web.asked[0]!.headers['X-Plex-Token']).toBe('jessie-token');
+    expect((await call(t.app, 'GET', '/api/requests', undefined, jessie.cookie)).body.items).toEqual([]);
+    expect(await takeAll(t, me.watchlist!.id)).toMatchObject({ taken: 2, message: 'Asked for 2.', list: { waiting: 0, added: 2 } });
     const mine = (await call(t.app, 'GET', '/api/requests', undefined, jessie.cookie)).body.items as RequestView[];
     expect(mine.map((r) => [r.title, r.state])).toEqual(expect.arrayContaining([['Dune: Part Two', 'pending'], ['Bluey', 'pending']]));
     // Read again: nothing new happens.
@@ -170,6 +180,7 @@ describe('Plex watchlists', () => {
     // A kid's watchlist: titles not for kids are left out and say so.
     t.web.set(PLEX, watchlist([{ type: 'movie', title: 'The Matrix', Guid: [{ id: 'tmdb://603' }] }]));
     const kidList = ((await call(t.app, 'PUT', `/api/lists/watchlists/${kiddo.id}`, { on: true }, t.admin)).body as ListsView).people.find((p) => p.userId === kiddo.id)!.watchlist!;
+    await takeAll(t, kidList.id);
     const items = (await call(t.app, 'GET', `/api/lists/${kidList.id}/items`, undefined, t.admin)).body.items as ListItemView[];
     expect(items.map((i) => [i.title, i.outcomeText])).toEqual([['The Matrix', 'Not for kid profiles']]);
   });
@@ -184,7 +195,9 @@ describe('Plex watchlists', () => {
     expect((await call(t.app, 'PUT', `/api/lists/watchlists/${josh.id}`, { on: true }, t.admin)).body.message).toMatch(/hasn’t linked Plex/);
     t.db.update(schema.users).set({ plexId: 'p0', plexToken: 'josh-token' }).where(eq(schema.users.id, josh.id)).run();
     t.web.set(PLEX, watchlist([{ type: 'movie', title: 'Up', Guid: [{ id: 'tmdb://14160' }] }]));
-    await call(t.app, 'PUT', `/api/lists/watchlists/${josh.id}`, { on: true }, t.admin);
+    const joshList = ((await call(t.app, 'PUT', `/api/lists/watchlists/${josh.id}`, { on: true }, t.admin)).body as ListsView).people.find((p) => p.userId === josh.id)!.watchlist!;
+    expect(t.db.select().from(schema.movies).where(eq(schema.movies.tmdbId, 14160)).get()).toBeUndefined();
+    await takeAll(t, joshList.id);
     await searchesSettled();
     expect(t.db.select().from(schema.movies).where(eq(schema.movies.tmdbId, 14160)).get()).toMatchObject({ monitored: true });
     // Plex turning the token down says what to do.
@@ -215,7 +228,9 @@ describe('Trakt, IMDb and Letterboxd lists', () => {
     expect((made.body as ListView).lastMessage).toMatch(/Add a Trakt app key/);
     await call(t.app, 'PUT', '/api/lists/trakt-key', { clientId: 'trakt-client' }, t.admin);
     const synced = (await call(t.app, 'POST', `/api/lists/${made.body.id}/sync`, {}, t.admin)).body as ListView;
-    expect(synced).toMatchObject({ lastOk: true, lastMessage: '2 on the list, 2 new, 2 added.', added: 2 });
+    // The read that failed doesn't count: the first one that works waits for you to choose.
+    expect(synced).toMatchObject({ lastOk: true, lastMessage: '2 on the list, 2 waiting for you to choose.', added: 0, waiting: 2 });
+    expect((await takeAll(t, made.body.id)).message).toBe('Added 2.');
     expect(t.web.asked.at(-1)!.headers['trakt-api-key']).toBe('trakt-client');
     expect(t.db.select().from(schema.movies).where(eq(schema.movies.tmdbId, 78)).get()).toMatchObject({ monitored: true, profile: 'everyday-hd' });
     const sev = t.db.select().from(schema.series).where(eq(schema.series.tmdbId, 95396)).get()!;
@@ -228,7 +243,8 @@ describe('Trakt, IMDb and Letterboxd lists', () => {
     await call(t.app, 'POST', '/api/lists/exclusions', { kind: 'movie', tmdbId: 604, title: 'The Matrix Reloaded', year: 2003 }, t.admin);
     t.web.set('https://www.imdb.com/list/ls000000001/', '<a href="/title/tt0133093/">The Matrix</a> <a href="/title/tt0234215/?ref=1">Reloaded</a> <a href="/title/tt0133093/">again</a> <a href="/title/tt9999999/">?</a> <a href="/title/tt7678620/">Bluey</a>');
     const list = (await call(t.app, 'POST', '/api/lists', { kind: 'imdb', url: 'https://www.imdb.com/list/ls000000001' }, t.admin)).body as ListView;
-    expect(list.lastMessage).toBe('4 on the list, 3 new, 2 added, 1 not found on TMDB.');
+    expect(list.lastMessage).toBe('4 on the list, 2 waiting for you to choose, 1 not found on TMDB.');
+    await takeAll(t, list.id);
     const items = (await call(t.app, 'GET', `/api/lists/${list.id}/items`, undefined, t.admin)).body.items as ListItemView[];
     expect(Object.fromEntries(items.map((i) => [i.title, i.outcomeText]))).toEqual({ Bluey: 'Added and Wanted', 'The Matrix': 'Added and Wanted', 'The Matrix Reloaded': 'On the exclusions list' });
     const view = (await call(t.app, 'DELETE', '/api/lists/exclusions/movie/604', undefined, t.admin)).body as ListsView;
@@ -246,13 +262,55 @@ describe('Trakt, IMDb and Letterboxd lists', () => {
     t.web.set('https://letterboxd.com/film/inside-out-2/', '<body data-tmdb-id="1022789" data-tmdb-type="movie">');
     t.web.set('https://letterboxd.com/film/the-matrix/', '<body data-tmdb-id="603" data-tmdb-type="movie">');
     const list = (await call(t.app, 'POST', '/api/lists', { kind: 'letterboxd', url: 'https://letterboxd.com/josh/list/pixar/' }, t.admin)).body as ListView;
-    expect(list.lastMessage).toBe('3 on the list, 3 new, 3 added.');
+    expect(list.lastMessage).toBe('3 on the list, 3 waiting for you to choose.');
+    expect((await waitingOn(t, list.id)).map((i) => i.title).sort()).toEqual(['Inside Out 2', 'The Matrix', 'Up']);
     const filmPages = () => t.web.asked.filter((a) => a.url.includes('/film/')).length;
     expect(filmPages()).toBe(3);
     await call(t.app, 'POST', `/api/lists/${list.id}/sync`, {}, t.admin);
     expect(filmPages()).toBe(3);
     const gone = (await call(t.app, 'POST', '/api/lists', { kind: 'letterboxd', url: 'https://letterboxd.com/josh/list/nope/' }, t.admin)).body as ListView;
     expect(gone).toMatchObject({ lastOk: false, lastMessage: 'Letterboxd says there’s no such list. Check the address, and that it’s public. Marquee tries again by itself.' });
+  });
+
+  it('the first read waits for you to choose; what you leave out can be taken later; new titles after that go through by themselves', async () => {
+    const t = await setup();
+    const page = (ids: string[]) => ids.map((id) => `<a href="/title/${id}/">x</a>`).join(' ');
+    t.web.set('https://www.imdb.com/list/ls000000002/', page(['tt0133093', 'tt7678620']));
+    const list = (await call(t.app, 'POST', '/api/lists', { kind: 'imdb', url: 'https://www.imdb.com/list/ls000000002' }, t.admin)).body as ListView;
+    expect(list).toMatchObject({ waiting: 2, added: 0 });
+    expect(t.db.select().from(schema.movies).all()).toEqual([]);
+    const waiting = await waitingOn(t, list.id);
+    expect(waiting.map((i) => [i.title, i.year, i.standing])).toEqual(expect.arrayContaining([['The Matrix', 1999, null], ['Bluey', 2018, null]]));
+    expect(waiting.every((i) => i.posterPath !== undefined)).toBe(true);
+    // Take the Matrix, leave Bluey out.
+    const matrix = waiting.find((i) => i.title === 'The Matrix')!;
+    const bluey = waiting.find((i) => i.title === 'Bluey')!;
+    const chose = (await call(t.app, 'POST', `/api/lists/${list.id}/choose`, { take: [{ kind: matrix.kind, tmdbId: matrix.tmdbId }], leaveOut: [{ kind: bluey.kind, tmdbId: bluey.tmdbId }] }, t.admin)).body as ListChoiceResult;
+    expect(chose).toMatchObject({ taken: 1, leftOut: 1, message: 'Added 1, left out 1.', list: { waiting: 0, added: 1 } });
+    expect(t.db.select().from(schema.series).all()).toEqual([]);
+    const items = (await call(t.app, 'GET', `/api/lists/${list.id}/items`, undefined, t.admin)).body.items as ListItemView[];
+    expect(Object.fromEntries(items.map((i) => [i.title, i.outcomeText]))).toEqual({ 'The Matrix': 'Added and Wanted', Bluey: 'Left out when you added the list' });
+    // Choosing the same again changes nothing; a left-out title can still be taken.
+    expect(((await call(t.app, 'POST', `/api/lists/${list.id}/choose`, { take: [{ kind: matrix.kind, tmdbId: matrix.tmdbId }] }, t.admin)).body as ListChoiceResult).taken).toBe(0);
+    expect(((await call(t.app, 'POST', `/api/lists/${list.id}/choose`, { take: [{ kind: bluey.kind, tmdbId: bluey.tmdbId }] }, t.admin)).body as ListChoiceResult).taken).toBe(1);
+    // Something new on the list after the first read goes through by itself.
+    t.web.set('https://www.imdb.com/list/ls000000002/', page(['tt0133093', 'tt7678620', 'tt0234215']));
+    expect(((await call(t.app, 'POST', `/api/lists/${list.id}/sync`, {}, t.admin)).body as ListView).lastMessage).toBe('3 on the list, 1 new, 1 added.');
+    // Switched off and back on: what's new since then waits again.
+    await call(t.app, 'PATCH', `/api/lists/${list.id}`, { enabled: false }, t.admin);
+    await call(t.app, 'PATCH', `/api/lists/${list.id}`, { enabled: true }, t.admin);
+    t.web.set('https://www.imdb.com/list/ls000000002/', page(['tt0133093', 'tt7678620', 'tt0234215', 'tt11280740']));
+    expect(((await call(t.app, 'POST', `/api/lists/${list.id}/sync`, {}, t.admin)).body as ListView).lastMessage).toBe('4 on the list, 1 waiting for you to choose.');
+    expect((await waitingOn(t, list.id)).map((i) => i.title)).toEqual(['Severance']);
+  });
+
+  it('says where a waiting title already stands', async () => {
+    const t = await setup();
+    t.web.set('https://www.imdb.com/list/ls000000003/', '<a href="/title/tt0133093/">x</a>');
+    const list = (await call(t.app, 'POST', '/api/lists', { kind: 'imdb', url: 'https://www.imdb.com/list/ls000000003' }, t.admin)).body as ListView;
+    await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 603 }, t.admin);
+    await searchesSettled();
+    expect((await waitingOn(t, list.id))[0]!.standing).toBe('Already Wanted');
   });
 
   it('is for admins only', async () => {

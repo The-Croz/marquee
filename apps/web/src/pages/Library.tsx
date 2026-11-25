@@ -330,6 +330,9 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             <button type="button" role="menuitem" className={menuItemClass} onClick={() => setRenaming(true)}>
               Rename files to Marquee’s names…
             </button>
+            <Link to="/library/clean-up" role="menuitem" className={menuItemClass}>
+              Clean up: two copies, leftovers, recycle bin
+            </Link>
             <Link to="/library/left-out" role="menuitem" className={menuItemClass}>
               Left out of scans
             </Link>

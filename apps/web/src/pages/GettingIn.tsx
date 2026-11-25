@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { CollectionView, ListItemView, ListsView, ListView, ProfilesView, SessionUser, ShowPreset } from '@marquee/shared';
+import type { CollectionView, ListChoiceResult, ListItemView, ListsView, ListView, ProfilesView, SessionUser, ShowPreset } from '@marquee/shared';
 import { ApiFailure, api, queryClient } from '../api';
 import { Poster } from '../components/Poster';
+import { Sheet, useToast } from '../components/Overlay';
 import { Button, Card, Notice, Switch, cx } from '../components/ui';
 import { PageHeader } from '../components/Page';
 
@@ -118,18 +119,128 @@ export function CollectionPage({ user }: { user: SessionUser }) {
 const KIND_NAME = { trakt: 'Trakt', imdb: 'IMDb', letterboxd: 'Letterboxd', plex_watchlist: 'Plex watchlist' } as const;
 
 function ListStatus({ l }: { l: ListView }) {
+  const [choosing, setChoosing] = useState(false);
   return (
-    <span className={cx('text-label', l.lastOk === false ? 'text-warn' : 'text-muted')}>
-      {l.lastSyncAt ? `Read ${when(l.lastSyncAt)}: ${l.lastMessage}` : 'Not read yet.'} {l.seen ? `${l.added} of ${l.seen} added so far.` : ''}
-    </span>
+    <>
+      <span className={cx('text-label', l.lastOk === false ? 'text-warn' : 'text-muted')}>
+        {l.lastSyncAt ? `Read ${when(l.lastSyncAt)}: ${l.lastMessage}` : 'Not read yet.'} {l.seen ? `${l.added} of ${l.seen} added so far.` : ''}
+      </span>
+      {l.waiting > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber/40 bg-amber/10 px-3 py-2">
+          <span className="text-sm text-text">
+            {l.waiting} {l.waiting === 1 ? 'title is' : 'titles are'} waiting for you to choose. New titles after these go through by themselves.
+          </span>
+          <Button onClick={() => setChoosing(true)}>Choose</Button>
+        </div>
+      )}
+      <ChooseSheet l={l} open={choosing} onClose={() => setChoosing(false)} />
+    </>
   );
 }
 
-function Items({ id }: { id: number }) {
+const pickKey = (i: { kind: string; tmdbId: number }) => `${i.kind}-${i.tmdbId}`;
+const takeVerb = (l: ListView, n: number) => (l.kind === 'plex_watchlist' ? `Ask for ${n}` : `Add ${n} as Wanted`);
+
+/**
+ * A list's first read: every title on it, to tick the ones you want. Nothing
+ * is ticked to start with, so a long watchlist never starts a pile of
+ * downloads by itself. The rest are left out (and can be taken later).
+ */
+export function ChooseSheet({ l, open, onClose }: { l: ListView; open: boolean; onClose: () => void }) {
+  const toast = useToast();
+  const q = useQuery({ queryKey: ['list-waiting', l.id], queryFn: () => api<{ items: ListItemView[] }>(`/lists/${l.id}/items?waiting=1`), enabled: open });
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const items = q.data?.items ?? [];
+  const choose = useMutation({
+    mutationFn: () => {
+      const take = items.filter((i) => ticked.has(pickKey(i))).map(({ kind, tmdbId }) => ({ kind, tmdbId }));
+      const leaveOut = items.filter((i) => !ticked.has(pickKey(i))).map(({ kind, tmdbId }) => ({ kind, tmdbId }));
+      return api<ListChoiceResult>(`/lists/${l.id}/choose`, { body: { take, leaveOut } });
+    },
+    onSuccess: async (r) => {
+      toast({ message: r.message });
+      setTicked(new Set());
+      onClose();
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ['lists'] }), queryClient.invalidateQueries({ queryKey: ['list-items', l.id] }), queryClient.invalidateQueries({ queryKey: ['list-waiting', l.id] })]);
+    },
+  });
+  const flip = (k: string) => setTicked((t) => {
+    const n = new Set(t);
+    if (n.has(k)) n.delete(k);
+    else n.add(k);
+    return n;
+  });
+  const owner = l.owner ? `${l.owner.name}’s` : 'this';
+  return (
+    <Sheet open={open} onClose={onClose} title={`What’s already on ${l.kind === 'plex_watchlist' ? `${owner} watchlist` : l.name}`} size="full">
+      <div className="flex flex-col gap-3">
+        <p className="m-0 text-sm text-muted">
+          Tick what you want {l.kind === 'plex_watchlist' ? `asked for as ${l.owner?.name ?? 'their'} request` : 'added as Wanted'}. Whatever you leave unticked is left out; you can still take it later from “What it added”. Titles added to the list from now on go through by themselves.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={() => setTicked(new Set(items.map(pickKey)))} disabled={!items.length}>
+            Select all
+          </Button>
+          <Button variant="ghost" onClick={() => setTicked(new Set())} disabled={!ticked.size}>
+            Select none
+          </Button>
+          <Button variant="ghost" onClick={() => setTicked(new Set(items.filter((i) => !i.standing).map(pickKey)))} disabled={!items.length}>
+            Only what isn’t here yet
+          </Button>
+          <span className="text-label text-muted" aria-live="polite">
+            {ticked.size} of {items.length} ticked
+          </span>
+        </div>
+        {q.isLoading && <p className="m-0 text-muted">Loading…</p>}
+        {q.error && <Notice tone="error">{errMsg(q.error)}</Notice>}
+        {q.data && !items.length && <p className="m-0 text-muted">Nothing is waiting any more.</p>}
+        <ul className="m-0 grid list-none grid-cols-1 gap-1 p-0 sm:grid-cols-2">
+          {items.map((i) => {
+            const k = pickKey(i);
+            return (
+              <li key={k}>
+                <label className={cx('flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-2 py-1.5', ticked.has(k) ? 'border-amber bg-amber/10' : 'border-line hover:bg-raised')}>
+                  <input type="checkbox" checked={ticked.has(k)} onChange={() => flip(k)} className="size-5 flex-none accent-amber" />
+                  <Poster title={i.title} path={i.posterPath} size="w185" className="w-10 flex-none rounded-md [&_span]:hidden" />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm text-text">
+                      {i.title} {i.year ? <span className="text-muted">({i.year})</span> : null}
+                    </span>
+                    <span className="text-label text-dim">
+                      {i.kind === 'movie' ? 'Movie' : 'Show'}
+                      {i.standing ? ` · ${i.standing}` : ''}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        {choose.error && <Notice tone="error">{errMsg(choose.error)}</Notice>}
+        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-line bg-panel py-3">
+          <Button variant={ticked.size ? 'primary' : 'ghost'} onClick={() => choose.mutate()} disabled={choose.isPending || !items.length}>
+            {choose.isPending ? 'Working…' : ticked.size ? `${takeVerb(l, ticked.size)}, leave out ${items.length - ticked.size}` : `Leave all ${items.length} out`}
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Decide later
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function Items({ id, l }: { id: number; l: ListView }) {
   const q = useQuery({ queryKey: ['list-items', id], queryFn: () => api<{ items: ListItemView[] }>(`/lists/${id}/items`) });
   const exclude = useMutation({
     mutationFn: (i: ListItemView) => api<ListsView>('/lists/exclusions', { body: { kind: i.kind, tmdbId: i.tmdbId, title: i.title, year: i.year } }),
     onSuccess: (v) => queryClient.setQueryData(['lists'], v),
+  });
+  const take = useMutation({
+    mutationFn: (i: ListItemView) => api<ListChoiceResult>(`/lists/${id}/choose`, { body: { take: [{ kind: i.kind, tmdbId: i.tmdbId }] } }),
+    onSuccess: async () => {
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ['list-items', id] }), queryClient.invalidateQueries({ queryKey: ['lists'] })]);
+    },
   });
   if (!q.data) return null;
   if (!q.data.items.length) return <p className="m-0 text-sm text-muted">Nothing seen on it yet.</p>;
@@ -140,14 +251,33 @@ function Items({ id }: { id: number }) {
           <span>
             {i.title} {i.year ? `(${i.year})` : ''} <span className="text-muted">· {i.outcomeText}</span>
           </span>
-          {i.outcome !== 'excluded' && (
-            <button type="button" onClick={() => exclude.mutate(i)} className="h-11 text-label text-amber">
-              Never add from lists
-            </button>
-          )}
+          <span className="flex flex-wrap gap-3">
+            {i.outcome === 'skipped' && (
+              <button type="button" onClick={() => take.mutate(i)} disabled={take.isPending} className="h-11 text-label text-amber">
+                {l.kind === 'plex_watchlist' ? 'Ask for it now' : 'Add it now'}
+              </button>
+            )}
+            {i.outcome !== 'excluded' && (
+              <button type="button" onClick={() => exclude.mutate(i)} className="h-11 text-label text-amber">
+                Never add from lists
+              </button>
+            )}
+          </span>
         </li>
       ))}
     </ul>
+  );
+}
+
+function WatchlistItems({ l }: { l: ListView }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="h-11 self-start text-label text-amber">
+        {open ? 'Hide what it asked for' : 'What it asked for'}
+      </button>
+      {open && <Items id={l.id} l={l} />}
+    </>
   );
 }
 
@@ -194,7 +324,7 @@ function ListRow({ l, profiles }: { l: ListView; profiles: ProfilesView | undefi
         <ShowPresetSelect id={`list-preset-${l.id}`} value={l.showPreset} onChange={(v) => patch.mutate({ showPreset: v })} />
       </div>
       {(sync.error || patch.error) && <Notice tone="error">{errMsg(sync.error ?? patch.error)}</Notice>}
-      {open && <Items id={l.id} />}
+      {open && <Items id={l.id} l={l} />}
     </li>
   );
 }
@@ -225,7 +355,7 @@ export function ListsPage() {
       <Card className="flex flex-col gap-3">
         <h2 className="m-0 text-heading font-semibold">Plex watchlists</h2>
         <p className="m-0 text-label text-muted">
-          What someone adds to their Plex watchlist becomes their request, approved as usual for their role. Marquee reads them every 15 minutes. Each person needs to sign in to Marquee with Plex once.
+          What someone adds to their Plex watchlist becomes their request, approved as usual for their role. Marquee reads them every 15 minutes. Each person needs to sign in to Marquee with Plex once. When you switch one on, nothing is asked for yet: you choose which titles already on it to take, and only what they add after that goes through by itself.
         </p>
         <ul className="m-0 flex list-none flex-col p-0">
           {v.people.map((p) => (
@@ -241,6 +371,7 @@ export function ListsPage() {
                 )}
               </div>
               {p.watchlist && <ListStatus l={p.watchlist} />}
+              {p.watchlist && p.watchlist.seen > 0 && <WatchlistItems l={p.watchlist} />}
               {p.plexLinked && !p.canRead && <span className="text-label text-warn">Needs to sign in with Plex once before Marquee can read it.</span>}
             </li>
           ))}
@@ -250,7 +381,7 @@ export function ListsPage() {
 
       <Card className="flex flex-col gap-3">
         <h2 className="m-0 text-heading font-semibold">Trakt, IMDb and Letterboxd lists</h2>
-        <p className="m-0 text-label text-muted">New titles on these lists are added to your library as Wanted, every 6 hours. Taking one off the list later changes nothing; Marquee never removes anything.</p>
+        <p className="m-0 text-label text-muted">New titles on these lists are added to your library as Wanted, every 6 hours. When you add a list, you first choose which of the titles already on it to take. Taking one off the list later changes nothing; Marquee never removes anything.</p>
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {

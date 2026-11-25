@@ -102,7 +102,7 @@ export async function exists(p: string): Promise<boolean> {
 }
 
 /** Moves a library file into the hidden replaced folder at the same place under the library folder. */
-async function setAside(file: string, root: string): Promise<string | null> {
+export async function setAside(file: string, root: string): Promise<string | null> {
   if (!file.startsWith(`${root}/`) || !(await exists(file))) return null;
   const dest = path.join(root, REPLACED_FOLDER, path.relative(root, file));
   await fs.mkdir(path.dirname(dest), { recursive: true });

@@ -3,11 +3,13 @@ import path from 'node:path';
 import type { ReplacedView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { REPLACED_FOLDER } from '../downloads/importer.js';
+import { downloadsFolder } from '../system/disk.js';
 import { libraryRoots } from './services.js';
 
 /**
  * The hidden `.marquee-replaced` folder in each library folder holds the
- * files upgrades set aside. Nothing empties it by itself: Settings → Health
+ * files upgrades set aside, and what you set aside from Library → Clean up
+ * (the downloads folder has one too). Nothing empties it by itself: Settings → Health
  * shows how much it holds and what emptying it would give back, and Empty
  * (behind a confirm) deletes what's in it.
  *
@@ -40,6 +42,8 @@ function folders(db: Db): { label: string; path: string }[] {
   return [
     { label: 'Movies', path: path.join(roots.movies, REPLACED_FOLDER) },
     { label: 'TV', path: path.join(roots.tv, REPLACED_FOLDER) },
+    // Downloads nobody used, set aside from Library → Clean up.
+    { label: 'Downloads', path: path.join(downloadsFolder(db), REPLACED_FOLDER) },
   ];
 }
 

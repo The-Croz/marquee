@@ -52,6 +52,10 @@ export class FakeQbit {
         gate();
         return this.list.filter((t) => hashes.includes(t.hash)).map((t) => ({ ...t }));
       },
+      allTorrents: async () => {
+        gate();
+        return this.list.map((t) => ({ hash: t.hash, name: t.name, contentPath: t.contentPath, savePath: t.savePath }));
+      },
       ensureCategory: async (name) => {
         gate();
         this.state.categories[name] ??= '';

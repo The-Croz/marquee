@@ -479,7 +479,7 @@ describe('the replaced folder', () => {
     fs.linkSync(shared, `${w.root}/torrents/ep.mkv`);
     const v = (await w.api('GET', '/api/system/replaced')).body as ReplacedView;
     expect(v).toMatchObject({ files: 2, bytes: 1500, freedBytes: 1000 });
-    expect(v.folders.map((f) => [f.label, f.files])).toEqual([['Movies', 1], ['TV', 1]]);
+    expect(v.folders.map((f) => [f.label, f.files])).toEqual([['Movies', 1], ['TV', 1], ['Downloads', 0]]);
     expect((await w.api('POST', '/api/system/replaced/empty', {})).status).toBe(400);
     const res = await w.api('POST', '/api/system/replaced/empty', { confirm: true });
     expect(res.body).toMatchObject({ files: 2, bytes: 1500, problems: [], message: 'Deleted 2 files (0 MB).' });

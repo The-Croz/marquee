@@ -261,7 +261,7 @@ describe('free space', () => {
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 /** Undoes the newest migration (33, which tidies away OMDb): puts an old OMDb key back, which the upgrade removes. */
 const UNDO_NEWEST = {
-  sql: ["INSERT OR REPLACE INTO settings (key, value) VALUES ('services.omdb_key', 'old-key')"],
+  sql: ['ALTER TABLE import_lists DROP COLUMN started_at', 'ALTER TABLE list_items DROP COLUMN poster_path'],
   tables: [] as string[],
 };
 

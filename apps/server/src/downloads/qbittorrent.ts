@@ -94,6 +94,8 @@ export interface QbitApi {
   connection(): Promise<QbitConnection>;
   /** Torrents with these info-hashes (lowercase hex), in any category. */
   torrents(hashes: string[]): Promise<QbitTorrent[]>;
+  /** Every torrent qBittorrent has, in every category (where each one's files are). */
+  allTorrents(): Promise<{ hash: string; name: string; contentPath: string; savePath: string }[]>;
   /** Makes a category if it doesn't exist yet. */
   ensureCategory(name: string): Promise<void>;
   add(payload: TorrentPayload, opts: { category: string; tags: string[] }): Promise<void>;
@@ -218,6 +220,11 @@ export class QbitClient implements QbitApi {
       tags: (r.tags ?? '').split(',').map((t) => t.trim()).filter(Boolean),
       activeSeconds: r.time_active ?? 0,
     }));
+  }
+
+  async allTorrents(): Promise<{ hash: string; name: string; contentPath: string; savePath: string }[]> {
+    const rows = await this.json<{ hash: string; name: string; save_path: string; content_path?: string }[]>('/torrents/info');
+    return rows.map((r) => ({ hash: r.hash.toLowerCase(), name: r.name, savePath: r.save_path, contentPath: r.content_path || r.save_path }));
   }
 
   async files(hash: string): Promise<QbitFile[]> {

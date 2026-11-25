@@ -75,6 +75,11 @@ file('torrents/Blade.Runner.2049.2017.1080p.BluRay.x264-GRP/movie.mkv', 9 * GB, 
 file('torrents/Blade.Runner.2049.2017.1080p.BluRay.x264-GRP/English.srt', 90_000, 1);
 file('torrents/Severance.S02E02.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb.mkv', 3 * GB, 1);
 file('movies/.marquee-replaced/Up (2009)/Up (2009) HDTV-720p.mkv', GB, 60);
+// Library → Clean up: two copies of a movie and of an episode, a download qBittorrent no longer has, and a file loose in the library folder.
+file('movies/The Matrix (1999)/The.Matrix.1999.720p.HDTV.x264-OLD.mkv', 3 * GB, 900);
+file('tv/Severance (2022)/Season 01/Severance.S01E01.720p.WEB-DL.x264-OLD.mkv', 2 * GB, 200);
+file('torrents/radarr/Old.Movie.2001.720p.BluRay.x264-X/old.movie.mkv', 4 * GB, 120);
+file('movies/forgotten-sample-cut.mkv', 700 * 1024 ** 2, 300);
 
 const config = { ...loadConfig(), dataDir: root, webDir: process.env.MARQUEE_WEB_DIR ?? path.resolve('../web/dist') };
 const db = openDb(':memory:');

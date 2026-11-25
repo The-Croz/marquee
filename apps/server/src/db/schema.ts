@@ -477,7 +477,7 @@ export type Download = typeof downloads.$inferSelect;
 export const history = sqliteTable('history', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   at: integer('at').notNull(),
-  event: text('event', { enum: ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed'] }).notNull(),
+  event: text('event', { enum: ['sent', 'in_library', 'upgraded', 'replaced', 'removed', 'import_failed', 'allowed_again', 'title_removed', 'renamed', 'set_aside', 'put_back', 'deleted'] }).notNull(),
   kind: text('kind', { enum: ['movie', 'tv'] }).notNull(),
   movieId: integer('movie_id').references(() => movies.id, { onDelete: 'set null' }),
   seriesId: integer('series_id').references(() => series.id, { onDelete: 'set null' }),
@@ -725,6 +725,8 @@ export const importLists = sqliteTable('import_lists', {
   lastOk: integer('last_ok', { mode: 'boolean' }),
   lastMessage: text('last_message'),
   createdAt: integer('created_at').notNull(),
+  /** When the first read finished. Until then, what's on the list waits for you to choose; after it, new titles go through by themselves. */
+  startedAt: integer('started_at'),
 });
 
 /** Everything seen on a list, and what Marquee did with it (added, asked, already here, left out…). */
@@ -740,6 +742,7 @@ export const listItems = sqliteTable(
     year: integer('year'),
     seenAt: integer('seen_at').notNull(),
     outcome: text('outcome').notNull(),
+    posterPath: text('poster_path'),
   },
   (t) => [primaryKey({ columns: [t.listId, t.kind, t.tmdbId] })],
 );

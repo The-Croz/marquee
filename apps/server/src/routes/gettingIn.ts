@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { CollectionView, ListItemView, ListsView, ListView } from '@marquee/shared';
+import type { CollectionView, ListChoiceResult, ListItemView, ListsView, ListView } from '@marquee/shared';
 import { setSetting } from '../db/index.js';
 import { importLists, listExclusions, series, users } from '../db/schema.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Deps, type Env } from '../http.js';
 import { collectionView, followCollections, getCollection, stopFollowing, wantCollection } from '../library/collections.js';
-import { listItemsView, listsView, listView, parseListUrl, realListFetch, syncDueLists, syncList, TRAKT_KEY, type ListDeps } from '../library/lists.js';
+import { chooseFromList, listItemsView, listsView, listView, parseListUrl, realListFetch, syncDueLists, syncList, TRAKT_KEY, type ListDeps } from '../library/lists.js';
 import { applyShowPreset, SHOW_PRESETS, type ShowPreset } from '../library/showPresets.js';
 import { createRequest } from '../requests/service.js';
 import { scanSourcesFor } from './library.js';
@@ -150,7 +150,9 @@ listRoutes.patch('/:id{[0-9]+}', async (c) => {
   const row = listId(c);
   const input = z.object({ name: z.string().trim().min(1).max(80), enabled: z.boolean(), profile: z.string().max(60).nullable(), showPreset: preset }).partial().strict().parse(await c.req.json());
   const { db } = c.get('deps');
-  const updated = db.update(importLists).set(input).where(eq(importLists.id, row.id)).returning().get();
+  // Switched back on: anything new since then waits for you to choose, like the first read.
+  const restart = input.enabled === true && !row.enabled ? { startedAt: null } : {};
+  const updated = db.update(importLists).set({ ...input, ...restart }).where(eq(importLists.id, row.id)).returning().get();
   return c.json<ListView>(listView(db, updated));
 });
 
@@ -172,7 +174,19 @@ listRoutes.post('/:id{[0-9]+}/sync', async (c) => {
 
 listRoutes.get('/:id{[0-9]+}/items', (c) => {
   requireAdmin(c);
-  return c.json<{ items: ListItemView[] }>({ items: listItemsView(c.get('deps').db, listId(c).id) });
+  return c.json<{ items: ListItemView[] }>({ items: listItemsView(c.get('deps').db, listId(c).id, { waiting: c.req.query('waiting') === '1' }) });
+});
+
+const pick = z.object({ kind: z.enum(['movie', 'series']), tmdbId: z.number().int().positive() });
+
+/** Your choice from the titles waiting on a list: take some (asked for, or added as Wanted), leave the rest out. */
+listRoutes.post('/:id{[0-9]+}/choose', async (c) => {
+  requireAdmin(c);
+  const row = listId(c);
+  const input = z.object({ take: z.array(pick).max(5000).default([]), leaveOut: z.array(pick).max(5000).default([]) }).parse(await c.req.json());
+  const r = await chooseFromList(listDepsFor(c.get('deps')), row, input.take, input.leaveOut);
+  const { db } = c.get('deps');
+  return c.json<ListChoiceResult>({ ...r, list: listView(db, db.select().from(importLists).where(eq(importLists.id, row.id)).get()!) });
 });
 
 /** Follow (or stop following) a person's Plex watchlist: what they add becomes their request. */
@@ -185,7 +199,8 @@ listRoutes.put('/watchlists/:userId{[0-9]+}', async (c) => {
   if (on && !user.plexId) throw new HttpError(400, 'no_plex', `${user.displayName} hasn’t linked Plex. They can link it in Settings → Account, or sign in with Plex.`);
   const existing = db.select().from(importLists).where(and(eq(importLists.kind, 'plex_watchlist'), eq(importLists.userId, user.id))).get();
   let row = existing;
-  if (existing) row = db.update(importLists).set({ enabled: on }).where(eq(importLists.id, existing.id)).returning().get();
+  // Switched back on: anything new since it was off waits for you to choose, like the first read.
+  if (existing) row = db.update(importLists).set({ enabled: on, ...(on && !existing.enabled ? { startedAt: null } : {}) }).where(eq(importLists.id, existing.id)).returning().get();
   else if (on) row = db.insert(importLists).values({ kind: 'plex_watchlist', name: `${user.displayName}’s Plex watchlist`, userId: user.id, createdAt: now() }).returning().get();
   if (on && row) await syncList(listDepsFor(c.get('deps')), row);
   return c.json<ListsView>(listsView(db));
