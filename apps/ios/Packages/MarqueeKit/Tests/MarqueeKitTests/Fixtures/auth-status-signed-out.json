@@ -1,0 +1,18 @@
+{
+  "setupRequired": false,
+  "providers": {
+    "password": true,
+    "oidc": {
+      "enabled": false,
+      "name": ""
+    },
+    "plex": {
+      "enabled": false
+    },
+    "jellyfin": {
+      "enabled": false
+    }
+  },
+  "user": null,
+  "version": "dev"
+}

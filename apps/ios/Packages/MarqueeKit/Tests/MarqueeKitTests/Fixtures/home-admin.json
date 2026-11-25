@@ -1,0 +1,155 @@
+{
+  "needsYou": [
+    {
+      "key": "download-2",
+      "tone": "problem",
+      "title": "Up (2009) · Waiting · nobody is sharing it right now",
+      "detail": "Tries another copy by itself at 2:00 AM",
+      "posterPath": "/up.jpg",
+      "to": "/downloads",
+      "action": "Open"
+    },
+    {
+      "key": "request-3",
+      "tone": "attention",
+      "title": "Kiddo asked for Inside Out 2",
+      "detail": "Movie · just now",
+      "posterPath": "/io2.jpg",
+      "to": "/requests",
+      "action": "Look closer",
+      "approveId": 3
+    }
+  ],
+  "watching": [],
+  "onItsWay": [
+    {
+      "id": 1,
+      "title": "Dune: Part Two (2024)",
+      "href": "/movies/1",
+      "posterPath": "/dune2.jpg",
+      "percent": 42,
+      "label": "Downloading · 4.2 MB/s · about 12 min left"
+    }
+  ],
+  "myRequests": [],
+  "recentRequests": [
+    {
+      "id": 4,
+      "kind": "movie",
+      "tmdbId": 1064213,
+      "title": "Anora",
+      "year": 2024,
+      "posterPath": "/anora.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "declined",
+      "stateText": "Turned down: We have it on disc.",
+      "searchNote": null,
+      "profile": null,
+      "reason": "We have it on disc.",
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": null
+    },
+    {
+      "id": 3,
+      "kind": "movie",
+      "tmdbId": 1022789,
+      "title": "Inside Out 2",
+      "year": 2024,
+      "posterPath": "/io2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 3,
+        "name": "Kiddo"
+      },
+      "state": "pending",
+      "stateText": "Waiting for an admin to approve it.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": null,
+      "createdAt": 1795608000000,
+      "decidedAt": null,
+      "href": null
+    },
+    {
+      "id": 2,
+      "kind": "movie",
+      "tmdbId": 14160,
+      "title": "Up",
+      "year": 2009,
+      "posterPath": "/up.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 1,
+        "name": "Josh"
+      },
+      "state": "downloading",
+      "stateText": "Downloading now · 10%.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/2"
+    },
+    {
+      "id": 1,
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "downloading",
+      "stateText": "Found a copy. The download is starting.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/1"
+    }
+  ],
+  "recent": [],
+  "upcoming": [],
+  "stats": [
+    {
+      "label": "movies",
+      "value": "0",
+      "to": "/library/movies"
+    },
+    {
+      "label": "shows",
+      "value": "0",
+      "to": "/library/shows"
+    },
+    {
+      "label": "episode files",
+      "value": "0",
+      "to": "/library/shows"
+    },
+    {
+      "label": "added this week",
+      "value": "0"
+    },
+    {
+      "label": "Automatic searching",
+      "value": "off",
+      "to": "/settings/automation"
+    }
+  ],
+  "hero": null,
+  "setup": null
+}

@@ -1,0 +1,12 @@
+{
+  "devices": [
+    {
+      "id": "phone-aaaa-1111",
+      "name": "Josh's iPhone",
+      "kind": "ios",
+      "lastSeenAt": 1795608000000,
+      "signedIn": true,
+      "current": true
+    }
+  ]
+}
