@@ -15,6 +15,8 @@ extension AppDeviceInput {
 final class AppModel {
     enum Phase: Equatable { case launching, needsAddress, signedOut, signedIn, cantReach(MarqueeError) }
 
+    static let shared = AppModel()
+
     private(set) var phase: Phase = .launching
     private(set) var user: SessionUser?
     private(set) var version: String?
@@ -26,6 +28,8 @@ final class AppModel {
     var showingYou = false
     /// A link that arrived before sign-in finished (the app was opened by a notification).
     var pendingLink: DeepLink?
+    /// A request to turn down, opened from a notification's button.
+    var turnDownRequest: RequestView?
     /// Which Activity section to open (set by Home's tiles).
     var activitySection: ActivitySection = .downloads
     var selectedTab: AppTab = .home
@@ -186,6 +190,22 @@ final class AppModel {
     func retryLaunch() async {
         phase = .launching
         await start()
+    }
+
+    /// Turn down was pressed on a notification: find the request and open its reason sheet.
+    func showTurnDown(requestId: Int) async {
+        guard let all: RequestsResponse = try? await client.get("/api/requests?scope=all") else { return }
+        turnDownRequest = all.items.first { $0.id == requestId && $0.state == .pending }
+    }
+
+    struct DeclineBody: Encodable, Sendable { var reason: String }
+
+    func turnDown(_ r: RequestView, reason: String) async {
+        do {
+            let _: RequestView = try await client.send("POST", "/api/requests/\(r.id)/decline", body: DeclineBody(reason: reason.trimmingCharacters(in: .whitespacesAndNewlines)))
+        } catch {
+            handle(error)
+        }
     }
 
     func changeServer() {

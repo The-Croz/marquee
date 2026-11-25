@@ -47,7 +47,7 @@ struct DownloadsList: View {
         } message: {
             Text(model.actionProblem ?? "")
         }
-        .toast(Binding(get: { model.toast }, set: { model.toast = $0 }))
+        .toast(Binding(get: { model.toast ?? LiveActivityController.shared.message }, set: { model.toast = $0; LiveActivityController.shared.message = nil }))
     }
 
     private func list(_ model: DownloadsModel) -> some View {
@@ -156,6 +156,10 @@ struct DownloadsList: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if d.canControl || d.canRemoveShared {
                 Button(role: .destructive) { removing = d } label: { Label("Remove", systemImage: "trash") }
+            }
+            if d.state == .sent || d.state == .downloading {
+                Button { Task { await LiveActivityController.shared.follow(d, app: app) } } label: { Label("Follow on Lock Screen", systemImage: "lock.iphone") }
+                    .tint(.downloadBlue)
             }
             if d.canTryAnother {
                 Button { Task { await model.act(d, "try-another") } } label: { Label("Find a better copy", systemImage: "arrow.triangle.2.circlepath") }

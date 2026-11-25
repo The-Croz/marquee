@@ -2,10 +2,12 @@ import SwiftUI
 
 @main
 struct MarqueeApp: App {
-    @State private var model = AppModel()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @State private var model = AppModel.shared
 
     init() {
         ImageCache.install()
+        PushCenter.shared.install(app: .shared)
     }
 
     var body: some Scene {

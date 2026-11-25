@@ -58,6 +58,10 @@ struct SignedInView: View {
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        .task { await PushCenter.shared.refresh() }
+        .sheet(item: $app.turnDownRequest) { r in
+            TurnDownSheet(request: r) { reason in Task { await app.turnDown(r, reason: reason) } }
+        }
         .sheet(isPresented: $app.showingYou) {
             YouSheet()
                 .presentationDetents([.large])

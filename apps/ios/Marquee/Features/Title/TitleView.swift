@@ -31,6 +31,7 @@ struct TitleView: View {
                         BackdropHero(path: info.backdropPath, kicker: kicker, title: info.title, detail: facts(info), height: 380)
                         VStack(alignment: .leading, spacing: 20) {
                             watchButtons
+                            followButton
                             progressStrip(info)
                             if let overview = info.overview, !overview.isEmpty {
                                 Text(overview).font(.subheadline).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true)
@@ -102,6 +103,14 @@ struct TitleView: View {
                     .buttonStyle(PrimaryButtonStyle())
                 }
             }
+        }
+    }
+
+    @ViewBuilder private var followButton: some View {
+        if isAdmin, let d = model.onItsWay {
+            Button("Follow on Lock Screen", systemImage: "lock.iphone") { Task { await LiveActivityController.shared.follow(d, app: app) } }
+                .buttonStyle(QuietButtonStyle())
+                .accessibilityIdentifier("follow-lock-screen")
         }
     }
 

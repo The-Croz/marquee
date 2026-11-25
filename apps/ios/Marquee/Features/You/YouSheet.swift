@@ -33,6 +33,8 @@ struct YouSheet: View {
                 }
 
                 group("You") {
+                    notificationsRow
+                    Divider().overlay(Color.line)
                     NavigationLink { MyRequestsScreen() } label: { linkRow("My requests & history") }
                         .buttonStyle(.plain)
                     Divider().overlay(Color.line)
@@ -80,6 +82,32 @@ struct YouSheet: View {
             Text(title.uppercased()).font(.footnote.weight(.semibold)).tracking(0.8).foregroundStyle(.dim).padding(.horizontal, 6)
             PanelCard { content() }
         }
+    }
+
+    @State private var pushing = PushCenter.shared
+
+    @ViewBuilder private var notificationsRow: some View {
+        let status = pushing.status
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: Binding(
+                get: { status == .on },
+                set: { on in Task { if on { await pushing.turnOn() } else { await pushing.turnOff() } } }
+            )) {
+                Text("Notifications on this iPhone").foregroundStyle(.textPrimary)
+            }
+            .tint(.amber)
+            .disabled(status == .blocked || status == .unavailable)
+            .accessibilityIdentifier("notifications-toggle")
+            if status == .blocked {
+                Text("They're off in iOS Settings. Turn them on there, then come back.").font(.caption).foregroundStyle(.warn)
+            } else if let problem = pushing.problem {
+                Text(problem).font(.caption).foregroundStyle(.warn)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(minHeight: 50)
+        .task { await pushing.refresh() }
     }
 
     private func linkRow(_ title: String) -> some View {
