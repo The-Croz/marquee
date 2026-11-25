@@ -16,14 +16,18 @@ The words Marquee uses on screen, and what Sonarr, Radarr and Prowlarr call the 
 | **Your own rules** | Rules you write: words, groups, a language or a pattern in a copy's name, with points per profile. | Release profile (must / must not contain) |
 | **Try a name** | Paste a copy's name and see how a profile judges it. | Profilarr's "test" |
 | **Library folder** | Where finished movies or shows live, e.g. `/data/media/movies`. | Root folder |
-| **Wanted** | A movie or show you've told Marquee to look for by itself. Nothing is Wanted until you say so. Shows can leave out single seasons or episodes. | Monitored |
+| **Wanted** / **Not wanted** | Whether Marquee looks for a movie or show by itself. Nothing is Wanted until you say so. Shows can leave out single seasons or episodes. (Not "Watched": that reads like Watching.) | Monitored / Unmonitored |
+| **Phone** | An iPhone signed in to Marquee with the app; you can sign one out from Settings → Account → Your phones. | — |
+| **Home address** | The address that reaches Marquee on your own Wi-Fi, such as `192.168.1.20:9797`. | — |
+| **Outside address** | The address that reaches Marquee from anywhere, through Pangolin, starting with `https://`. | — |
+| **Follow on Lock Screen** | A download's progress on your iPhone's Lock Screen until it's in your library. | Live Activity |
 | **Downloader** | The app that does the downloading (qBittorrent). | Download client |
 | **People sharing** | How many people have the whole copy and are sharing it. | Seeders |
 | **Stuck · nobody is sharing it** | A download that can't make progress. | stalledDL |
 | **Never pick** | A copy Marquee refuses, with the reason. | Rejected / blocklisted |
 | **Whole season** | One copy with every episode of a season. | Season pack |
 | **Newest copies** | What a Source has just added; Marquee reads them every 30 minutes to catch new episodes. | RSS |
-| **Watched** / **Not watched** | Whether Marquee looks for a title by itself. | Monitored / Unmonitored |
+| **Watching** | Someone is playing a title right now, in Plex or Jellyfin. | Now playing (Tautulli) |
 | **Calendar** | Episodes of your shows by the day they air. | Calendar |
 | **Site** (searched by Marquee) | A Source Marquee searches itself from a site file, no Prowlarr. | Indexer (Cardigann definition) |
 | **List of sites** | The site files Marquee can run: Prowlarr's catalogue, updated daily, plus your own. | Indexer definitions |
