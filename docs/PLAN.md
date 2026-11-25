@@ -456,6 +456,18 @@ Josh switched on his Plex watchlist and it asked for everything on it at once, w
 - **An episode up close** (`library/episodeCare.ts`, `routes/episodes.ts`, admins): tap an episode's name on a show's page for its air date, overview, file (quality, size, full path, when it arrived, whether it's shared with a download, other episodes in the same file) and the torrents in qBittorrent that hold it: the ones Marquee follows, and ones another app (Sonarr) sent, found by name and confirmed by the hardlinked file (same inode). **Remove…** sets its file aside into the recycle bin, can stop looking for it (on by default, so it isn't downloaded again), and can remove chosen torrents from qBittorrent with their files (a whole-season torrent says the other episodes stop sharing; their library files stay). Torrents go first, while the library file is there to check against. History records it.
 - Tests: `test/gettingIn.test.ts` (several shows at once, Undo, the card facts), `test/libraryCare.test.ts` (filters combine), `test/episodes.test.ts`.
 
+## Requests and Downloads tidy-up (2026-11-24) ✅
+
+- **Library**: the colour key above the posters is gone (the corner label's colours stay, with their meaning for screen readers and on hover).
+- **Requests**: one compact line per request inside one panel (small poster, title · year · kind, status, seasons, profile; who asked, what's happening and the last search on one small line), buttons beside it. The title links to the library page when it's there, else its Discover page; the separate "Open it →" link is gone.
+- **Downloads**:
+  - Removed downloads no longer show (they're in History).
+  - **Source** has its own column and an **Every Source** filter ("Another app" for downloads Marquee only follows).
+  - Every column header sorts (click again to flip, a third time for the usual order: on the way first, newest).
+  - A **Columns** menu shows or hides Done, Size, Speed, Left, People, Shared, Quality, Source and Added, with **Back to the usual**. Columns and sort are remembered on the device.
+  - The title keeps at least 240px; when the chosen columns don't fit, the table scrolls sideways. Phones show Title and Status.
+  - Menus also move between checkbox items with the arrow keys.
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

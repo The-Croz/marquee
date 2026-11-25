@@ -114,7 +114,7 @@ export function Menu({
 }
 
 /** Menu items that are showing (some are phone-only). */
-const visibleItems = (list: HTMLElement | null) => [...(list?.querySelectorAll<HTMLElement>('[role=menuitem]') ?? [])].filter((el) => el.getClientRects().length > 0);
+const visibleItems = (list: HTMLElement | null) => [...(list?.querySelectorAll<HTMLElement>('[role=menuitem], [role=menuitemcheckbox]') ?? [])].filter((el) => el.getClientRects().length > 0);
 
 /** Class names for a menu item, so links and buttons look the same. */
 export const menuItemClass = 'flex min-h-11 items-center gap-3 rounded-lg px-3 text-left text-sm text-soft no-underline outline-none hover:bg-raised hover:text-text focus-visible:bg-raised focus-visible:text-text';
