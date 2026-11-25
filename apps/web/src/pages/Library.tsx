@@ -394,19 +394,6 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
           </div>
         </div>
       </Sheet>
-      {isAdmin && items.length > 0 && (
-        <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted" aria-label="What the corner labels mean">
-          <span>
-            <span className="text-amber">●</span> {kind === 'movie' ? 'watching for a better copy' : 'watching for new episodes'}
-          </span>
-          <span>
-            <span className="mr-1 inline-block size-2.5 rounded-sm bg-amber align-middle" /> missing, Marquee is looking
-          </span>
-          <span>
-            <span className="mr-1 inline-block size-2.5 rounded-sm bg-line-strong align-middle" /> missing, not looking
-          </span>
-        </p>
-      )}
       {isAdmin && !selecting && items.length > 0 && (need === 'wanted_missing' || need === 'not_good_enough') && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3">
           <span className="min-w-[200px] flex-1 text-sm text-soft">
