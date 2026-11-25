@@ -1,0 +1,60 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@marquee/server",
+        "demo"
+      ],
+      "port": 9797
+    },
+    {
+      "name": "local",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MARQUEE_PORT=9798 MARQUEE_WEB_DIR=apps/web/dist MARQUEE_DATA_DIR=/private/tmp/claude-501/-Users-joshcrosby--claude-spares-spare-fJ6hIy/0ead500f-d122-45d0-990a-56f485c4fc53/scratchpad/marquee-data node apps/server/dist/index.js"
+      ],
+      "port": 9798
+    },
+    {
+      "name": "demo-m3",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MARQUEE_PORT=9799 pnpm --filter @marquee/server demo"
+      ],
+      "port": 9799
+    },
+    {
+      "name": "demo-tv",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MARQUEE_PORT=9800 pnpm --filter @marquee/server demo"
+      ],
+      "port": 9800
+    },
+    {
+      "name": "demo-safely",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd .claude/worktrees/run-safely && MARQUEE_PORT=9811 pnpm --filter @marquee/server demo"
+      ],
+      "port": 9811
+    },
+    {
+      "name": "demo-cleanup",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "MARQUEE_PORT=9812 pnpm --filter @marquee/server demo"
+      ],
+      "port": 9812
+    }
+  ]
+}

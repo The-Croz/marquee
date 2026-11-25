@@ -53,6 +53,13 @@ describe('fixtures for the iPhone app', () => {
     const approved = await call(t.app, 'POST', `/api/requests/${ask.body.id}/approve`, {}, admin);
     await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 14160 }, admin);
     await searchesSettled();
+    // Something just arrived in the library, so Home has artwork to lead with.
+    const wicked = t.db
+      .insert(schema.movies)
+      .values({ tmdbId: 402431, imdbId: 'tt10638522', title: 'Wicked', sortTitle: 'wicked', year: 2024, certification: 'PG', profile: 'cinema', addedAt: 0, refreshedAt: 0, posterPath: '/wicked.jpg', backdropPath: '/wicked-bg.jpg', posterColor: '#2e4a3a' })
+      .returning()
+      .get();
+    t.db.insert(schema.mediaFiles).values({ path: '/data/media/movies/Wicked/Wicked.mkv', movieId: wicked.id, size: 1, mtime: 0, addedAt: clock - 2 * 3_600_000, seenAt: 0, resolution: '2160p' }).run();
     // A kid is waiting on one, and a member's was turned down.
     await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 1022789 }, kiddo);
     const anora = await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 1064213 }, jessie);

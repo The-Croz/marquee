@@ -50,9 +50,39 @@
       "href": null
     }
   ],
-  "recent": [],
+  "recent": [
+    {
+      "title": "Wicked",
+      "sub": "Movie · 4K",
+      "posterPath": "/wicked.jpg",
+      "posterColor": "#2e4a3a",
+      "href": "/movies/3",
+      "addedAt": 1795600800000
+    }
+  ],
   "upcoming": [],
   "stats": [],
-  "hero": null,
+  "hero": {
+    "kind": "arrived",
+    "eyebrow": "Just arrived · 2 hours ago",
+    "title": "Wicked",
+    "chips": [
+      "4K"
+    ],
+    "href": "/movies/3",
+    "backdropPath": "/wicked-bg.jpg",
+    "posterPath": "/wicked.jpg",
+    "color": "#2e4a3a",
+    "progress": null,
+    "note": null,
+    "year": 2024,
+    "rating": "PG",
+    "runtime": 120,
+    "genres": [],
+    "score": 7.4,
+    "votes": 1200,
+    "overview": null,
+    "kindLabel": "Movie"
+  },
   "setup": null
 }
