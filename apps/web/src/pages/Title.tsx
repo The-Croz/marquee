@@ -420,14 +420,15 @@ function SeasonPicker({ info, busy, onAsk }: { info: DiscoverTitle; busy: boolea
 }
 
 function WatchOn({ list }: { list: DiscoverTitle['watchOn'] }) {
-  const logos = list.filter((p) => p.logoPath);
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-soft">
       <span>Streaming on</span>
-      {logos.length === list.length ? (
-        logos.slice(0, 6).map((p) => <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} key={p.name} src={tmdbImage(p.logoPath, 'w185')!} alt={p.name} title={p.name} className="size-8 rounded-lg" />)
-      ) : (
-        <span className="text-text">{list.map((p) => p.name).join(', ')}</span>
+      {list.slice(0, 6).map((p) =>
+        p.logoPath ? (
+          <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} key={p.name} src={tmdbImage(p.logoPath, 'w185')!} alt={p.name} title={p.name} className="size-8 rounded-lg" />
+        ) : (
+          <span key={p.name} className="rounded-lg bg-white/10 px-2 py-1 text-text">{p.name}</span>
+        ),
       )}
     </div>
   );

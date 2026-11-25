@@ -123,6 +123,20 @@ describe('Where to watch', () => {
     ]);
   });
 
+  it('never shows an add-on channel\'s badged logo: the service\'s standard one, or none', () => {
+    const list = [
+      { name: 'HBO Max Amazon Channel', logoPath: '/hbo-amazon.png' },
+      { name: 'Cinemax Amazon Channel', logoPath: '/cinemax-amazon.png' },
+      { name: 'Hulu', logoPath: '/hulu.png' },
+    ];
+    expect(cleanProviders(list, new Map([['hbo max', '/hbo.png']]))).toEqual([
+      { name: 'HBO Max', logoPath: '/hbo.png' },
+      { name: 'Cinemax', logoPath: null },
+      { name: 'Hulu', logoPath: '/hulu.png' },
+    ]);
+    expect(cleanProviders(list)[0]).toEqual({ name: 'HBO Max', logoPath: null });
+  });
+
   it('shows Peacock once, whether it’s Premium or Premium Plus', () => {
     const out = cleanProviders(['Peacock Premium', 'Peacock Premium Plus', 'Peacock Premium Amazon Channel'].map((name) => ({ name }))).map((p) => p.name);
     expect(out).toEqual(['Peacock']);
