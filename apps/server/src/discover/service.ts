@@ -7,7 +7,7 @@ import { GENRES, SERVICES, TmdbError, type TmdbApi, type TmdbCard } from '../lib
 import { prettyDate, requestView, showCoverage, titleStates } from '../requests/service.js';
 import { isKidSafe } from './kids.js';
 import { movieHomeDate, movieStage } from '../library/availability.js';
-import type { OmdbApi, OutsideRatings } from '../library/omdb.js';
+import { NO_RATINGS, type RatingsApi } from '../library/mdblist.js';
 import { watchedTitles } from './seeds.js';
 import { StreamingTopError, type StreamingTopApi } from './streamingTop.js';
 
@@ -26,8 +26,8 @@ export interface DiscoverDeps {
   top?: StreamingTopApi | null;
   /** Shows admins what to do when the Top 10 isn't the real one. */
   isAdmin?: boolean;
-  /** IMDb and Rotten Tomatoes scores; null without an OMDb key. */
-  omdb?: OmdbApi | null;
+  /** IMDb, Rotten Tomatoes and Metacritic scores; null without an MDBList key. */
+  ratings?: RatingsApi | null;
 }
 
 const DAY = 86_400_000;
@@ -354,7 +354,7 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
 
   const mine = open.find((r) => r.requestedBy === user.id) ?? db.select().from(requests).where(and(eq(requests.kind, kind), eq(requests.tmdbId, tmdbId), eq(requests.requestedBy, user.id))).orderBy(desc(requests.createdAt)).get();
 
-  const [recs, outside] = await Promise.all([soft(tmdb.recommendations(kind, tmdbId), [] as TmdbCard[]), outsideRatings(deps.omdb, extras.imdbId)]);
+  const [recs, outside] = await Promise.all([soft(tmdb.recommendations(kind, tmdbId), [] as TmdbCard[]), outsideRatings(deps.ratings, kind, tmdbId)]);
   const safeRecs = (await forUser(deps, user, dedupe(recs))).filter((c) => !!c.posterPath);
   const states = titleStates(db, kind, safeRecs.map((c) => c.tmdbId), user.id, now());
   const similar: DiscoverRow | null = safeRecs.length >= 2 ? { id: 'similar', title: 'More like this', subtitle: null, items: safeRecs.slice(0, ROW_MAX).map((c) => toCard(c, states.get(c.tmdbId) ?? { state: 'none', libraryId: null }, today)) } : null;
@@ -404,15 +404,14 @@ export async function discoverTitle(deps: DiscoverDeps, user: User, kind: 'movie
 }
 
 
-const NO_RATINGS: OutsideRatings = { imdb: null, rottenTomatoes: null, metacritic: null };
 
-/** IMDb and Rotten Tomatoes scores when there's an OMDb key; a failure just leaves them out. */
-async function outsideRatings(omdb: OmdbApi | null | undefined, imdbId: string | null): Promise<Omit<TitleRatings, 'tmdb' | 'imdbId'>> {
-  if (!omdb || !imdbId) return NO_RATINGS;
+/** IMDb, Rotten Tomatoes and Metacritic scores when there's an MDBList key; a failure just leaves them out. */
+async function outsideRatings(api: RatingsApi | null | undefined, kind: 'movie' | 'series', tmdbId: number): Promise<Omit<TitleRatings, 'tmdb' | 'imdbId'>> {
+  if (!api) return NO_RATINGS;
   try {
-    return await omdb.ratings(imdbId);
+    return await api.ratings(kind, tmdbId);
   } catch (err) {
-    console.warn('[omdb]', (err as Error).message);
+    console.warn('[mdblist]', (err as Error).message);
     return NO_RATINGS;
   }
 }

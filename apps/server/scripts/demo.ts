@@ -33,7 +33,7 @@ import { colorPosters } from '../src/library/posterColor.js';
 import sharp from 'sharp';
 import { FakeTmdb } from '../test/fakes/tmdb.js';
 import { FakeStreamingTop } from '../test/fakes/streamingTop.js';
-import { FakeOmdb } from '../test/fakes/omdb.js';
+import { FakeRatings } from '../test/fakes/ratings.js';
 import { FakeSites, release, site } from '../test/fakes/sources.js';
 import { SourceService } from '../src/sources/service.js';
 import { TorznabError } from '../src/sources/torznab.js';
@@ -264,12 +264,12 @@ streamingTop.lists = { hbo: { movie: [693134, 603], series: [502] }, disney: { m
 setSetting(db, 'services.streaming_top_key', 'good-top-key');
 
 // Demo IMDb and Rotten Tomatoes scores.
-const omdb = new FakeOmdb();
-setSetting(db, 'services.omdb_key', 'good-omdb-key');
+const ratings = new FakeRatings();
+setSetting(db, 'services.mdblist_key', 'good-mdblist-key');
 
 const clients = {
   streamingTop: (key: string) => streamingTop.as(key),
-  omdb: (key: string) => omdb.as(key),
+  mdblist: (key: string) => ratings.as(key),
   plexServer: (url: string, token: string) => plex.as(url, token),
   jellyfin: (url: string, key: string) => jellyfin.as(url, key),
   // Demo Jellyfin sign-in: "sam" / "jellyfin-pass".

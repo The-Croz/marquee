@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { DownloadActionResult, DownloadDetails, DownloadsView, SendResult } from '@marquee/shared';
-import { and, inArray, isNull, or, eq } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { downloads } from '../db/schema.js';
 import { requireAdmin, requireUser, type Ctx, type Env } from '../http.js';
 import { sendCopy } from '../downloads/send.js';
@@ -23,14 +23,15 @@ downloadRoutes.get('/', async (c) => {
   return c.json<DownloadsView>(await monitorFor(c).view(10_000, q));
 });
 
-/** The number on the menu: downloads on their way (sent, downloading, or done and waiting to go in the library). */
+/** The number on the menu: downloads on their way, counted the same way as the Downloads page's "On the way" (sent or downloading).
+ *  Finished ones aren't counted: one another app sent never goes in the library through Marquee, so it would sit in the count forever. */
 downloadRoutes.get('/summary', (c) => {
   requireUser(c);
   const active = c
     .get('deps')
     .db.select({ id: downloads.id })
     .from(downloads)
-    .where(or(inArray(downloads.state, ['sent', 'downloading']), and(eq(downloads.state, 'done'), isNull(downloads.importedAt))))
+    .where(inArray(downloads.state, ['sent', 'downloading']))
     .all().length;
   return c.json({ active });
 });

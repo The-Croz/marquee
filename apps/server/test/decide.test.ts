@@ -207,7 +207,17 @@ describe('decide: right title, right episode', () => {
     expect(out[0]!.copy.title).toBe('The.Bear.S03E02.1080p.WEB.h264-ETHEL');
   });
 
-  it('for a whole season: takes packs and that season’s episodes, and sizes a pack by its episodes', () => {
+  it('turns down single episodes in a whole-season search, but takes every episode in one copy', () => {
+    const season: Wanted = { ...bear, episode: undefined, seasonEpisodes: 10 };
+    const out = decide(season, ['The.Bear.S03.1080p.WEB.h264-ETHEL', 'The.Bear.S03E02.1080p.WEB.h264-ETHEL', 'The.Bear.S03E01-E10.1080p.WEB.h264-ETHEL'].map((t) => copy(t)), profile('tv', 'everyday-hd'));
+    const by = (t: string) => out.find((d) => d.copy.title === t)!;
+    expect(codes(by('The.Bear.S03E02.1080p.WEB.h264-ETHEL'))).toEqual(['not_whole_season']);
+    expect(by('The.Bear.S03E02.1080p.WEB.h264-ETHEL').rejections[0]!.message).toBe("It's only season 3, episode 2; you asked for the whole of season 3.");
+    expect(codes(by('The.Bear.S03.1080p.WEB.h264-ETHEL'))).not.toContain('not_whole_season');
+    expect(codes(by('The.Bear.S03E01-E10.1080p.WEB.h264-ETHEL'))).not.toContain('not_whole_season');
+  });
+
+  it('for a whole season: takes packs, and sizes a pack by its episodes', () => {
     const season = { ...bear, episode: undefined, seasonEpisodes: 10 };
     const out = decide(season, [copy('The.Bear.S03.1080p.WEB.h264-ETHEL', { size: 15 * GB }), copy('The.Bear.S03.1080p.WEB.h264-TINY', { size: 1 * GB })], trash('tv', 'cinema'));
     expect(out[0]!.accepted).toBe(true);
@@ -279,16 +289,17 @@ describe('decide: merging and ranking', () => {
 
 describe('decide: real copies (corpus)', () => {
   const data = corpus as Record<string, string[]>;
-  const cases: [string, Wanted, string][] = [
+  // The last field is false when the corpus has no copy the profile should take.
+  const cases: [string, Wanted, string, boolean?][] = [
     ['movie:The Matrix', { kind: 'movie', title: 'The Matrix', year: 1999, runtime: 136 }, 'cinema'],
     ['movie:Inside Out 2', { kind: 'movie', title: 'Inside Out 2', year: 2024, runtime: 96 }, 'kids'],
     ['movie:Oppenheimer', { kind: 'movie', title: 'Oppenheimer', year: 2023, runtime: 180 }, 'everyday-hd'],
     ['tv:The Bear S3', { kind: 'tv', title: 'The Bear', year: 2022, season: 3, runtime: 35, seasonEpisodes: 10 }, 'cinema'],
-    ['tv:Bluey S2', { kind: 'tv', title: 'Bluey', year: 2018, season: 2, runtime: 7, seasonEpisodes: 52 }, 'kids'],
+    ['tv:Bluey S2', { kind: 'tv', title: 'Bluey', year: 2018, season: 2, runtime: 7, seasonEpisodes: 52 }, 'kids', false],
     ['tv:Shogun S1E1', { kind: 'tv', title: 'Shōgun', altTitles: ['Shogun'], year: 2024, season: 1, episode: 1, runtime: 60 }, 'everyday-hd'],
   ];
 
-  it.each(cases)('%s: picks an acceptable copy and every turned-down one has a reason', (key, wanted, profileKey) => {
+  it.each(cases)('%s: picks an acceptable copy (when there is one) and every turned-down one has a reason', (key, wanted, profileKey, picks = true) => {
     const names = data[key]!;
     const out = decide(
       wanted,
@@ -296,10 +307,17 @@ describe('decide: real copies (corpus)', () => {
       profile(wanted.kind, profileKey),
     );
     expect(out.length).toBe(names.length);
-    expect(out[0]!.accepted).toBe(true);
+    expect(out[0]!.accepted).toBe(picks);
     for (const d of out) {
+      // A whole-season search only takes whole seasons.
+      if (wanted.kind === 'tv' && wanted.episode === undefined && d.accepted) expect(d.parsed.fullSeason).toBe(true);
       expect(d.accepted).toBe(d.rejections.length === 0);
       for (const r of d.rejections) expect(r.message).toMatch(/^[A-Z0-9“"].*[.]$/);
+    }
+    if (!picks) {
+      // Bluey S2: the only whole-season copy is an untrusted web capture; every single episode is turned down as not the whole season.
+      expect(out.filter((d) => !d.parsed.fullSeason && d.parsed.seasons.includes(2) && !codes(d).includes('wrong_title')).every((d) => codes(d).includes('not_whole_season'))).toBe(true);
+      return;
     }
     const best = out[0]!;
     const tier = profile(wanted.kind, profileKey).tiers.find((t) => t.name === best.tier)!;

@@ -156,15 +156,23 @@ export interface TmdbPerson {
  * "Netflix Standard with Ads") fold into the service's own name, and repeats go.
  */
 export function cleanProviders<T extends { name: string }>(list: T[]): T[] {
-  const base = (n: string) =>
-    n
+  const base = (n: string) => {
+    const name = n
       .replace(/\s+(Amazon|Apple TV|Roku Premium|Prime Video)\s+Channels?$/i, '')
       .replace(/\s+(Standard|Basic|Premium|Essential)?\s*with Ads$/i, '')
       .trim();
+    // Some services list each plan on its own (Paramount Plus, Essential, Premium, with Showtime…; Peacock Premium, Premium Plus): one each.
+    if (/^paramount\s*(\+|plus)/i.test(name)) return 'Paramount+';
+    if (/^peacock\b/i.test(name)) return 'Peacock';
+    return name;
+  };
   const out: T[] = [];
   for (const p of list) {
     const name = base(p.name);
-    if (!out.some((o) => o.name.toLowerCase() === name.toLowerCase())) out.push({ ...p, name });
+    const i = out.findIndex((o) => o.name.toLowerCase() === name.toLowerCase());
+    if (i < 0) out.push({ ...p, name });
+    // Keep the plain service's own logo over a channel's (which carries the Amazon or Apple badge).
+    else if (p.name.toLowerCase() === name.toLowerCase()) out[i] = { ...p, name };
   }
   return out;
 }

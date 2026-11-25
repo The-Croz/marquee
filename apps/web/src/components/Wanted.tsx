@@ -75,7 +75,7 @@ export function WantedCheck({ label, checked, path, disabled }: { label: string;
  * A small Wanted switch for a title's header, a season or an episode.
  * On: Marquee looks for it by itself. Off: only when you search by hand.
  */
-export function WantedToggle({ path, wanted, label, compact, disabled }: { path: string; wanted: boolean; label: string; compact?: boolean; disabled?: boolean }) {
+export function WantedToggle({ path, wanted, label, compact, disabled, offLabel = 'Skip' }: { path: string; wanted: boolean; label: string; compact?: boolean; disabled?: boolean; offLabel?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shown, setShown] = useState(wanted);
@@ -115,7 +115,7 @@ export function WantedToggle({ path, wanted, label, compact, disabled }: { path:
         <span aria-hidden="true" className={cx('relative inline-block h-[18px] w-8 flex-none rounded-full transition-colors', shown ? 'bg-amber' : 'bg-line-strong')}>
           <span className={cx('absolute top-[3px] size-3 rounded-full bg-ink transition-[left]', shown ? 'left-[17px]' : 'left-[3px]')} />
         </span>
-        {compact ? (shown ? 'Wanted' : 'Skip') : shown ? 'Wanted' : 'Not wanted'}
+        {compact ? (shown ? 'Wanted' : offLabel) : shown ? 'Wanted' : 'Not wanted'}
       </button>
       {error && <span className="text-xs text-warn">{error}</span>}
     </span>

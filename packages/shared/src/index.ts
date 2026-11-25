@@ -181,8 +181,8 @@ export interface ServicesView {
   tmdb: { configured: boolean; fromEnvironment: boolean };
   /** Streaming Availability key for real Top 10s (never sent back). */
   streamingTop: { configured: boolean };
-  /** OMDb key for IMDb and Rotten Tomatoes scores (never sent back). */
-  omdb: { configured: boolean };
+  /** MDBList key for IMDb, Rotten Tomatoes and Metacritic scores (never sent back). */
+  mdblist: { configured: boolean };
   radarr: { url: string | null; configured: boolean };
   sonarr: { url: string | null; configured: boolean };
   moviesRoot: string;
@@ -237,7 +237,7 @@ export interface MediaLibrariesResult {
 export interface ServicesUpdate {
   tmdbApiKey?: string | null;
   streamingTopKey?: string | null;
-  omdbKey?: string | null;
+  mdblistKey?: string | null;
   radarrUrl?: string | null;
   radarrApiKey?: string | null;
   sonarrUrl?: string | null;
@@ -1236,7 +1236,7 @@ export interface TitleDetails {
   homeRelease: { date: string; known: boolean } | null;
 }
 
-/** Scores from TMDB and, with an OMDb key, IMDb, Rotten Tomatoes and Metacritic. */
+/** Scores from TMDB and, with an MDBList key, IMDb, Rotten Tomatoes and Metacritic. */
 export interface TitleRatings {
   tmdb: { score: number; votes: number } | null;
   imdb: { score: number; votes: number } | null;

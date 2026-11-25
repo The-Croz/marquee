@@ -19,9 +19,8 @@ const PROBLEMS: { value: IssueProblem; label: string }[] = [
   { value: 'other', label: 'Something else' },
 ];
 
-/** On a title page: report a problem, and see open reports about it. */
-export function SomethingWrong({ kind, id, seasons }: { kind: 'movie' | 'series'; id: number; seasons?: SeasonView[] }) {
-  const [open, setOpen] = useState(false);
+/** On a title page: the "What's wrong?" sheet (opened from the page's More menu or its "Something wrong?" link), and open reports about it. */
+export function SomethingWrong({ kind, id, seasons, open, onClose }: { kind: 'movie' | 'series'; id: number; seasons?: SeasonView[]; open: boolean; onClose: () => void }) {
   const [problem, setProblem] = useState<IssueProblem>('picture');
   const [message, setMessage] = useState('');
   const [where, setWhere] = useState('');
@@ -34,19 +33,18 @@ export function SomethingWrong({ kind, id, seasons }: { kind: 'movie' | 'series'
     },
     onSuccess: async () => {
       setMessage('');
-      setOpen(false);
+      onClose();
       await queryClient.invalidateQueries({ queryKey: ['issues'] });
     },
   });
   const openOnes = q.data?.items ?? [];
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" onClick={() => setOpen(true)}>
-          Something wrong?
-        </Button>
-        {send.isSuccess && <span className="text-sm text-teal-hi">Thanks. An admin will look at it, and you’ll hear back.</span>}
-      </div>
+      {send.isSuccess && (
+        <p role="status" className="m-0 text-sm text-teal-hi">
+          Thanks. An admin will look at it, and you’ll hear back.
+        </p>
+      )}
       {openOnes.length > 0 && (
         <Notice>
           {openOnes.length === 1 ? 'One problem' : `${openOnes.length} problems`} reported:{' '}
@@ -56,7 +54,7 @@ export function SomethingWrong({ kind, id, seasons }: { kind: 'movie' | 'series'
           </Link>
         </Notice>
       )}
-      <Sheet open={open} onClose={() => setOpen(false)} title="What’s wrong?">
+      <Sheet open={open} onClose={onClose} title="What’s wrong?">
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -103,7 +101,7 @@ export function SomethingWrong({ kind, id, seasons }: { kind: 'movie' | 'series'
             <Button type="submit" disabled={send.isPending}>
               {send.isPending ? 'Sending…' : 'Send'}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => onClose()}>
               Cancel
             </Button>
           </div>

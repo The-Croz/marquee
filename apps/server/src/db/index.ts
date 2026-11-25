@@ -714,6 +714,11 @@ export const migrations: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // 33: scores come from MDBList now; the old OMDb key and its kept answers go
+  `
+  DELETE FROM settings WHERE key = 'services.omdb_key';
+  DELETE FROM tmdb_cache WHERE key LIKE 'omdb:%';
+  `,
 ];
 
 export interface OpenOptions {
