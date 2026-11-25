@@ -447,6 +447,14 @@ Josh switched on his Plex watchlist and it asked for everything on it at once, w
 - Getting rid of anything only **sets it aside** into the hidden folder of its own library or downloads folder (`<downloads>/.marquee-replaced` is new, and Empty covers it), and Plex and Jellyfin are told to look at the folder again. The server only moves what it would list itself. History gains **Set aside by hand**, **Put back** and **Deleted for good** (migration 34 rebuilds its check). New `allTorrents()` on the qBittorrent client.
 - Tests: `test/gettingIn.test.ts` (waiting, choosing, left out then taken, new titles automatic, off and on again, where it stands), `test/cleanup.test.ts`. Demo mode has two copies of The Matrix and of Severance S01E01, an old Radarr download and a loose file.
 
+## Library tidy-up (2026-11-24) ✅
+
+- **Which episodes for several shows** (`POST /api/shows/episodes-wanted { ids, preset }`): Choose several… on Shows now offers the same choices as a show's page (Every episode, Only new episodes, The latest season, The first season, Nothing for now) with **Apply to N shows**, and Undo puts each show back as it was (`/episodes-wanted/restore` with the snapshot the change sent back). Movies keep Look for these / Stop looking.
+- **More menu** lost Add a movie/show (the search box does it), What's coming out, Quality profiles, and Library folders and file names (all in the side menu or Settings).
+- **Filter**: the chips and the Wanted dropdown became one **Filter** button (a sheet with On disk · Looking for · Needs a look) beside Sort; what's on shows as removable chips with Clear all. Needs a look is its own `need` query, so it combines with On disk; older `filter=wanted_missing` links still work.
+- **One corner label per poster**: the separate Wanted tag is gone. Shows read "5 of 8", movies their quality, or Looking / Not on disk. For admins, amber means Marquee is looking for what's missing, grey means missing and not looking, dark means all there; a dot means it watches for what comes next (new episodes, a better copy). A one-line key sits above the posters. `LibraryCard` gains `looking` and `watching`.
+- Tests: `test/gettingIn.test.ts` (several shows at once, Undo, the card facts), `test/libraryCare.test.ts` (filters combine).
+
 ## Milestone 7: iPhone app ⬜
 
 - ⬜ SwiftUI app against the same API (token auth for the app)

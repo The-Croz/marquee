@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import type { CollectionView, ListChoiceResult, ListItemView, ListsView, ListView } from '@marquee/shared';
+import type { CollectionView, ShowWantedSnapshot, ListChoiceResult, ListItemView, ListsView, ListView } from '@marquee/shared';
 import { setSetting } from '../db/index.js';
-import { importLists, listExclusions, series, users } from '../db/schema.js';
+import { episodes, importLists, listExclusions, series, users } from '../db/schema.js';
 import { HttpError, requireAdmin, requireUser, type Ctx, type Deps, type Env } from '../http.js';
 import { collectionView, followCollections, getCollection, stopFollowing, wantCollection } from '../library/collections.js';
 import { chooseFromList, listItemsView, listsView, listView, parseListUrl, realListFetch, syncDueLists, syncList, TRAKT_KEY, type ListDeps } from '../library/lists.js';
@@ -110,6 +110,43 @@ showPresetRoutes.put('/:id{[0-9]+}/episodes-wanted', async (c) => {
   if (!db.select({ id: series.id }).from(series).where(eq(series.id, id)).get()) throw new HttpError(404, 'not_found', 'No such show.');
   return c.json(applyShowPreset(db, id, p, new Date(now()).toISOString().slice(0, 10)));
 });
+
+/** "Which episodes" for several shows at once. Answers with how they were, for Undo. */
+showPresetRoutes.post('/episodes-wanted', async (c) => {
+  requireAdmin(c);
+  const { ids, preset: p } = z.object({ ids: z.array(z.number().int().positive()).min(1).max(2000), preset }).parse(await c.req.json());
+  const { db, now } = c.get('deps');
+  const found = db.select().from(series).where(inArray(series.id, ids)).all();
+  const before = snapshot(db, found.map((s) => s.id));
+  const day = new Date(now()).toISOString().slice(0, 10);
+  let wanted = 0;
+  for (const s of found) wanted += applyShowPreset(db, s.id, p, day).wanted;
+  return c.json<{ changed: number; wanted: number; before: ShowWantedSnapshot[] }>({ changed: found.length, wanted, before });
+});
+
+/** Undo for the above: puts each show's Wanted episodes back as they were. */
+showPresetRoutes.post('/episodes-wanted/restore', async (c) => {
+  requireAdmin(c);
+  const { before } = z
+    .object({ before: z.array(z.object({ seriesId: z.number().int().positive(), monitored: z.boolean(), wantNew: z.boolean(), wantedEpisodes: z.array(z.number().int().positive()).max(20000) })).min(1).max(2000) })
+    .parse(await c.req.json());
+  const { db } = c.get('deps');
+  db.transaction(() => {
+    for (const b of before) {
+      if (!db.update(series).set({ monitored: b.monitored, wantNew: b.wantNew }).where(eq(series.id, b.seriesId)).run().changes) continue;
+      db.update(episodes).set({ monitored: false }).where(eq(episodes.seriesId, b.seriesId)).run();
+      if (b.wantedEpisodes.length) db.update(episodes).set({ monitored: true }).where(and(eq(episodes.seriesId, b.seriesId), inArray(episodes.id, b.wantedEpisodes))).run();
+    }
+  });
+  return c.json({ ok: true, restored: before.length });
+});
+
+function snapshot(db: Deps['db'], ids: number[]): ShowWantedSnapshot[] {
+  if (!ids.length) return [];
+  const rows = db.select().from(series).where(inArray(series.id, ids)).all();
+  const eps = db.select({ id: episodes.id, seriesId: episodes.seriesId }).from(episodes).where(and(inArray(episodes.seriesId, ids), eq(episodes.monitored, true))).all();
+  return rows.map((s) => ({ seriesId: s.id, monitored: s.monitored, wantNew: s.wantNew, wantedEpisodes: eps.filter((e) => e.seriesId === s.id).map((e) => e.id) }));
+}
 
 // ---------------------------------------------------------------- lists
 

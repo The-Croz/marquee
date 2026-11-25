@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import type { CollectionView, DiscoverTitle, ListChoiceResult, ListItemView, ListsView, ListView, RequestView } from '@marquee/shared';
+import type { CollectionView, DiscoverTitle, LibraryCard, ListChoiceResult, ListItemView, ListsView, ListView, RequestView } from '@marquee/shared';
 import { schema } from '../src/db/index.js';
 import { followCollections } from '../src/library/collections.js';
 import { parseListUrl, type ListFetch } from '../src/library/lists.js';
@@ -58,6 +58,27 @@ describe('Which episodes of a show', () => {
     await set('all');
     expect(episodesOf(t, id)).toEqual(['S1E1', 'S1E2', 'S2E1', 'S2E2']);
     expect((await set('sometimes')).status).toBe(400);
+  });
+
+  it('sets which episodes for several shows at once, and Undo puts each back as it was', async () => {
+    const t = await setup();
+    const sev = (await call(t.app, 'POST', '/api/library/add', { kind: 'series', tmdbId: 95396, preset: 'future' }, t.admin)).body.id as number;
+    const bluey = (await call(t.app, 'POST', '/api/library/add', { kind: 'series', tmdbId: 82728, preset: 'none' }, t.admin)).body.id as number;
+    const was = { sev: episodesOf(t, sev), bluey: episodesOf(t, bluey) };
+    const r = await call(t.app, 'POST', '/api/shows/episodes-wanted', { ids: [sev, bluey, 99999], preset: 'first' }, t.admin);
+    expect(r.body).toMatchObject({ changed: 2 });
+    expect(episodesOf(t, sev)).toEqual(['S1E1', 'S1E2']);
+    expect(episodesOf(t, bluey).every((e) => e.startsWith('S1E'))).toBe(true);
+    // The library cards say what Marquee is looking for, and whether it watches for new episodes.
+    const cards = (await call(t.app, 'GET', '/api/shows', undefined, t.admin)).body.items as LibraryCard[];
+    expect(cards.find((c) => c.id === sev)).toMatchObject({ looking: true, watching: false, wanted: true });
+    const restored = await call(t.app, 'POST', '/api/shows/episodes-wanted/restore', { before: r.body.before }, t.admin);
+    expect(restored.body).toEqual({ ok: true, restored: 2 });
+    expect({ sev: episodesOf(t, sev), bluey: episodesOf(t, bluey) }).toEqual(was);
+    const after = (await call(t.app, 'GET', '/api/shows', undefined, t.admin)).body.items as LibraryCard[];
+    expect(after.find((c) => c.id === bluey)).toMatchObject({ looking: false, watching: false, wanted: false });
+    expect(after.find((c) => c.id === sev)).toMatchObject({ watching: true });
+    expect((await call(t.app, 'POST', '/api/shows/episodes-wanted', { ids: [sev], preset: 'sometimes' }, t.admin)).status).toBe(400);
   });
 
   it('later seasons follow the choice: "the first season" doesn’t want new ones, the others do', async () => {

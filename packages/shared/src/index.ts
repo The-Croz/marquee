@@ -468,6 +468,19 @@ export interface LibraryCard {
   addedAt: number;
   /** You want Marquee to look for it. */
   wanted: boolean;
+  /** Something is missing and Marquee is looking for it (a Wanted movie with no file; a show with Wanted episodes that are out but not on disk). */
+  looking: boolean;
+  /** Marquee watches for what comes next: a show's new episodes, or a better copy of a movie you have. */
+  watching: boolean;
+}
+
+/** A show's Wanted episodes as they were, so a "which episodes" change to several shows can be undone. */
+export interface ShowWantedSnapshot {
+  seriesId: number;
+  monitored: boolean;
+  wantNew: boolean;
+  /** Episode ids that were Wanted. */
+  wantedEpisodes: number[];
 }
 
 export interface MediaFileView {
