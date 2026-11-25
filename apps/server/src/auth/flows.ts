@@ -3,7 +3,7 @@ import { and, eq, lt } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
 import { loginFlows } from '../db/schema.js';
 
-type Kind = 'oidc' | 'plex';
+type Kind = 'oidc' | 'plex' | 'app';
 
 export function createFlow<T>(db: Db, kind: Kind, data: T, ttlMs: number, now = Date.now()): string {
   db.delete(loginFlows).where(lt(loginFlows.expiresAt, now)).run();

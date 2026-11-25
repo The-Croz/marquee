@@ -42,12 +42,29 @@ export const sessions = sqliteTable('sessions', {
   expiresAt: integer('expires_at').notNull(),
   lastSeenAt: integer('last_seen_at').notNull(),
   userAgent: text('user_agent'),
+  /** How long this sign-in lasts when unused, in ms. Empty means the web's 30 days. */
+  ttl: integer('ttl'),
+});
+
+/** A phone running the Marquee app. Signing in again on the same phone reuses its row. */
+export const devices = sqliteTable('devices', {
+  /** The app's identifierForVendor. */
+  id: text('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  kind: text('kind', { enum: ['ios'] }).notNull(),
+  /** Hash of the phone's current sign-in (a row in `sessions`). */
+  sessionId: text('session_id'),
+  createdAt: integer('created_at').notNull(),
+  lastSeenAt: integer('last_seen_at').notNull(),
 });
 
 /** Short-lived state for multi-step sign-ins (OIDC redirects, Plex PINs). */
 export const loginFlows = sqliteTable('login_flows', {
   id: text('id').primaryKey(),
-  kind: text('kind', { enum: ['oidc', 'plex'] }).notNull(),
+  kind: text('kind', { enum: ['oidc', 'plex', 'app'] }).notNull(),
   data: text('data').notNull(),
   expiresAt: integer('expires_at').notNull(),
 });

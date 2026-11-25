@@ -750,6 +750,20 @@ export const migrations: string[] = [
   CREATE INDEX history_movie ON history (movie_id);
   CREATE INDEX history_series ON history (series_id);
   `,
+  // The iPhone app: its sign-ins last longer than a web one (ttl), and each phone is a device.
+  `
+  ALTER TABLE sessions ADD COLUMN ttl INTEGER;
+  CREATE TABLE devices (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    session_id TEXT,
+    created_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL
+  );
+  CREATE INDEX devices_user ON devices (user_id);
+  `,
 ];
 
 export interface OpenOptions {

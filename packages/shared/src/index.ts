@@ -42,9 +42,32 @@ export interface PlexPinStart {
   authUrl: string;
 }
 
+/** What the iPhone app sends to say which phone is signing in. */
+export interface AppDeviceInput {
+  id: string;
+  name: string;
+  kind: 'ios';
+}
+
+/** The answer to an app sign-in: the token goes in the body, not a cookie. */
+export interface AppSignIn {
+  token: string;
+  user: SessionUser;
+}
+
+/** A phone signed in to Marquee (Settings → Account → Your phones). */
+export interface DeviceView {
+  id: string;
+  name: string;
+  kind: 'ios';
+  lastSeenAt: number;
+  signedIn: boolean;
+  current: boolean;
+}
+
 export type PlexPinCheck =
   | { status: 'pending' }
-  | { status: 'ok'; user: SessionUser }
+  | { status: 'ok'; user: SessionUser; token?: string }
   | { status: 'denied'; message: string }
   | { status: 'expired' };
 
