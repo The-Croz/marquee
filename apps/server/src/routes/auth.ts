@@ -2,13 +2,14 @@ import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import type { AuthStatus, PlexPinCheck, PlexPinStart, SignInWall } from '@marquee/shared';
+import type { AppSignIn, AuthStatus, PlexPinCheck, PlexPinStart, SignInWall } from '@marquee/shared';
 import { readServices } from '../library/services.js';
 import type { Db } from '../db/index.js';
 import { users, type User } from '../db/schema.js';
 import { MediaServerError, readMediaServer } from '../library/mediaServers.js';
 import { hashPassword, verifyPassword, burnPasswordCheck } from '../auth/password.js';
-import { deleteSession } from '../auth/sessions.js';
+import { deleteSession, hashToken } from '../auth/sessions.js';
+import { appDeviceSchema, signInDevice, signOutDevice, type AppDevice } from '../auth/devices.js';
 import { describeError } from '../auth/oidc.js';
 import { VERSION } from '../version.js';
 import { createFlow, deleteFlow, readFlow } from '../auth/flows.js';
@@ -31,10 +32,29 @@ interface OidcFlow {
   nonce: string;
   redirectUri: string;
   linkUserId: number | null;
+  /** The iPhone app started this: finish at marquee:// instead of the web page. */
+  app?: boolean;
 }
 interface PlexFlow {
   pinId: number;
   linkUserId: number | null;
+  device?: AppDevice;
+}
+
+/** How long the one-time code between the browser sign-in and the app lasts. */
+const APP_CODE_TTL = 60 * 1000;
+
+/**
+ * Finishes a sign-in. Browsers get the cookie; the app (which says which
+ * phone it is) gets the token in the answer and no cookie.
+ */
+function finishSignIn(c: Parameters<typeof signIn>[0], user: User, device?: AppDevice): AppSignIn | { user: ReturnType<typeof toSessionUser> } {
+  if (!device) {
+    signIn(c, user);
+    return { user: toSessionUser(user) };
+  }
+  const { db, now } = c.get('deps');
+  return { token: signInDevice(db, user, device, c.req.header('user-agent'), now()), user: toSessionUser(user) };
 }
 
 export const authRoutes = new Hono<Env>();
@@ -110,7 +130,7 @@ authRoutes.post('/setup', async (c) => {
 
 authRoutes.post('/login', async (c) => {
   const { db, loginLimiter } = c.get('deps');
-  const input = z.object({ username: z.string().trim().toLowerCase().max(64), password: z.string().max(200) }).parse(await c.req.json());
+  const input = z.object({ username: z.string().trim().toLowerCase().max(64), password: z.string().max(200), device: appDeviceSchema.optional() }).parse(await c.req.json());
   const key = `${clientIp(c)}|${input.username}`;
   const wait = loginLimiter.hit(key);
   if (wait > 0) throw new HttpError(429, 'rate_limited', `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.`);
@@ -120,12 +140,13 @@ authRoutes.post('/login', async (c) => {
   if (!user || !ok) throw new HttpError(401, 'bad_credentials', 'Wrong username or password.');
 
   loginLimiter.reset(key);
-  signIn(c, user);
-  return c.json({ user: toSessionUser(user) });
+  return c.json(finishSignIn(c, user, input.device));
 });
 
 authRoutes.post('/logout', (c) => {
-  deleteSession(c.get('deps').db, sessionToken(c));
+  const token = sessionToken(c);
+  if (token) signOutDevice(c.get('deps').db, hashToken(token));
+  deleteSession(c.get('deps').db, token);
   clearSessionCookie(c);
   return c.json({ ok: true });
 });
@@ -138,6 +159,8 @@ authRoutes.get('/oidc/start', async (c) => {
   const linking = c.req.query('link') === '1';
   const current = c.get('user');
   if (linking && !current) throw new HttpError(401, 'unauthenticated', 'Sign in before linking an account.');
+  const app = c.req.query('app') === '1';
+  if (app && linking) throw new HttpError(400, 'bad_request', "The app can't link an account. Do that on the web, under Settings → Account.");
 
   const redirectUri = `${publicOrigin(c)}/api/auth/oidc/callback`;
   let started;
@@ -145,10 +168,10 @@ authRoutes.get('/oidc/start', async (c) => {
     started = await oidc.start(redirectUri);
   } catch (err) {
     console.warn(`[auth] couldn't start OIDC sign-in: ${describeError(err)}`);
-    return c.redirect(linking ? '/settings/account?error=oidc_unreachable' : '/login?error=oidc_unreachable', 302);
+    return c.redirect(app ? 'marquee://signed-in?error=oidc_unreachable' : linking ? '/settings/account?error=oidc_unreachable' : '/login?error=oidc_unreachable', 302);
   }
   const { url, state, verifier, nonce } = started;
-  const flowId = createFlow<OidcFlow>(db, 'oidc', { state, verifier, nonce, redirectUri, linkUserId: linking ? current!.id : null }, FLOW_TTL);
+  const flowId = createFlow<OidcFlow>(db, 'oidc', { state, verifier, nonce, redirectUri, linkUserId: linking ? current!.id : null, ...(app ? { app: true } : {}) }, FLOW_TTL);
   setCookie(c, OIDC_COOKIE, flowId, { httpOnly: true, sameSite: 'Lax', secure: isSecure(c), path: '/api/auth/oidc', maxAge: FLOW_TTL / 1000 });
   return c.redirect(url, 302);
 });
@@ -162,7 +185,7 @@ authRoutes.get('/oidc/callback', async (c) => {
   if (!flow || !flowId) return c.redirect('/login?error=oidc_expired', 302);
   deleteFlow(db, flowId);
 
-  const back = (error: string) => c.redirect(flow.linkUserId ? `/settings/account?error=${error}` : `/login?error=${error}`, 302);
+  const back = (error: string) => c.redirect(flow.app ? `marquee://signed-in?error=${error}` : flow.linkUserId ? `/settings/account?error=${error}` : `/login?error=${error}`, 302);
 
   let identity;
   try {
@@ -199,8 +222,24 @@ authRoutes.get('/oidc/callback', async (c) => {
       oidcSubject: identity.subject,
     });
   }
+  if (flow.app) {
+    const code = createFlow<{ userId: number }>(db, 'app', { userId: user.id }, APP_CODE_TTL, c.get('deps').now());
+    return c.redirect(`marquee://signed-in?code=${code}`, 302);
+  }
   signIn(c, user);
   return c.redirect('/', 302);
+});
+
+/** The app trades the one-time code from a browser sign-in for its token. */
+authRoutes.post('/app-token', async (c) => {
+  const { db, now } = c.get('deps');
+  const { code, device } = z.object({ code: z.string().min(10).max(100), device: appDeviceSchema }).parse(await c.req.json());
+  const flow = readFlow<{ userId: number }>(db, 'app', code, now());
+  if (!flow) throw new HttpError(400, 'code_expired', 'That sign-in took too long. Try again.');
+  deleteFlow(db, code);
+  const user = db.select().from(users).where(eq(users.id, flow.userId)).get();
+  if (!user) throw new HttpError(400, 'code_expired', 'That sign-in took too long. Try again.');
+  return c.json(finishSignIn(c, user, device));
 });
 
 // ---------- Jellyfin ----------
@@ -217,7 +256,7 @@ function jellyfinReady(db: Db): boolean {
  */
 authRoutes.post('/jellyfin', async (c) => {
   const { db, clients, loginLimiter } = c.get('deps');
-  const input = z.object({ username: z.string().trim().max(64).min(1), password: z.string().max(200) }).parse(await c.req.json());
+  const input = z.object({ username: z.string().trim().max(64).min(1), password: z.string().max(200), device: appDeviceSchema.optional() }).parse(await c.req.json());
   const saved = readMediaServer(db, 'jellyfin');
   if (!saved.url || !saved.secret) throw new HttpError(404, 'jellyfin_disabled', 'Jellyfin sign-in is not set up.');
   const key = `${clientIp(c)}|jf|${input.username.toLowerCase()}`;
@@ -235,8 +274,7 @@ authRoutes.post('/jellyfin', async (c) => {
   const user = db.select().from(users).where(eq(users.jellyfinId, who.id)).get();
   if (!user) throw new HttpError(403, 'not_linked', "That Jellyfin account isn't set up in Marquee yet. Ask an admin to add you under Settings → Users.");
   loginLimiter.reset(key);
-  signIn(c, user);
-  return c.json({ user: toSessionUser(user) });
+  return c.json(finishSignIn(c, user, input.device));
 });
 
 // ---------- Plex ----------
@@ -244,7 +282,7 @@ authRoutes.post('/jellyfin', async (c) => {
 authRoutes.post('/plex/start', async (c) => {
   const { db, config, plex } = c.get('deps');
   if (!config.plex.enabled) throw new HttpError(404, 'plex_disabled', 'Plex sign-in is turned off.');
-  const body = z.object({ link: z.boolean().optional() }).parse(await c.req.json().catch(() => ({})));
+  const body = z.object({ link: z.boolean().optional(), device: appDeviceSchema.optional() }).parse(await c.req.json().catch(() => ({})));
   const current = c.get('user');
   if (body.link && !current) throw new HttpError(401, 'unauthenticated', 'Sign in before linking an account.');
 
@@ -255,7 +293,7 @@ authRoutes.post('/plex/start', async (c) => {
   } catch (err) {
     throw new HttpError(502, 'plex_unreachable', `Couldn't reach plex.tv (${(err as Error).message}).`);
   }
-  const flowId = createFlow<PlexFlow>(db, 'plex', { pinId: pin.id, linkUserId: body.link ? current!.id : null }, FLOW_TTL);
+  const flowId = createFlow<PlexFlow>(db, 'plex', { pinId: pin.id, linkUserId: body.link ? current!.id : null, ...(body.device ? { device: body.device } : {}) }, FLOW_TTL);
   const result: PlexPinStart = { flowId, authUrl: client.authUrl(pin.code) };
   return c.json(result);
 });
@@ -319,6 +357,6 @@ authRoutes.post('/plex/check', async (c) => {
       plexToken: token,
     });
   }
-  signIn(c, user);
-  return c.json<PlexPinCheck>({ status: 'ok', user: toSessionUser(user) });
+  const done = finishSignIn(c, user, flow.device);
+  return c.json<PlexPinCheck>({ status: 'ok', user: done.user, ...('token' in done ? { token: done.token } : {}) });
 });
