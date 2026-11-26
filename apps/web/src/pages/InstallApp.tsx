@@ -27,7 +27,7 @@ export function InstallAppPage() {
         <h2 className="m-0 text-lg font-semibold">Install Marquee on your iPhone</h2>
         <p className="m-0 text-sm text-muted">The Marquee app puts your library, Discover, requests and downloads on your phone, with notifications. It needs an iPhone with iOS 26 or newer.</p>
         <ol className="m-0 flex list-decimal flex-col gap-2 pl-5 text-body text-soft">
-          <li>Ask Josh for the TestFlight invitation (until Marquee is on the App Store), then install it from the TestFlight app.</li>
+          <li>Ask the person who runs this Marquee for the TestFlight invitation (until Marquee is on the App Store), then install it from the TestFlight app.</li>
           <li>Open Marquee. When it asks <strong>Where is Marquee?</strong>, type this address:</li>
         </ol>
         <div className="flex flex-wrap items-center gap-3">

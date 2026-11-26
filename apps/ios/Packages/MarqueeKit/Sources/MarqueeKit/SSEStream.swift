@@ -48,8 +48,17 @@ extension APIClient {
             if http.statusCode == 401 { forgetToken(); throw MarqueeError.signedOut }
             guard http.statusCode == 200 else { throw MarqueeError.server(code: "http_\(http.statusCode)", message: "Marquee answered with an error (\(http.statusCode)).") }
             var parser = SSEParser()
-            for try await line in bytes.lines {
-                if let event = parser.line(line) { onEvent(event) }
+            // `bytes.lines` drops empty lines, and an empty line is what ends an event, so split the lines here.
+            var buffer: [UInt8] = []
+            for try await byte in bytes {
+                if byte == 10 {
+                    var text = String(decoding: buffer, as: UTF8.self)
+                    if text.hasSuffix("\r") { text.removeLast() }
+                    buffer.removeAll(keepingCapacity: true)
+                    if let event = parser.line(text) { onEvent(event) }
+                } else {
+                    buffer.append(byte)
+                }
             }
         } catch let error as MarqueeError {
             throw error

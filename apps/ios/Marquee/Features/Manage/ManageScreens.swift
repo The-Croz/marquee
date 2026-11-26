@@ -181,6 +181,7 @@ struct SourcesScreen: View {
     @State private var problem: String?
     @State private var checking: Int?
     @State private var message: String?
+    @State private var turningOff: SourceView?
 
     struct Enabled: Encodable, Sendable { var enabled: Bool }
 
@@ -196,7 +197,7 @@ struct SourcesScreen: View {
                             Circle().fill(s.isWorking ? Color.readyTeal : (s.enabled ? Color.warn : Color.dim)).frame(width: 10, height: 10).accessibilityHidden(true)
                             Text(s.name).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary)
                             Spacer()
-                            Toggle("On", isOn: Binding(get: { s.enabled }, set: { on in Task { await set(s, on) } })).labelsHidden().tint(.amber)
+                            Toggle("On", isOn: Binding(get: { s.enabled }, set: { on in if on { Task { await set(s, true) } } else { turningOff = s } })).labelsHidden().tint(.amber)
                         }
                         Text(s.enabled ? s.stateLabel : "Off").font(.caption).foregroundStyle(s.isWorking ? Color.readyTeal : (s.enabled ? Color.warn : Color.muted))
                         if let m = s.stateMessage { Text(m).font(.caption).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true) }
@@ -220,6 +221,12 @@ struct SourcesScreen: View {
         .task { await load() }
         .problemAlert($problem)
         .toast(Binding(get: { message }, set: { message = $0 }))
+        .confirmationDialog("Turn off \(turningOff?.name ?? "this Source")?", isPresented: Binding(get: { turningOff != nil }, set: { if !$0 { turningOff = nil } }), titleVisibility: .visible, presenting: turningOff) { s in
+            Button("Turn it off", role: .destructive) { Task { await set(s, false) } }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Marquee stops looking there until you turn it back on.")
+        }
     }
 
     private func load() async {
@@ -315,6 +322,7 @@ struct PersonSheet: View {
     @State private var limit: Int
     @State private var problem: String?
     @State private var saving = false
+    @State private var confirmRole = false
 
     init(user: UserSummary, changed: @escaping () -> Void) {
         self.user = user
@@ -325,7 +333,8 @@ struct PersonSheet: View {
     }
 
     struct Patch: Encodable, Sendable {
-        var role: String
+        /// Left out unless it changed: any role in the request signs that person out everywhere.
+        var role: String?
         var skipApproval: Bool
         var weeklyLimit: Int
     }
@@ -357,10 +366,16 @@ struct PersonSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Save") { Task { await save() } }.disabled(saving).accessibilityIdentifier("save-person") }
+                ToolbarItem(placement: .confirmationAction) { Button("Save") { if role != user.role.wire { confirmRole = true } else { Task { await save() } } }.disabled(saving).accessibilityIdentifier("save-person") }
             }
         }
         .presentationBackground(Color(hex: 0x0E1117))
+        .confirmationDialog("Change \(user.displayName)'s role?", isPresented: $confirmRole, titleVisibility: .visible) {
+            Button("Change role and sign them out") { Task { await save() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(user.displayName) is signed out of every device and signs back in as \(role == "kid" ? "a kid" : role == "admin" ? "an admin" : "a member").")
+        }
     }
 
     private func save() async {
@@ -368,7 +383,7 @@ struct PersonSheet: View {
         defer { saving = false }
         do {
             struct Answer: Decodable, Sendable { var user: UserSummary }
-            let _: Answer = try await app.client.send("PATCH", "/api/users/\(user.id)", body: Patch(role: role, skipApproval: skip, weeklyLimit: limit))
+            let _: Answer = try await app.client.send("PATCH", "/api/users/\(user.id)", body: Patch(role: role == user.role.wire ? nil : role, skipApproval: skip, weeklyLimit: limit))
             changed()
             dismiss()
         } catch {
@@ -497,6 +512,7 @@ struct MatchSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var problem: String?
+    @State private var confirmIgnore = false
 
     var body: some View {
         NavigationStack {
@@ -516,8 +532,8 @@ struct MatchSheet: View {
                 } header: { head("Which one is “\(item.folder)”?") }
                 .listRowBackground(Color.panel)
                 Section {
-                    Button("Leave it out of Marquee") { Task { await ignore() } }.foregroundStyle(.warn)
-                } footer: { Text("Marquee won't ask about this folder again. You can let it back in from Library care.").font(.caption) }
+                    Button("Leave it out of Marquee") { confirmIgnore = true }.foregroundStyle(.warn)
+                } footer: { Text("Marquee won't ask about this folder again. To bring it back, use Library → Needs a match on the web.").font(.caption) }
                 .listRowBackground(Color.panel)
                 if let problem { Text(problem).font(.footnote).foregroundStyle(.warn).listRowBackground(Color.clear) }
             }
@@ -528,6 +544,10 @@ struct MatchSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
         .presentationBackground(Color(hex: 0x0E1117))
+        .confirmationDialog("Leave “\(item.folder)” out?", isPresented: $confirmIgnore, titleVisibility: .visible) {
+            Button("Leave it out", role: .destructive) { Task { await ignore() } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Marquee won't match it or ask about it again.") }
     }
 
     private func match(_ c: UnmatchedItem.Candidate) async {
