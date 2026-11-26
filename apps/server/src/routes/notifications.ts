@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ApnsSettingsView, NotificationChannelView, NotificationEventInfo, NotificationInboxItem, NotificationPreview, NotificationPriority, NotificationTemplateView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
@@ -12,8 +12,8 @@ import { apnsView, writeApns } from '../notify/apnsSettings.js';
 
 /**
  * Notifications:
- *   /api/notifications            each person's bell, what they mute, and their own push channels (/channels)
- *   /api/settings/notifications   admins: the shared push channels, and the wording of every message (/templates)
+ *   /api/notifications            each person's web UI inbox, what they switch off there, and their own push channels (/channels)
+ *   /api/settings/notifications   admins: the shared push channels (and sharing one), and the wording of every message (/templates)
  */
 export const notificationRoutes = new Hono<Env>();
 export const channelRoutes = new Hono<Env>();
@@ -45,7 +45,7 @@ notificationRoutes.post('/read', async (c) => {
   return c.json({ ok: true });
 });
 
-/** Which events this person can get, and which they turned off (for their bell and their own channels). */
+/** Which events this person can get, and which they turned off in the web UI. */
 notificationRoutes.get('/events', (c) => {
   const user = requireUser(c);
   const row = c.get('deps').db.select({ m: userPrefs.mutedEvents }).from(userPrefs).where(eq(userPrefs.userId, user.id)).get();
@@ -72,6 +72,7 @@ function channelView(ch: NotificationChannel): NotificationChannelView {
     kind: ch.kind,
     name: ch.name,
     enabled: ch.enabled,
+    shared: ch.userId === null,
     events: JSON.parse(ch.events) as string[],
     detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : ch.kind === 'webhook' ? (c.url ?? '').replace(/^(https?:\/\/[^/]+).*$/, '$1/…') : ch.kind === 'apns' ? 'iPhone app' : 'Pushover',
     lastOkAt: ch.lastOkAt,
@@ -211,6 +212,28 @@ function channelRoutesFor(scope: Scope): Hono<Env> {
 }
 
 notificationRoutes.route('/channels', channelRoutesFor(MINE));
+
+/**
+ * Shares an added service with the other admins, or takes it back as your
+ * own. A shared one carries admin messages only: the rest are about one person.
+ */
+channelRoutes.put('/:id{[0-9]+}/shared', async (c) => {
+  const user = requireAdmin(c);
+  const { shared } = z.object({ shared: z.boolean() }).parse(await c.req.json());
+  const { db } = c.get('deps');
+  const ch = db
+    .select()
+    .from(notificationChannels)
+    .where(and(eq(notificationChannels.id, Number(c.req.param('id'))), or(isNull(notificationChannels.userId), eq(notificationChannels.userId, user.id))))
+    .get();
+  if (!ch) throw new HttpError(404, 'not_found', 'That channel isn’t there any more.');
+  if (ch.kind === 'apns') throw new HttpError(400, 'invalid_input', 'An iPhone belongs to one person, so it can’t be shared.');
+  if (shared === (ch.userId === null)) return c.json(channelView(ch));
+  const allowed = (shared ? SHARED : MINE).allowed(user);
+  const events = (JSON.parse(ch.events) as string[]).filter((k) => allowed.includes(k));
+  const row = db.update(notificationChannels).set({ userId: shared ? null : user.id, events: JSON.stringify(events) }).where(eq(notificationChannels.id, ch.id)).returning().get();
+  return c.json(channelView(row));
+});
 
 // ---------------- Wording (admin) ----------------
 

@@ -8,11 +8,13 @@ import { GonePushError } from './pushError.js';
 import { render, type Vars } from './template.js';
 
 /**
- * Tells people things. Every message goes to an inbox (the bell in the web
- * app) and down the push channels (Pushover, ntfy) that want that event:
- * the shared admin channels for admin events, and each person's own
- * channels for what they get. Never throws: a channel that fails records
- * what went wrong and the rest still get their message.
+ * Tells people things. Every message can go to the web UI (each person's
+ * inbox) and down the push channels (iPhone, Pushover, ntfy, webhook) that
+ * want that event: the shared admin channels for admin events, and each
+ * person's own channels for what they get. Each place is ticked on its own:
+ * switching a message off in the web UI doesn't stop it on a phone. Never
+ * throws: a channel that fails records what went wrong and the rest still
+ * get their message.
  *
  * Callers hand over the facts (variables); the wording comes from the
  * event's template, Marquee's own or the admin's (Settings → Notifications).
@@ -112,15 +114,14 @@ async function sendTo(deps: NotifyDeps, channels: NotificationChannel[], event: 
 
 const ownChannels = (db: Db, userId: number) => db.select().from(notificationChannels).where(eq(notificationChannels.userId, userId)).all();
 
-/** Tells one person: their bell, and their own push channels. Muted events go nowhere. */
+/** Tells one person: their web UI (unless they switched this message off there), and their own push channels. */
 export async function notifyUser(deps: NotifyDeps, userId: number | null, event: string, msg: Message): Promise<void> {
   if (userId === null || !eventInfo(event)) return;
   const { db, now } = deps;
   let m: Composed;
   try {
-    if (muted(db, userId, event)) return;
     m = compose(deps, event, msg);
-    inbox(db, now(), userId, event, m);
+    if (!muted(db, userId, event)) inbox(db, now(), userId, event, m);
   } catch (err) {
     console.error('[notify] inbox failed:', (err as Error).message);
     return;
@@ -128,25 +129,24 @@ export async function notifyUser(deps: NotifyDeps, userId: number | null, event:
   await sendTo(deps, ownChannels(db, userId), event, m, msg.vars);
 }
 
-/** Tells every admin (bell and their own channels) and sends it down the shared channels that have the event on. */
+/** Tells every admin (web UI and their own channels) and sends it down the shared channels that have the event on. */
 export async function notifyAdmins(deps: NotifyDeps, event: string, msg: Message): Promise<void> {
   const { db, now } = deps;
   if (!eventInfo(event)) return;
   let m: Composed;
-  const listening: number[] = [];
+  const admins: number[] = [];
   try {
     m = compose(deps, event, msg);
     for (const a of db.select({ id: users.id }).from(users).where(eq(users.role, 'admin')).all()) {
-      if (muted(db, a.id, event)) continue;
-      listening.push(a.id);
-      inbox(db, now(), a.id, event, m);
+      admins.push(a.id);
+      if (!muted(db, a.id, event)) inbox(db, now(), a.id, event, m);
     }
   } catch (err) {
     console.error('[notify] inbox failed:', (err as Error).message);
     return;
   }
   await sendTo(deps, db.select().from(notificationChannels).where(isNull(notificationChannels.userId)).all(), event, m, msg.vars);
-  for (const id of listening) await sendTo(deps, ownChannels(db, id), event, m, msg.vars);
+  for (const id of admins) await sendTo(deps, ownChannels(db, id), event, m, msg.vars);
 }
 
 /** Fire and forget, for code that mustn't wait on a push. */

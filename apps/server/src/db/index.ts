@@ -798,6 +798,18 @@ export const migrations: string[] = [
   `
   ALTER TABLE devices ADD COLUMN push_events TEXT;
   `,
+  // Every place is ticked on its own now. What someone's web UI had switched off used to stop their phones too,
+  // so untick it on their own places: nothing new starts arriving.
+  `
+  UPDATE notification_channels SET events = (
+    SELECT json_group_array(e.value) FROM json_each(notification_channels.events) e
+    WHERE e.value NOT IN (SELECT m.value FROM user_prefs p, json_each(p.muted_events) m WHERE p.user_id = notification_channels.user_id)
+  ) WHERE user_id IS NOT NULL;
+  UPDATE devices SET push_events = (
+    SELECT json_group_array(e.value) FROM json_each(devices.push_events) e
+    WHERE e.value NOT IN (SELECT m.value FROM user_prefs p, json_each(p.muted_events) m WHERE p.user_id = devices.user_id)
+  ) WHERE push_events IS NOT NULL;
+  `,
 ];
 
 export interface OpenOptions {

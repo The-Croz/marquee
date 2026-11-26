@@ -227,14 +227,18 @@ describe('sending to a phone', () => {
     expect(apple.pushes[0]!.payload.aps.category).toBeUndefined();
   });
 
-  it('muted events are not sent', async () => {
+  it('still reaches the phone when the message is off in the web UI, and not when it’s off for the phone', async () => {
     const t = await setup();
     await t.configure();
     const p = await t.signInPhone('josh', 'correct horse battery');
     await call(t.app, 'POST', `/api/me/devices/${p.id}/push`, { token: TOKEN }, undefined, p.bearer);
     await call(t.app, 'PUT', '/api/notifications/muted', { muted: ['request_pending'] }, undefined, p.bearer);
     await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 693134 }, t.jessie);
-    expect(apple.pushes).toHaveLength(0);
+    await vi.waitFor(() => expect(apple.pushes).toHaveLength(1));
+    await call(t.app, 'PUT', `/api/me/devices/${p.id}/push/events`, { events: ['request_pending'], on: false }, undefined, p.bearer);
+    await call(t.app, 'POST', '/api/requests', { kind: 'movie', tmdbId: 603 }, t.jessie);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(apple.pushes).toHaveLength(1);
   });
 
   it('a phone Apple says is gone loses its channel', async () => {

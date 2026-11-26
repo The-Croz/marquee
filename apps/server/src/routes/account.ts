@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { deleteUserSessions, hashToken } from '../auth/sessions.js';
-import { dropPush, listDevices, registerPush, removeDevice } from '../auth/devices.js';
+import { dropPush, listDevices, pushEvents, registerPush, removeDevice } from '../auth/devices.js';
 import { toSessionUser, updateUser } from '../auth/users.js';
 import { HttpError, requireUser, sessionToken, signIn, type Env } from '../http.js';
 import type { User } from '../db/schema.js';
@@ -79,6 +79,24 @@ accountRoutes.post('/devices/:id/push', async (c) => {
   const body = pushBody.parse(await c.req.json());
   if (!registerPush(db, user, c.req.param('id'), body.token.toLowerCase(), body.environment, now())) throw new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
   return c.json({ ok: true });
+});
+
+function deviceEvents(answer: ReturnType<typeof pushEvents>) {
+  if (answer === 'unknown') throw new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
+  if (answer === 'off') throw new HttpError(409, 'push_off', 'Notifications are off for this iPhone. Turn them on first.');
+  return answer;
+}
+
+/** The app's own list of switches: which messages this phone gets. */
+accountRoutes.get('/devices/:id/push/events', (c) => {
+  const user = requireUser(c);
+  return c.json(deviceEvents(pushEvents(c.get('deps').db, user, c.req.param('id'))));
+});
+
+accountRoutes.put('/devices/:id/push/events', async (c) => {
+  const user = requireUser(c);
+  const body = z.object({ events: z.array(z.string().max(40)).max(60), on: z.boolean() }).parse(await c.req.json());
+  return c.json(deviceEvents(pushEvents(c.get('deps').db, user, c.req.param('id'), body)));
 });
 
 accountRoutes.delete('/devices/:id/push', (c) => {

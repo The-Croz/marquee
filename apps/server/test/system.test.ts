@@ -259,9 +259,10 @@ describe('free space', () => {
 // ---------------- Backups ----------------
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
-const UNDO_NEWEST = {
-  sql: ['ALTER TABLE devices DROP COLUMN push_events'],
-  tables: ['devices'],
+// The newest migration only changes what's stored, so there's nothing to take away.
+const UNDO_NEWEST: { sql: string[]; tables: string[] } = {
+  sql: [],
+  tables: [],
 };
 
 describe('backups', () => {

@@ -260,7 +260,7 @@ describe('Notification wording', () => {
 });
 
 describe('Each person’s own push channels', () => {
-  it('a member can add their own channel for their own events; it’s private to them and respects muting', async () => {
+  it('a member can add their own channel for their own events; it’s private to them and ticked on its own', async () => {
     const t = await setup();
     const made = await call(t.app, 'POST', '/api/notifications/channels', { kind: 'ntfy', name: 'My phone', topic: 'jess', events: ['request_declined', 'request_pending'] }, t.jessie);
     expect(made.status).toBe(201);
@@ -279,7 +279,7 @@ describe('Each person’s own push channels', () => {
     await call(t.app, 'POST', `/api/requests/${asked.id}/reopen`, {}, t.admin);
     await call(t.app, 'POST', `/api/requests/${asked.id}/decline`, { reason: '' }, t.admin);
     await new Promise((r) => setTimeout(r, 0));
-    expect(t.pushed).toHaveLength(1);
+    expect(t.pushed).toHaveLength(2); // off in the web UI, still on for this channel
   });
 
   it('tells the person who asked for a show when a new episode arrives, after the first "Ready to watch"', async () => {

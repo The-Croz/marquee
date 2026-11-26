@@ -56,6 +56,27 @@ enum Fixture {
         #expect(d[0].current && d[0].signedIn)
     }
 
+    @Test func pushEvents() throws {
+        var p = try Fixture.decode(DevicePushEvents.self, "push-events")
+        // Sections come in the order the web page uses, each holding its own messages.
+        #expect(p.sections.map(\.name) == ["Requests", "Downloads", "Problems", "Watching", "Marquee"])
+        #expect(p.sections.allSatisfy { section in section.events.allSatisfy { $0.group == section.name } })
+        #expect(p.sections.flatMap(\.events).count == p.events.count)
+        #expect(p.on.contains("request_pending"))
+        #expect(!p.on.contains("stream_started"))
+        p.set("stream_started", on: true)
+        p.set("stream_started", on: true)
+        p.set("request_pending", on: false)
+        #expect(p.on.filter { $0 == "stream_started" }.count == 1)
+        #expect(!p.on.contains("request_pending"))
+    }
+
+    @Test func aGroupThisAppDoesNotKnowStillShows() {
+        let event = DevicePushEvents.Event(key: "new_thing", group: "Brand new", label: "A new thing", description: "Something.")
+        let p = DevicePushEvents(events: [event], on: [])
+        #expect(p.sections.map(\.name) == ["Brand new"])
+    }
+
     @Test func homeForAnAdmin() throws {
         let h = try Fixture.decode(HomeData.self, "home-admin")
         #expect(h.needsYou.count == 2)

@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import type { DeviceView } from '@marquee/shared';
+import type { DevicePushEvents, DeviceView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { devices, notificationChannels, sessions, type User } from '../db/schema.js';
 import { forgetPushForDevice } from './pushCleanup.js';
@@ -84,12 +84,35 @@ function startingEvents(user: User, kept: string | null): string[] {
   return (JSON.parse(kept) as string[]).filter((key) => allowed.has(key));
 }
 
+/**
+ * What this phone gets, and (with `change`) switching some messages on or off.
+ * 'unknown' when the phone isn't theirs, 'off' when its notifications are off.
+ */
+export function pushEvents(db: Db, user: User, deviceId: string, change?: { events: string[]; on: boolean }): DevicePushEvents | 'unknown' | 'off' {
+  const device = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, user.id))).get();
+  if (!device) return 'unknown';
+  const channel = pushChannel(db, user.id, deviceId);
+  if (!channel) return 'off';
+  const events = eventsFor(user.role);
+  const allowed = new Set(events.map((e) => e.key));
+  let on = (JSON.parse(channel.events) as string[]).filter((key) => allowed.has(key));
+  if (change) {
+    const keys = change.events.filter((key) => allowed.has(key));
+    on = change.on ? [...new Set([...on, ...keys])] : on.filter((key) => !keys.includes(key));
+    db.update(notificationChannels).set({ events: JSON.stringify(on) }).where(eq(notificationChannels.id, channel.id)).run();
+  }
+  return { events, on };
+}
+
+const pushChannel = (db: Db, userId: number, deviceId: string) =>
+  db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, userId), eq(notificationChannels.kind, 'apns'))).all().find((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId);
+
 /** Turns push on for this phone: one channel per phone, however often it registers. Its token is kept in the channel's config (never sent back). */
 export function registerPush(db: Db, user: User, deviceId: string, token: string, environment: 'production' | 'sandbox', now: number): boolean {
   const device = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, user.id))).get();
   if (!device) return false;
   const config = JSON.stringify({ deviceId, token, environment });
-  const existing = db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, user.id), eq(notificationChannels.kind, 'apns'))).all().find((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId);
+  const existing = pushChannel(db, user.id, deviceId);
   if (existing) db.update(notificationChannels).set({ config, name: device.name, enabled: true }).where(eq(notificationChannels.id, existing.id)).run();
   else db.insert(notificationChannels).values({ kind: 'apns', name: device.name, userId: user.id, config, events: JSON.stringify(startingEvents(user, device.pushEvents)), createdAt: now }).run();
   return true;
