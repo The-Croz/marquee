@@ -24,6 +24,7 @@ final class HomeModel {
             loadProblem = nil
         } catch {
             if case .signedOut = error { app.handle(error); return }
+            if case .cancelled = error { return }
             loadProblem = error
         }
         loading = false

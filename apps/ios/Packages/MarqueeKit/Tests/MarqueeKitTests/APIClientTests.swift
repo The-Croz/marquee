@@ -53,6 +53,22 @@ private func json(_ text: String, status: Int = 200) -> StubURLProtocol.Reply { 
         await #expect(throws: MarqueeError.pangolinInTheWay) { try await api.get("/api/home", as: HomeData.self) }
     }
 
+    /// Leaving a screen cancels what it was loading. That's not a fault, and nothing should say it is.
+    @Test func aCancelledRequestSaysSoAndNothingMore() async {
+        let (api, _) = client("t-cancel.test")
+        StubURLProtocol.answer(host: "t-cancel.test") { _ in json(#"{"ok":true,"version":"1"}"#) }
+        let task = Task { () -> MarqueeError? in
+            withUnsafeCurrentTask { $0?.cancel() }
+            do throws(MarqueeError) {
+                _ = try await api.get("/api/health", as: Health.self)
+                return nil
+            } catch {
+                return error
+            }
+        }
+        #expect(await task.value == .cancelled)
+    }
+
     @Test func fallsBackToOutside() async throws {
         let (api, _) = client("t-home.test", outside: "t-outside.test")
         StubURLProtocol.answer(host: "t-home.test") { _ in throw URLError(.cannotConnectToHost) }

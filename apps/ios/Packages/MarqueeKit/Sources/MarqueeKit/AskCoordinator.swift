@@ -48,7 +48,10 @@ public final class AskCoordinator {
         waiting = ask
         timer = Task { [delay] in
             try? await Task.sleep(for: delay)
-            if !Task.isCancelled { await flush() }
+            guard !Task.isCancelled else { return }
+            // Forget this task first: flush cancels the timer, and a cancelled task can't send anything.
+            timer = nil
+            await flush()
         }
     }
 

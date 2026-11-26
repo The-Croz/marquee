@@ -10,6 +10,7 @@ final class SmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments += ["--reset-for-ui-tests"]
         app.launch()
+        allowNotificationsIfAsked()
 
         // Where is Marquee?
         let address = app.textFields["address-field"]
@@ -18,15 +19,7 @@ final class SmokeTests: XCTestCase {
         address.typeText("localhost:9797")
         app.buttons["connect"].tap()
 
-        // Sign in.
-        let username = app.textFields["username"]
-        XCTAssertTrue(username.waitForExistence(timeout: 10), "Marquee should answer at localhost:9797 (is demo mode running?)")
-        username.tap()
-        username.typeText("josh")
-        let password = app.secureTextFields["password"]
-        password.tap()
-        password.typeText("correct horse battery")
-        app.buttons["sign-in"].tap()
+        signIn(app)
 
         // Home loads.
         XCTAssertTrue(app.staticTexts["Needs you"].waitForExistence(timeout: 15), "Home should show Needs you")
@@ -67,26 +60,104 @@ final class SmokeTests: XCTestCase {
         sleep(4)
         XCTAssertEqual(ask.label, "Ask for it", "Nothing should have been sent")
 
-        // You → turn notifications on (allow the system prompt); the script then checks the fake Apple saw a push.
-        // The Discover sheet is still up from asking: close it, then open You from the tab's avatar.
+        // Notifications are on without anyone touching the switch, and stay that way after signing out and back in.
         if app.buttons["Done"].exists { app.buttons["Done"].tap() }
+        openYou(app)
+        waitForSwitch(app, "1", "Notifications should be on by default")
+        signOut(app)
+        signIn(app)
+        openYou(app)
+        waitForSwitch(app, "1", "Still on after signing in again")
+
+        // Switched off stays off, until it's switched back on.
+        flipNotifications(app)
+        waitForSwitch(app, "0", "It should switch off")
+        signOut(app)
+        signIn(app)
+        openYou(app)
+        sleep(3)
+        waitForSwitch(app, "0", "Still off after signing in again")
+        flipNotifications(app)
+        waitForSwitch(app, "1", "It should switch back on")
+    }
+
+    /// Home used to come back empty after visiting other tabs; requests and Search used to need a nudge.
+    func testHomeComesBackAndTitlesOpen() {
+        let app = launch(as: "josh")
+        let needs = app.staticTexts["Needs you"]
+        XCTAssertTrue(needs.waitForExistence(timeout: 20))
+        for tab in ["Library", "Discover", "Activity", "Library"] {
+            app.tabBars.buttons[tab].tap()
+            app.tabBars.buttons["Home"].tap()
+            XCTAssertTrue(needs.waitForExistence(timeout: 8), "Home should still show after \(tab)")
+        }
+
+        app.tabBars.buttons["Search"].tap()
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.isHittable, "The search field shows without scrolling")
+
+        app.tabBars.buttons["Home"].tap()
+        let row = app.buttons.matching(NSPredicate(format: "identifier MATCHES 'request-[0-9]+'")).firstMatch
+        for _ in 0..<4 where !row.isHittable { app.swipeUp(velocity: .slow) }
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "Home lists recent requests")
+        row.tap()
+        let page = app.buttons["something-wrong"]
+        let sheet = app.staticTexts["Information from TMDB."]
+        let opened = NSPredicate { _, _ in page.exists || sheet.exists }
+        wait(for: [XCTNSPredicateExpectation(predicate: opened, object: nil)], timeout: 10)
+    }
+
+    private func allowNotificationsIfAsked() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 5) { allow.tap() }
+    }
+
+    private func signIn(_ app: XCUIApplication) {
+        let username = app.textFields["username"]
+        XCTAssertTrue(username.waitForExistence(timeout: 10), "Marquee should answer at localhost:9797 (is demo mode running?)")
+        username.tap()
+        username.typeText("josh")
+        let password = app.secureTextFields["password"]
+        password.tap()
+        password.typeText("correct horse battery")
+        app.buttons["sign-in"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 15))
+    }
+
+    private func openYou(_ app: XCUIApplication) {
         let avatars = app.buttons.matching(identifier: "avatar")
         XCTAssertTrue(avatars.firstMatch.waitForExistence(timeout: 10))
         (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
-        let toggle = app.switches.firstMatch
-        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
-        toggle.tap()
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let allow = springboard.alerts.buttons["Allow"]
-        if allow.waitForExistence(timeout: 10) { allow.tap() }
-        let on = NSPredicate(format: "value == '1'")
-        wait(for: [XCTNSPredicateExpectation(predicate: on, object: toggle)], timeout: 15)
+        XCTAssertTrue(app.switches.firstMatch.waitForExistence(timeout: 10))
+    }
+
+    private func signOut(_ app: XCUIApplication) {
+        let button = app.buttons["sign-out"]
+        for _ in 0..<3 where !button.isHittable { app.swipeUp() }
+        button.tap()
+        // The confirmation's button has the same words.
+        let confirm = app.buttons.matching(NSPredicate(format: "label == 'Sign out' AND identifier != 'sign-out'")).firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+    }
+
+    /// Taps the knob itself: the middle of the row doesn't flip a switch.
+    private func flipNotifications(_ app: XCUIApplication) {
+        app.switches.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+    }
+
+    private func waitForSwitch(_ app: XCUIApplication, _ value: String, _ why: String) {
+        let match = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: app.switches.firstMatch)
+        XCTAssertEqual(XCTWaiter().wait(for: [match], timeout: 15), .completed, why)
     }
 
     private func launch(as name: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["--reset-for-ui-tests", "--demo-sign-in=\(name)"]
         app.launch()
+        allowNotificationsIfAsked()
         return app
     }
 

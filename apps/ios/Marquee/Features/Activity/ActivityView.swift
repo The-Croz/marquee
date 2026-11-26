@@ -27,6 +27,7 @@ struct ActivityView: View {
             }
             .background(.ink)
             .navigationTitle("Activity")
+            .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     AvatarButton(initial: app.user?.displayName ?? "?") { app.showingYou = true }

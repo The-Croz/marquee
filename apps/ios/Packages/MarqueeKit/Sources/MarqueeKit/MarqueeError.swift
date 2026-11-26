@@ -10,6 +10,8 @@ public enum MarqueeError: Error, Equatable, Sendable {
     case unreachable(URL)
     case tooOld
     case decoding(String)
+    /// The screen that asked went away before the answer came. Nothing is wrong, so screens say nothing.
+    case cancelled
 
     public var title: String {
         switch self {
@@ -19,6 +21,7 @@ public enum MarqueeError: Error, Equatable, Sendable {
         case .unreachable(let url): "Can't reach Marquee at \(ServerAddress.display(url))."
         case .tooOld: "This Marquee is too old for the app."
         case .decoding: "Marquee sent something the app didn't expect."
+        case .cancelled: "That was stopped before it finished."
         }
     }
 
@@ -30,6 +33,7 @@ public enum MarqueeError: Error, Equatable, Sendable {
         case .unreachable: "Check you're on your home Wi-Fi, or add your outside address under Server."
         case .tooOld: "Update Marquee to the newest version, then sign in again."
         case .decoding: "Update the app and Marquee to their newest versions."
+        case .cancelled: "Try again."
         }
     }
 

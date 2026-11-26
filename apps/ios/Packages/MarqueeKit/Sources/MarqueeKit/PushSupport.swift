@@ -19,6 +19,23 @@ public enum PushSupport {
         }
     }
 
+    /// What iOS says about this app's notifications.
+    public enum Permission: Sendable {
+        case notAsked, allowed, denied
+    }
+
+    /// What to do about them for whoever is signed in.
+    public enum Plan: Equatable, Sendable {
+        case ask, register, off, blocked
+    }
+
+    /// Notifications are on unless iOS says no, or this person switched them off on this iPhone.
+    public static func plan(permission: Permission, switchedOff: Bool) -> Plan {
+        if permission == .denied { return .blocked }
+        if switchedOff { return .off }
+        return permission == .notAsked ? .ask : .register
+    }
+
     /// What was pressed on a notification, and on which request.
     public enum Action: Equatable, Sendable {
         case approve(requestId: Int)
@@ -55,6 +72,20 @@ public enum PushSupport {
 
     /// A picture bigger than this is left off the notification.
     public static let maxCoverArtBytes = 2_500_000
+}
+
+/// Who switched notifications off on this iPhone. Kept on the phone, so signing out and back in changes nothing.
+public struct PushChoice {
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    public func isOff(userID: Int) -> Bool { defaults.bool(forKey: key(userID)) }
+    public func set(off: Bool, userID: Int) { defaults.set(off, forKey: key(userID)) }
+
+    private func key(_ userID: Int) -> String { "notifications-off-\(userID)" }
 }
 
 extension DeepLink {

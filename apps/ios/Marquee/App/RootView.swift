@@ -28,8 +28,15 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .tint(.amber)
         .task { await app.start() }
+        .task { await PushCenter.shared.askOnFirstOpen() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await app.becameActive() } }
+            if phase == .active {
+                Task {
+                    await app.becameActive()
+                    // Notifications may have been allowed in iOS Settings while the app was away.
+                    await PushCenter.shared.refresh()
+                }
+            }
         }
         .onOpenURL { url in
             // marquee://signed-in comes back to the sign-in sheet, which handles it; the rest are links into the app.

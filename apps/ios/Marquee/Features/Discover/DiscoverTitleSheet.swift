@@ -12,17 +12,19 @@ struct DiscoverTitleSheet: View {
     @State private var takenBack = false
 
     private var kindPath: String { card.isMovie ? "movie" : "series" }
+    /// The card with everything on it, once the title's information has arrived (a request only knows its name and poster).
+    private var shown: DiscoverCard { title.value?.card ?? card }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    BackdropHero(path: card.backdropPath ?? card.posterPath, kicker: card.isMovie ? "Movie" : "Show", title: card.title, detail: facts, height: 300)
+                    BackdropHero(path: shown.backdropPath ?? shown.posterPath, kicker: card.isMovie ? "Movie" : "Show", title: card.title, detail: facts, height: 300)
                     VStack(alignment: .leading, spacing: 18) {
                         if let t = title.value {
                             askArea(t)
                             if let tagline = t.tagline, !tagline.isEmpty { Text(tagline).font(.subheadline.italic()).foregroundStyle(.soft) }
-                            Text(card.overview).font(.subheadline).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true)
+                            Text(shown.overview).font(.subheadline).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true)
                             if let key = t.trailerKey, let url = URL(string: "https://www.youtube.com/watch?v=\(key)") {
                                 Button("Trailer", systemImage: "play.fill") { openURL(url) }.buttonStyle(QuietButtonStyle())
                             }
@@ -65,7 +67,7 @@ struct DiscoverTitleSheet: View {
     }
 
     private var facts: String {
-        [card.year.map(String.init), title.value?.certification, title.value?.runtime.map { "\($0) min" }, card.genres.prefix(2).joined(separator: ", ")].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        [card.year.map(String.init), title.value?.certification, title.value?.runtime.map { "\($0) min" }, shown.genres.prefix(2).joined(separator: ", ")].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     private func releaseLine(_ t: DiscoverTitle) -> String {
@@ -86,7 +88,7 @@ struct DiscoverTitleSheet: View {
                     Button("Take it back") { Task { await takeBack(r) } }.buttonStyle(QuietButtonStyle())
                 }
             }
-            if let id = card.libraryId, card.state == .inLibrary {
+            if let id = shown.libraryId, shown.state == .inLibrary {
                 Button("Open in your library") {
                     dismiss()
                     app.open(TitleRoute(kind: card.isMovie ? .movie : .show, id: id))
@@ -115,7 +117,7 @@ struct DiscoverTitleSheet: View {
             } else if let note = t.note {
                 StateLine(text: note, tone: .neutral)
             }
-            if app.user?.role == .admin, card.state != .inLibrary { addMenu }
+            if app.user?.role == .admin, shown.state != .inLibrary { addMenu }
         }
     }
 

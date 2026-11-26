@@ -10,7 +10,8 @@ struct DownloadsList: View {
         Group {
             if let model { content(model) } else { Color.ink }
         }
-        .task { model = DownloadsModel(app: app) }
+        // Once only: the refresh loop below holds on to the first model, so a new one would never load.
+        .task { if model == nil { model = DownloadsModel(app: app) } }
     }
 
     @ViewBuilder
