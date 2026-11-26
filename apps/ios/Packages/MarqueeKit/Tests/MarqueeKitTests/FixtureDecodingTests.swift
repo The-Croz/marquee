@@ -77,6 +77,20 @@ enum Fixture {
         #expect(p.sections.map(\.name) == ["Brand new"])
     }
 
+    @Test func homeCarriesTheBannerSlidesAndStreams() throws {
+        let h = try Fixture.decode(HomeData.self, "home-admin")
+        #expect(!h.slides.isEmpty)
+        #expect(h.slides == h.heroes)
+    }
+
+    @Test func aServerFromBeforeTheRotatingBannerStillShowsOne() throws {
+        var h = try Fixture.decode(HomeData.self, "home-admin")
+        h.heroes = nil
+        #expect(h.slides.count == 1)
+        h.hero = nil
+        #expect(h.slides.isEmpty)
+    }
+
     @Test func homeForAnAdmin() throws {
         let h = try Fixture.decode(HomeData.self, "home-admin")
         #expect(h.needsYou.count == 2)

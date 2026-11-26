@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import type { DiscoverPage, HomeAttention, HomeData, HomeHero, SetupStep } from '@marquee/shared';
 import { ApiFailure, api, queryClient, useAuthStatus } from '../api';
 import { Bulbs } from '../components/Bulbs';
-import { Notice, Progress, cx } from '../components/ui';
+import { Avatar, Notice, Progress, cx } from '../components/ui';
 import { Sheet } from '../components/Overlay';
 import { Poster, posterTransition, tmdbImage } from '../components/Poster';
 import { STATE as REQUEST_STATE } from './Requests';
@@ -24,14 +24,16 @@ export function HomePage() {
     <>
       {data.setup && <GetSetUp steps={data.setup} />}
 
-      {data.hero ? (
-        <Hero hero={data.hero} corner={status} />
+      {data.heroes.length > 0 ? (
+        <Banner slides={data.heroes} corner={status} />
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
           {role === 'kid' ? <h1 className="m-0 font-display text-[44px] leading-none font-normal">Hi {auth?.user?.displayName}</h1> : <span />}
           {status}
         </div>
       )}
+
+      {data.watching.length > 0 && <NowWatching sessions={data.watching} />}
 
       {data.recent.length > 0 && <Shelf id="recent" title={role === 'kid' ? 'New for you' : 'Just arrived'} items={data.recent} big={role === 'kid'} more={{ to: '/library', label: 'Library' }} />}
 
@@ -55,7 +57,7 @@ export function HomePage() {
         </section>
       )}
 
-      {data.recent.length === 0 && !data.hero && !data.setup && data.needsYou.length === 0 && role !== 'kid' && (
+      {data.recent.length === 0 && data.heroes.length === 0 && !data.setup && data.needsYou.length === 0 && role !== 'kid' && (
         <section className="flex flex-col items-start gap-3 py-6">
           <h2 className="m-0 text-xl font-semibold">Nothing here yet</h2>
           <p className="m-0 max-w-[560px] text-soft">
@@ -130,60 +132,118 @@ function StatusPill({ needs, arriving, problems }: { needs: HomeAttention[]; arr
   );
 }
 
-function Hero({ hero, corner }: { hero: HomeHero; corner?: React.ReactNode }) {
-  const bg = tmdbImage(hero.backdropPath, 'w1280');
-  const live = hero.kind === 'watching';
+const SLIDE_MS = 8000;
+
+/** The banner: what's new, aired, coming and worth a look, taking turns. It waits while you're on it. */
+function Banner({ slides, corner }: { slides: HomeHero[]; corner?: React.ReactNode }) {
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const at = Math.min(i, slides.length - 1);
+  const hero = slides[at]!;
+  useEffect(() => {
+    if (paused || slides.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const t = setTimeout(() => setI((at + 1) % slides.length), SLIDE_MS);
+    return () => clearTimeout(t);
+  }, [at, paused, slides.length]);
+  const to = hero.href ?? (hero.discover ? `/discover/${hero.discover.kind}/${hero.discover.tmdbId}` : null);
   return (
     <section
-      aria-label={hero.eyebrow}
+      aria-roledescription="carousel"
+      aria-label="Featured"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
       className="relative isolate flex min-h-[360px] overflow-hidden rounded-2xl bg-raised sm:min-h-[460px]"
       // The poster's own colour tints the glow; amber when Marquee hasn't picked one yet.
       style={{ '--tint': hero.color ?? 'var(--color-amber)' } as React.CSSProperties}
     >
-      {bg ? (
-        <img onError={(e) => (e.currentTarget.style.visibility = 'hidden')} src={bg} alt="" className="absolute inset-0 -z-10 size-full object-cover" />
-      ) : (
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(90%_120%_at_85%_20%,color-mix(in_oklab,var(--tint)_38%,transparent)_0%,color-mix(in_oklab,var(--tint)_14%,var(--color-ink))_45%,var(--color-ink)_100%)]" />
-      )}
+      <div aria-hidden="true" className="absolute inset-0 -z-20 bg-[radial-gradient(90%_120%_at_85%_20%,color-mix(in_oklab,var(--tint)_38%,transparent)_0%,color-mix(in_oklab,var(--tint)_14%,var(--color-ink))_45%,var(--color-ink)_100%)]" />
+      {slides.map((s, n) => {
+        const src = tmdbImage(s.backdropPath, 'w1280');
+        return src ? (
+          <img
+            key={`${n}${src}`}
+            src={src}
+            alt=""
+            onError={(e) => (e.currentTarget.style.visibility = 'hidden')}
+            className={cx('absolute inset-0 -z-10 size-full object-cover transition-opacity duration-700 motion-reduce:transition-none', n === at ? 'opacity-100' : 'opacity-0')}
+          />
+        ) : null;
+      })}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/75 to-ink/5" />
-      {bg && <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(70%_90%_at_0%_100%,color-mix(in_oklab,var(--tint)_30%,transparent),transparent_70%)]" />}
       <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink/80 via-transparent to-transparent" />
       {corner && <div className="absolute top-4 right-4 z-10 sm:top-5 sm:right-5">{corner}</div>}
-      <div className="flex w-full items-end gap-6 px-6 py-8 sm:px-10 sm:py-10">
-        {hero.posterPath && !bg && <Poster title={hero.title} path={hero.posterPath} color={hero.color} className="hidden w-[150px] flex-none shadow-2xl sm:block" />}
-        <div className="flex max-w-[600px] flex-col gap-3.5">
-          <div className="flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-amber uppercase">
-            <Bulbs lit={live ? 4 : 3} chase={live} />
-            {hero.eyebrow}
-          </div>
-          <h1 className="m-0 font-display text-display leading-[0.95] font-normal text-balance sm:text-display-lg">{hero.title}</h1>
-          <HeroFacts hero={hero} />
-          {hero.note && <p className="m-0 text-soft">{hero.note}</p>}
-          {hero.overview && <p className="m-0 line-clamp-3 max-w-[560px] text-body leading-relaxed text-soft">{hero.overview}</p>}
-          {hero.chips.length > 0 && (
-            <div className="flex flex-wrap gap-2 text-label">
-              {hero.chips.map((c, i) => (
-                <span key={c} className={cx('rounded-full px-2.5 py-1', i === 0 ? 'bg-amber/15 font-semibold text-amber-hi' : 'bg-white/10 text-soft')}>
-                  {c}
-                </span>
-              ))}
+      <div className="flex w-full flex-col justify-end gap-3 px-6 pt-20 pb-5 sm:px-10 sm:pb-6">
+        <div className="flex items-end gap-6" aria-live={paused ? 'polite' : 'off'}>
+          {hero.posterPath && !hero.backdropPath && <Poster title={hero.title} path={hero.posterPath} color={hero.color} className="hidden w-[150px] flex-none shadow-2xl sm:block" />}
+          <div className="flex min-w-0 max-w-[600px] flex-col gap-3.5">
+            <div className="flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-amber uppercase">
+              <Bulbs lit={3} />
+              {hero.eyebrow}
             </div>
-          )}
-          {hero.progress !== null && <Progress value={hero.progress} color="bg-amber" className="max-w-[420px]" />}
-          {hero.href && (
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Link to={hero.href} className="inline-flex h-11 items-center rounded-xl bg-amber px-5 text-body font-semibold text-amber-ink no-underline hover:bg-amber-hi hover:text-amber-ink">
-                Open title
-              </Link>
-              {live && (
-                <Link to="/activity" className="inline-flex h-11 items-center rounded-xl border border-white/25 px-5 text-body font-medium text-text no-underline hover:bg-white/10 hover:text-text">
-                  Who’s watching
+            <h1 className="m-0 font-display text-display leading-[0.95] font-normal text-balance sm:text-display-lg">{hero.title}</h1>
+            <HeroFacts hero={hero} />
+            {hero.note && <p className="m-0 text-soft">{hero.note}</p>}
+            {hero.overview && <p className="m-0 line-clamp-2 max-w-[560px] text-body leading-relaxed text-soft sm:line-clamp-3">{hero.overview}</p>}
+            {to && (
+              <div className="flex flex-wrap gap-3 pt-1">
+                <Link to={to} className="inline-flex h-11 items-center rounded-xl bg-amber px-5 text-body font-semibold text-amber-ink no-underline hover:bg-amber-hi hover:text-amber-ink">
+                  {hero.href ? 'Open title' : 'More info'}
                 </Link>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
+        {slides.length > 1 && (
+          <div className="-mx-3 flex flex-wrap items-center sm:justify-end" role="group" aria-label="Choose a featured title">
+            {slides.map((s, n) => (
+              <button key={`${n}${s.title}`} type="button" aria-label={`${s.title}${n === at ? ', showing now' : ''}`} aria-current={n === at} onClick={() => setI(n)} className="flex size-11 items-center justify-center">
+                <span className={cx('block h-1.5 rounded-full transition-all', n === at ? 'w-6 bg-amber' : 'w-1.5 bg-white/40')} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+    </section>
+  );
+}
+
+/** Admins: a quieter row of what's playing right now, each opening its title. */
+function NowWatching({ sessions }: { sessions: HomeData['watching'] }) {
+  return (
+    <section aria-labelledby="watching-h" className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="watching-h" className="m-0 text-lg font-semibold">
+          Watching now
+        </h2>
+        <Link to="/activity" className="flex min-h-11 items-center text-sm text-muted no-underline hover:text-text">
+          Who’s watching →
+        </Link>
+      </div>
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-0">
+        {sessions.map((s) => {
+          const art = tmdbImage(s.backdropPath, 'w780') ?? tmdbImage(s.posterPath, 'w342');
+          return (
+            <li key={`${s.server}${s.sessionId}`}>
+              <Link to={s.href ?? '/activity'} className="group relative isolate flex min-h-[116px] flex-col justify-end gap-1 overflow-hidden rounded-xl border border-line bg-panel p-3 text-text no-underline hover:border-line-strong hover:text-text">
+                {art && <img src={art} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} className="absolute inset-0 -z-10 size-full object-cover" />}
+                <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/75 to-ink/20" />
+                <span className="truncate text-body font-semibold">{s.title}</span>
+                {s.subtitle && <span className="truncate text-xs text-soft">{s.subtitle}</span>}
+                <span className="flex min-w-0 items-center gap-1.5 text-xs text-soft">
+                  <Avatar name={s.user} src={s.userAvatar} className="size-5 text-[10px]" />
+                  <span className="truncate">
+                    {s.user} · {s.device}
+                    {s.state === 'paused' ? ' · Paused' : ''}
+                  </span>
+                </span>
+                <Progress value={Math.round(s.progress * 100)} color="bg-teal" className="h-1" />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

@@ -139,3 +139,24 @@ struct Skeleton: View {
     .padding()
     .background(.ink)
 }
+
+/// A wide picture that fills its own frame exactly, however big the image is.
+struct ArtBanner: View {
+    let path: String?
+    let title: String
+    var height: CGFloat
+    var size: TMDBImage.Size = .w1280
+
+    var body: some View {
+        Placeholder.fill(title: title, color: nil)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .overlay {
+                if let url = TMDBImage.url(path: path, size: size) {
+                    AsyncImage(url: url) { phase in if let image = phase.image { image.resizable().scaledToFill() } }
+                }
+            }
+            .clipped()
+            .accessibilityHidden(true)
+    }
+}

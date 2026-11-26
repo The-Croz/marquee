@@ -137,23 +137,15 @@ struct DownloadsList: View {
         return f.string(fromByteCount: Int64(bytesPerSecond)) + "/s"
     }
 
+    /// A row that opens its movie or show, when the library has a page for it.
     private func row(_ d: DownloadView, model: DownloadsModel) -> some View {
-        let tone = Self.tone(d)
-        return HStack(spacing: 12) {
-            PosterView(path: d.posterPath, color: d.posterColor, title: d.titleName, size: .w185).frame(width: 36)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(d.titleName).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1)
-                if d.state == .sent || d.state == .downloading {
-                    ProgressView(value: d.progress).progressViewStyle(BarStyle(fill: tone.color))
-                }
-                StateLine(text: d.status.label, tone: tone)
-                if let detail = d.status.detail, tone == .needsYou || d.state == .failed {
-                    Text(detail).font(.caption2).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true)
-                }
+        Group {
+            if let route = TitleRoute(webPath: d.titleLink) {
+                NavigationLink(value: route) { rowContent(d) }.accessibilityIdentifier("download-\(d.id)")
+            } else {
+                rowContent(d)
             }
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if d.canControl || d.canRemoveShared {
                 Button(role: .destructive) { removing = d } label: { Label("Remove", systemImage: "trash") }
@@ -176,6 +168,25 @@ struct DownloadsList: View {
                 }
             }
         }
+    }
+
+    private func rowContent(_ d: DownloadView) -> some View {
+        let tone = Self.tone(d)
+        return HStack(spacing: 12) {
+            PosterView(path: d.posterPath, color: d.posterColor, title: d.titleName, size: .w185).frame(width: 36)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(d.titleName).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1)
+                if d.state == .sent || d.state == .downloading {
+                    ProgressView(value: d.progress).progressViewStyle(BarStyle(fill: tone.color))
+                }
+                StateLine(text: d.status.label, tone: tone)
+                if let detail = d.status.detail, tone == .needsYou || d.state == .failed {
+                    Text(detail).font(.caption2).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 
     /// The row's colour: the server's own tone, in the app's words.

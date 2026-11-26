@@ -62,19 +62,58 @@
   ],
   "upcoming": [],
   "stats": [],
+  "heroes": [
+    {
+      "year": 2024,
+      "rating": "PG",
+      "runtime": 120,
+      "genres": [],
+      "score": 7.4,
+      "votes": 1200,
+      "overview": null,
+      "kindLabel": "Movie",
+      "kind": "arrived",
+      "eyebrow": "Recently added · today",
+      "title": "Wicked",
+      "chips": [],
+      "href": "/movies/3",
+      "discover": null,
+      "backdropPath": "/wicked-bg.jpg",
+      "posterPath": "/wicked.jpg",
+      "color": "#2e4a3a",
+      "progress": null,
+      "note": "Movie · 4K"
+    },
+    {
+      "year": 2024,
+      "rating": null,
+      "runtime": null,
+      "genres": [
+        "Animation",
+        "Family",
+        "Adventure"
+      ],
+      "score": 7,
+      "votes": null,
+      "overview": "About Moana 2.",
+      "kindLabel": "Movie",
+      "kind": "picked",
+      "eyebrow": "Picked for you",
+      "title": "Moana 2",
+      "chips": [],
+      "href": null,
+      "discover": {
+        "kind": "movie",
+        "tmdbId": 1241982
+      },
+      "backdropPath": "/back1241982.jpg",
+      "posterPath": "/moana2.jpg",
+      "color": null,
+      "progress": null,
+      "note": null
+    }
+  ],
   "hero": {
-    "kind": "arrived",
-    "eyebrow": "Just arrived · 2 hours ago",
-    "title": "Wicked",
-    "chips": [
-      "4K"
-    ],
-    "href": "/movies/3",
-    "backdropPath": "/wicked-bg.jpg",
-    "posterPath": "/wicked.jpg",
-    "color": "#2e4a3a",
-    "progress": null,
-    "note": null,
     "year": 2024,
     "rating": "PG",
     "runtime": 120,
@@ -82,7 +121,18 @@
     "score": 7.4,
     "votes": 1200,
     "overview": null,
-    "kindLabel": "Movie"
+    "kindLabel": "Movie",
+    "kind": "arrived",
+    "eyebrow": "Recently added · today",
+    "title": "Wicked",
+    "chips": [],
+    "href": "/movies/3",
+    "discover": null,
+    "backdropPath": "/wicked-bg.jpg",
+    "posterPath": "/wicked.jpg",
+    "color": "#2e4a3a",
+    "progress": null,
+    "note": "Movie · 4K"
   },
   "setup": null
 }

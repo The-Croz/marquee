@@ -2,6 +2,8 @@ import path from 'node:path';
 import { keepListening, nodeSocket, type SocketFactory } from '../activity/socket.js';
 import { getSetting, setSetting, type Db } from '../db/index.js';
 import { libraryRoots } from './services.js';
+import { channels, isHomeAddress, resolutionName, streamFacts, upper, words } from './streamFacts.js';
+import type { StreamFact } from '@marquee/shared';
 
 /**
  * Plex and Jellyfin: after Marquee puts something in the library, it asks
@@ -33,6 +35,8 @@ export interface MediaPerson {
   id: string;
   username: string;
   name: string;
+  /** Plex: where their picture is. */
+  avatar?: string;
 }
 
 /** What was (or is being) watched. Episodes carry their show's name. */
@@ -60,6 +64,11 @@ export interface NowPlayingItem extends WatchItem {
   transcoding: boolean;
   /** Why the server is converting it, in plain words; null when it isn't (or doesn't say). */
   convertReason?: string | null;
+  /** The title's ids ("tmdb:603", "imdb:tt0133093"): a movie's own, or an episode's show's. */
+  keys?: string[];
+  /** What the stream is doing, in plain lines. */
+  facts?: StreamFact[];
+  durationMs?: number | null;
 }
 export interface PlayRecord extends WatchItem {
   /** The server's id for the person, and the name it shows. */
@@ -242,10 +251,10 @@ interface PlexMeta {
   viewedAt?: number;
   accountID?: number;
   User?: { title?: string };
-  Player?: { title?: string; product?: string; platform?: string; state?: string };
-  Session?: { id?: string };
-  Media?: { videoResolution?: string }[];
-  TranscodeSession?: { videoDecision?: string; audioDecision?: string; subtitleDecision?: string; sourceVideoCodec?: string; videoCodec?: string; sourceAudioCodec?: string; audioCodec?: string };
+  Player?: { title?: string; product?: string; platform?: string; state?: string; version?: string; address?: string; local?: boolean };
+  Session?: { id?: string; bandwidth?: number; location?: string };
+  Media?: PlexMedia[];
+  TranscodeSession?: { videoDecision?: string; audioDecision?: string; subtitleDecision?: string; sourceVideoCodec?: string; videoCodec?: string; sourceAudioCodec?: string; audioCodec?: string; transcodeHwRequested?: boolean; transcodeHwEncoding?: string; transcodeHwDecoding?: string };
   lastViewedAt?: number;
   Guid?: { id: string }[];
   viewCount?: number;
@@ -253,6 +262,61 @@ interface PlexMeta {
   Label?: { tag: string }[];
   librarySectionID?: string | number;
 }
+
+interface PlexStream {
+  streamType?: number;
+  selected?: boolean;
+  decision?: string;
+  displayTitle?: string;
+}
+interface PlexMedia {
+  id?: string | number;
+  videoResolution?: string;
+  bitrate?: number;
+  container?: string;
+  videoCodec?: string;
+  audioCodec?: string;
+  audioChannels?: number;
+  Part?: { decision?: string; Stream?: PlexStream[] }[];
+}
+
+/** One stream from /status/sessions, with the file's own details (`source`) when it's being converted. */
+function plexFacts(m: PlexMeta, source: PlexMeta | null): StreamFact[] {
+  const t = m.TranscodeSession;
+  const out = m.Media?.[0];
+  const file = source?.Media?.find((x) => String(x.id) === String(out?.id)) ?? source?.Media?.[0];
+  const streams = (media: PlexMedia | undefined) => media?.Part?.[0]?.Stream ?? [];
+  // 1 is picture, 2 is sound, 3 is subtitles.
+  const track = (type: number) => streams(file).find((s) => s.streamType === type && (type === 1 || s.selected)) ?? streams(out).find((s) => s.streamType === type && (type === 1 || s.selected));
+  const how = t?.videoDecision === 'transcode' || t?.audioDecision === 'transcode' || t?.subtitleDecision === 'burn' ? 'convert' : t ? 'stream' : 'play';
+  const res = resolutionLabel(out?.videoResolution);
+  const converted = t?.videoDecision === 'transcode';
+  const sound = t?.audioDecision === 'transcode';
+  const subtitle = track(3);
+  return streamFacts({
+    how,
+    hardware: Boolean(t?.transcodeHwEncoding || t?.transcodeHwDecoding),
+    resolution: res,
+    kbps: out?.bitrate,
+    video: {
+      source: track(1)?.displayTitle ?? words(upper(t?.sourceVideoCodec ?? out?.videoCodec), resolutionName(res)),
+      output: converted ? words(resolutionName(res), upper(t?.videoCodec ?? out?.videoCodec)) : null,
+    },
+    audio: {
+      source: track(2)?.displayTitle ?? words(upper(t?.sourceAudioCodec ?? out?.audioCodec), channels(out?.audioChannels)),
+      output: sound ? words(upper(t?.audioCodec ?? out?.audioCodec), channels(out?.audioChannels)) : null,
+    },
+    subtitle: subtitle?.displayTitle ? { name: subtitle.displayTitle, burned: t?.subtitleDecision === 'burn' } : null,
+    container: { source: upper(file?.container ?? out?.container), output: t ? upper(out?.container) : null },
+    bandwidthKbps: m.Session?.bandwidth,
+    home: m.Player?.local ?? (m.Session?.location ? m.Session.location === 'lan' : null),
+    address: m.Player?.address ?? null,
+    app: words(m.Player?.product, m.Player?.version),
+  });
+}
+
+/** Library details Plex was already asked for, per connection, so a playing title isn't looked up every few seconds. */
+const plexLookups = new WeakMap<typeof fetch, Map<string, PlexMeta>>();
 
 const gone = (err: unknown) => err instanceof MediaServerError && (err.status === 404 || err.status === 400);
 
@@ -382,20 +446,58 @@ export class PlexServerClient implements MediaServerApi {
     return body.MediaContainer?.Metadata ?? body.MediaContainer?.Account ?? [];
   }
 
+  /** The library's own entry for an item: its ids and the file's details. Null when it can't be read. */
+  private async lookup(ref: string | number | undefined): Promise<PlexMeta | null> {
+    if (ref === undefined) return null;
+    const seen = plexLookups.get(this.fetchImpl) ?? new Map<string, PlexMeta>();
+    plexLookups.set(this.fetchImpl, seen);
+    const key = `${this.base}|${ref}`;
+    const known = seen.get(key);
+    if (known) return known;
+    try {
+      const meta = (await this.list<PlexMeta>(`/library/metadata/${encodeURIComponent(String(ref))}?includeGuids=1`))[0];
+      if (!meta) return null;
+      if (seen.size > 200) seen.clear();
+      seen.set(key, meta);
+      return meta;
+    } catch {
+      // The stream still shows; it just can't be matched by id this time.
+      return null;
+    }
+  }
+
   async nowPlaying(): Promise<NowPlayingItem[]> {
     const rows = await this.list<PlexMeta>('/status/sessions?includeGuids=1');
-    return rows.filter((m) => m.type === 'movie' || m.type === 'episode').map((m) => ({
-      ...plexItem(m),
-      sessionId: String(m.Session?.id ?? m.ratingKey ?? ''),
-      platform: m.Player?.product || m.Player?.platform || 'an app',
-      resolution: resolutionLabel(m.Media?.[0]?.videoResolution),
-      user: m.User?.title ?? 'Someone',
-      device: m.Player?.title || m.Player?.product || 'a device',
-      state: m.Player?.state === 'paused' ? 'paused' : m.Player?.state === 'buffering' ? 'buffering' : 'playing',
-      progress: m.duration ? Math.min(1, (m.viewOffset ?? 0) / m.duration) : 0,
-      transcoding: Boolean(m.TranscodeSession && m.TranscodeSession.videoDecision !== 'copy'),
-      convertReason: plexConvertReason(m.TranscodeSession),
-    }));
+    return Promise.all(
+      rows
+        .filter((m) => m.type === 'movie' || m.type === 'episode')
+        .map(async (m) => {
+          const ep = m.type === 'episode';
+          let keys = ep ? [] : idKeys(plexIds(m.Guid));
+          // A session often leaves the ids out, and never carries the show's: the library has them.
+          const source = m.TranscodeSession || (!ep && !keys.length) ? await this.lookup(m.ratingKey) : null;
+          if (ep) keys = idKeys(plexIds((await this.lookup(m.grandparentRatingKey))?.Guid));
+          else if (!keys.length) keys = idKeys(plexIds(source?.Guid));
+          const item = plexItem(m);
+          const tmdb = Number(keys.find((k) => k.startsWith('tmdb:'))?.slice(5));
+          return {
+            ...item,
+            tmdbId: item.tmdbId ?? (!ep && tmdb ? tmdb : null),
+            keys,
+            facts: plexFacts(m, source),
+            durationMs: m.duration ?? null,
+            sessionId: String(m.Session?.id ?? m.ratingKey ?? ''),
+            platform: m.Player?.product || m.Player?.platform || 'an app',
+            resolution: resolutionLabel(m.Media?.[0]?.videoResolution),
+            user: m.User?.title ?? 'Someone',
+            device: m.Player?.title || m.Player?.product || 'a device',
+            state: m.Player?.state === 'paused' ? ('paused' as const) : m.Player?.state === 'buffering' ? ('buffering' as const) : ('playing' as const),
+            progress: m.duration ? Math.min(1, (m.viewOffset ?? 0) / m.duration) : 0,
+            transcoding: Boolean(m.TranscodeSession && m.TranscodeSession.videoDecision !== 'copy'),
+            convertReason: plexConvertReason(m.TranscodeSession),
+          };
+        }),
+    );
   }
 
   async history(since: number): Promise<PlayRecord[]> {
@@ -409,7 +511,7 @@ export class PlexServerClient implements MediaServerApi {
   async people(): Promise<MediaPerson[]> {
     // The server's own address doesn't know the sharing list; plex.tv does, and the same token opens it.
     const h = { Accept: 'application/json', 'X-Plex-Token': this.token, 'X-Plex-Client-Identifier': 'marquee', 'X-Plex-Product': 'Marquee' };
-    type P = { id: number; username?: string; title?: string };
+    type P = { id: number; username?: string; title?: string; thumb?: string };
     const me = (await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/user', { headers: h })).json()) as P;
     let friends: P[];
     try {
@@ -417,13 +519,13 @@ export class PlexServerClient implements MediaServerApi {
       const xml = await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/users', { headers: { ...h, Accept: 'application/xml' } })).text();
       friends = (xml.match(/<User\b[^>]*>/g) ?? []).map((tag) => {
         const attr = (n: string) => new RegExp(`\\s${n}="([^"]*)"`).exec(tag)?.[1];
-        return { id: Number(attr('id')), username: attr('username') || undefined, title: attr('title') || undefined };
+        return { id: Number(attr('id')), username: attr('username') || undefined, title: attr('title') || undefined, thumb: attr('thumb')?.replaceAll('&amp;', '&') };
       });
     } catch {
       // Older accounts: the newer list, which plex.tv has retired for some (it answers 410).
       friends = (await (await request(this.fetchImpl, 'Plex', 'plex.tv', 'https://plex.tv/api/v2/friends', { headers: h })).json()) as P[];
     }
-    return [me, ...friends].filter((p) => p.id).map((p) => ({ id: String(p.id), username: p.username || p.title || String(p.id), name: p.title || p.username || String(p.id) }));
+    return [me, ...friends].filter((p) => p.id).map((p) => ({ id: String(p.id), username: p.username || p.title || String(p.id), name: p.title || p.username || String(p.id), ...(p.thumb ? { avatar: p.thumb } : {}) }));
   }
 
   async scan(library: MediaLibrary, folder: string): Promise<void> {
@@ -483,12 +585,52 @@ interface JfItem {
   ProviderIds?: Record<string, string>;
   UserData?: { LastPlayedDate?: string; Played?: boolean; PlaybackPositionTicks?: number };
   SeriesId?: string;
+  Container?: string;
+  MediaStreams?: { Type?: string; Index?: number; DisplayTitle?: string; BitRate?: number }[];
+}
+
+interface JfSession {
+  Id?: string;
+  UserName?: string;
+  DeviceName?: string;
+  Client?: string;
+  ApplicationVersion?: string;
+  RemoteEndPoint?: string;
+  NowPlayingItem?: JfItem;
+  PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string; AudioStreamIndex?: number; SubtitleStreamIndex?: number };
+  TranscodingInfo?: { TranscodeReasons?: string[] | string; VideoCodec?: string; AudioCodec?: string; Container?: string; Bitrate?: number; Height?: number; AudioChannels?: number; IsVideoDirect?: boolean; IsAudioDirect?: boolean; HardwareAccelerationType?: string };
+}
+
+function jfFacts(s: JfSession): StreamFact[] {
+  const item = s.NowPlayingItem!;
+  const t = s.PlayState?.PlayMethod === 'Transcode' ? s.TranscodingInfo : undefined;
+  const track = (type: string, index?: number) => item.MediaStreams?.find((x) => x.Type === type && (index === undefined || x.Index === index));
+  const video = track('Video');
+  const subtitle = s.PlayState?.SubtitleStreamIndex !== undefined && s.PlayState.SubtitleStreamIndex >= 0 ? track('Subtitle', s.PlayState.SubtitleStreamIndex) : undefined;
+  const res = resolutionLabel(t?.Height ?? item.Height);
+  const how = s.PlayState?.PlayMethod === 'Transcode' ? (t?.IsVideoDirect && t.IsAudioDirect ? 'stream' : 'convert') : s.PlayState?.PlayMethod === 'DirectStream' ? 'stream' : 'play';
+  return streamFacts({
+    how,
+    hardware: Boolean(t?.HardwareAccelerationType && t.HardwareAccelerationType !== 'none'),
+    resolution: res,
+    kbps: (t?.Bitrate ?? video?.BitRate ?? 0) / 1000,
+    video: { source: video?.DisplayTitle ?? resolutionName(resolutionLabel(item.Height)), output: t && !t.IsVideoDirect ? words(resolutionName(res), upper(t.VideoCodec)) : null },
+    audio: { source: track('Audio', s.PlayState?.AudioStreamIndex)?.DisplayTitle ?? null, output: t && !t.IsAudioDirect ? words(upper(t.AudioCodec), channels(t.AudioChannels)) : null },
+    subtitle: subtitle?.DisplayTitle ? { name: subtitle.DisplayTitle } : null,
+    container: { source: upper(item.Container), output: upper(t?.Container) },
+    home: s.RemoteEndPoint ? isHomeAddress(s.RemoteEndPoint) : null,
+    address: s.RemoteEndPoint ?? null,
+    app: words(s.Client, s.ApplicationVersion),
+  });
 }
 
 function jfItem(i: JfItem): WatchItem {
   const ep = i.Type === 'Episode';
   return { kind: ep ? 'episode' : 'movie', title: i.Name, show: ep ? (i.SeriesName ?? null) : null, season: ep ? (i.ParentIndexNumber ?? null) : null, episode: ep ? (i.IndexNumber ?? null) : null, year: i.ProductionYear ?? null, tmdbId: !ep && i.ProviderIds?.Tmdb ? Number(i.ProviderIds.Tmdb) : null };
 }
+
+/** Each show's ids, per connection. */
+const jfShows = new WeakMap<typeof fetch, Map<string, string[]>>();
 
 export class JellyfinClient implements MediaServerApi {
   private readonly base: string;
@@ -550,21 +692,46 @@ export class JellyfinClient implements MediaServerApi {
     }));
   }
 
+  private async showKeys(seriesId: string | undefined): Promise<string[]> {
+    if (!seriesId) return [];
+    const seen = jfShows.get(this.fetchImpl) ?? new Map<string, string[]>();
+    jfShows.set(this.fetchImpl, seen);
+    const key = `${this.base}|${seriesId}`;
+    const known = seen.get(key);
+    if (known) return known;
+    const found = (await this.item(seriesId).catch(() => null))?.keys;
+    if (!found) return [];
+    if (seen.size > 200) seen.clear();
+    seen.set(key, found);
+    return found;
+  }
+
   async nowPlaying(): Promise<NowPlayingItem[]> {
-    type S = { Id?: string; UserName?: string; DeviceName?: string; Client?: string; NowPlayingItem?: JfItem; PlayState?: { PositionTicks?: number; IsPaused?: boolean; PlayMethod?: string }; TranscodingInfo?: { TranscodeReasons?: string[] | string } };
-    const rows = (await (await this.send('/Sessions')).json()) as S[];
-    return rows.filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode')).map((r) => ({
-      ...jfItem(r.NowPlayingItem!),
-      sessionId: r.Id ?? '',
-      platform: r.Client || 'an app',
-      resolution: resolutionLabel(r.NowPlayingItem!.Height),
-      user: r.UserName ?? 'Someone',
-      device: r.DeviceName || r.Client || 'a device',
-      state: r.PlayState?.IsPaused ? 'paused' : 'playing',
-      progress: r.NowPlayingItem!.RunTimeTicks ? Math.min(1, (r.PlayState?.PositionTicks ?? 0) / r.NowPlayingItem!.RunTimeTicks) : 0,
-      transcoding: r.PlayState?.PlayMethod === 'Transcode',
-      convertReason: r.PlayState?.PlayMethod === 'Transcode' ? jellyfinConvertReason(r.TranscodingInfo?.TranscodeReasons) : null,
-    }));
+    const rows = (await (await this.send('/Sessions')).json()) as JfSession[];
+    return Promise.all(
+      rows
+        .filter((r) => r.NowPlayingItem && (r.NowPlayingItem.Type === 'Movie' || r.NowPlayingItem.Type === 'Episode'))
+        .map(async (r) => {
+          const i = r.NowPlayingItem!;
+          // An episode carries its own ids; the show's are on the show.
+          const keys = i.Type === 'Episode' ? await this.showKeys(i.SeriesId) : idKeys(i.ProviderIds ?? {});
+          return {
+            ...jfItem(i),
+            keys,
+            facts: jfFacts(r),
+            durationMs: i.RunTimeTicks ? Math.round(i.RunTimeTicks / 10_000) : null,
+            sessionId: r.Id ?? '',
+            platform: r.Client || 'an app',
+            resolution: resolutionLabel(i.Height),
+            user: r.UserName ?? 'Someone',
+            device: r.DeviceName || r.Client || 'a device',
+            state: r.PlayState?.IsPaused ? ('paused' as const) : ('playing' as const),
+            progress: i.RunTimeTicks ? Math.min(1, (r.PlayState?.PositionTicks ?? 0) / i.RunTimeTicks) : 0,
+            transcoding: r.PlayState?.PlayMethod === 'Transcode',
+            convertReason: r.PlayState?.PlayMethod === 'Transcode' ? jellyfinConvertReason(r.TranscodingInfo?.TranscodeReasons) : null,
+          };
+        }),
+    );
   }
 
   async history(since: number): Promise<PlayRecord[]> {

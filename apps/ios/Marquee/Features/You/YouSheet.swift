@@ -14,11 +14,7 @@ struct YouSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 12) {
-                    Text((user?.displayName ?? "?").prefix(1).uppercased())
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(.amberInk)
-                        .frame(width: 54, height: 54)
-                        .background(LinearGradient(colors: [.amber, Color(hex: 0xC2741C)], startPoint: .topLeading, endPoint: .bottomTrailing), in: Circle())
+                    Face(name: user?.displayName ?? "?", path: user?.avatar, size: 54)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(user?.displayName ?? "").font(.title3.weight(.bold)).foregroundStyle(.textPrimary)
                         Text("\(roleName(user?.role)) · \(app.serverName)").font(.caption).foregroundStyle(.muted)
@@ -39,6 +35,12 @@ struct YouSheet: View {
                         NavigationLink { NotificationChoicesScreen() } label: { linkRow("What you get") }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("notification-choices")
+                        Divider().overlay(Color.line)
+                    }
+                    if user?.role == .admin {
+                        NavigationLink { LockScreenCardsScreen() } label: { linkRow("Lock Screen cards") }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("lock-screen-cards")
                         Divider().overlay(Color.line)
                     }
                     NavigationLink { MyRequestsScreen() } label: { linkRow("My requests & history") }

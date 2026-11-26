@@ -339,6 +339,31 @@ function DownloadDetailsPanel({ d }: { d: DownloadView }) {
   );
 }
 
+/** A row's poster and name: opens the title's page, or the row's details when the library has no page for it. */
+function TitleCell({ d, open, onToggle }: { d: DownloadView; open: boolean; onToggle: () => void }) {
+  const body = (
+    <>
+      <Poster title={d.titleName} path={d.posterPath} color={d.posterColor} size="w185" className="w-8 flex-none rounded [&_span]:hidden" />
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold text-text group-hover:text-amber">{d.titleName}</span>
+        <span className="truncate font-mono text-caption text-dim" title={d.title}>
+          {d.title}
+        </span>
+      </span>
+    </>
+  );
+  const look = 'group flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left no-underline';
+  return d.titleLink ? (
+    <Link to={d.titleLink} className={look}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" aria-expanded={open} onClick={onToggle} className={look}>
+      {body}
+    </button>
+  );
+}
+
 function TableRow({ d, open, onToggle, cols, columns }: { d: DownloadView; open: boolean; onToggle: () => void; cols: number; columns: DownloadColumn[] }) {
   const { busy, note, act } = useDownloadActions(d);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -351,18 +376,14 @@ function TableRow({ d, open, onToggle, cols, columns }: { d: DownloadView; open:
     <>
       <tr className={cx('border-t border-line', open && 'bg-raised/60', !active && d.state !== 'done' && 'opacity-70')}>
         <td className={cx(td, 'pl-0')}>
-          <button type="button" aria-expanded={open} onClick={onToggle} className="flex min-h-11 w-full min-w-0 items-center gap-3 text-left">
-            <Poster title={d.titleName} path={d.posterPath} color={d.posterColor} size="w185" className="w-8 flex-none rounded [&_span]:hidden" />
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold text-text">{d.titleName}</span>
-              <span className="truncate font-mono text-caption text-dim" title={d.title}>
-                {d.title}
+          <div className="flex min-h-11 w-full min-w-0 items-center gap-1">
+            <TitleCell d={d} open={open} onToggle={onToggle} />
+            <button type="button" aria-expanded={open} aria-label={`Details of ${d.titleName}`} onClick={onToggle} className="ml-auto flex size-11 flex-none items-center justify-center text-dim">
+              <span aria-hidden="true" className={cx('transition-transform motion-reduce:transition-none', open && 'rotate-90')}>
+                ›
               </span>
-            </span>
-            <span aria-hidden="true" className={cx('ml-auto flex-none text-dim transition-transform motion-reduce:transition-none', open && 'rotate-90')}>
-              ›
-            </span>
-          </button>
+            </button>
+          </div>
         </td>
         <td className={td}>
           <span className={cx('line-clamp-2 text-sm font-medium', TONE[d.status.tone])} title={d.status.detail ?? undefined}>

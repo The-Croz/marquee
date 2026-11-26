@@ -31,6 +31,8 @@ import type { LogBook } from './system/logs.js';
 /** Builds clients for outside services. Tests swap these for fakes. */
 export interface Clients extends SourceClients {
   tmdb(apiKey: string): TmdbApi;
+  /** A profile picture, fetched. Tests fake it; otherwise a plain fetch. */
+  image?(url: string): Promise<{ type: string; body: Buffer } | null>;
   /** The streaming services' own Top 10s (Streaming Availability). */
   streamingTop(apiKey: string): StreamingTopApi;
   /** IMDb, Rotten Tomatoes and Metacritic scores (MDBList). */

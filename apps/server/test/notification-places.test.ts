@@ -86,7 +86,7 @@ describe('updating to separate ticks', () => {
     const two = user('two');
     first.insert(userPrefs).values({ userId: one, mutedEvents: '["disk_low","imported"]' }).run();
     const channel = (userId: number | null, events: string) => first.insert(notificationChannels).values({ kind: 'pushover', name: 'x', userId, events, createdAt: 0 }).returning().get().id;
-    const mine = channel(one, '["disk_low","upgraded","imported"]');
+    const own = channel(one, '["disk_low","upgraded","imported"]');
     const allOff = channel(one, '["disk_low"]');
     const theirs = channel(two, '["disk_low"]');
     const shared = channel(null, '["disk_low","imported"]');
@@ -94,14 +94,17 @@ describe('updating to separate ticks', () => {
     first.insert(devices).values({ id: 'd2', userId: one, name: 'iPad', kind: 'ios', createdAt: 0, lastSeenAt: 0, pushEvents: null }).run();
     first.$client.close();
 
-    // Put the database one migration behind, then open it again.
+    // Put the database back to just before that migration, then open it again.
     const raw = new Database(file);
-    raw.exec(`DELETE FROM schema_migrations WHERE version = ${migrations.length}`);
+    const mine = migrations.findIndex((m) => m.includes('UPDATE notification_channels SET events')) + 1;
+    raw.exec(`DELETE FROM schema_migrations WHERE version >= ${mine}`);
+    // Undo what came after it.
+    for (const sql of ['DROP TABLE live_streams', 'DROP TABLE live_starts', 'DROP TABLE live_start_tokens', 'ALTER TABLE devices DROP COLUMN live_watching', 'ALTER TABLE devices DROP COLUMN live_downloads', 'ALTER TABLE users DROP COLUMN oidc_avatar', 'ALTER TABLE users DROP COLUMN plex_avatar']) raw.exec(sql);
     raw.close();
     const db = openDb(file);
 
     const events = Object.fromEntries(db.select().from(notificationChannels).all().map((c) => [c.id, JSON.parse(c.events)]));
-    expect(events).toEqual({ [mine]: ['upgraded'], [allOff]: [], [theirs]: ['disk_low'], [shared]: ['disk_low', 'imported'] });
+    expect(events).toEqual({ [own]: ['upgraded'], [allOff]: [], [theirs]: ['disk_low'], [shared]: ['disk_low', 'imported'] });
     const kept = Object.fromEntries(db.select().from(devices).all().map((d) => [d.id, d.pushEvents]));
     expect(kept).toEqual({ d1: '["upgraded"]', d2: null });
     db.$client.close();

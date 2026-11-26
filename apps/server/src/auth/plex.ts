@@ -18,6 +18,8 @@ export interface PlexAccount {
   username: string;
   email: string | null;
   title: string;
+  /** Where their Plex picture is. */
+  avatar: string | null;
 }
 
 export class PlexClient {
@@ -59,8 +61,8 @@ export class PlexClient {
   }
 
   async account(token: string): Promise<PlexAccount> {
-    const u = await this.json<{ id: number; username: string; email?: string; title?: string }>(`${PLEX_TV}/api/v2/user`, {}, token);
-    return { id: String(u.id), username: u.username, email: u.email ?? null, title: u.title || u.username };
+    const u = await this.json<{ id: number; username: string; email?: string; title?: string; thumb?: string }>(`${PLEX_TV}/api/v2/user`, {}, token);
+    return { id: String(u.id), username: u.username, email: u.email ?? null, title: u.title || u.username, avatar: u.thumb ?? null };
   }
 
   /** True if this Plex account owns or has been shared the server with `serverId`. */

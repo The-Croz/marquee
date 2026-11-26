@@ -22,6 +22,17 @@ private func json(_ text: String, status: Int = 200) -> StubURLProtocol.Reply { 
         #expect(sent.value(forHTTPHeaderField: "Accept") == "application/json")
     }
 
+    @Test func fetchesAPictureWithTheToken() async throws {
+        let (api, _) = client("t-picture.test")
+        StubURLProtocol.answer(host: "t-picture.test") { _ in .init(status: 200, contentType: "image/png", body: Data("face".utf8)) }
+        #expect(await api.picture("/api/avatars/1?v=ab") == Data("face".utf8))
+        #expect(StubURLProtocol.requests(host: "t-picture.test")[0].value(forHTTPHeaderField: "Authorization") == "Bearer tok")
+        // Only Marquee's own pictures: the token never goes anywhere else.
+        #expect(await api.picture("@evil.test/x") == nil)
+        StubURLProtocol.answer(host: "t-picture.test") { _ in .init(status: 404, body: Data("{}".utf8)) }
+        #expect(await api.picture("/api/avatars/2") == nil)
+    }
+
     @Test func writesAreJSON() async throws {
         let (api, _) = client("t-json.test")
         StubURLProtocol.answer(host: "t-json.test") { _ in json("{}") }

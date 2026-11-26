@@ -1,3 +1,4 @@
+import { avatarPath } from './avatars.js';
 import { count, eq, sql } from 'drizzle-orm';
 import type { Role, SessionUser } from '@marquee/shared';
 import type { Db } from '../db/index.js';
@@ -11,6 +12,7 @@ export function toSessionUser(u: User): SessionUser {
     username: u.username,
     displayName: u.displayName,
     role: u.role as Role,
+    avatar: avatarPath(u),
     linked: { plex: u.plexId !== null, oidc: u.oidcSubject !== null, password: u.passwordHash !== null, jellyfin: u.jellyfinId !== null },
   };
 }

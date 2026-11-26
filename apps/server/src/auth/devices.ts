@@ -1,8 +1,8 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import type { DevicePushEvents, DeviceView } from '@marquee/shared';
+import type { DevicePushEvents, DeviceView, LiveSettings } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { devices, notificationChannels, sessions, type User } from '../db/schema.js';
+import { devices, liveStartTokens, notificationChannels, sessions, type User } from '../db/schema.js';
 import { forgetPushForDevice } from './pushCleanup.js';
 import { defaultEventsFor, eventsFor } from '../notify/events.js';
 import { APP_SESSION_TTL, createSession, hashToken } from './sessions.js';
@@ -106,6 +106,23 @@ export function pushEvents(db: Db, user: User, deviceId: string, change?: { even
 
 const pushChannel = (db: Db, userId: number, deviceId: string) =>
   db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, userId), eq(notificationChannels.kind, 'apns'))).all().find((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId);
+
+/** This phone's Lock Screen cards that start by themselves (admins only), changing any given. Null when it isn't theirs. */
+export function liveSettings(db: Db, user: User, deviceId: string, change: { downloads?: boolean; watching?: boolean } = {}): LiveSettings | null {
+  const device = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, user.id))).get();
+  if (!device) return null;
+  if (user.role !== 'admin') return { downloads: null, watching: null };
+  const next = { liveDownloads: change.downloads ?? device.liveDownloads, liveWatching: change.watching ?? device.liveWatching };
+  db.update(devices).set(next).where(eq(devices.id, deviceId)).run();
+  return { downloads: next.liveDownloads, watching: next.liveWatching };
+}
+
+/** Where to start this phone's cards of one kind, as iOS told the app. False when the phone isn't theirs. */
+export function saveStartToken(db: Db, userId: number, deviceId: string, kind: 'download' | 'watching', token: string, environment: 'production' | 'sandbox'): boolean {
+  if (!db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, userId))).get()) return false;
+  db.insert(liveStartTokens).values({ deviceId, kind, token, environment }).onConflictDoUpdate({ target: [liveStartTokens.deviceId, liveStartTokens.kind], set: { token, environment } }).run();
+  return true;
+}
 
 /** Turns push on for this phone: one channel per phone, however often it registers. Its token is kept in the channel's config (never sent back). */
 export function registerPush(db: Db, user: User, deviceId: string, token: string, environment: 'production' | 'sandbox', now: number): boolean {

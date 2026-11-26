@@ -9,6 +9,8 @@ export interface SessionUser {
   displayName: string;
   role: Role;
   linked: { plex: boolean; oidc: boolean; password: boolean; jellyfin: boolean };
+  /** Their picture (from Plex, else single sign-on), served by Marquee; null shows their initial. */
+  avatar: string | null;
 }
 
 /** Posters for the sign-in screen's wall: popular titles from TMDB, never what's in your library. */
@@ -117,7 +119,9 @@ export interface HomeData {
   upcoming: { day: string; title: string; note: string; href?: string; posterPath?: string | null; backdropPath?: string | null }[];
   /** One quiet line of library numbers. `to` is where each one leads. */
   stats: { label: string; value: string; to?: string }[];
-  /** The big picture at the top: what's playing, what's ready for you, or what just arrived. Null when there's nothing. */
+  /** The banner's slides, in the order they take turns. Empty when there's nothing to show. */
+  heroes: HomeHero[];
+  /** The first slide, for app versions from before the banner rotated. */
   hero: HomeHero | null;
   /** Admins on a new install: the "Get set up" checklist. Null once every step that isn't optional is done. */
   setup: SetupStep[] | null;
@@ -134,19 +138,21 @@ export interface SetupStep {
 }
 
 export interface HomeHero {
-  kind: 'watching' | 'ready' | 'arrived';
-  /** "Now showing · Living room TV", "Ready to watch · you asked", "Just arrived · 2 hours ago" */
+  kind: 'ready' | 'arrived' | 'aired' | 'coming' | 'picked' | 'unwatched' | 'random';
+  /** "Ready to watch · you asked for it", "Recently added · today", "Coming Fri" */
   eyebrow: string;
   title: string;
   chips: string[];
   href: string | null;
+  /** A suggestion that may not be in the library: open it in Discover when there's no href. */
+  discover: { kind: 'movie' | 'series'; tmdbId: number } | null;
   backdropPath: string | null;
   posterPath: string | null;
   /** The poster's main colour, for the glow behind it. */
   color: string | null;
-  /** 0–100, while playing. */
+  /** Always null now (kept for older app versions). */
   progress: number | null;
-  /** "1 h 01 of 2 h 46" style line, or who's watching. */
+  /** One more line: "Season 2, episode 4", "Movie · 4K". */
   note: string | null;
   /** About the title, when Marquee knows it. */
   year: number | null;
@@ -1554,12 +1560,20 @@ export interface NotificationChannelView {
   enabled: boolean;
   /** Shared with every admin (admin messages only), not one person's own. */
   shared: boolean;
+  /** iPhones: which signed-in phone this is. */
+  deviceId?: string;
   events: string[];
   /** Non-secret part of the setup, e.g. the ntfy topic. */
   detail: string;
   lastOkAt: number | null;
   /** What went wrong last time, in plain words. */
   lastError: string | null;
+}
+
+/** Lock Screen cards Marquee starts by itself on a phone. Null: not offered to this person. */
+export interface LiveSettings {
+  downloads: boolean | null;
+  watching: boolean | null;
 }
 
 /** What one iPhone gets: every message its person can have, and the ones switched on. */
@@ -1612,6 +1626,12 @@ export interface ServerPerson {
 
 // ---- Activity (Plex and Jellyfin watching) ----
 
+/** One line about a stream: "Video" · "4K HEVC → 720p H264". */
+export interface StreamFact {
+  label: string;
+  value: string;
+}
+
 export interface NowPlayingView {
   server: 'plex' | 'jellyfin';
   /** The server's id for the stream; send it to stop the stream. */
@@ -1634,6 +1654,15 @@ export interface NowPlayingView {
   convertReason?: string | null;
   /** The title's page in Marquee, if the library has it. */
   href: string | null;
+  /** TMDB artwork paths: the library's, or TMDB's for something that isn't in it. */
+  posterPath: string | null;
+  backdropPath: string | null;
+  /** How it's being sent to the device, in plain lines. */
+  facts: StreamFact[];
+  /** How long it runs, when the server says. */
+  durationMs: number | null;
+  /** The viewer's picture, when they have a Marquee account with one. */
+  userAvatar: string | null;
 }
 
 export interface PlayView {

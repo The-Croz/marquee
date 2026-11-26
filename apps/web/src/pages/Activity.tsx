@@ -1,11 +1,11 @@
 import { TautulliImport } from '../components/WatchingTools';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import type { ActivityStats, NowPlayingView, PersonSummary, PlayView } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
-import { Button, Card, Notice, Progress, cx } from '../components/ui';
-import { formatBytes } from '../components/Poster';
+import { Avatar, Button, Card, Notice, Progress, cx } from '../components/ui';
+import { Poster, formatBytes, tmdbImage } from '../components/Poster';
 import { PageHeader } from '../components/Page';
 
 export const SERVER = { plex: 'Plex', jellyfin: 'Jellyfin' } as const;
@@ -115,6 +115,19 @@ function StopBox({ s, done }: { s: NowPlayingView; done: () => void }) {
   );
 }
 
+const clockTime = (ms: number) => {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h ? `${h}:${String(m).padStart(2, '0')}` : m}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/** "42:10 of 2:35:00", or the percent when the server doesn't say how long it runs. */
+export const position = (s: NowPlayingView) => (s.durationMs ? `${clockTime(s.progress * s.durationMs)} of ${clockTime(s.durationMs)}` : `${Math.round(s.progress * 100)}%`);
+
+/** When it will finish if it keeps playing. */
+const endsAt = (s: NowPlayingView) => (s.durationMs && s.state === 'playing' ? new Date(Date.now() + (1 - s.progress) * s.durationMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : null);
+
 function NowPlaying() {
   const { feed, pushed } = useFeed();
   const [stopping, setStopping] = useState<string | null>(null);
@@ -140,32 +153,55 @@ function NowPlaying() {
       ))}
       {feed && feed.sessions.length === 0 && <p className="m-0 text-sm text-muted">Nobody is watching right now.</p>}
       {feed?.sessions.map((s) => (
-        <div key={`${s.server}${s.sessionId}`} className="flex flex-col gap-1.5 border-t border-line pt-3 first:border-t-0 first:pt-0">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-body font-semibold">
-              <Name href={s.href}>{s.title}</Name>
-              {s.subtitle && <span className="font-normal text-soft"> · {s.subtitle}</span>}
-            </span>
-            <span className="text-sm text-muted">
-              <Link to={`/activity/people/${encodeURIComponent(s.user)}`}>{s.user}</Link> · {s.device} · {SERVER[s.server]}
-            </span>
+        <article key={`${s.server}${s.sessionId}`} aria-label={`${s.user}: ${s.title}`} className="relative isolate flex flex-col overflow-hidden rounded-xl border border-line">
+          {s.backdropPath && (
+            <>
+              <img src={tmdbImage(s.backdropPath, 'w780')!} alt="" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} className="absolute inset-0 -z-10 size-full object-cover" />
+              <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/90 to-ink/70" />
+            </>
+          )}
+          <div className="flex gap-4 p-4">
+            {s.posterPath && <Poster title={s.title} path={s.posterPath} size="w185" className="w-20 flex-none self-start rounded-lg max-sm:hidden [&_span]:hidden" />}
+            <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-heading font-semibold">
+                    <Name href={s.href}>{s.title}</Name>
+                  </span>
+                  {s.subtitle && <span className="text-sm text-soft">{s.subtitle}</span>}
+                </div>
+                <span className="flex items-center gap-2 text-sm text-soft">
+                  <Avatar name={s.user} src={s.userAvatar} className="size-8 text-xs" />
+                  <span>
+                    <Link to={`/activity/people/${encodeURIComponent(s.user)}`}>{s.user}</Link> · {s.device} · {SERVER[s.server]}
+                  </span>
+                </span>
+              </div>
+              <Progress value={Math.round(s.progress * 100)} />
+              <div className="flex flex-wrap justify-between gap-2 text-xs text-soft tabular-nums">
+                <span>
+                  {STATE[s.state]} · {position(s)}
+                </span>
+                {endsAt(s) && <span>Ends about {endsAt(s)}</span>}
+              </div>
+              <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+                {s.facts.map((f) => (
+                  <Fragment key={f.label}>
+                    <dt className="text-dim">{f.label}</dt>
+                    <dd className="m-0 min-w-0 break-words text-text">{f.value}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+              {s.transcoding && <span className="text-xs text-warn">Being converted for this device, which uses extra power on the server.{s.convertReason ? ` Why: ${s.convertReason}` : ''}</span>}
+              {stopping !== s.sessionId && (
+                <Button variant="ghost" className="h-11 self-end px-3.5 text-sm" onClick={() => setStopping(s.sessionId)}>
+                  Stop…
+                </Button>
+              )}
+              {stopping === s.sessionId && <StopBox s={s} done={() => setStopping(null)} />}
+            </div>
           </div>
-          <Progress value={Math.round(s.progress * 100)} />
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-dim">
-              {STATE[s.state]} · {s.platform}
-              {s.resolution && ` · ${RES[s.resolution] ?? s.resolution}`}
-              {s.transcoding && ' · being converted for this device (uses extra power on the server)'}
-              {s.transcoding && s.convertReason && <span className="block text-soft">Why: {s.convertReason}</span>}
-            </span>
-            {stopping !== s.sessionId && (
-              <Button variant="ghost" className="h-11 px-3.5 text-sm" onClick={() => setStopping(s.sessionId)}>
-                Stop…
-              </Button>
-            )}
-          </div>
-          {stopping === s.sessionId && <StopBox s={s} done={() => setStopping(null)} />}
-        </div>
+        </article>
       ))}
     </Card>
   );

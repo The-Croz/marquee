@@ -1,3 +1,7 @@
+import { refreshPlexAvatars } from '../auth/avatars.js';
+import { eq } from 'drizzle-orm';
+import { devices, liveStreams } from '../db/schema.js';
+import { hashToken } from '../auth/sessions.js';
 import { unwatched } from '../activity/unwatched.js';
 import { importTautulli, realTautulliFetch, tautulliImports, undoTautulli } from '../activity/tautulli.js';
 import type { TautulliImportView, UnwatchedView } from '@marquee/shared';
@@ -5,7 +9,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import type { ActivityStats, NowPlayingView, PersonSummary, PersonView, PlayView, WatchersView } from '@marquee/shared';
-import { HttpError, requireAdmin, requireUser, type Env } from '../http.js';
+import { HttpError, requireAdmin, requireUser, type Env, sessionToken } from '../http.js';
 import { activityStats, myHistory, people, person, recentPlays, syncPlays, watchersOf } from '../activity/service.js';
 import { MediaServerError } from '../library/mediaServers.js';
 
@@ -24,6 +28,20 @@ activityRoutes.get('/now', async (c) => {
 activityRoutes.get('/count', (c) => {
   requireAdmin(c);
   return c.json<{ playing: number }>({ playing: c.get('deps').activity.view().sessions.length });
+});
+
+/** The app got a "who's watching" card (Marquee started it): remember the card's own address, to keep it up to date. */
+activityRoutes.post('/live-activity', async (c) => {
+  requireAdmin(c);
+  const { db, now } = c.get('deps');
+  const body = z.object({ ref: z.string().min(3).max(300), token: z.string().regex(/^[0-9a-fA-F]{20,400}$/, 'That isn’t a Live Activity token.'), environment: z.enum(['production', 'sandbox']).default('production') }).parse(await c.req.json());
+  const bearer = sessionToken(c);
+  const device = bearer ? db.select().from(devices).where(eq(devices.sessionId, hashToken(bearer))).get() : undefined;
+  if (!device) throw new HttpError(400, 'bad_request', 'Only the Marquee app on an iPhone can show a Lock Screen card.');
+  // Nothing known yet, so the next look sends an update straight away.
+  const fields = { token: body.token.toLowerCase(), environment: body.environment, lastPercent: 0, lastState: '' };
+  db.insert(liveStreams).values({ streamRef: body.ref, deviceId: device.id, startedAt: now(), ...fields }).onConflictDoUpdate({ target: [liveStreams.streamRef, liveStreams.deviceId], set: fields }).run();
+  return c.json({ ok: true });
 });
 
 /** The same list, pushed the moment it changes (server-sent events). A heartbeat keeps proxies from closing it. */
@@ -104,6 +122,8 @@ activityRoutes.get('/stats', (c) => {
 activityRoutes.post('/sync', async (c) => {
   requireAdmin(c);
   const { db, clients, now } = c.get('deps');
+  // Pictures come along. A Plex problem is already reported by the watches below.
+  await refreshPlexAvatars({ db, clients }).catch(() => {});
   return c.json(await syncPlays({ db, clients, now }));
 });
 

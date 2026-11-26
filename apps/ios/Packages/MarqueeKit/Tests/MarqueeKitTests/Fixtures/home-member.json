@@ -130,19 +130,30 @@
       "value": "0 GB"
     }
   ],
+  "heroes": [
+    {
+      "year": 2024,
+      "rating": "PG",
+      "runtime": 120,
+      "genres": [],
+      "score": 7.4,
+      "votes": 1200,
+      "overview": null,
+      "kindLabel": "Movie",
+      "kind": "arrived",
+      "eyebrow": "Recently added · today",
+      "title": "Wicked",
+      "chips": [],
+      "href": "/movies/3",
+      "discover": null,
+      "backdropPath": "/wicked-bg.jpg",
+      "posterPath": "/wicked.jpg",
+      "color": "#2e4a3a",
+      "progress": null,
+      "note": "Movie · 4K"
+    }
+  ],
   "hero": {
-    "kind": "arrived",
-    "eyebrow": "Just arrived · 2 hours ago",
-    "title": "Wicked",
-    "chips": [
-      "4K"
-    ],
-    "href": "/movies/3",
-    "backdropPath": "/wicked-bg.jpg",
-    "posterPath": "/wicked.jpg",
-    "color": "#2e4a3a",
-    "progress": null,
-    "note": null,
     "year": 2024,
     "rating": "PG",
     "runtime": 120,
@@ -150,7 +161,18 @@
     "score": 7.4,
     "votes": 1200,
     "overview": null,
-    "kindLabel": "Movie"
+    "kindLabel": "Movie",
+    "kind": "arrived",
+    "eyebrow": "Recently added · today",
+    "title": "Wicked",
+    "chips": [],
+    "href": "/movies/3",
+    "discover": null,
+    "backdropPath": "/wicked-bg.jpg",
+    "posterPath": "/wicked.jpg",
+    "color": "#2e4a3a",
+    "progress": null,
+    "note": "Movie · 4K"
   },
   "setup": null
 }

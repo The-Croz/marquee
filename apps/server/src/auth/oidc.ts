@@ -77,7 +77,7 @@ export class OidcProvider {
   async finish(
     callbackUrl: URL,
     expected: { state: string; verifier: string; nonce: string },
-  ): Promise<{ subject: string; username: string | null; name: string | null; email: string | null }> {
+  ): Promise<{ subject: string; username: string | null; name: string | null; email: string | null; picture: string | null }> {
     const config = await this.configuration();
     const tokens = await withRetry(() =>
       client.authorizationCodeGrant(config, callbackUrl, {
@@ -89,11 +89,14 @@ export class OidcProvider {
     const claims = tokens.claims();
     if (!claims) throw new Error('OIDC provider returned no ID token');
     const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
+    // Some providers only give the picture from their "who is this" address, not in the sign-in itself.
+    const picture = str(claims.picture) ?? str((await client.fetchUserInfo(config, tokens.access_token, claims.sub).catch(() => null))?.picture);
     return {
       subject: claims.sub,
       username: str(claims.preferred_username),
       name: str(claims.name) ?? str(claims.given_name),
       email: str(claims.email),
+      picture,
     };
   }
 }

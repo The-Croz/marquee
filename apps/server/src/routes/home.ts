@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import { diskViews, realDiskProbe } from '../system/disk.js';
 import { Hono } from 'hono';
 import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
-import type { HomeAttention, HomeData, HomeHero, HomeTitle, NowPlayingView, SetupStep } from '@marquee/shared';
+import type { DiscoverPage, HomeAttention, HomeData, HomeHero, HomeTitle, SetupStep } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { episodes, mediaFiles, movies, scanItems, series, users, type User } from '../db/schema.js';
 import { readDownloader } from '../downloads/service.js';
@@ -14,6 +14,9 @@ import { lastWantedRuns, lookingForWanted } from '../downloads/wanted.js';
 import { lastWantedTvRuns } from '../downloads/wantedTv.js';
 import { listRequests } from '../requests/service.js';
 import { KID_MOVIE_RATINGS, KID_TV_RATINGS, qualityLabel, scanSources } from './library.js';
+import { bannerSlides } from './homeSlides.js';
+import { discoverPage } from '../discover/service.js';
+import { discoverDeps } from './discover.js';
 import { requireUser, type Ctx, type Env } from '../http.js';
 
 /**
@@ -42,6 +45,7 @@ homeRoutes.get('/', async (c) => {
     recent: recentTitles(db, isKid),
     upcoming: comingUp(db, now(), isKid ? KID_TV_RATINGS : undefined, isKid ? KID_MOVIE_RATINGS : undefined),
     stats: libraryStats(db, isKid, now()),
+    heroes: [],
     hero: null,
     setup: null,
   };
@@ -54,8 +58,9 @@ homeRoutes.get('/', async (c) => {
       .filter((r) => r.state !== 'ready' || now() - (r.decidedAt ?? r.createdAt) < 3 * DAY)
       .slice(0, 6);
   }
-  data.hero = pickHero(db, data, now());
-  if (data.hero) await addFacts(c, data.hero);
+  data.heroes = await bannerSlides({ db, now }, user, data, () => suggestions(c, user));
+  await Promise.all(data.heroes.filter((h) => h.kind !== 'picked').map((h) => addFacts(c, h)));
+  data.hero = data.heroes[0] ?? null;
   return c.json(data);
 });
 
@@ -96,8 +101,6 @@ async function addFacts(c: Ctx, hero: HomeHero): Promise<void> {
   }
 }
 
-const noFacts = { year: null, rating: null, runtime: null, genres: [], score: null, votes: null, overview: null, kindLabel: null } satisfies Partial<HomeHero>;
-
 /**
  * "Get set up": what a new install still needs, in the order to do it. Shown to
  * admins until every step that isn't optional is done.
@@ -123,50 +126,23 @@ function setupSteps(c: Ctx): SetupStep[] | null {
   return steps.every((s) => s.done || s.optional) ? null : steps;
 }
 
-const RES: Record<string, string> = { '4k': '4K', '1080': '1080p', '720': '720p', '480': 'SD', sd: 'SD' };
+/** Discover's rows for the banner's suggestion, kept a while: Home is asked for every few seconds. */
+const picks = new WeakMap<Db, Map<number, { at: number; page: DiscoverPage | null }>>();
 
-/** Something playing beats something ready for you, which beats something new in the last three days. */
-function pickHero(db: Db, data: HomeData, now: number): HomeHero | null {
-  const playing = data.watching.find((w) => w.state === 'playing') ?? data.watching[0];
-  if (playing) return watchingHero(db, playing, data.watching.length);
-  const ready = data.myRequests.find((r) => r.state === 'ready' && r.href);
-  if (ready) {
-    const art = artFor(db, ready.href);
-    return { kind: 'ready', eyebrow: 'Ready to watch · you asked for it', title: ready.title, chips: [], href: ready.href, backdropPath: art.backdrop, posterPath: art.poster ?? ready.posterPath, color: art.color, progress: null, note: null, ...noFacts, year: ready.year };
+async function suggestions(c: Ctx, user: User): Promise<DiscoverPage | null> {
+  const { db, now } = c.get('deps');
+  const kept = picks.get(db) ?? new Map<number, { at: number; page: DiscoverPage | null }>();
+  picks.set(db, kept);
+  const known = kept.get(user.id);
+  if (known && now() - known.at < (known.page ? 30 : 5) * 60_000) return known.page;
+  let page: DiscoverPage | null = null;
+  try {
+    page = await discoverPage(discoverDeps(c), user, { type: 'all', service: 'all', genre: null });
+  } catch {
+    /* No TMDB key or TMDB is down: the banner goes without a suggestion. */
   }
-  const fresh = data.recent[0];
-  if (fresh && now - fresh.addedAt < 3 * DAY) {
-    const art = artFor(db, fresh.href);
-    return { kind: 'arrived', eyebrow: `Just arrived · ${ago(now - fresh.addedAt)}`, title: fresh.title, chips: [fresh.sub.replace(/^Movie · /, '')], href: fresh.href, backdropPath: art.backdrop, posterPath: art.poster ?? fresh.posterPath, color: art.color ?? fresh.posterColor, progress: null, note: null, ...noFacts };
-  }
-  return null;
-}
-
-function watchingHero(db: Db, w: NowPlayingView, total: number): HomeHero {
-  const art = artFor(db, w.href);
-  const chips = [w.resolution ? RES[w.resolution] ?? w.resolution : null, w.transcoding ? 'Converting' : 'Direct play', `${w.user} · ${w.server === 'plex' ? 'Plex' : 'Jellyfin'}`].filter((x): x is string => !!x);
-  return {
-    kind: 'watching',
-    eyebrow: `${w.state === 'paused' ? 'Paused' : 'Now showing'} · ${w.device}${total > 1 ? ` · 1 of ${total} playing` : ''}`,
-    title: w.title,
-    chips,
-    href: w.href,
-    backdropPath: art.backdrop,
-    posterPath: art.poster,
-    color: art.color,
-    progress: Math.round(w.progress * 100),
-    note: w.subtitle,
-    ...noFacts,
-  };
-}
-
-/** Poster and backdrop for a /movies/:id or /shows/:id page. */
-function artFor(db: Db, href: string | null): { poster: string | null; backdrop: string | null; color: string | null } {
-  const m = href?.match(/^\/(movies|shows)\/(\d+)$/);
-  if (!m) return { poster: null, backdrop: null, color: null };
-  const table = m[1] === 'movies' ? movies : series;
-  const row = db.select({ poster: table.posterPath, backdrop: table.backdropPath, color: table.posterColor }).from(table).where(eq(table.id, Number(m[2]))).get();
-  return row ?? { poster: null, backdrop: null, color: null };
+  kept.set(user.id, { at: now(), page });
+  return page;
 }
 
 /** The admin's part: Needs you, Watching now, On its way, and the footer numbers only they see. */

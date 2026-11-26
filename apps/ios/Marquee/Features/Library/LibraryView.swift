@@ -97,7 +97,7 @@ struct LibraryView: View {
                     .accessibilityLabel("Sort")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    AvatarButton(initial: app.user?.displayName ?? "?") { app.showingYou = true }.accessibilityIdentifier("avatar")
+                    AvatarButton { app.showingYou = true }.accessibilityIdentifier("avatar")
                 }
             }
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }

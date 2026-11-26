@@ -51,6 +51,16 @@ public actor APIClient {
         try await send("POST", path, body: EmptyBody(), as: type)
     }
 
+    /// A picture Marquee serves (someone's profile picture). Nil when there isn't one or it can't be fetched.
+    public func picture(_ path: String) async -> Data? {
+        guard path.hasPrefix("/api/"), let url = URL(string: activeAddress.absoluteString + path) else { return nil }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        if let token = tokens.read() { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        guard let (data, response) = try? await session.data(for: request), let http = response as? HTTPURLResponse,
+              http.statusCode == 200, http.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("image/") == true else { return nil }
+        return data
+    }
+
     // MARK: Signing in and out
 
     /// Marquee's own check, no sign-in needed: is something answering here, and which version?

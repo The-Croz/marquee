@@ -13,6 +13,7 @@ import { HttpError, sessionToken, type Deps, type Env } from './http.js';
 import { authRoutes } from './routes/auth.js';
 import { accountRoutes } from './routes/account.js';
 import { userRoutes } from './routes/users.js';
+import { avatarRoutes } from './routes/avatars.js';
 import { homeRoutes } from './routes/home.js';
 import { servicesRoutes } from './routes/services.js';
 import { sourcesRoutes } from './routes/sources.js';
@@ -93,6 +94,7 @@ export function createApp(given: Omit<Deps, 'copies' | 'activity' | 'jobs' | 'lo
   app.route('/api/auth', authRoutes);
   app.route('/api/me', accountRoutes);
   app.route('/api/users', userRoutes);
+  app.route('/api/avatars', avatarRoutes);
   app.route('/api/home', homeRoutes);
   app.route('/api/settings/services', servicesRoutes);
   app.route('/api/settings/sources', sourcesRoutes);

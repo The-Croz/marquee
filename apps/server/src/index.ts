@@ -23,6 +23,7 @@ import { fetchTorrent } from './downloads/torrent.js';
 import { ActivityMonitor } from './activity/live.js';
 import { readServices } from './library/services.js';
 import { syncPlays } from './activity/service.js';
+import { refreshPlexAvatars } from './auth/avatars.js';
 import { checkHealth } from './notify/health.js';
 import { announceVersion } from './notify/updated.js';
 import { runSync, syncAfterPlays, syncEnabled } from './watchsync/sync.js';
@@ -163,6 +164,8 @@ jobs
     everyMs: 15 * MIN,
     firstAfterMs: MIN,
     run: async () => {
+      // Pictures come along: who has an account rarely changes, so their faces ride with the watches.
+      await refreshPlexAvatars({ db, clients }).catch((err) => console.warn(`[avatars] couldn't read Plex pictures: ${(err as Error).message}`));
       const r = await syncPlays({ db, clients, now: Date.now });
       if (r.added || r.problems.length) console.log(`[activity] copied ${r.added} watches${r.problems.length ? `; ${r.problems.join('; ')}` : ''}`);
       if (r.problems.length && !r.added) throw new Error(r.problems.join('; '));

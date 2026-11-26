@@ -41,7 +41,7 @@ final class WatchingModel {
     }
 }
 
-/// Activity → Watching (admin): who is playing what right now, and the last 30 days.
+/// Watching (admin): who is playing what right now, and the last 30 days.
 struct WatchingList: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var scenePhase
@@ -54,7 +54,17 @@ struct WatchingList: View {
                     if now.sessions.isEmpty {
                         Text("Nobody is watching right now.").font(.subheadline).foregroundStyle(.muted).listRowBackground(Color.panel)
                     }
-                    ForEach(now.sessions) { s in sessionRow(s).listRowBackground(Color.panel) }
+                    ForEach(now.sessions) { s in
+                        Group {
+                            if let route = TitleRoute(webPath: s.href) {
+                                NavigationLink(value: route) { SessionCard(session: s) }
+                            } else {
+                                SessionCard(session: s)
+                            }
+                        }
+                        .listRowBackground(Color.panel)
+                        .accessibilityIdentifier("session-\(s.sessionId)")
+                    }
                     ForEach(now.problems, id: \.self) { p in Text(p).font(.footnote).foregroundStyle(.warn).listRowBackground(Color.panel) }
                 } header: { header("Now watching" + (model.streaming ? "" : " · checking every 15 seconds")) }
 
@@ -120,21 +130,57 @@ struct WatchingList: View {
     private func header(_ text: String) -> some View {
         Text(text).font(.title3.weight(.bold)).foregroundStyle(.textPrimary).textCase(nil)
     }
+}
 
-    private func sessionRow(_ s: NowPlaying) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
-                Text(s.title).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1)
+/// One stream, with its artwork and what it's doing, the way Tautulli lays it out.
+struct SessionCard: View {
+    let session: NowPlaying
+
+    var body: some View {
+        let s = session
+        VStack(alignment: .leading, spacing: 8) {
+            if s.backdropPath != nil {
+                ArtBanner(path: s.backdropPath, title: s.title, height: 140)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(s.title).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2)
+                    if let sub = s.subtitle { Text(sub).font(.caption).foregroundStyle(.muted) }
+                }
                 Spacer()
                 Text(s.state == "paused" ? "Paused" : s.state == "buffering" ? "Buffering" : "Playing").font(.caption.weight(.semibold)).foregroundStyle(s.state == "playing" ? Color.readyTeal : Color.muted)
             }
-            if let sub = s.subtitle { Text(sub).font(.caption).foregroundStyle(.muted) }
-            ProgressView(value: s.progress).progressViewStyle(BarStyle(fill: .readyTeal))
-            Text("\(s.user) · \(s.device) · \(s.server.capitalized)\(s.resolution.map { " · \($0)" } ?? "")").font(.caption).foregroundStyle(.soft)
+            ProgressView(value: min(max(s.progress, 0), 1)).progressViewStyle(BarStyle(fill: .readyTeal))
+            HStack {
+                Text(Playback.position(progress: s.progress, durationMs: s.durationMs))
+                Spacer()
+                if let end = Playback.end(progress: s.progress, durationMs: s.durationMs, state: s.state) {
+                    Text("Ends about \(end.formatted(date: .omitted, time: .shortened))")
+                }
+            }
+            .font(.caption.monospacedDigit()).foregroundStyle(.muted)
+            HStack(spacing: 8) {
+                Face(name: s.user, path: s.userAvatar, size: 24)
+                Text("\(s.user) · \(s.device) · \(s.server.capitalized)").font(.caption).foregroundStyle(.soft)
+            }
+            if let facts = s.facts, !facts.isEmpty {
+                // Plain rows rather than a grid: a List measures these right when a long value wraps.
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(facts, id: \.label) { f in
+                        HStack(alignment: .top, spacing: 12) {
+                            Text(f.label).foregroundStyle(.dim).frame(width: 86, alignment: .leading)
+                            Text(f.value).foregroundStyle(.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .font(.caption)
+            }
             if s.transcoding { StateLine(text: "Being converted for this device" + (s.convertReason.map { ": \($0)" } ?? ""), tone: .needsYou) }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-        .accessibilityValue("\(Int(s.progress * 100)) percent")
     }
 }
