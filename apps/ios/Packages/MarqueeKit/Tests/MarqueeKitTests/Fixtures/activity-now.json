@@ -14,7 +14,12 @@
       "transcoding": true,
       "convertReason": null,
       "startedAt": 1795608000000,
-      "href": null
+      "href": null,
+      "posterPath": "/dune2.jpg",
+      "backdropPath": null,
+      "facts": [],
+      "durationMs": null,
+      "userAvatar": null
     }
   ],
   "problems": [],

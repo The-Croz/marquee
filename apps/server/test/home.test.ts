@@ -68,15 +68,55 @@ describe('Home', () => {
     expect((await t.home()).needsYou.map((n) => n.title)).toContain('Ana asked for Wicked');
   });
 
-  it('leads with what just arrived, with its backdrop, for three days', async () => {
+  it('leads the banner with what was added, with its backdrop', async () => {
     const t = await setup();
     const dune = t.movie('Dune: Part Two', 693134);
     t.db.update(schema.movies).set({ backdropPath: '/dune-bg.jpg' }).run();
     t.db.insert(schema.mediaFiles).values({ path: '/m/Dune/Dune.mkv', movieId: dune.id, size: 1, mtime: 0, addedAt: NOW - 2 * 3_600_000, seenAt: 0, resolution: '2160p' }).run();
     const h = await t.home();
-    expect(h.hero).toMatchObject({ kind: 'arrived', eyebrow: 'Just arrived · 2 hours ago', title: 'Dune: Part Two', href: `/movies/${dune.id}`, backdropPath: '/dune-bg.jpg', posterPath: '/693134.jpg' });
+    expect(h.hero).toMatchObject({ kind: 'arrived', eyebrow: 'Recently added · today', title: 'Dune: Part Two', href: `/movies/${dune.id}`, backdropPath: '/dune-bg.jpg', posterPath: '/693134.jpg' });
+    expect(h.heroes[0]).toEqual(h.hero);
     t.db.update(schema.mediaFiles).set({ addedAt: NOW - 4 * 86_400_000 }).run();
-    expect((await t.home()).hero).toBeNull();
+    expect((await t.home()).hero?.eyebrow).toBe('Recently added · 4 days ago');
+  });
+
+  it('rotates through what was added, aired, coming and unwatched, never the same title twice, and never who is watching', async () => {
+    const t = await setup();
+    const file = (v: Partial<typeof schema.mediaFiles.$inferInsert>, age: number) =>
+      t.db.insert(schema.mediaFiles).values({ path: `/m/${Math.random()}.mkv`, size: 1, mtime: 0, addedAt: NOW - age, seenAt: 0, ...v }).run();
+    const titles = ['Alpha', 'Bravo', 'Charlie', 'Delta'].map((n, i) => t.movie(n, 100 + i));
+    titles.forEach((m, i) => file({ movieId: m.id }, (i + 1) * 3_600_000));
+    const show = t.db.insert(schema.series).values({ tmdbId: 7, title: 'Severance', sortTitle: 'severance', profile: 'cinema', addedAt: 0, refreshedAt: 0 }).returning().get();
+    t.db.insert(schema.episodes).values({ seriesId: show.id, season: 2, episode: 4, title: 'Four', airDate: '2026-11-18' } as never).run();
+    file({ seriesId: show.id, season: 2, episodes: '[4]' }, 30 * 86_400_000);
+    t.db.insert(schema.plays).values({ server: 'plex', serverUserId: '1', userName: 'josh', itemKey: 'a', kind: 'movie', title: 'Alpha', playedAt: NOW }).run();
+    const h = await t.home();
+    expect(h.heroes.map((s) => s.kind)).toEqual(['arrived', 'arrived', 'aired', 'unwatched', 'random']);
+    expect(h.heroes[2]).toMatchObject({ title: 'Severance', eyebrow: 'Recently aired · Nov 18', note: 'Season 2, episode 4' });
+    expect(h.heroes[3]!.title).not.toBe('Alpha');
+    expect(new Set(h.heroes.map((s) => s.href)).size).toBe(h.heroes.length);
+    // The same picks for the rest of the hour.
+    expect((await t.home()).heroes).toEqual(h.heroes);
+  });
+
+  it('puts something you asked for first once it arrives', async () => {
+    const t = await setup();
+    const m = t.movie('Wicked', 402431);
+    t.db.insert(schema.mediaFiles).values({ path: '/m/w.mkv', movieId: m.id, size: 1, mtime: 0, addedAt: NOW, seenAt: 0 }).run();
+    const me = t.db.select().from(schema.users).all()[0]!.id;
+    t.db.insert(schema.requests).values({ kind: 'movie', tmdbId: 402431, title: 'Wicked', requestedBy: me, status: 'approved', titleId: m.id, readyAt: NOW - 3_600_000, createdAt: 0 }).run();
+    const h = await t.home();
+    expect(h.heroes.map((s) => [s.kind, s.title])).toEqual([['ready', 'Wicked']]);
+  });
+
+  it('keeps grown-up titles off a kid’s banner', async () => {
+    const t = await setup();
+    await call(t.app, 'POST', '/api/users', { username: 'kiddo', displayName: 'Kiddo', role: 'kid', password: 'kiddo password!' }, t.cookie);
+    const kid = (await call(t.app, 'POST', '/api/auth/login', { username: 'kiddo', password: 'kiddo password!' })).cookie;
+    const m = t.movie('Heat', 949);
+    t.db.update(schema.movies).set({ certification: 'R' }).run();
+    t.db.insert(schema.mediaFiles).values({ path: '/m/heat.mkv', movieId: m.id, size: 1, mtime: 0, addedAt: NOW, seenAt: 0 }).run();
+    expect((await t.home(kid)).heroes).toEqual([]);
   });
 
   it('walks a new admin through getting set up, and goes away once the musts are done', async () => {

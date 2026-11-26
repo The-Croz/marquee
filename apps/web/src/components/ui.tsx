@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
@@ -88,3 +89,16 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
 }
 
 export { cx };
+
+/** Someone's picture (from Plex or single sign-on), or their initial. */
+export function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
+  const [broken, setBroken] = useState<string | null>(null);
+  const base = cx('flex flex-none items-center justify-center rounded-full', className ?? 'size-9 text-sm');
+  return src && broken !== src ? (
+    <img src={src} alt="" onError={() => setBroken(src)} className={cx(base, 'object-cover')} />
+  ) : (
+    <span aria-hidden="true" className={cx(base, 'bg-amber font-bold text-amber-ink')}>
+      {name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}

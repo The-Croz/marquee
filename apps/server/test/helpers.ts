@@ -92,7 +92,7 @@ export function makeApp(opts: TestOptions = {}) {
     now,
   });
   if (opts.trashPresets) useTrashPresets(db);
-  return { app, db, config, scanner, sources, activity };
+  return { app, db, config, scanner, sources, activity, clients };
 }
 
 type App = ReturnType<typeof makeApp>['app'];

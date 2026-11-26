@@ -25,9 +25,8 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Needs you"].waitForExistence(timeout: 15), "Home should show Needs you")
         XCTAssertTrue(app.buttons["avatar"].exists)
 
-        // Activity → Requests → approve the first one.
-        app.tabBars.buttons["Activity"].tap()
-        app.buttons["Requests"].tap()
+        // Requests → approve the first one.
+        app.tabBars.buttons["Requests"].tap()
         let approve = app.buttons.matching(NSPredicate(format: "identifier MATCHES 'approve-[0-9]+'"))
         XCTAssertTrue(approve.firstMatch.waitForExistence(timeout: 10))
         let before = approve.count
@@ -86,20 +85,22 @@ final class SmokeTests: XCTestCase {
         let app = launch(as: "josh")
         let needs = app.staticTexts["Needs you"]
         XCTAssertTrue(needs.waitForExistence(timeout: 20))
-        for tab in ["Library", "Discover", "Activity", "Library"] {
+        for tab in ["Library", "Discover", "Requests", "Downloads"] {
             app.tabBars.buttons[tab].tap()
             app.tabBars.buttons["Home"].tap()
             XCTAssertTrue(needs.waitForExistence(timeout: 8), "Home should still show after \(tab)")
         }
 
-        app.tabBars.buttons["Search"].tap()
+        app.tabBars.buttons["Discover"].tap()
+        app.buttons["search"].tap()
         let field = app.searchFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertTrue(field.isHittable, "The search field shows without scrolling")
+        app.buttons["Done"].tap()
 
         app.tabBars.buttons["Home"].tap()
         let row = app.buttons.matching(NSPredicate(format: "identifier MATCHES 'request-[0-9]+'")).firstMatch
-        for _ in 0..<4 where !row.isHittable { app.swipeUp(velocity: .slow) }
+        for _ in 0..<8 where !row.isHittable { app.swipeUp(velocity: .slow) }
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Home lists recent requests")
         row.tap()
         let page = app.buttons["something-wrong"]
@@ -135,6 +136,27 @@ final class SmokeTests: XCTestCase {
         expectValue(started, after, "The choice should be kept")
         started.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
         expectValue(started, before ?? "0", "And switch back")
+    }
+
+    /// You → Lock Screen cards: which ones Marquee starts by itself.
+    func testChoosingLockScreenCards() {
+        let app = launch(as: "josh")
+        openYou(app)
+        let link = app.buttons["lock-screen-cards"]
+        XCTAssertTrue(link.waitForExistence(timeout: 10))
+        link.tap()
+        let watching = app.switches["live-watching"]
+        XCTAssertTrue(watching.waitForExistence(timeout: 10))
+        let before = watching.value as? String ?? "0"
+        let after = before == "1" ? "0" : "1"
+        watching.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        expectValue(watching, after, "The switch should move")
+        sleep(2)
+        app.navigationBars.buttons.firstMatch.tap()
+        link.tap()
+        expectValue(app.switches["live-watching"], after, "The choice should be kept")
+        app.switches["live-watching"].coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        expectValue(app.switches["live-watching"], before, "And switch back")
     }
 
     private func expectValue(_ element: XCUIElement, _ value: String, _ why: String) {
@@ -199,24 +221,32 @@ final class SmokeTests: XCTestCase {
         let app = launch(as: "kiddo")
         XCTAssertTrue(app.tabBars.buttons["Discover"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.tabBars.buttons["Library"].exists)
-        XCTAssertFalse(app.tabBars.buttons["Activity"].exists)
-        XCTAssertFalse(app.tabBars.buttons["Search"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Requests"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Downloads"].exists)
+        app.tabBars.buttons["Discover"].tap()
+        XCTAssertTrue(app.navigationBars["Discover"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["search"].exists)
     }
 
     func testMemberHasRequestsOnly() {
         let app = launch(as: "mia")
-        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
-        app.tabBars.buttons["Activity"].tap()
-        XCTAssertFalse(app.buttons["Downloads"].exists)
-        XCTAssertFalse(app.buttons["Watching"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Requests"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.tabBars.buttons["Downloads"].exists)
+        XCTAssertFalse(app.staticTexts["Watching now"].exists)
     }
 
     func testAdminReachesWatchingAndPeople() {
         let app = launch(as: "josh")
-        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
-        app.tabBars.buttons["Activity"].tap()
-        app.buttons["Watching"].tap()
+        // Home → Watching now → a stream, which opens its title.
+        XCTAssertTrue(app.staticTexts["Watching now"].waitForExistence(timeout: 20), "Home shows who is watching")
+        app.buttons.matching(NSPredicate(format: "label CONTAINS 'Watching' AND label BEGINSWITH '2'")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Now watching"].waitForExistence(timeout: 10))
+        let session = app.buttons["session-s1"]
+        XCTAssertTrue(session.waitForExistence(timeout: 10))
+        session.tap()
+        XCTAssertTrue(app.buttons["something-wrong"].waitForExistence(timeout: 10), "A stream opens its title")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.navigationBars.buttons.firstMatch.tap()
         let avatars = app.buttons.matching(identifier: "avatar")
         (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
         let manage = app.buttons["manage"]

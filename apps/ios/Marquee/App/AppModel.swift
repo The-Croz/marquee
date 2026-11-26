@@ -30,24 +30,25 @@ final class AppModel {
     var pendingLink: DeepLink?
     /// A request to turn down, opened from a notification's button.
     var turnDownRequest: RequestView?
-    /// Which Activity section to open (set by Home's tiles).
-    var activitySection: ActivitySection = .downloads
-    var selectedTab: AppTab = .home
+    var selectedTab: MainTab = .home
+    /// The numbers on the tabs: streams playing (Home), requests waiting, downloads on their way.
+    private(set) var counts = TabCounts()
     /// What's open on top of each tab, so a link can open a title from anywhere.
     var homePath = NavigationPath()
     var discoverPath = NavigationPath()
     var libraryPath = NavigationPath()
+    var requestsPath = NavigationPath()
+    var downloadsPath = NavigationPath()
     var searchPath = NavigationPath()
 
-    /// Opens a movie or show on the tab the person is on (Library when they're on Activity).
+    /// Opens a movie or show on the tab the person is on.
     func open(_ route: TitleRoute) {
         switch selectedTab {
         case .home: homePath.append(route)
         case .discover: discoverPath.append(route)
-        case .search: searchPath.append(route)
-        case .library, .activity:
-            selectedTab = .library
-            libraryPath.append(route)
+        case .library: libraryPath.append(route)
+        case .requests: requestsPath.append(route)
+        case .downloads: downloadsPath.append(route)
         }
     }
 
@@ -55,16 +56,21 @@ final class AppModel {
         switch link {
         case .title(let route): open(route)
         case .requests, .downloads:
-            // Kids have no Activity tab, so a link to it lands on Home.
-            let sections = ActivityTabs.sections(for: user?.role ?? .kid)
-            let wanted: ActivitySection = link == .requests ? .requests : .downloads
-            guard sections.contains(wanted) else {
-                selectedTab = .home
-                return
-            }
-            activitySection = wanted
-            selectedTab = .activity
+            // Someone without that tab lands on Home.
+            let wanted: MainTab = link == .requests ? .requests : .downloads
+            selectedTab = MainTab.tabs(for: user?.role ?? .kid).contains(wanted) ? wanted : .home
         }
+    }
+
+    /// Reads the numbers for the tabs. Admins only; a failure leaves the last numbers.
+    func loadCounts() async {
+        guard user?.role == .admin else {
+            counts = TabCounts()
+            return
+        }
+        if let a: ActivityCount = try? await client.get("/api/activity/count") { counts.playing = a.playing }
+        if let r: RequestsSummary = try? await client.get("/api/requests/summary") { counts.requests = r.pending }
+        if let d: DownloadsSummary = try? await client.get("/api/downloads/summary") { counts.downloads = d.active }
     }
 
     /// Asking for something: the three-second take-back window lives here so it survives closing a sheet.
@@ -244,4 +250,9 @@ final class AppModel {
     }
 }
 
-enum AppTab: Hashable { case home, discover, library, activity, search }
+/// The numbers shown on the tabs.
+struct TabCounts: Equatable {
+    var playing = 0
+    var requests = 0
+    var downloads = 0
+}

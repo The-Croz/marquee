@@ -10,7 +10,7 @@ import { readServices } from '../library/services.js';
 /** Discover: rows, a title's page, and each person's choices (services to hide, trailers). */
 export const discoverRoutes = new Hono<Env>();
 
-const deps = (c: Ctx): DiscoverDeps => {
+export const discoverDeps = (c: Ctx): DiscoverDeps => {
   const { db, config, clients, now } = c.get('deps');
   const s = readServices(db, config);
   return { db, tmdb: scanSources(c).tmdb, now, top: s.streamingTopKey ? clients.streamingTop(s.streamingTopKey) : null, ratings: s.mdblistKey ? clients.mdblist(s.mdblistKey) : null, isAdmin: c.get('user')?.role === 'admin' };
@@ -25,19 +25,19 @@ const pageQuery = z.object({
 discoverRoutes.get('/', async (c) => {
   const user = requireUser(c);
   const q = pageQuery.parse(c.req.query());
-  return c.json<DiscoverPage>(await discoverPage(deps(c), user, { type: q.type, service: q.service, genre: q.genre ?? null }));
+  return c.json<DiscoverPage>(await discoverPage(discoverDeps(c), user, { type: q.type, service: q.service, genre: q.genre ?? null }));
 });
 
 discoverRoutes.get('/search', async (c) => {
   const user = requireUser(c);
   const q = z.object({ q: z.string().trim().min(1, 'Type something to look for.').max(200), type: z.enum(['all', 'movie', 'series']).default('all') }).parse(c.req.query());
-  return c.json<{ results: DiscoverCard[] }>({ results: await discoverSearch(deps(c), user, q.q, q.type) });
+  return c.json<{ results: DiscoverCard[] }>({ results: await discoverSearch(discoverDeps(c), user, q.q, q.type) });
 });
 
 discoverRoutes.get('/top', async (c) => {
   const user = requireUser(c);
   const { service } = z.object({ service: z.string().max(30) }).parse(c.req.query());
-  return c.json<ServiceTop>(await serviceTop(deps(c), user, service));
+  return c.json<ServiceTop>(await serviceTop(discoverDeps(c), user, service));
 });
 
 discoverRoutes.get('/prefs', (c) => c.json<DiscoverPrefs>({ ...readPrefs(c.get('deps').db, requireUser(c).id), all: SERVICES.map((s) => ({ key: s.key, name: s.name })) }));
@@ -50,15 +50,15 @@ discoverRoutes.put('/prefs', async (c) => {
 
 discoverRoutes.get('/title/:kind{movie|series}/:id{[0-9]+}', async (c) => {
   const user = requireUser(c);
-  return c.json<DiscoverTitle>(await discoverTitle(deps(c), user, c.req.param('kind') as 'movie' | 'series', Number(c.req.param('id'))));
+  return c.json<DiscoverTitle>(await discoverTitle(discoverDeps(c), user, c.req.param('kind') as 'movie' | 'series', Number(c.req.param('id'))));
 });
 
 discoverRoutes.get('/title/series/:id{[0-9]+}/season/:season{[0-9]+}', async (c) => {
   const user = requireUser(c);
-  return c.json<SeasonPreview>(await discoverSeason(deps(c), user, Number(c.req.param('id')), Number(c.req.param('season'))));
+  return c.json<SeasonPreview>(await discoverSeason(discoverDeps(c), user, Number(c.req.param('id')), Number(c.req.param('season'))));
 });
 
 discoverRoutes.get('/person/:id{[0-9]+}', async (c) => {
   const user = requireUser(c);
-  return c.json<PersonDetail>(await discoverPerson(deps(c), user, Number(c.req.param('id'))));
+  return c.json<PersonDetail>(await discoverPerson(discoverDeps(c), user, Number(c.req.param('id'))));
 });

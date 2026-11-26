@@ -810,6 +810,38 @@ export const migrations: string[] = [
     WHERE e.value NOT IN (SELECT m.value FROM user_prefs p, json_each(p.muted_events) m WHERE p.user_id = devices.user_id)
   ) WHERE push_events IS NOT NULL;
   `,
+  // Profile pictures, and Live Activities that start by themselves (downloads, and who's watching).
+  `
+  ALTER TABLE users ADD COLUMN plex_avatar TEXT;
+  ALTER TABLE users ADD COLUMN oidc_avatar TEXT;
+  ALTER TABLE devices ADD COLUMN live_downloads INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE devices ADD COLUMN live_watching INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE live_start_tokens (
+    device_id TEXT NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    token TEXT NOT NULL,
+    environment TEXT NOT NULL DEFAULT 'production',
+    PRIMARY KEY (device_id, kind)
+  );
+  CREATE TABLE live_starts (
+    device_id TEXT NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    ref TEXT NOT NULL,
+    at INTEGER NOT NULL,
+    PRIMARY KEY (device_id, kind, ref)
+  );
+  CREATE TABLE live_streams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    stream_ref TEXT NOT NULL,
+    device_id TEXT NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    environment TEXT NOT NULL DEFAULT 'production',
+    last_percent INTEGER NOT NULL DEFAULT 0,
+    last_state TEXT NOT NULL DEFAULT '',
+    started_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX live_streams_one ON live_streams (stream_ref, device_id);
+  `,
 ];
 
 export interface OpenOptions {

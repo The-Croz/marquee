@@ -11,12 +11,15 @@ post() { curl -fsS "${JSON[@]}" -X POST "$@"; }
 
 post -c "$ADMIN_JAR" -d '{"username":"josh","password":"correct horse battery","displayName":"Josh"}' "$BASE/api/auth/setup" >/dev/null || \
   post -c "$ADMIN_JAR" -d '{"username":"josh","password":"correct horse battery"}' "$BASE/api/auth/login" >/dev/null
+# The fake Plex has two people watching.
+curl -fsS "${JSON[@]}" -X PUT -b "$ADMIN_JAR" -d '{"plexUrl":"http://plex:32400","plexToken":"plex-token"}' "$BASE/api/settings/services" >/dev/null
 post -b "$ADMIN_JAR" -d '{}' "$BASE/api/library/scan" >/dev/null
 for _ in $(seq 1 30); do
   state=$(curl -fsS -b "$ADMIN_JAR" "$BASE/api/library/scan" | python3 -c "import json,sys; print(json.load(sys.stdin).get('running'))")
   [ "$state" = "False" ] && break
   sleep 1
 done
+curl -fsS -b "$ADMIN_JAR" "$BASE/api/activity/now" >/dev/null
 
 person() { # username displayName role
   post -b "$ADMIN_JAR" -d "{\"username\":\"$1\",\"displayName\":\"$2\",\"role\":\"$3\",\"password\":\"$1 password\"}" "$BASE/api/users" >/dev/null || true

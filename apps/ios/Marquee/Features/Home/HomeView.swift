@@ -5,6 +5,9 @@ struct HomeView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
     @State private var model: HomeModel?
+    @State private var suggestion: DiscoverCard?
+    @State private var slide = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         @Bindable var app = app
@@ -15,6 +18,7 @@ struct HomeView: View {
             .background(.ink)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
+            .navigationDestination(for: HomeDestination.self) { _ in WatchingScreen() }
         }
         // Once only: the refresh loop below holds on to the first model, so a new one would never load.
         .task { if model == nil { model = HomeModel(app: app) } }
@@ -44,6 +48,7 @@ struct HomeView: View {
             .overlay(alignment: .top) { topBar(model, proxy: proxy) }
         }
         .refreshing(every: 5) { await model.load() }
+        .sheet(item: $suggestion) { DiscoverTitleSheet(card: $0) }
         .alert("Couldn't do that", isPresented: Binding(get: { model.actionProblem != nil }, set: { if !$0 { model.actionProblem = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -62,25 +67,44 @@ struct HomeView: View {
                 .accessibilityIdentifier("need-you-pill")
             }
             Spacer()
-            AvatarButton(initial: app.user?.displayName ?? "?") { app.showingYou = true }
+            AvatarButton { app.showingYou = true }
                 .accessibilityIdentifier("avatar")
         }
         .padding(.horizontal, 16)
         .padding(.top, 4)
     }
 
+    /// The banner: its slides take turns, and a swipe moves between them.
     @ViewBuilder
     private func hero(_ model: HomeModel) -> some View {
-        if let hero = model.data?.hero {
-            TitleLink(href: hero.href) {
-            BackdropHero(
-                path: hero.backdropPath,
-                kicker: hero.eyebrow,
-                title: hero.title,
-                detail: ([hero.chips.joined(separator: " · ")] + [hero.note].compactMap { $0 }).filter { !$0.isEmpty }.joined(separator: " · "),
-                progress: hero.progress.map { $0 / 100 }
-            )
+        let slides = model.data?.slides ?? []
+        if !slides.isEmpty {
+            let shown = min(slide, slides.count - 1)
+            TabView(selection: $slide) {
+                ForEach(Array(slides.enumerated()), id: \.offset) { index, hero in
+                    heroSlide(hero).tag(index)
+                }
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 440)
+            .overlay(alignment: .bottom) {
+                if slides.count > 1 {
+                    HStack(spacing: 6) {
+                        ForEach(slides.indices, id: \.self) { i in
+                            Capsule().fill(i == shown ? Color.amber : Color.white.opacity(0.35)).frame(width: i == shown ? 18 : 6, height: 6)
+                        }
+                    }
+                    .padding(.bottom, 6)
+                    .accessibilityHidden(true)
+                }
+            }
+            // Restarts with every change, so a swipe gets the full time too.
+            .task(id: "\(shown)|\(slides.count)|\(reduceMotion)") {
+                guard slides.count > 1, !reduceMotion else { return }
+                try? await Task.sleep(for: .seconds(8))
+                if !Task.isCancelled { withAnimation { slide = (shown + 1) % slides.count } }
+            }
+            .accessibilityIdentifier("banner")
         } else {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Marquee").font(.titleSerif(40)).foregroundStyle(.amber)
@@ -89,6 +113,26 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 96)
+        }
+    }
+
+    @ViewBuilder
+    private func heroSlide(_ hero: HomeData.Hero) -> some View {
+        let banner = BackdropHero(
+            path: hero.backdropPath,
+            kicker: hero.eyebrow,
+            title: hero.title,
+            detail: ([hero.chips.joined(separator: " · ")] + [hero.note].compactMap { $0 }).filter { !$0.isEmpty }.joined(separator: " · ")
+        )
+        if TitleRoute(webPath: hero.href) != nil {
+            TitleLink(href: hero.href) { banner }
+        } else if let d = hero.discover {
+            Button {
+                suggestion = DiscoverCard(kind: d.kind, tmdbId: d.tmdbId, title: hero.title, year: hero.year, posterPath: hero.posterPath, backdropPath: hero.backdropPath, overview: hero.overview ?? "", score: hero.score, genres: hero.genres, state: .none, libraryId: nil, badge: nil)
+            } label: { banner }
+            .buttonStyle(.plain)
+        } else {
+            banner
         }
     }
 
@@ -102,9 +146,9 @@ struct HomeView: View {
         let admin = app.user?.role == .admin
         if admin {
             HStack(spacing: 8) {
-                tile(data.onItsWay.count, "On the way", .downloadBlue, section: .downloads)
-                tile(data.watching.count, "Watching", .readyTeal, section: .watching)
-                tile(data.needsYou.count, "Need you", .warn, section: .requests)
+                tile(data.onItsWay.count, "On the way", .downloadBlue, hint: "Opens Downloads") { app.selectedTab = .downloads }
+                tile(data.watching.count, "Watching", .readyTeal, hint: "Opens Watching") { app.homePath.append(HomeDestination.watching) }
+                tile(data.needsYou.count, "Need you", .warn, hint: "Opens Requests") { app.selectedTab = .requests }
             }
             .padding(.horizontal, 16)
         }
@@ -124,6 +168,20 @@ struct HomeView: View {
             .id("needs")
         }
 
+        if !data.watching.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(text: "Watching now", trailing: ("See all", { app.homePath.append(HomeDestination.watching) }))
+                    .padding(.trailing, 16)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(data.watching) { s in watchingCard(s) }
+                    }
+                    .padding(.trailing, 16)
+                }
+            }
+            .padding(.leading, 16)
+        }
+
         if !data.onItsWay.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(text: "On its way")
@@ -140,33 +198,6 @@ struct HomeView: View {
                 }
             }
             .padding(.leading, 16)
-        }
-
-        if !data.myRequests.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(text: "Your requests")
-                PanelCard {
-                    ForEach(data.myRequests) { r in
-                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
-                        if r.id != data.myRequests.last?.id { Divider().overlay(Color.line) }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-
-        if admin && !data.recentRequests.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(text: "Recent requests", trailing: ("See all", { openActivity(.requests) }))
-                PanelCard {
-                    let shown = Array(data.recentRequests.prefix(4))
-                    ForEach(shown) { r in
-                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
-                        if r.id != shown.last?.id { Divider().overlay(Color.line) }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
         }
 
         if !data.recent.isEmpty {
@@ -192,11 +223,39 @@ struct HomeView: View {
             .accessibilityIdentifier("just-arrived")
         }
 
+        if !data.myRequests.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(text: "Your requests")
+                PanelCard {
+                    ForEach(data.myRequests) { r in
+                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
+                        if r.id != data.myRequests.last?.id { Divider().overlay(Color.line) }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+
+        if admin && !data.recentRequests.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(text: "Recent requests", trailing: ("See all", { app.selectedTab = .requests }))
+                PanelCard {
+                    let shown = Array(data.recentRequests.prefix(4))
+                    ForEach(shown) { r in
+                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
+                        if r.id != shown.last?.id { Divider().overlay(Color.line) }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+
         if !data.upcoming.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(text: "This week")
                 PanelCard {
                     ForEach(data.upcoming) { u in
+                        TitleLink(href: u.href) {
                         HStack(spacing: 12) {
                             Text(u.day).font(.caption.weight(.semibold)).foregroundStyle(.amberHi).frame(width: 52, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
@@ -204,11 +263,15 @@ struct HomeView: View {
                                 Text(u.note).font(.caption).foregroundStyle(.muted)
                             }
                             Spacer()
+                            if u.href != nil { Image(systemName: "chevron.right").font(.caption).foregroundStyle(.dim) }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .frame(minHeight: 52)
+                        .contentShape(Rectangle())
                         .accessibilityElement(children: .combine)
+                        }
+                        .accessibilityIdentifier("week-\(u.href ?? u.title)")
                         if u.id != data.upcoming.last?.id { Divider().overlay(Color.line) }
                     }
                 }
@@ -221,15 +284,39 @@ struct HomeView: View {
         }
     }
 
-    private func tile(_ count: Int, _ label: String, _ tint: Color, section: ActivitySection) -> some View {
-        Button { openActivity(section) } label: { CountTile(count: count, label: label, tint: tint) }
+    private func tile(_ count: Int, _ label: String, _ tint: Color, hint: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { CountTile(count: count, label: label, tint: tint) }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens \(section.title)")
+            .accessibilityHint(hint)
     }
 
-    private func openActivity(_ section: ActivitySection) {
-        app.activitySection = section
-        app.selectedTab = .activity
+    /// Someone playing something: its artwork, who, and how far in. Opens the title.
+    private func watchingCard(_ s: NowPlaying) -> some View {
+        let card = ArtBanner(path: s.backdropPath ?? s.posterPath, title: s.title, height: 132, size: .w780)
+            .overlay { LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .init(x: 0.5, y: 0.2), endPoint: .bottom) }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(s.title).font(.subheadline.weight(.semibold)).foregroundStyle(.white).lineLimit(1)
+                    HStack(spacing: 6) {
+                        Face(name: s.user, path: s.userAvatar, size: 18)
+                        Text("\(s.user) · \(s.device)\(s.state == "paused" ? " · Paused" : "")").font(.caption).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
+                    }
+                    ProgressView(value: min(max(s.progress, 0), 1)).progressViewStyle(BarStyle(fill: .readyTeal, track: .white.opacity(0.2)))
+                }
+                .padding(12)
+            }
+            .frame(width: 260)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+        return Group {
+            if TitleRoute(webPath: s.href) != nil {
+                TitleLink(href: s.href) { card }
+            } else {
+                Button { app.homePath.append(HomeDestination.watching) } label: { card }.buttonStyle(.plain)
+            }
+        }
+        .accessibilityIdentifier("watching-\(s.sessionId)")
     }
 
     // MARK: Needs you
@@ -280,7 +367,7 @@ struct HomeView: View {
 
     /// A problem card goes where the web would: Activity for downloads and requests, else the web page.
     private func open(_ item: HomeData.Attention) {
-        if item.to.hasPrefix("/downloads") { openActivity(.downloads) } else if item.to.hasPrefix("/requests") { openActivity(.requests) } else {
+        if item.to.hasPrefix("/downloads") { app.selectedTab = .downloads } else if item.to.hasPrefix("/requests") { app.selectedTab = .requests } else {
             Task {
                 let base = await app.client.activeAddress
                 if let url = URL(string: base.absoluteString + item.to) { openURL(url) }

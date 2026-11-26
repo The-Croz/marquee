@@ -1,6 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/index.js';
-import { devices, liveActivities, notificationChannels } from '../db/schema.js';
+import { devices, liveActivities, liveStartTokens, liveStreams, notificationChannels } from '../db/schema.js';
 
 /**
  * A phone that is signed out stops getting pushes and Lock Screen updates: nothing it was following is for whoever signs in next.
@@ -13,6 +13,8 @@ export function forgetPushForDevice(db: Db, userId: number, deviceId: string): v
     db.delete(notificationChannels).where(eq(notificationChannels.id, ch.id)).run();
   }
   db.delete(liveActivities).where(eq(liveActivities.deviceId, deviceId)).run();
+  db.delete(liveStreams).where(eq(liveStreams.deviceId, deviceId)).run();
+  db.delete(liveStartTokens).where(eq(liveStartTokens.deviceId, deviceId)).run();
 }
 
 /** Call before sessions are deleted (signed out, password changed, expired). */

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { deleteUserSessions, hashToken } from '../auth/sessions.js';
-import { dropPush, listDevices, pushEvents, registerPush, removeDevice } from '../auth/devices.js';
+import { dropPush, listDevices, liveSettings, pushEvents, registerPush, removeDevice, saveStartToken } from '../auth/devices.js';
 import { toSessionUser, updateUser } from '../auth/users.js';
 import { HttpError, requireUser, sessionToken, signIn, type Env } from '../http.js';
 import type { User } from '../db/schema.js';
@@ -97,6 +97,33 @@ accountRoutes.put('/devices/:id/push/events', async (c) => {
   const user = requireUser(c);
   const body = z.object({ events: z.array(z.string().max(40)).max(60), on: z.boolean() }).parse(await c.req.json());
   return c.json(deviceEvents(pushEvents(c.get('deps').db, user, c.req.param('id'), body)));
+});
+
+const notTheirs = () => new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
+
+/** Lock Screen cards that start by themselves: the app's switches, and the same ones on the web. */
+accountRoutes.get('/devices/:id/live', (c) => {
+  const user = requireUser(c);
+  const answer = liveSettings(c.get('deps').db, user, c.req.param('id'));
+  if (!answer) throw notTheirs();
+  return c.json(answer);
+});
+
+accountRoutes.put('/devices/:id/live', async (c) => {
+  const user = requireUser(c);
+  const body = z.object({ downloads: z.boolean().optional(), watching: z.boolean().optional() }).parse(await c.req.json());
+  const answer = liveSettings(c.get('deps').db, user, c.req.param('id'), body);
+  if (!answer) throw notTheirs();
+  return c.json(answer);
+});
+
+const startBody = z.object({ kind: z.enum(['download', 'watching']), token: z.string().regex(/^[0-9a-fA-F]{20,400}$/, 'That isn’t a Live Activity token.'), environment: z.enum(['production', 'sandbox']).default('production') });
+
+accountRoutes.put('/devices/:id/live/start-token', async (c) => {
+  const user = requireUser(c);
+  const body = startBody.parse(await c.req.json());
+  if (!saveStartToken(c.get('deps').db, user.id, c.req.param('id'), body.kind, body.token.toLowerCase(), body.environment)) throw notTheirs();
+  return c.json({ ok: true });
 });
 
 accountRoutes.delete('/devices/:id/push', (c) => {

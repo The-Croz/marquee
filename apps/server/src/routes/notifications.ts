@@ -73,6 +73,7 @@ function channelView(ch: NotificationChannel): NotificationChannelView {
     name: ch.name,
     enabled: ch.enabled,
     shared: ch.userId === null,
+    ...(ch.kind === 'apns' ? { deviceId: c.deviceId } : {}),
     events: JSON.parse(ch.events) as string[],
     detail: ch.kind === 'ntfy' ? `${(c.server || 'https://ntfy.sh').replace(/\/+$/, '')}/${c.topic ?? ''}` : ch.kind === 'webhook' ? (c.url ?? '').replace(/^(https?:\/\/[^/]+).*$/, '$1/…') : ch.kind === 'apns' ? 'iPhone app' : 'Pushover',
     lastOkAt: ch.lastOkAt,

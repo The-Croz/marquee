@@ -5,7 +5,7 @@ import { api, queryClient } from '../api';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from './Bell';
 import { Icon, type IconName } from './Icon';
-import { cx } from './ui';
+import { Avatar, cx } from './ui';
 import { Menu, MenuDivider, ToastProvider, menuItemClass } from './Overlay';
 import { CommandBar, commandKeyHint, type Destination } from './CommandBar';
 import { settingsGroups } from '../pages/Settings';
@@ -189,18 +189,24 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
           >
             <Icon name={n.icon} />
             {n.label}
-            {n.to === '/requests' && pending > 0 && <span className="absolute top-1.5 left-[calc(50%+6px)] size-2 rounded-full bg-amber" aria-label={`${pending} waiting`} />}
-            {n.to === '/downloads' && active > 0 && (
-              <span className="absolute top-1 left-[calc(50%+4px)] min-w-4 rounded-full bg-blue px-1 text-center text-[10px] leading-4 font-bold text-blue-ink" aria-label={`${active} on the way`}>
-                {active}
-              </span>
-            )}
+            {n.to === '/' && playing > 0 && <TabCount n={playing} tone="bg-teal text-teal-ink" label={`${playing} ${playing === 1 ? 'stream' : 'streams'} playing`} />}
+            {n.to === '/requests' && pending > 0 && <TabCount n={pending} tone="bg-amber text-amber-ink" label={`${pending} waiting`} />}
+            {n.to === '/downloads' && active > 0 && <TabCount n={active} tone="bg-blue text-blue-ink" label={`${active} on the way`} />}
           </Link>
         ))}
       </nav>
     </div>
     <CommandBar user={user} destinations={destinations} open={commandOpen} onOpenChange={setCommandOpen} />
     </ToastProvider>
+  );
+}
+
+/** A number on a phone tab. */
+function TabCount({ n, tone, label }: { n: number; tone: string; label: string }) {
+  return (
+    <span className={cx('absolute top-1 left-[calc(50%+4px)] min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-bold', tone)} aria-label={label}>
+      {n}
+    </span>
   );
 }
 
@@ -235,11 +241,7 @@ function AccountMenu({ user, placement, compact }: { user: SessionUser; placemen
         { to: '/history', label: 'My history', icon: 'history' },
         { to: '/settings', label: 'Settings', icon: 'settings' },
       ];
-  const avatar = (
-    <span className="flex size-9 flex-none items-center justify-center rounded-full bg-amber text-sm font-bold text-amber-ink" aria-hidden="true">
-      {user.displayName.slice(0, 1).toUpperCase()}
-    </span>
-  );
+  const avatar = <Avatar name={user.displayName} src={user.avatar} />;
 
   return (
     <Menu

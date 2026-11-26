@@ -269,7 +269,8 @@ struct PeopleScreen: View {
             List {
                 ForEach(v.users) { u in
                     Button { editing = u } label: {
-                        HStack {
+                        HStack(spacing: 12) {
+                            Face(name: u.displayName, path: u.avatar, size: 32)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(u.displayName).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary)
                                 Text("\(roleName(u.role))\(u.skipApproval ? " · requests skip approval" : "")\(u.lastLoginAt.map { " · signed in \(Format.ago($0))" } ?? "")").font(.caption).foregroundStyle(.muted)

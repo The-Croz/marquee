@@ -210,11 +210,11 @@ authRoutes.get('/oidc/callback', async (c) => {
 
   if (flow.linkUserId) {
     if (existing && existing.id !== flow.linkUserId) return back('oidc_in_use');
-    updateUser(db, flow.linkUserId, { oidcIssuer: oidc.issuer, oidcSubject: identity.subject, email: identity.email ?? undefined });
+    updateUser(db, flow.linkUserId, { oidcIssuer: oidc.issuer, oidcSubject: identity.subject, oidcAvatar: identity.picture, email: identity.email ?? undefined });
     return c.redirect('/settings/account?linked=oidc', 302);
   }
 
-  let user: User | undefined = existing;
+  let user: User | undefined = existing && updateUser(db, existing.id, { oidcAvatar: identity.picture });
   if (!user) {
     if (!config.oidc.autoCreate || countUsers(db) === 0) return back('oidc_no_account');
     if (findLikelySamePerson(db, identity)) return back('oidc_account_exists');
@@ -225,6 +225,7 @@ authRoutes.get('/oidc/callback', async (c) => {
       role: 'member',
       oidcIssuer: oidc.issuer,
       oidcSubject: identity.subject,
+      oidcAvatar: identity.picture,
     });
   }
   if (flow.app) {
@@ -333,13 +334,13 @@ authRoutes.post('/plex/check', async (c) => {
       return c.json<PlexPinCheck>({ status: 'denied', message: 'That Plex account is already linked to another Marquee user.' });
     }
     // Their token is kept (never shown) so Marquee can read their Plex watchlist.
-    const user = updateUser(db, flow.linkUserId, { plexId: account.id, plexUsername: account.username, plexToken: token });
+    const user = updateUser(db, flow.linkUserId, { plexId: account.id, plexUsername: account.username, plexToken: token, plexAvatar: account.avatar });
     return c.json<PlexPinCheck>({ status: 'ok', user: toSessionUser(user) });
   }
 
   let user: User | undefined = existing;
   if (user) {
-    user = updateUser(db, user.id, { plexUsername: account.username, plexToken: token });
+    user = updateUser(db, user.id, { plexUsername: account.username, plexToken: token, plexAvatar: account.avatar });
   } else {
     const { autoCreate, serverId } = config.plex;
     const allowed = autoCreate && serverId !== null && countUsers(db) > 0 && (await client.canAccessServer(token, serverId));
@@ -365,6 +366,7 @@ authRoutes.post('/plex/check', async (c) => {
       plexId: account.id,
       plexUsername: account.username,
       plexToken: token,
+      plexAvatar: account.avatar,
     });
   }
   const done = finishSignIn(c, user, flow.device);

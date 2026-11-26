@@ -5,5 +5,6 @@ import WidgetKit
 struct MarqueeWidgetsBundle: WidgetBundle {
     var body: some Widget {
         DownloadLiveActivity()
+        WatchingLiveActivity()
     }
 }

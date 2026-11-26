@@ -5,10 +5,10 @@ import { movies, series, streams } from '../db/schema.js';
 import type { Clients } from '../http.js';
 import { MediaServerError, readMediaServer, type MediaServerApi, type NowPlayingItem, type ServerKind } from '../library/mediaServers.js';
 import { tell, type NotifyDeps } from '../notify/service.js';
+import { updateWatchingCards } from '../downloads/liveActivity.js';
 import type { Vars } from '../notify/template.js';
 import { posterUrl } from '../notify/vars.js';
-import { normalizeTitle } from '../releases/decide.js';
-import { describeItem, hrefFor } from './service.js';
+import { bareTitle, describeItem, hrefFor, viewerAvatar } from './service.js';
 
 /**
  * Watching what is playing, the way it should work: the media servers tell us
@@ -25,7 +25,7 @@ import { describeItem, hrefFor } from './service.js';
 
 type Deps = {
   db: Db;
-  clients: Pick<Clients, 'plexServer' | 'jellyfin'> & Partial<Pick<Clients, 'tmdb'>>;
+  clients: Pick<Clients, 'plexServer' | 'jellyfin'> & Partial<Pick<Clients, 'tmdb' | 'apns'>>;
   now: () => number;
   /** The TMDB key, to find cover art for something that isn't in the library. */
   tmdbKey?: () => string | null | undefined;
@@ -45,7 +45,15 @@ interface Live {
   watchedMs: number;
   progress: number;
   transcodeTold: boolean;
+  /** TMDB artwork for something the library doesn't have. */
+  art: Art;
 }
+
+interface Art {
+  posterPath: string | null;
+  backdropPath: string | null;
+}
+const NO_ART: Art = { posterPath: null, backdropPath: null };
 
 const KINDS: ServerKind[] = ['plex', 'jellyfin'];
 const SERVER_NAME = { plex: 'Plex', jellyfin: 'Jellyfin' } as const;
@@ -55,9 +63,6 @@ const MAX_GAP = 60_000;
 const MIN_STOP_MS = 30_000;
 const GIVE_UP_AFTER = 2 * 60_000;
 const WRITE_EVERY = 30_000;
-
-/** A title for matching: no "(2019)" on the end, and the usual clean-up. */
-const bareTitle = (t: string) => normalizeTitle(t.replace(/\s*\((\d{4})\)\s*$/, ''));
 
 const minutes = (ms: number) => Math.max(1, Math.round(ms / 60_000));
 
@@ -78,8 +83,8 @@ export class ActivityMonitor {
   private hintTimer: ReturnType<typeof setTimeout> | null = null;
   private lastJson = '';
   private started = false;
-  /** Cover art found on TMDB, so a show isn't looked up again for every pause. */
-  private posters = new Map<string, string | null>();
+  /** Artwork found on TMDB, so a show isn't looked up again for every pause. */
+  private found = new Map<string, Art>();
   /** Messages go out in order, even while one waits for its cover art. */
   private sending: Promise<void> = Promise.resolve();
 
@@ -195,6 +200,7 @@ export class ActivityMonitor {
         this.problems.delete(kind);
         this.lastOk.set(kind, now());
         this.apply(kind, items);
+        await this.dress(kind);
       } catch (err) {
         this.problems.set(kind, `${SERVER_NAME[kind]}: ${err instanceof MediaServerError ? err.message : (err as Error).message}`);
         const since = this.lastOk.get(kind);
@@ -202,6 +208,27 @@ export class ActivityMonitor {
       }
     }
     this.publish();
+    this.updateCards();
+  }
+
+  private updatingCards = false;
+
+  /** Lock Screen cards follow what's playing. Never waited for, one run at a time. */
+  private updateCards(): void {
+    const { db, clients, now } = this.deps;
+    if (this.updatingCards) return;
+    this.updatingCards = true;
+    void updateWatchingCards({ db, apns: clients.apns ?? null, now }, this.view().sessions)
+      .catch((err) => console.warn(`[live activity] ${(err as Error).message}`))
+      .finally(() => (this.updatingCards = false));
+  }
+
+  /** Fetches artwork for streams the library has no title for. */
+  private async dress(kind: ServerKind): Promise<void> {
+    for (const live of this.current.values()) {
+      if (live.server !== kind || live.art !== NO_ART || hrefFor(this.deps.db, live.item)) continue;
+      live.art = await this.tmdbArt(live.item);
+    }
   }
 
   private endAll(kind: ServerKind, at: number): void {
@@ -224,47 +251,40 @@ export class ActivityMonitor {
 
   /** Cover art: from the library if it's there, otherwise from TMDB. */
   async poster(it: NowPlayingItem): Promise<string | null> {
-    const local = this.libraryPoster(it);
-    if (local) return local;
+    return posterUrl(this.libraryArt(hrefFor(this.deps.db, it))?.posterPath ?? (await this.tmdbArt(it)).posterPath);
+  }
+
+  private libraryArt(href: string | null): Art | null {
+    const m = href?.match(/^\/(movies|shows)\/(\d+)$/);
+    if (!m) return null;
+    const table = m[1] === 'movies' ? movies : series;
+    return this.deps.db.select({ posterPath: table.posterPath, backdropPath: table.backdropPath }).from(table).where(eq(table.id, Number(m[2]))).get() ?? null;
+  }
+
+  private async tmdbArt(it: NowPlayingItem): Promise<Art> {
     const key = it.kind === 'movie' ? `m:${it.tmdbId ?? `${bareTitle(it.title)}:${it.year ?? ''}`}` : `s:${bareTitle(it.show ?? it.title)}`;
-    if (this.posters.has(key)) return this.posters.get(key)!;
-    const found = await this.tmdbPoster(it).catch(() => null);
-    if (this.posters.size > 500) this.posters.clear();
-    this.posters.set(key, found);
-    return found;
+    const known = this.found.get(key);
+    if (known) return known;
+    const art = await this.askTmdb(it).catch(() => null);
+    // A failed look is tried again next time; an answer (even "nothing") is kept.
+    if (!art) return NO_ART;
+    if (this.found.size > 500) this.found.clear();
+    this.found.set(key, art);
+    return art;
   }
 
-  /**
-   * The library's cover art. Movies by TMDB id, then by name and year (Plex doesn't
-   * always say the id while something plays); shows by name, ignoring a "(2019)" either side.
-   */
-  private libraryPoster(it: NowPlayingItem): string | null {
-    const { db } = this.deps;
-    if (it.kind === 'movie') {
-      if (it.tmdbId) {
-        const p = db.select({ p: movies.posterPath }).from(movies).where(eq(movies.tmdbId, it.tmdbId)).get()?.p;
-        if (p) return posterUrl(p);
-      }
-      const want = bareTitle(it.title);
-      const near = (y: number | null) => !it.year || !y || Math.abs(y - it.year) <= 1;
-      return posterUrl(db.select({ t: movies.title, y: movies.year, p: movies.posterPath }).from(movies).all().find((m) => m.p && near(m.y) && bareTitle(m.t) === want)?.p);
-    }
-    if (!it.show) return null;
-    const want = bareTitle(it.show);
-    return posterUrl(db.select({ t: series.title, p: series.posterPath }).from(series).all().find((s) => s.p && bareTitle(s.t) === want)?.p);
-  }
-
-  private async tmdbPoster(it: NowPlayingItem): Promise<string | null> {
+  private async askTmdb(it: NowPlayingItem): Promise<Art | null> {
     const key = this.deps.tmdbKey?.();
     if (!key || !this.deps.clients.tmdb) return null;
     const tmdb = this.deps.clients.tmdb(key);
+    const pick = ({ posterPath, backdropPath }: Art) => ({ posterPath, backdropPath });
     if (it.kind === 'movie') {
-      if (it.tmdbId) return posterUrl((await tmdb.movie(it.tmdbId)).posterPath);
-      return posterUrl((await tmdb.searchMovie(it.title, it.year)).find((r) => r.posterPath)?.posterPath);
+      const id = it.tmdbId ?? (await tmdb.searchMovie(it.title, it.year)).find((r) => r.posterPath)?.tmdbId;
+      return id ? pick(await tmdb.movie(id)) : NO_ART;
     }
-    if (!it.show) return null;
-    const show = it.show.replace(/\s*\((\d{4})\)\s*$/, '');
-    return posterUrl((await tmdb.searchShow(show)).find((r) => r.posterPath)?.posterPath);
+    if (!it.show) return NO_ART;
+    const id = (await tmdb.searchShow(it.show.replace(/\s*\((\d{4})\)\s*$/, ''))).find((r) => r.posterPath)?.tmdbId;
+    return id ? pick(await tmdb.show(id)) : NO_ART;
   }
 
   /** Compares what the server says is playing with what we knew, and records the differences. */
@@ -285,7 +305,7 @@ export class ActivityMonitor {
           .values({ server: kind, sessionId: it.sessionId, userName: it.user, kind: it.kind, title: it.title, show: it.show, season: it.season, episode: it.episode, year: it.year, tmdbId: it.tmdbId, device: it.device, platform: it.platform, resolution: it.resolution, transcoding: it.transcoding, startedAt: t, lastSeenAt: t, progress: it.progress })
           .returning({ id: streams.id })
           .get();
-        this.current.set(key, { key, server: kind, rowId: row.id, item: it, startedAt: t, lastTick: t, lastWrite: t, watchedMs: 0, progress: it.progress, transcodeTold: it.transcoding });
+        this.current.set(key, { key, server: kind, rowId: row.id, item: it, startedAt: t, lastTick: t, lastWrite: t, watchedMs: 0, progress: it.progress, transcodeTold: it.transcoding, art: NO_ART });
         this.tell('stream_started', kind, it);
         if (it.transcoding) this.tell('stream_transcoding', kind, it);
         continue;
@@ -330,7 +350,10 @@ export class ActivityMonitor {
   view(): { sessions: NowPlayingView[]; problems: string[] } {
     const sessions = [...this.current.values()]
       .sort((a, b) => a.startedAt - b.startedAt)
-      .map((l) => ({
+      .map((l) => {
+        const href = hrefFor(this.deps.db, l.item);
+        const art = this.libraryArt(href) ?? l.art;
+        return {
         server: l.server,
         sessionId: l.item.sessionId,
         user: l.item.user,
@@ -343,8 +366,14 @@ export class ActivityMonitor {
         transcoding: l.item.transcoding,
         convertReason: l.item.convertReason ?? null,
         startedAt: l.startedAt,
-        href: hrefFor(this.deps.db, l.item),
-      }));
+        href,
+        posterPath: art.posterPath,
+        backdropPath: art.backdropPath,
+        facts: l.item.facts ?? [],
+        durationMs: l.item.durationMs ?? null,
+        userAvatar: viewerAvatar(this.deps.db, l.server, l.item.user),
+        };
+      });
     return { sessions, problems: [...this.problems.values()] };
   }
 

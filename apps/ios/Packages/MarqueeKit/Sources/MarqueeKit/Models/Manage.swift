@@ -151,6 +151,7 @@ public struct UserSummary: Codable, Hashable, Sendable, Identifiable {
     public var skipApproval: Bool
     /// Most requests in 7 days; 0 means no limit.
     public var weeklyLimit: Int
+    public var avatar: String?
 }
 
 public struct UsersResponse: Codable, Hashable, Sendable {
@@ -193,4 +194,9 @@ public struct LeftOutItem: Codable, Hashable, Sendable, Identifiable {
 
 public struct LeftOutResponse: Codable, Hashable, Sendable {
     public var items: [LeftOutItem]
+}
+
+/// `GET /api/activity/count`: how many streams are playing.
+public struct ActivityCount: Codable, Hashable, Sendable {
+    public var playing: Int
 }

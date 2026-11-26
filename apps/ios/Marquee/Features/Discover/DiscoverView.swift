@@ -5,6 +5,7 @@ struct DiscoverView: View {
     @Environment(AppModel.self) private var app
     @State private var model = DiscoverModel()
     @State private var opened: DiscoverCard?
+    @State private var searching = false
 
     var body: some View {
         @Bindable var app = app
@@ -27,14 +28,22 @@ struct DiscoverView: View {
             .background(.ink)
             .navigationTitle("Discover")
             .toolbar {
+                if app.user?.role != .kid {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { searching = true } label: { Image(systemName: "magnifyingglass") }
+                            .accessibilityLabel("Search")
+                            .accessibilityIdentifier("search")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    AvatarButton(initial: app.user?.displayName ?? "?") { app.showingYou = true }.accessibilityIdentifier("avatar")
+                    AvatarButton { app.showingYou = true }.accessibilityIdentifier("avatar")
                 }
             }
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
         }
         .task(id: "\(model.type)|\(model.service)|\(model.genre ?? "")") { await model.load(app) }
         .sheet(item: $opened) { card in DiscoverTitleSheet(card: card) }
+        .sheet(isPresented: $searching) { SearchView() }
     }
 
     private func open(_ card: DiscoverCard) {
@@ -52,20 +61,23 @@ struct DiscoverView: View {
             LazyHStack(spacing: 12) {
                 ForEach(cards.prefix(8)) { card in
                     Button { open(card) } label: {
-                        ZStack(alignment: .bottomLeading) {
-                            Placeholder.fill(title: card.title, color: nil)
+                        // The picture is laid over a fixed frame: filling it can't make the card wider and push the words off its edges.
+                        Placeholder.fill(title: card.title, color: nil)
+                        .frame(width: 330, height: 210)
+                        .overlay {
                             if let url = TMDBImage.url(path: card.backdropPath ?? card.posterPath, size: .w1280) {
                                 AsyncImage(url: url) { phase in if let image = phase.image { image.resizable().scaledToFill() } }
                             }
-                            LinearGradient(colors: [.clear, .black.opacity(0.82)], startPoint: .init(x: 0.5, y: 0.3), endPoint: .bottom)
+                        }
+                        .overlay { LinearGradient(colors: [.clear, .black.opacity(0.82)], startPoint: .init(x: 0.5, y: 0.3), endPoint: .bottom) }
+                        .overlay(alignment: .bottomLeading) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text((card.badge ?? (card.isMovie ? "Movie" : "Show")).uppercased()).font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(.amberHi)
                                 Text(card.title).font(.titleSerif(34)).foregroundStyle(.white).lineLimit(2).minimumScaleFactor(0.7)
-                                Text(stateLine(card)).font(.caption).foregroundStyle(.white.opacity(0.85))
+                                Text(stateLine(card)).font(.caption).foregroundStyle(.white.opacity(0.85)).lineLimit(2)
                             }
                             .padding(16)
                         }
-                        .frame(width: 330, height: 210)
                         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                     }

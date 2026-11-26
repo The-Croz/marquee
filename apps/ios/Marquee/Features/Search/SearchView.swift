@@ -41,6 +41,7 @@ final class SearchModel {
 /// Search: your library first, then everything else on TMDB, which you can ask for.
 struct SearchView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
     @State private var model = SearchModel()
     @State private var opened: DiscoverCard?
 
@@ -83,6 +84,7 @@ struct SearchView: View {
             .scrollContentBackground(.hidden)
             .background(.ink)
             .navigationTitle("Search")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { dismiss() } } }
             .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies and shows")
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
             .overlay { if model.searching && model.inLibrary.isEmpty && model.elsewhere.isEmpty { ProgressView().tint(.amber) } }

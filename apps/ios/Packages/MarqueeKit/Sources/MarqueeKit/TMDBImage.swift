@@ -7,6 +7,8 @@ public enum TMDBImage {
         case w185
         /// Poster rows and grids.
         case w342
+        /// Backdrop cards.
+        case w780
         /// Backdrops.
         case w1280
     }

@@ -60,17 +60,24 @@ public struct HomeData: Codable, Hashable, Sendable {
     }
 
     public struct Hero: Codable, Hashable, Sendable {
-        /// "watching", "ready" or "arrived".
+        public struct Suggestion: Codable, Hashable, Sendable {
+            public var kind: String
+            public var tmdbId: Int
+        }
+
+        /// "ready", "arrived", "aired", "coming", "picked", "unwatched" or "random".
         public var kind: String
-        /// "Now showing · Living room TV", "Ready to watch · you asked", "Just arrived · 2 hours ago".
+        /// "Ready to watch · you asked for it", "Recently added · today", "Coming Fri".
         public var eyebrow: String
         public var title: String
         public var chips: [String]
         public var href: String?
+        /// A suggestion that may not be in the library: open it from TMDB when there's no href.
+        public var discover: Suggestion?
         public var backdropPath: String?
         public var posterPath: String?
         public var color: String?
-        /// 0 to 100, while playing.
+        /// Always nil from a current Marquee.
         public var progress: Double?
         public var note: String?
         public var year: Int?
@@ -102,8 +109,18 @@ public struct HomeData: Codable, Hashable, Sendable {
     public var recent: [Title]
     public var upcoming: [Upcoming]
     public var stats: [Stat]
+    /// The banner's slides, in order. Missing from a Marquee that predates the rotating banner.
+    public var heroes: [Hero]?
     public var hero: Hero?
     public var setup: [SetupStep]?
+
+    public var slides: [Hero] { heroes ?? hero.map { [$0] } ?? [] }
+}
+
+/// One line about a stream: "Video" · "4K HEVC → 720p H264".
+public struct StreamFact: Codable, Hashable, Sendable {
+    public var label: String
+    public var value: String
 }
 
 /// Someone playing something right now (Plex or Jellyfin).
@@ -123,6 +140,13 @@ public struct NowPlaying: Codable, Hashable, Sendable, Identifiable {
     public var transcoding: Bool
     public var convertReason: String?
     public var href: String?
+    public var posterPath: String?
+    public var backdropPath: String?
+    /// How it's being sent to the device, in plain lines.
+    public var facts: [StreamFact]?
+    public var durationMs: Double?
+    /// The viewer's picture, when Marquee has one.
+    public var userAvatar: String?
 
     public var id: String { "\(server)|\(sessionId)" }
 }

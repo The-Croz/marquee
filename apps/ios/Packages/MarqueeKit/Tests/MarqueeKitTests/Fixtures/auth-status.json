@@ -18,6 +18,7 @@
     "username": "josh",
     "displayName": "Josh",
     "role": "admin",
+    "avatar": null,
     "linked": {
       "plex": false,
       "oidc": false,

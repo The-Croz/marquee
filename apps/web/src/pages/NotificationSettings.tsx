@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useOutletContext } from 'react-router';
-import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
+import type { AuthStatus, DiscoverPrefs, LiveSettings, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
 import { Tabs } from '../components/Page';
@@ -291,12 +291,30 @@ function ChannelRow({ ch, admin }: { ch: NotificationChannelView; admin: boolean
           }}
         />
       )}
+      {phone && ch.deviceId && <LockScreenCards device={ch.deviceId} />}
       {phone && <span className="text-sm text-muted">To stop all of them, open the Marquee app and switch notifications off under You.</span>}
       {!ch.enabled && <Notice>Paused. Nothing is sent here until you turn it on.</Notice>}
       {ch.lastError && <Notice tone="error">{ch.lastError}</Notice>}
       {result && <Notice tone={result.ok ? 'success' : 'error'}>{result.message}</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
     </li>
+  );
+}
+
+/** Lock Screen cards that start by themselves on one iPhone (admins). The app has the same switches. */
+function LockScreenCards({ device }: { device: string }) {
+  const url = `/me/devices/${device}/live`;
+  const { data } = useQuery({ queryKey: ['live', device], queryFn: () => api<LiveSettings>(url) });
+  const [error, setError] = useState<string | null>(null);
+  if (!data || data.downloads === null) return null;
+  const set = (change: Partial<LiveSettings>) => run(setError, async () => (await api(url, { method: 'PUT', body: change }), await queryClient.invalidateQueries({ queryKey: ['live', device] })));
+  return (
+    <fieldset className="m-0 flex flex-col border-0 p-0">
+      <legend className="p-0 text-sm font-medium text-soft">Lock Screen cards that start by themselves</legend>
+      <Check label="When a download starts" hint="Up to three at a time, with how far along each is." checked={!!data.downloads} onChange={(downloads) => set({ downloads })} />
+      <Check label="When someone starts watching" hint="Who, what, how far in, and whether it’s being converted." checked={!!data.watching} onChange={(watching) => set({ watching })} />
+      {error && <Notice tone="error">{error}</Notice>}
+    </fieldset>
   );
 }
 

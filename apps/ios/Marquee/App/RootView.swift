@@ -35,6 +35,7 @@ struct RootView: View {
                     await app.becameActive()
                     // Notifications may have been allowed in iOS Settings while the app was away.
                     await PushCenter.shared.refresh()
+                    await LiveActivityController.shared.sendStartTokens(app)
                 }
             }
         }
@@ -45,27 +46,34 @@ struct RootView: View {
     }
 }
 
-/// The tabs. Kids get Home only; members get Home and Activity (their own requests).
+/// The tabs along the bottom (see `MainTab` for who gets which). Watching has no tab:
+/// it opens from Home, whose tab carries the number of streams playing.
 struct SignedInView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        let role = app.user?.role ?? .member
-        let sections = ActivityTabs.sections(for: role)
+        let tabs = MainTab.tabs(for: app.user?.role ?? .member)
         @Bindable var app = app
         TabView(selection: $app.selectedTab) {
-            Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView() }
-            Tab("Discover", systemImage: "safari.fill", value: AppTab.discover) { DiscoverView() }
-            Tab("Library", systemImage: "rectangle.stack.fill", value: AppTab.library) { LibraryView() }
-            if !sections.isEmpty {
-                Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityView(sections: sections) }
+            Tab("Home", systemImage: "house.fill", value: MainTab.home) { HomeView() }
+                .badge(app.counts.playing)
+            Tab("Discover", systemImage: "safari.fill", value: MainTab.discover) { DiscoverView() }
+            Tab("Library", systemImage: "rectangle.stack.fill", value: MainTab.library) { LibraryView() }
+            if tabs.contains(.requests) {
+                Tab("Requests", systemImage: "tray.full.fill", value: MainTab.requests) { RequestsScreen() }
+                    .badge(app.counts.requests)
             }
-            if role != .kid {
-                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) { SearchView() }
+            if tabs.contains(.downloads) {
+                Tab("Downloads", systemImage: "arrow.down.circle.fill", value: MainTab.downloads) { DownloadsScreen() }
+                    .badge(app.counts.downloads)
             }
         }
+        .refreshing(every: 15) { await app.loadCounts() }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .task { await PushCenter.shared.refresh() }
+        .task {
+            await PushCenter.shared.refresh()
+            await LiveActivityController.shared.sendStartTokens(app)
+        }
         .sheet(item: $app.turnDownRequest) { r in
             TurnDownSheet(request: r) { reason in Task { await app.turnDown(r, reason: reason) } }
         }

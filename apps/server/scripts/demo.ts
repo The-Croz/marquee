@@ -234,7 +234,7 @@ const jellyfin = new FakeMediaServer('jellyfin', [
   { id: 'b2', name: 'Shows', kind: 'tv', locations: [path.join(root, 'tv')] },
 ]);
 plex.people = [
-  { id: '1001', username: 'josh', name: 'Josh' },
+  { id: '1001', username: 'josh', name: 'Josh', avatar: 'https://plex.tv/users/demo-josh/avatar' },
   { id: '1002', username: 'ana.m', name: 'Ana' },
 ];
 jellyfin.people = [
@@ -254,7 +254,32 @@ plex.plays = [
   { kind: 'episode', title: 'Half Loop', show: 'Severance', season: 1, episode: 2, year: null, tmdbId: null, userId: '2', user: 'ana', key: 'p3', playedAt: hoursAgo(54) },
 ];
 jellyfin.plays = [{ kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, userId: 'jf-sam', user: 'sam', key: 'j1', playedAt: hoursAgo(80) }];
-plex.playing = [{ sessionId: 's1', platform: 'Plex for Roku', resolution: '4k', kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, user: 'ana', device: 'Living room TV', state: 'playing', progress: 0.37, transcoding: false }];
+plex.playing = [
+  {
+    sessionId: 's1', platform: 'Plex for Roku', resolution: '4k', kind: 'movie', title: 'Dune: Part Two', show: null, season: null, episode: null, year: 2024, tmdbId: 693134, user: 'ana', device: 'Living room TV', state: 'playing', progress: 0.37, transcoding: false, durationMs: 9_960_000,
+    facts: [
+      { label: 'Stream', value: 'Direct play' },
+      { label: 'Quality', value: '4K · 24.3 Mbps' },
+      { label: 'Video', value: '4K DoVi/HDR10 (HEVC Main 10)' },
+      { label: 'Audio', value: 'English (TrueHD 7.1)' },
+      { label: 'Container', value: 'MKV' },
+      { label: 'Bandwidth', value: '31.0 Mbps' },
+      { label: 'Connection', value: 'Home network · 192.168.1.42' },
+      { label: 'App', value: 'Plex for Roku 7.3' },
+    ],
+  },
+  {
+    sessionId: 's2', platform: 'Plex for iOS', resolution: '720', kind: 'episode', title: 'Half Loop', show: 'Severance', season: 1, episode: 2, year: null, tmdbId: null, keys: ['tmdb:95396'], user: 'josh', device: 'iPad', state: 'paused', progress: 0.62, transcoding: true, durationMs: 3_240_000, convertReason: 'The picture is converted from HEVC to H264.',
+    facts: [
+      { label: 'Stream', value: 'Converting (using the graphics chip)' },
+      { label: 'Quality', value: '720p · 4.0 Mbps' },
+      { label: 'Video', value: '1080p (HEVC Main 10) → 720p H264' },
+      { label: 'Audio', value: 'English (EAC3 5.1) → AAC stereo' },
+      { label: 'Subtitles', value: 'English (SRT)' },
+      { label: 'Connection', value: 'Away from home · 203.0.113.9' },
+    ],
+  },
+];
 // Fake sites Marquee searches itself, and the catalogue they come from (the test site files).
 const web = new FakeWeb();
 const fixtures = path.resolve(import.meta.dirname, '../test/fixtures/sites');
@@ -306,6 +331,8 @@ const clients = {
   streamingTop: (key: string) => streamingTop.as(key),
   mdblist: (key: string) => ratings.as(key),
   plexServer: (url: string, token: string) => plex.as(url, token),
+  // Profile pictures: a plain coloured square stands in for the real one.
+  image: async () => ({ type: 'image/png', body: await sharp({ create: { width: 96, height: 96, channels: 3, background: '#3f7f7a' } }).png().toBuffer() }),
   jellyfin: (url: string, key: string) => jellyfin.as(url, key),
   // Demo Jellyfin sign-in: "sam" / "jellyfin-pass".
   jellyfinLogin: async (_url: string, username: string, password: string) => (username.toLowerCase() === 'sam' && password === 'jellyfin-pass' ? { id: 'jf-sam', name: 'Sam' } : null),

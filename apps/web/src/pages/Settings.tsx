@@ -5,7 +5,7 @@ import type { AuthStatus, DeviceView, MediaLibrariesResult, MediaServerView, Rol
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { ServerPeople } from '../components/ServerPeople';
-import { Button, Card, Field, Notice, cx } from '../components/ui';
+import { Avatar, Button, Card, Field, Notice, cx } from '../components/ui';
 import { InfoTip, PageHeader } from '../components/Page';
 
 type Ctx = { status: AuthStatus & { user: SessionUser } };
@@ -398,9 +398,7 @@ function UsersAdmin({ status }: Ctx) {
         <h2 className="m-0 mb-3 text-lg font-semibold">People</h2>
         {data?.users.map((u) => (
           <div key={u.id} className="flex flex-wrap items-center gap-4 border-t border-line py-4">
-            <span className="flex size-10 flex-none items-center justify-center rounded-full bg-raised font-semibold" aria-hidden="true">
-              {u.displayName.slice(0, 1).toUpperCase()}
-            </span>
+            <Avatar name={u.displayName} src={u.avatar} className="size-11 text-base" />
             <div className="min-w-[180px] flex-1">
               <div className="text-body font-semibold">
                 {u.displayName} {u.id === status.user.id && <span className="text-sm font-normal text-dim">(you)</span>}

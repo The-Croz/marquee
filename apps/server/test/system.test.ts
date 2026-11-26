@@ -259,10 +259,17 @@ describe('free space', () => {
 // ---------------- Backups ----------------
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
-// The newest migration only changes what's stored, so there's nothing to take away.
 const UNDO_NEWEST: { sql: string[]; tables: string[] } = {
-  sql: [],
-  tables: [],
+  sql: [
+    'DROP TABLE live_streams',
+    'DROP TABLE live_starts',
+    'DROP TABLE live_start_tokens',
+    'ALTER TABLE devices DROP COLUMN live_watching',
+    'ALTER TABLE devices DROP COLUMN live_downloads',
+    'ALTER TABLE users DROP COLUMN oidc_avatar',
+    'ALTER TABLE users DROP COLUMN plex_avatar',
+  ],
+  tables: ['live_streams', 'live_starts', 'live_start_tokens', 'users', 'devices'],
 };
 
 describe('backups', () => {

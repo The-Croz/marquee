@@ -26,6 +26,9 @@ export const users = sqliteTable(
     jellyfinUsername: text('jellyfin_username'),
     oidcIssuer: text('oidc_issuer'),
     oidcSubject: text('oidc_subject'),
+    /** Picture addresses from Plex and single sign-on; Marquee fetches and serves them itself. */
+    plexAvatar: text('plex_avatar'),
+    oidcAvatar: text('oidc_avatar'),
     createdAt: integer('created_at').notNull(),
     lastLoginAt: integer('last_login_at'),
   },
@@ -61,6 +64,9 @@ export const devices = sqliteTable('devices', {
   lastSeenAt: integer('last_seen_at').notNull(),
   /** The messages chosen for this phone, kept while it has no push channel (JSON; null = never chosen). */
   pushEvents: text('push_events'),
+  /** Lock Screen cards that start by themselves on this phone. */
+  liveDownloads: integer('live_downloads', { mode: 'boolean' }).notNull().default(true),
+  liveWatching: integer('live_watching', { mode: 'boolean' }).notNull().default(false),
 });
 
 /** Short-lived state for multi-step sign-ins (OIDC redirects, Plex PINs). */
@@ -832,3 +838,43 @@ export const issueComments = sqliteTable('issue_comments', {
   body: text('body').notNull(),
   createdAt: integer('created_at').notNull(),
 });
+
+/** Where to send "start a Lock Screen card" for each kind, as the phone told us. */
+export const liveStartTokens = sqliteTable(
+  'live_start_tokens',
+  {
+    deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['download', 'watching'] }).notNull(),
+    token: text('token').notNull(),
+    environment: text('environment', { enum: ['production', 'sandbox'] }).notNull().default('production'),
+  },
+  (t) => [primaryKey({ columns: [t.deviceId, t.kind] })],
+);
+
+/** Cards Marquee already started, so one swiped away stays away. */
+export const liveStarts = sqliteTable(
+  'live_starts',
+  {
+    deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['download', 'watching'] }).notNull(),
+    ref: text('ref').notNull(),
+    at: integer('at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.deviceId, t.kind, t.ref] })],
+);
+
+/** Lock Screen cards following someone's stream. */
+export const liveStreams = sqliteTable(
+  'live_streams',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    streamRef: text('stream_ref').notNull(),
+    deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    environment: text('environment', { enum: ['production', 'sandbox'] }).notNull().default('production'),
+    lastPercent: integer('last_percent').notNull().default(0),
+    lastState: text('last_state').notNull().default(''),
+    startedAt: integer('started_at').notNull(),
+  },
+  (t) => [uniqueIndex('live_streams_one').on(t.streamRef, t.deviceId)],
+);

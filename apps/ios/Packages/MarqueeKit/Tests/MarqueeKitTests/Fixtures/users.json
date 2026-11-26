@@ -5,6 +5,7 @@
       "username": "josh",
       "displayName": "Josh",
       "role": "admin",
+      "avatar": null,
       "linked": {
         "plex": false,
         "oidc": false,
@@ -24,6 +25,7 @@
       "username": "mia",
       "displayName": "Mia",
       "role": "member",
+      "avatar": null,
       "linked": {
         "plex": false,
         "oidc": false,
@@ -43,6 +45,7 @@
       "username": "kiddo",
       "displayName": "Kiddo",
       "role": "kid",
+      "avatar": null,
       "linked": {
         "plex": false,
         "oidc": false,

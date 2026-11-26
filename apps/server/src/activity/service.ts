@@ -5,6 +5,7 @@ import { mediaFiles, movies, plays, series, streams, users, type User } from '..
 import type { Clients } from '../http.js';
 import { MediaServerError, readMediaServer, type ServerKind, type WatchItem } from '../library/mediaServers.js';
 import { normalizeTitle } from '../releases/decide.js';
+import { avatarPath } from '../auth/avatars.js';
 
 /**
  * Watching, from Plex and Jellyfin: who is watching now, and a copy of every
@@ -53,19 +54,41 @@ export async function syncPlays(deps: Deps): Promise<{ added: number; problems: 
   return { added, problems };
 }
 
-/** The library page for what is playing, if Marquee has it. */
-export function hrefFor(db: Db, w: WatchItem): string | null {
+/** The library title whose ids ("tmdb:603", "tvdb:371980", "imdb:tt…") include one of these. */
+function byKeys(db: Db, kind: 'movie' | 'tv', keys: string[]): number | undefined {
+  const value = (name: string) => keys.find((k) => k.startsWith(`${name}:`))?.slice(name.length + 1);
+  const table = kind === 'movie' ? movies : series;
+  const tmdb = Number(value('tmdb'));
+  const imdb = value('imdb');
+  const tvdb = Number(value('tvdb'));
+  return (
+    (tmdb ? db.select({ id: table.id }).from(table).where(eq(table.tmdbId, tmdb)).get()?.id : undefined) ??
+    (imdb ? db.select({ id: table.id }).from(table).where(eq(table.imdbId, imdb)).get()?.id : undefined) ??
+    (kind === 'tv' && tvdb ? db.select({ id: series.id }).from(series).where(eq(series.tvdbId, tvdb)).get()?.id : undefined)
+  );
+}
+
+/**
+ * The library page for what is playing, if Marquee has it. Ids come first:
+ * servers don't always use TMDB's name ("Sorcerer's Stone").
+ */
+export function hrefFor(db: Db, w: WatchItem & { keys?: string[] }): string | null {
+  const known = w.keys?.length ? byKeys(db, w.kind === 'movie' ? 'movie' : 'tv', w.keys) : undefined;
+  if (known !== undefined) return `/${w.kind === 'movie' ? 'movies' : 'shows'}/${known}`;
   if (w.kind === 'movie') {
     const m =
       (w.tmdbId ? db.select({ id: movies.id }).from(movies).where(eq(movies.tmdbId, w.tmdbId)).get() : undefined) ??
-      db.select({ id: movies.id, title: movies.title, year: movies.year }).from(movies).all().find((x) => normalizeTitle(x.title) === normalizeTitle(w.title) && (!w.year || !x.year || x.year === w.year));
+      db.select({ id: movies.id, title: movies.title, year: movies.year }).from(movies).all().find((x) => bareTitle(x.title) === bareTitle(w.title) && (!w.year || !x.year || Math.abs(x.year - w.year) <= 1));
     return m ? `/movies/${m.id}` : null;
   }
   const show = w.show ? showByName(db, w.show) : undefined;
   return show ? `/shows/${show.id}` : null;
 }
 
-const showByName = (db: Db, name: string) => db.select({ id: series.id, title: series.title }).from(series).all().find((s) => normalizeTitle(s.title) === normalizeTitle(name));
+/** A title for matching: no "(2019)" on the end, and the usual clean-up. */
+export const bareTitle = (t: string) => normalizeTitle(t.replace(/\s*\((\d{4})\)\s*$/, ''));
+
+const showByName = (db: Db, name: string) => db.select({ id: series.id, title: series.title }).from(series).all().find((s) => bareTitle(s.title) === bareTitle(name));
 
 export const describeItem = (w: WatchItem): { title: string; subtitle: string | null } =>
   w.kind === 'movie'
@@ -108,6 +131,12 @@ export function belongsTo(u: User, server: string, serverUserId: string, userNam
   if (server === 'jellyfin' && u.jellyfinId && u.jellyfinId === serverUserId) return true;
   const n = userName.toLowerCase();
   return [u.username, u.plexUsername, u.jellyfinUsername, u.displayName].some((x) => x?.toLowerCase() === n);
+}
+
+/** The picture of whoever this name on Plex or Jellyfin belongs to. */
+export function viewerAvatar(db: Db, server: string, userName: string): string | null {
+  const account = db.select().from(users).all().find((u) => belongsTo(u, server, '', userName));
+  return account ? avatarPath(account) : null;
 }
 
 /** Everything this account watched on Plex and Jellyfin, newest first. */

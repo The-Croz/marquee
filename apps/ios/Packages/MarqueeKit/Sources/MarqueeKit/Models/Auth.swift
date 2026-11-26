@@ -36,6 +36,8 @@ public struct SessionUser: Codable, Hashable, Sendable {
     public var displayName: String
     public var role: Role
     public var linked: Linked
+    /// Their picture's address on Marquee; nil shows their initial.
+    public var avatar: String?
 }
 
 /// What `GET /api/auth/status` says: which ways of signing in are on.
@@ -127,6 +129,17 @@ public struct DeviceView: Codable, Hashable, Sendable, Identifiable {
     public var push: Bool?
 
     public var lastSeen: Date { date(fromMilliseconds: lastSeenAt) }
+}
+
+/// Lock Screen cards Marquee starts by itself on this phone. Nil: not offered to this person.
+public struct LiveSettings: Codable, Hashable, Sendable {
+    public var downloads: Bool?
+    public var watching: Bool?
+
+    public init(downloads: Bool?, watching: Bool?) {
+        self.downloads = downloads
+        self.watching = watching
+    }
 }
 
 public struct DevicesResponse: Codable, Hashable, Sendable {
