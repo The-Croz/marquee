@@ -22,7 +22,7 @@ async function setup() {
   const t = makeApp({ now: () => clock });
   const apns = new ApnsClient(() => readApns(t.db), apple.url, () => clock);
   const admin = await setupAdmin(t.app);
-  await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, admin);
+  await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, admin);
   const login = await call(t.app, 'POST', '/api/auth/login', { username: 'josh', password: 'correct horse battery', device: { id: 'phone-aaaa-1111', name: 'Phone', kind: 'ios' } });
   const bearer = { authorization: `Bearer ${login.body.token}` };
   const movie = t.db.insert((await import('../src/db/schema.js')).movies).values({ tmdbId: 1, title: 'Dune', sortTitle: 'dune', year: 2024, profile: 'cinema', addedAt: 0, refreshedAt: 0 }).returning().get();
@@ -48,7 +48,7 @@ describe('Live Activity updates', () => {
     const push = t.apple.pushes[0]!;
     expect(push).toMatchObject({ token: TOKEN, jwtOk: true });
     expect(push.headers['apns-push-type']).toBe('liveactivity');
-    expect(push.headers['apns-topic']).toBe('app.marquee.ios.push-type.liveactivity');
+    expect(push.headers['apns-topic']).toBe('marquee.ios.app.push-type.liveactivity');
     expect(push.payload.aps).toMatchObject({ event: 'update', 'content-state': { progress: 0.16, done: false } });
     // 16 → 18 is not enough, 16 → 21 is.
     t.set({ progress: 0.18 });

@@ -300,7 +300,7 @@ apple.onPush = (p) => {
   const what = alert ? `"${alert.title}": ${alert.body}` : `${p.payload.aps?.event} ${JSON.stringify(p.payload.aps?.['content-state'])}`;
   console.log(`[demo] Apple push to ${p.token.slice(0, 8)}… (${p.headers['apns-push-type']}${p.payload.aps?.category ? `, ${p.payload.aps.category}` : ''}): ${what}`);
 };
-writeApns(db, { key: apple.privateKeyPem, keyId: 'DEMOKEY123', teamId: 'DEMOTEAM12', bundleId: 'app.marquee.ios' });
+writeApns(db, { key: apple.privateKeyPem, keyId: 'DEMOKEY123', teamId: 'DEMOTEAM12', bundleId: 'marquee.ios.app' });
 const apnsClient = new ApnsClient(() => readApns(db), apple.url);
 const clients = {
   streamingTop: (key: string) => streamingTop.as(key),
