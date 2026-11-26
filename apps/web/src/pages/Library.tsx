@@ -336,20 +336,12 @@ export function LibraryPage({ kind, user }: { kind: 'movie' | 'series'; user: Se
             >
               {selecting ? 'Stop choosing' : 'Choose several…'}
             </button>
-            <Link to="/library/import" role="menuitem" className={menuItemClass}>
-              Put files in your library…
-            </Link>
             <button type="button" role="menuitem" className={menuItemClass} onClick={() => setRenaming(true)}>
               Rename files to Marquee’s names…
             </button>
-            <Link to="/library/clean-up" role="menuitem" className={menuItemClass}>
-              Clean up: two copies, leftovers, recycle bin
-            </Link>
-            <Link to="/library/left-out" role="menuitem" className={menuItemClass}>
-              Left out of scans
-            </Link>
-            <Link to="/library/unwatched" role="menuitem" className={menuItemClass}>
-              Not watched
+            <MenuDivider />
+            <Link to="/library/care" role="menuitem" className={menuItemClass}>
+              Library care: import, clean up, not watched…
             </Link>
           </Menu>
         )}

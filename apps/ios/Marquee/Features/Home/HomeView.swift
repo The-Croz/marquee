@@ -45,6 +45,8 @@ struct HomeView: View {
             }
             .ignoresSafeArea(edges: .top)
             .refreshable { await model.load() }
+            // Past the banner, a dark fade keeps the pills and the clock readable over rows.
+            .topFade(after: 220)
             .overlay(alignment: .top) { topBar(model, proxy: proxy) }
         }
         .refreshing(every: 5) { await model.load() }

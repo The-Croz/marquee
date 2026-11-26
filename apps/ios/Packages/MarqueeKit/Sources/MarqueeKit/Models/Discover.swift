@@ -230,3 +230,17 @@ public struct CalendarView: Codable, Hashable, Sendable {
     public var today: String
     public var items: [CalendarItem]
 }
+
+/// What Discover shows one person: services they've hidden, and trailers.
+public struct DiscoverPrefs: Codable, Hashable, Sendable {
+    public var hiddenServices: [String]
+    public var trailers: Bool
+    /// Every service there is a chip for (sent back with the person's choices).
+    public var all: [ServiceChip]?
+
+    public init(hiddenServices: [String], trailers: Bool, all: [ServiceChip]? = nil) {
+        self.hiddenServices = hiddenServices
+        self.trailers = trailers
+        self.all = all
+    }
+}

@@ -52,27 +52,41 @@ struct DownloadsList: View {
     }
 
     private func list(_ model: DownloadsModel) -> some View {
-        let shown = model.filter == .onTheWay ? model.onTheWay : model.sharing
+        let shown: [DownloadView] = switch model.filter {
+        case .onTheWay: model.onTheWay
+        case .needsALook: model.needsALook
+        case .sharing: model.sharing
+        case .history: []
+        }
         return List {
             Section {
                 statusLine(model)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0))
                     .listRowSeparator(.hidden)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Chip(title: "On the way · \(model.onTheWay.count)", selected: model.filter == .onTheWay) { model.filter = .onTheWay }
+                        // Failed copies used to vanish from the phone: they get their own chip, only when there are some.
+                        if !model.needsALook.isEmpty || model.filter == .needsALook {
+                            Chip(title: "Needs a look · \(model.needsALook.count)", selected: model.filter == .needsALook) { model.filter = .needsALook }
+                                .accessibilityIdentifier("needs-a-look")
+                        }
                         Chip(title: "Sharing · \(model.sharing.count)", selected: model.filter == .sharing) { model.filter = .sharing }
+                        Chip(title: "History", selected: model.filter == .history) { model.filter = .history }
+                            .accessibilityIdentifier("download-history")
                     }
-                    .padding(.horizontal, 16)
                 }
+                .scrollClipDisabled()
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
             }
 
-            if shown.isEmpty {
-                MessageView(title: model.filter == .onTheWay ? "Nothing is downloading." : "Nothing is being shared.", detail: model.filter == .onTheWay ? "When Marquee sends a copy to qBittorrent, it shows up here." : "")
+            if model.filter == .history {
+                historySection(model)
+            } else if shown.isEmpty {
+                MessageView(title: emptyTitle(model.filter), detail: model.filter == .onTheWay ? "When Marquee sends a copy to qBittorrent, it shows up here." : "")
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             } else {
@@ -95,7 +109,70 @@ struct DownloadsList: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .refreshable { await model.load() }
+        .refreshable { await model.load(); if model.filter == .history { await model.loadHistory() } }
+        .task(id: model.filter) { if model.filter == .history { await model.loadHistory() } }
+        // Once the last failed copy is dealt with, its chip goes, so go back to what's on the way.
+        .onChange(of: model.needsALook.isEmpty) { _, empty in if empty && model.filter == .needsALook { model.filter = .onTheWay } }
+    }
+
+    private func emptyTitle(_ filter: DownloadsFilter) -> String {
+        switch filter {
+        case .onTheWay: "Nothing is downloading."
+        case .needsALook: "Nothing needs a look."
+        case .sharing: "Nothing is being shared."
+        case .history: ""
+        }
+    }
+
+    @ViewBuilder
+    private func historySection(_ model: DownloadsModel) -> some View {
+        if let items = model.history {
+            if items.isEmpty {
+                MessageView(title: "No history yet.", detail: "Copies Marquee sends, brings in or replaces are listed here.")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            } else {
+                Section {
+                    ForEach(items) { h in historyRow(h) }
+                } footer: {
+                    Text("The full history, with filters, is on the web under Downloads → History.").font(.caption)
+                }
+                .listRowBackground(Color.panel)
+                .listRowSeparatorTint(.line)
+            }
+        } else if let problem = model.historyProblem {
+            MessageView(title: "Couldn't load the history.", detail: problem, actionTitle: "Try again") { Task { await model.loadHistory() } }
+                .listRowBackground(Color.clear)
+        } else {
+            Skeleton(height: 66, radius: 14).listRowBackground(Color.clear)
+        }
+    }
+
+    @ViewBuilder
+    private func historyRow(_ h: HistoryItem) -> some View {
+        let tone: Tone = switch h.tone {
+        case "good": .ready
+        case "bad": .needsYou
+        case "busy": .downloading
+        default: .neutral
+        }
+        let content = VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(h.titleName).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(1)
+                Spacer(minLength: 8)
+                Text(Format.ago(h.at)).font(.caption).foregroundStyle(.dim)
+            }
+            StateLine(text: [h.label, h.quality, h.who].compactMap { $0 }.joined(separator: " · "), tone: tone)
+            if let detail = h.detail { Text(detail).font(.caption2).foregroundStyle(.muted).fixedSize(horizontal: false, vertical: true) }
+            if let copy = h.copy { Text(copy).font(.caption2.monospaced()).foregroundStyle(.dim).lineLimit(1).truncationMode(.middle) }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        if let route = TitleRoute(webPath: h.titleLink) {
+            NavigationLink(value: route) { content }
+        } else {
+            content
+        }
     }
 
     @ViewBuilder

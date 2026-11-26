@@ -110,7 +110,7 @@ export function UnmatchedPage() {
     <>
       <PageHeader
         title="Needs a match"
-        back={{ to: '/library', label: 'Library' }}
+        back={{ to: '/library/care', label: 'Library care' }}
         info="Marquee couldn’t be sure which title these folders are. Pick the right one and it remembers. Nothing on disk is renamed or moved."
       />
       {message && <Notice tone="success">{message}</Notice>}

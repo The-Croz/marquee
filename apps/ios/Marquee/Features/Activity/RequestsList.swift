@@ -71,11 +71,14 @@ struct RequestsList: View {
                     }
                 } footer: {
                     if !model.waiting.isEmpty {
-                        Text("Swipe a row to turn it down with a reason.").font(.caption).foregroundStyle(.dim)
+                        Text("Swipe right to approve. Tap ✕ to turn one down with a reason.").font(.caption).foregroundStyle(.dim)
                     }
                 }
 
                 Section {
+                    if model.recent.isEmpty {
+                        Text("Requests you've answered show up here.").font(.subheadline).foregroundStyle(.muted).listRowBackground(Color.panel)
+                    }
                     ForEach(model.recent) { r in
                         RequestLink(request: r) { RequestRow(request: r) }.listRowBackground(Color.panel)
                     }

@@ -64,7 +64,7 @@ export function ManualImportPage() {
     <>
       <PageHeader
         title="Put files in your library"
-        back={{ to: '/library', label: 'Library' }}
+        back={{ to: '/library/care', label: 'Library care' }}
         info={
           <>
             Pick a folder of finished downloads (or one that didn’t go in by itself), check what each video is, and put them in. Files from the downloads folder are hardlinked, so qBittorrent keeps sharing; a file already in a library folder is moved instead. They get clean names, subtitles beside them come along, and a file they replace is set aside in .marquee-replaced.

@@ -53,6 +53,8 @@ final class AppModel {
     }
 
     func open(_ link: DeepLink) {
+        // A notification tapped while the You sheet is up would otherwise open behind it.
+        showingYou = false
         switch link {
         case .title(let route): open(route)
         case .requests, .downloads:
@@ -180,6 +182,11 @@ final class AppModel {
             providers = status.providers
             version = status.version
         }
+    }
+
+    /// After the person changes their own name (You → Account).
+    func updated(_ user: SessionUser) {
+        self.user = user
     }
 
     func signedIn(_ user: SessionUser) {

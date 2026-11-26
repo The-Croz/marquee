@@ -488,6 +488,15 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 - **Fewest people sharing a copy** (Settings → Downloader → When downloads get stuck, default 1 = as before): copies with fewer seeders are turned down ("Only 3 people are sharing it; your minimum is 5"). Copies whose Source doesn't say are let through. Passed into `decide` as `Wanted.minSeeders`.
 - **Alert when qBittorrent can't find anyone:** `checkNoPeers` in the health check. When two or more downloads on the way, and at least 60% of them, have waited 30+ minutes on the file list or stalled with nobody connected, admins get one "qBittorrent stopped working" message (and again only after it clears). One stuck download is a bad copy, not an alert. Marquee doesn't restart anything: it has no Docker access, and the usual cause is the VPN's forwarded port (seen 2026-11-25: gluetun + hotio PIA script logging "Port bind failed" every 2 minutes).
 
+## App and web review (2026-11-26) ✅
+
+A walk through every iPhone screen and the web's Settings and tools; full write-up in `docs/design/review-2026-11-26.md`.
+- Bugs: changing your password from the iPhone signed that iPhone out (a phone now keeps its own session); failed downloads never showed on the iPhone (new Needs a look chip); a notification opened behind the You sheet; web sign-in always went Home instead of the page you asked for; sheet and phone sticky button bars let content show beneath or hid under the tab bar.
+- iPhone: the You sheet is now Settings, grouped like the web's (You, Yours, Manage with live status, On the web with a row per page, This iPhone), with new Account and Discover screens; Home and title pages fade behind the clock as you scroll; title pages show ratings, director, trailer and cast; Downloads has Needs a look and History; Library care can scan; Health has Fix on the web; Turn down has quick reasons.
+- Web: Calendar and Library care in the sidebar; a Library care page for every library tool with how each is doing; Settings in two columns with each row's status from Health.
+- Demo: `seed-demo.sh` links the fake Prowlarr, so Sources and Health look real.
+- ⬜ Next (from the review): a demo title with copies so Downloads can be checked by hand; single sign-on returning to the page you asked for; iPhone Never pick and History paging; iPhone person pages; one Add button for admins on Discover's sheet.
+
 ## Milestone 7: iPhone app 🔨 (All four phases built; four stacked PRs open, none merged)
 
 **Summary (2026-11-25):** the iPhone app is built end to end in four stacked PRs, none merged (merging to `main` publishes the image your live server runs): [#56 phase 1, sign in, Home, Activity](https://github.com/The-Croz/marquee/pull/56) → [#57 phase 2, browse](https://github.com/The-Croz/marquee/pull/57) → [#58 phase 3, push, against a fake Apple](https://github.com/The-Croz/marquee/pull/58) → [#59 phase 4, Watching, Manage, TestFlight](https://github.com/The-Croz/marquee/pull/59). Merge them in that order (each targets the one below). Your steps are the - ✅ Home, Watching and Live Activities round (2026-11-26, from using it on the phone):

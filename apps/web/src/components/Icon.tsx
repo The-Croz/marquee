@@ -56,6 +56,7 @@ const paths = {
   logout: <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />,
   check: <path d="m5 12 5 5 9-10" />,
   calendar: <path d="M4 6h16v14H4zM4 10h16M8 3v5M16 3v5" />,
+  care: <path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   user: (
     <>

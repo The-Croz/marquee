@@ -83,3 +83,30 @@ struct BarStyle: ProgressViewStyle {
     BackdropHero(path: nil, kicker: "Downloading · 62%", title: "Dune: Part Two", detail: "4K HDR · about 8 min left · asked for by Sam", progress: 0.62)
         .background(.ink)
 }
+
+/// A dark fade behind the status bar and floating buttons, shown once a page with artwork at the top
+/// has scrolled past it, so the clock and glass buttons never sit on top of busy text.
+struct TopFade: ViewModifier {
+    /// How far down (in points) the content scrolls before the fade starts; it's fully there 80 points later.
+    var after: CGFloat
+    @State private var amount: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: CGFloat.self) { geo in min(max((geo.contentOffset.y + geo.contentInsets.top - after) / 80, 0), 1) } action: { _, value in
+                amount = value
+            }
+            .overlay(alignment: .top) {
+                LinearGradient(stops: [.init(color: .ink, location: 0), .init(color: .ink.opacity(0.92), location: 0.55), .init(color: .ink.opacity(0), location: 1)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 140)
+                    .ignoresSafeArea(edges: .top)
+                    .opacity(amount)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+    }
+}
+
+extension View {
+    func topFade(after: CGFloat) -> some View { modifier(TopFade(after: after)) }
+}

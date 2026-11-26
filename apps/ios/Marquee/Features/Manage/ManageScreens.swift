@@ -6,7 +6,7 @@ private struct Ok: Decodable, Sendable {}
 private func tone(_ t: String) -> Tone {
     switch t {
     case "ok": .ready
-    case "problem": .needsYou
+    case "problem", "attention": .needsYou
     case "busy": .downloading
     default: .neutral
     }
@@ -38,65 +38,11 @@ final class ManageModel {
     }
 }
 
-struct ManageHub: View {
-    @Environment(AppModel.self) private var app
-    @State private var model = ManageModel()
-
-    var body: some View {
-        List {
-            Section {
-                NavigationLink { HealthScreen() } label: { row("Health", trailing: healthText, warn: (model.health.value?.problems ?? 0) > 0) }
-                NavigationLink { ProfilesScreen() } label: { row("Quality profiles", trailing: "") }
-                NavigationLink { SourcesScreen() } label: { row("Sources", trailing: sourcesText, warn: model.sources.value?.sources.contains { !$0.isWorking && $0.enabled } == true) }
-                NavigationLink { PeopleScreen() } label: { row("People", trailing: model.users.value.map { "\($0.users.count)" } ?? "") }
-                NavigationLink { LibraryCareScreen() } label: { row("Library care", trailing: careText, warn: (model.unmatched.value?.items.count ?? 0) > 0) }
-            }
-            .listRowBackground(Color.panel)
-            Section {
-                Text("Settings, lists, backups, logs, wording and automation are on the web. Open them from You → More in the web app.").font(.footnote).foregroundStyle(.muted)
-            }
-            .listRowBackground(Color.clear)
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(.ink)
-        .navigationTitle("Manage")
-        .navigationBarTitleDisplayMode(.inline)
-        .task { await model.load(app) }
-        .refreshable { await model.load(app) }
-    }
-
-    private var healthText: String {
-        guard let h = model.health.value else { return "" }
-        return h.problems == 0 ? "All good" : "\(h.problems) \(h.problems == 1 ? "problem" : "problems")"
-    }
-
-    private var sourcesText: String {
-        guard let s = model.sources.value else { return "" }
-        let working = s.sources.filter(\.isWorking).count
-        return "\(working) working"
-    }
-
-    private var careText: String {
-        let n = model.unmatched.value?.items.count ?? 0
-        return n == 0 ? "" : "Needs a match · \(n)"
-    }
-
-    private func row(_ title: String, trailing: String, warn: Bool = false) -> some View {
-        HStack {
-            Text(title).foregroundStyle(.textPrimary)
-            Spacer()
-            Text(trailing).font(.footnote).foregroundStyle(warn ? Color.warn : Color.muted)
-        }
-        .frame(minHeight: 44)
-        .accessibilityElement(children: .combine)
-    }
-}
-
 // MARK: Health
 
 struct HealthScreen: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.openURL) private var openURL
     @State private var loader = Loader<HealthView>()
     @State private var problem: String?
     @State private var running: String?
@@ -109,9 +55,17 @@ struct HealthScreen: View {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack { dot(c.tone); Text(c.name).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary); Spacer(); Text(c.state).font(.footnote).foregroundStyle(tone(c.tone).color) }
                             if let fix = c.fix { Text(fix).font(.caption).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true) }
+                            if let detail = c.detail { Text("It said: \(detail)").font(.caption2).foregroundStyle(.dim).fixedSize(horizontal: false, vertical: true) }
                         }
                         .padding(.vertical, 2)
                         .accessibilityElement(children: .combine)
+                        if c.fix != nil, let to = c.to {
+                            Button { Task { openURL(await app.webURL(to)) } } label: {
+                                Label(c.tone == "off" ? "Set up on the web" : "Fix on the web", systemImage: "arrow.up.right")
+                                    .font(.footnote.weight(.semibold)).foregroundStyle(.amber).frame(minHeight: 44)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 } header: { head("Connections") }
                 .listRowBackground(Color.panel)
@@ -152,6 +106,7 @@ struct HealthScreen: View {
         .background(.ink)
         .navigationTitle("Health")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task { await load() }
         .problemAlert($problem)
     }
@@ -189,7 +144,7 @@ struct SourcesScreen: View {
         LoadedView(loader: loader, retry: { Task { await load() } }) { v in
             List {
                 if v.sources.isEmpty {
-                    MessageView(title: "No Sources yet.", detail: "Add one on the web, under Settings → Sources. Marquee needs at least one to find copies.").listRowBackground(Color.clear)
+                    MessageView(title: "No Sources yet.", detail: "Marquee needs at least one to find copies. Add one, or link Prowlarr, on the web.").listRowBackground(Color.clear)
                 }
                 ForEach(v.sources) { s in
                     VStack(alignment: .leading, spacing: 4) {
@@ -208,8 +163,10 @@ struct SourcesScreen: View {
                     .padding(.vertical, 2)
                     .listRowBackground(Color.panel)
                 }
-                Section { Text("Adding Sources and sites stays on the web, under Settings → Sources.").font(.footnote).foregroundStyle(.muted) }
-                    .listRowBackground(Color.clear)
+                Section {
+                    WebSettingsRow(icon: "plus", tint: .amber, title: "Add a Source or link Prowlarr", path: "/settings/sources")
+                } footer: { Text("Adding Sources and sites, and their limits, stay on the web.").font(.caption) }
+                .listRowBackground(Color.panel)
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -218,6 +175,7 @@ struct SourcesScreen: View {
         .background(.ink)
         .navigationTitle("Sources")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task { await load() }
         .problemAlert($problem)
         .toast(Binding(get: { message }, set: { message = $0 }))
@@ -285,8 +243,10 @@ struct PeopleScreen: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("person-\(u.username)")
                 }
-                Section { Text("Adding and removing people stays on the web, under Settings → Users.").font(.footnote).foregroundStyle(.muted) }
-                    .listRowBackground(Color.clear)
+                Section {
+                    WebSettingsRow(icon: "person.badge.plus", tint: .amber, title: "Add or remove people", path: "/settings/users")
+                } footer: { Text("Tap someone to change their role or whether their requests skip approval.").font(.caption) }
+                .listRowBackground(Color.panel)
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -295,6 +255,7 @@ struct PeopleScreen: View {
         .background(.ink)
         .navigationTitle("People")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task { await load() }
         .sheet(item: $editing) { u in PersonSheet(user: u) { Task { await load() } } }
     }
@@ -427,6 +388,7 @@ struct ProfilesScreen: View {
         .background(.ink)
         .navigationTitle("Quality profiles")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task { await loader.run(app) { () async throws(MarqueeError) -> ProfilesView in try await app.client.get("/api/settings/profiles") } }
     }
 
@@ -435,10 +397,21 @@ struct ProfilesScreen: View {
     }
 }
 
+/// What a library scan is doing, from `GET /api/library/scan`.
+struct ScanStatus: Decodable, Sendable {
+    var running: Bool
+    var finishedAt: Int64?
+    var processed: Int
+    var total: Int
+    var matched: Int
+    var error: String?
+}
+
 struct LibraryCareScreen: View {
     @Environment(AppModel.self) private var app
     @State private var unmatched = Loader<UnmatchedResponse>()
     @State private var leftOut = Loader<LeftOutResponse>()
+    @State private var scan: ScanStatus?
     @State private var choosing: UnmatchedItem?
     @State private var problem: String?
 
@@ -447,18 +420,38 @@ struct LibraryCareScreen: View {
     var body: some View {
         List {
             Section {
+                Button { Task { await startScan() } } label: {
+                    HStack(spacing: 12) {
+                        SettingsRowLabel(icon: "arrow.clockwise", tint: .amber, title: scan?.running == true ? "Scanning…" : "Scan for new files", detail: scanDetail)
+                        if scan?.running == true { ProgressView().tint(.amber) }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(scan?.running == true)
+                .accessibilityIdentifier("scan-library")
+            } footer: { Text("Marquee also scans by itself after each import.").font(.caption) }
+            .listRowBackground(Color.panel)
+
+            Section {
                 if let items = unmatched.value?.items {
                     if items.isEmpty { Text("Every folder has a match.").font(.subheadline).foregroundStyle(.muted) }
                     ForEach(items) { i in
                         Button { choosing = i } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(i.folder).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2)
-                                Text(i.reason ?? "Marquee couldn't tell what this is. Pick the right one.").font(.caption).foregroundStyle(.muted)
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(i.folder).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2)
+                                    Text(i.reason ?? "Marquee couldn't tell what this is. Pick the right one.").font(.caption).foregroundStyle(.muted)
+                                }
+                                Spacer(minLength: 8)
+                                Text("Match").font(.footnote.weight(.semibold)).foregroundStyle(.amber)
+                                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.dim)
                             }
                             .frame(minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
+                        .accessibilityHint("Pick what this folder is, or leave it out")
                     }
                 } else if unmatched.loading { Skeleton(height: 44) }
             } header: { head("Needs a match") }
@@ -477,7 +470,13 @@ struct LibraryCareScreen: View {
                         }
                     }
                 }
-            } header: { head("Left out of scans") } footer: { Text("Clean-up, renaming and importing files are on the web, under Library.").font(.caption) }
+            } header: { head("Left out of scans") }
+            .listRowBackground(Color.panel)
+            Section {
+                WebSettingsRow(icon: "sparkles", title: "Clean up: two copies, leftovers, recycle bin", path: "/library/clean-up")
+                WebSettingsRow(icon: "tray.and.arrow.down", title: "Put files in your library", path: "/library/import")
+                WebSettingsRow(icon: "eye.slash", title: "Not watched", path: "/library/unwatched")
+            } header: { head("On the web") } footer: { Text("Renaming files to Marquee's names is on the web, under Library → More.").font(.caption) }
             .listRowBackground(Color.panel)
         }
         .listStyle(.insetGrouped)
@@ -485,15 +484,41 @@ struct LibraryCareScreen: View {
         .background(.ink)
         .navigationTitle("Library care")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .task { await load() }
         .refreshable { await load() }
         .sheet(item: $choosing) { item in MatchSheet(item: item) { Task { await load() } } }
         .problemAlert($problem)
     }
 
+    private var scanDetail: String? {
+        guard let scan else { return nil }
+        if scan.running { return scan.total > 0 ? "\(scan.processed) of \(scan.total)" : nil }
+        if scan.error != nil { return "Last scan failed" }
+        return scan.finishedAt.map { "Last \(Format.ago($0))" }
+    }
+
     private func load() async {
         await unmatched.run(app) { () async throws(MarqueeError) -> UnmatchedResponse in try await app.client.get("/api/library/unmatched") }
         await leftOut.run(app) { () async throws(MarqueeError) -> LeftOutResponse in try await app.client.get("/api/library/left-out") }
+        scan = try? await app.client.get("/api/library/scan")
+    }
+
+    private func startScan() async {
+        do {
+            let _: Ok = try await app.client.send("POST", "/api/library/scan", body: EmptyBody())
+            // Follow it until it's done (a few seconds to a few minutes), then show what it found.
+            for _ in 0..<600 {
+                scan = try? await app.client.get("/api/library/scan")
+                if scan?.running != true { break }
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+            }
+            await load()
+        } catch {
+            if case .signedOut = error { app.handle(error); return }
+            problem = error.fullText
+        }
     }
 
     private func letBack(_ i: LeftOutItem) async {

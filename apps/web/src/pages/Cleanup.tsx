@@ -155,7 +155,7 @@ function Copies() {
         ))}
       </ul>
       {error && <Notice tone="error">{error}</Notice>}
-      <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3 md:bottom-0">
         <Button disabled={busy || !picked.size || noneLeft.length > 0} onClick={() => void act('/cleanup/set-aside', { paths: [...picked] })}>
           {busy ? 'Setting aside…' : picked.size ? `Set aside ${picked.size} ${picked.size === 1 ? 'copy' : 'copies'}` : 'Set aside'}
         </Button>
@@ -224,7 +224,7 @@ function Bin() {
             ))}
           </ul>
           {error && <Notice tone="error">{error}</Notice>}
-          <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3 md:bottom-0">
             <Button variant="ghost" disabled={busy || !chosen.length || !chosen.some((i) => i.canPutBack)} onClick={() => void act('/cleanup/put-back', { paths: chosen.filter((i) => i.canPutBack).map((i) => i.path) })}>
               Put {chosen.length || ''} back
             </Button>
@@ -312,7 +312,7 @@ function Downloads() {
             ))}
           </ul>
           {error && <Notice tone="error">{error}</Notice>}
-          <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3 md:bottom-0">
             <Button disabled={busy || !picked.size} onClick={() => void act('/cleanup/set-aside', { paths: [...picked] })}>
               {busy ? 'Setting aside…' : picked.size ? `Set aside ${picked.size}` : 'Set aside'}
             </Button>
@@ -366,7 +366,7 @@ function Untracked() {
             ))}
           </ul>
           {error && <Notice tone="error">{error}</Notice>}
-          <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3 md:bottom-0">
             <Button disabled={busy || !picked.size} onClick={() => void act('/cleanup/set-aside', { paths: [...picked] })}>
               {busy ? 'Setting aside…' : picked.size ? `Set aside ${picked.size}` : 'Set aside'}
             </Button>
@@ -455,7 +455,7 @@ function InQbittorrent() {
             </details>
           ))}
           {error && <Notice tone="error">{error}</Notice>}
-          <div className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3">
+          <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-wrap items-center gap-3 border-t border-line bg-ink py-3 md:bottom-0">
             <Button variant="danger" disabled={busy || !chosen.length || libraryFolder} onClick={() => setConfirm('with')}>
               {chosen.length ? `Remove ${chosen.length} with files…` : 'Remove with files…'}
             </Button>
@@ -537,7 +537,7 @@ export function CleanupPage() {
     <>
       <PageHeader
         title="Clean up"
-        back={{ to: '/library', label: 'Library' }}
+        back={{ to: '/library/care', label: 'Library care' }}
         info="Finds what takes room for nothing: titles with two copies, downloads nobody uses, and files that belong to no title. Getting rid of something only sets it aside in the recycle bin, which you can undo; deleting for good happens in the recycle bin, by hand."
       />
       <div role="tablist" aria-label="What to clean up" className="mb-5 flex max-w-[760px] flex-wrap rounded-xl border border-line bg-panel p-1">

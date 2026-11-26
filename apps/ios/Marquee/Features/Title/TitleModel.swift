@@ -32,6 +32,8 @@ final class TitleModel {
     /// A download of this title on its way (admins), for Follow on Lock Screen.
     private(set) var onItsWay: DownloadView?
     private(set) var issues: [IssueView] = []
+    /// TMDB's extras for it (ratings, cast, trailer, who made it), loaded once.
+    private(set) var about: DiscoverTitle?
     var problem: String?
 
     init(route: TitleRoute) {
@@ -63,6 +65,9 @@ final class TitleModel {
             await show.run(app) { () async throws(MarqueeError) -> ShowDetail in try await app.client.get(self.base) }
         }
         guard let info else { return }
+        if about == nil {
+            about = try? await app.client.get("/api/discover/title/\(route.kind == .movie ? "movie" : "series")/\(info.tmdbId)")
+        }
         if let answer: WatchLinks = try? await app.client.get("\(base)/watch") { links = answer.links }
         if let answer: RequestsResponse = try? await app.client.get("/api/requests?scope=\(isAdmin ? "all" : "mine")") {
             let kind: RequestKind = route.kind == .movie ? .movie : .series

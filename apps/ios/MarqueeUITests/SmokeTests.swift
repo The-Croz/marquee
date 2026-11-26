@@ -109,13 +109,13 @@ final class SmokeTests: XCTestCase {
         wait(for: [XCTNSPredicateExpectation(predicate: opened, object: nil)], timeout: 10)
     }
 
-    /// You → What you get: a switch for each message, kept by Marquee.
+    /// You → Which messages: a switch for each message, kept by Marquee.
     func testChoosingWhichNotificationsArrive() {
         let app = launch(as: "josh")
         openYou(app)
         waitForSwitch(app, "1", "Notifications should be on")
         let choices = app.buttons["notification-choices"]
-        XCTAssertTrue(choices.waitForExistence(timeout: 10), "What you get shows while notifications are on")
+        XCTAssertTrue(choices.waitForExistence(timeout: 10), "Which messages shows while notifications are on")
         choices.tap()
         let started = app.switches["notify-stream_started"]
         XCTAssertTrue(app.switches["notify-request_pending"].waitForExistence(timeout: 10))
@@ -191,7 +191,7 @@ final class SmokeTests: XCTestCase {
 
     private func signOut(_ app: XCUIApplication) {
         let button = app.buttons["sign-out"]
-        for _ in 0..<3 where !button.isHittable { app.swipeUp() }
+        for _ in 0..<8 where !(button.exists && button.isHittable) { app.swipeUp() }
         button.tap()
         // The confirmation's button has the same words.
         let confirm = app.buttons.matching(NSPredicate(format: "label == 'Sign out' AND identifier != 'sign-out'")).firstMatch
@@ -249,11 +249,12 @@ final class SmokeTests: XCTestCase {
         app.navigationBars.buttons.firstMatch.tap()
         let avatars = app.buttons.matching(identifier: "avatar")
         (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
-        let manage = app.buttons["manage"]
-        XCTAssertTrue(manage.waitForExistence(timeout: 10))
-        manage.tap()
-        XCTAssertTrue(app.staticTexts["People"].waitForExistence(timeout: 10))
-        app.staticTexts["People"].tap()
+        // Manage sits right in the You sheet, each row with how it's doing.
+        let people = app.descendants(matching: .any)["manage-people"]
+        XCTAssertTrue(app.buttons["account"].waitForExistence(timeout: 10) || app.cells.firstMatch.waitForExistence(timeout: 5))
+        for _ in 0..<6 where !(people.exists && people.isHittable) { app.swipeUp(velocity: .slow) }
+        XCTAssertTrue(people.waitForExistence(timeout: 5), "Manage's People row is in the You sheet")
+        people.tap()
         XCTAssertTrue(app.buttons["person-mia"].waitForExistence(timeout: 10))
     }
 }

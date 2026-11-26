@@ -46,9 +46,12 @@ export function deleteSession(db: Db, token: string | undefined): void {
   db.delete(sessions).where(eq(sessions.id, hashToken(token))).run();
 }
 
-export function deleteUserSessions(db: Db, userId: number): void {
-  forgetPushForSessions(db, db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userId)).all().map((x) => x.id));
-  db.delete(sessions).where(eq(sessions.userId, userId)).run();
+/** Signs a person out everywhere, except the one session `keepToken` belongs to when given. */
+export function deleteUserSessions(db: Db, userId: number, keepToken?: string): void {
+  const keep = keepToken ? hashToken(keepToken) : null;
+  const ids = db.select({ id: sessions.id }).from(sessions).where(eq(sessions.userId, userId)).all().map((x) => x.id).filter((id) => id !== keep);
+  forgetPushForSessions(db, ids);
+  for (const id of ids) db.delete(sessions).where(eq(sessions.id, id)).run();
 }
 
 export function purgeExpiredSessions(db: Db, now = Date.now()): void {

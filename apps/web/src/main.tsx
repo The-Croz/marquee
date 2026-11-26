@@ -1,4 +1,5 @@
 import { UnwatchedPage } from './components/WatchingTools';
+import { LibraryCareHubPage } from './pages/LibraryCareHub';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router';
@@ -43,7 +44,7 @@ function RequireUser({ render }: { render: (status: AuthStatus & { user: Session
   if (isLoading) return <div className="min-h-screen bg-ink" />;
   if (error || !data) return <p className="p-10 text-warn">Couldn't reach the Marquee server.</p>;
   if (data.setupRequired) return <Navigate to="/setup" replace />;
-  if (!data.user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!data.user) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <>{render(data as AuthStatus & { user: SessionUser })}</>;
 }
 
@@ -68,6 +69,7 @@ const router = createBrowserRouter([
       { path: 'movies/:id', element: <MovieDetailPage /> },
       { path: 'shows', element: <LibraryRedirect to="shows" /> },
       { path: 'shows/:id', element: <ShowDetailPage /> },
+      { path: 'library/care', element: <RequireUser render={(s) => <AdminOnly status={s}><LibraryCareHubPage /></AdminOnly>} /> },
       { path: 'library/unmatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnmatchedPage /></AdminOnly>} /> },
       { path: 'library/import', element: <RequireUser render={(s) => <AdminOnly status={s}><ManualImportPage /></AdminOnly>} /> },
       { path: 'library/unwatched', element: <RequireUser render={(s) => <AdminOnly status={s}><UnwatchedPage /></AdminOnly>} /> },

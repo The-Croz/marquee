@@ -123,4 +123,17 @@ describe('your phones', () => {
     expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(phone.body.token))).status).toBe(401);
     expect((await call(t.app, 'GET', '/api/me/devices', undefined, changed.cookie)).body.devices[0].signedIn).toBe(false);
   });
+
+  it('changing your password from the phone keeps that phone signed in, and signs out everything else', async () => {
+    const t = await setup();
+    const web = await login(t.app, 'josh', 'correct horse battery');
+    const phone = await login(t.app, 'josh', 'correct horse battery', PHONE);
+    const other = await login(t.app, 'josh', 'correct horse battery', { ...PHONE, id: 'phone-cccc-3333' });
+    const changed = await call(t.app, 'POST', '/api/me/password', { current: 'correct horse battery', next: 'another long password' }, undefined, bearer(phone.body.token));
+    expect(changed.status).toBe(200);
+    expect(changed.cookie).toBeUndefined();
+    expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(phone.body.token))).status).toBe(200);
+    expect((await call(t.app, 'GET', '/api/me', undefined, undefined, bearer(other.body.token))).status).toBe(401);
+    expect((await call(t.app, 'GET', '/api/me', undefined, web.cookie)).status).toBe(401);
+  });
 });

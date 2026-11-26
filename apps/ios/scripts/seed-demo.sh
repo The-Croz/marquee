@@ -20,6 +20,8 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 curl -fsS -b "$ADMIN_JAR" "$BASE/api/activity/now" >/dev/null
+# The fake Prowlarr's sites, so Sources and Health look like a real install.
+curl -fsS "${JSON[@]}" -X PUT -b "$ADMIN_JAR" -d '{"url":"http://prowlarr:9696","apiKey":"prowlarr-key"}' "$BASE/api/settings/sources/prowlarr" >/dev/null || true
 
 person() { # username displayName role
   post -b "$ADMIN_JAR" -d "{\"username\":\"$1\",\"displayName\":\"$2\",\"role\":\"$3\",\"password\":\"$1 password\"}" "$BASE/api/users" >/dev/null || true

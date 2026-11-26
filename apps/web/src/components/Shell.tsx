@@ -42,11 +42,15 @@ const GROUPS: { label: string | null; items: NavItem[] }[] = [
       { to: '/requests', label: 'Requests', icon: 'requests' },
       { to: '/downloads', label: 'Downloads', icon: 'downloads', roles: ['admin', 'member'] },
       { to: '/activity', label: 'Watching', icon: 'activity', roles: ['admin'] },
+      { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },
   {
     label: 'Manage',
-    items: [{ to: '/settings', label: 'Settings', icon: 'settings', roles: ['admin'] }],
+    items: [
+      { to: '/library/care', label: 'Library care', icon: 'care', roles: ['admin'] },
+      { to: '/settings', label: 'Settings', icon: 'settings', roles: ['admin'] },
+    ],
   },
 ];
 
@@ -67,11 +71,26 @@ const KEYWORDS: Record<string, string> = {
   '/settings/users': 'people family kids',
 };
 
+/** Extra words for pages in the main nav. */
+const PAGE_KEYWORDS: Record<string, string> = {
+  '/calendar': 'episodes airing schedule movies releases',
+  '/library/care': 'needs a match unmatched import rename clean up duplicates left out not watched scan',
+};
+
 const allowed = (n: NavItem, role: Role) => (n.roles ?? ALL).includes(role);
+
+/** Library care's own pages live under /library but belong to it, not to Library. */
+const CARE_PAGES = ['/library/care', '/library/unmatched', '/library/import', '/library/unwatched', '/library/left-out', '/library/clean-up'];
 
 function useActive() {
   const { pathname } = useLocation();
-  return (n: NavItem) => (n.to === '/' ? pathname === '/' : [n.to, ...(n.also ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`)));
+  return (n: NavItem) => {
+    if (n.to === '/') return pathname === '/';
+    const care = CARE_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    if (n.to === '/library/care') return care;
+    if (n.to === '/library' && care) return false;
+    return [n.to, ...(n.also ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  };
 }
 
 export function Shell({ user }: { user: SessionUser; version?: string }) {
@@ -83,14 +102,16 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
   // Streams playing now: the Watching entry lights up with a count, the way Downloads does.
   const { data: nowPlaying } = useQuery({ queryKey: ['activity', 'count'], queryFn: () => api<{ playing: number }>('/activity/count'), refetchInterval: 15_000, enabled: user.role === 'admin' });
   const playing = nowPlaying?.playing ?? 0;
+  // Folders needing a match: Library care shows how many.
+  const { data: unmatched } = useQuery({ queryKey: ['unmatched'], queryFn: () => api<{ items: unknown[] }>('/library/unmatched'), refetchInterval: 120_000, enabled: user.role === 'admin' });
+  const needMatch = unmatched?.items.length ?? 0;
   const isActive = useActive();
   const items = GROUPS.flatMap((g) => g.items).filter((n) => allowed(n, user.role));
   const tabs = TABS[user.role].map((to) => items.find((n) => n.to === to)).filter((n): n is NavItem => !!n);
 
   const [commandOpen, setCommandOpen] = useState(false);
   const destinations: Destination[] = [
-    ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page' })),
-    { to: '/calendar', label: 'Calendar', group: 'Page', keywords: 'episodes airing schedule movies releases' },
+    ...items.map((n) => ({ to: n.to, label: n.label, group: 'Page', keywords: PAGE_KEYWORDS[n.to] })),
     ...(user.role === 'admin'
       ? [
           { to: '/downloads/history', label: 'Download history', group: 'Page', keywords: 'sent imported upgraded replaced removed failed log' },
@@ -111,6 +132,10 @@ export function Shell({ user }: { user: SessionUser; version?: string }) {
     ) : n.to === '/downloads' && active > 0 ? (
       <span aria-label={`${active} on the way`} className="rounded-full bg-blue px-1.5 text-caption font-bold text-blue-ink">
         {active}
+      </span>
+    ) : n.to === '/library/care' && needMatch > 0 ? (
+      <span aria-label={`${needMatch} ${needMatch === 1 ? 'folder needs' : 'folders need'} a match`} className="rounded-full bg-warn px-1.5 text-caption font-bold text-warn-ink">
+        {needMatch}
       </span>
     ) : n.to === '/activity' && playing > 0 ? (
       <span aria-label={`${playing} ${playing === 1 ? 'stream' : 'streams'} playing`} className="rounded-full bg-teal px-1.5 text-caption font-bold text-teal-ink">
@@ -234,11 +259,14 @@ function AccountMenu({ user, placement, compact }: { user: SessionUser; placemen
   const links: { to: string; label: string; icon: IconName; phoneOnly?: boolean }[] = admin
     ? [
         { to: '/activity', label: 'Watching', icon: 'activity', phoneOnly: true },
+        { to: '/calendar', label: 'Calendar', icon: 'calendar', phoneOnly: true },
+        { to: '/library/care', label: 'Library care', icon: 'care', phoneOnly: true },
         { to: '/settings', label: 'Settings', icon: 'settings', phoneOnly: true },
         { to: '/settings/account', label: 'My account', icon: 'user' },
       ]
     : [
         { to: '/history', label: 'My history', icon: 'history' },
+        { to: '/calendar', label: 'Calendar', icon: 'calendar', phoneOnly: true },
         { to: '/settings', label: 'Settings', icon: 'settings' },
       ];
   const avatar = <Avatar name={user.displayName} src={user.avatar} />;

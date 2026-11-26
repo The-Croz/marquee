@@ -176,6 +176,8 @@ public struct HistoryItem: Codable, Hashable, Sendable, Identifiable {
     public var label: String
     public var tone: String
     public var titleName: String
+    /// Its page, or nil when it's no longer in the library.
+    public var titleLink: String?
     public var copy: String?
     public var source: String?
     public var quality: String?
@@ -185,6 +187,8 @@ public struct HistoryItem: Codable, Hashable, Sendable, Identifiable {
 
 public struct HistoryView: Codable, Hashable, Sendable {
     public var items: [HistoryItem]
+    /// Pass as `before` for the next (older) page; nil when there's no more.
+    public var next: String?
 }
 
 public struct IssueView: Codable, Hashable, Sendable, Identifiable {
