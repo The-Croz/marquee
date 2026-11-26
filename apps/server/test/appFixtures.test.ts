@@ -79,6 +79,12 @@ describe('fixtures for the iPhone app', () => {
     const get = (p: string, who: string | undefined = admin) => call(t.app, 'GET', p, undefined, who);
     const asPhone = (p: string) => call(t.app, 'GET', p, undefined, undefined, bearer);
     const bad = await call(t.app, 'POST', '/api/auth/login', { username: 'josh', password: 'wrong password', device: PHONE });
+    // Asked last, on a phone with notifications on, so the answers above stay as they were.
+    const pushEvents = async () => {
+      const id = ((await asPhone('/api/me/devices')).body as { devices: { id: string }[] }).devices[0]!.id;
+      await call(t.app, 'POST', `/api/me/devices/${id}/push`, { token: 'a'.repeat(64) }, undefined, bearer);
+      return asPhone(`/api/me/devices/${id}/push/events`);
+    };
     const signedOut = await call(t.app, 'GET', '/api/auth/status');
 
     const answers: [string, { status: number; body: unknown }, number?][] = [
@@ -89,6 +95,7 @@ describe('fixtures for the iPhone app', () => {
       ['error-bad-credentials', bad, 401],
       ['me', await asPhone('/api/me')],
       ['devices', await asPhone('/api/me/devices')],
+      ['push-events', await pushEvents()],
       ['home-admin', await get('/api/home')],
       ['home-member', await get('/api/home', jessie)],
       ['home-kid', await get('/api/home', kiddo)],

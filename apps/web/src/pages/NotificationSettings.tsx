@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useOutletContext } from 'react-router';
-import type { ApnsSettingsView, AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
+import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
 import { Tabs } from '../components/Page';
@@ -62,27 +62,23 @@ export function DiscoverSettingsPage() {
 
 // ======================================================================
 // Settings → Notifications
-//   For me        what reaches my bell and my own phones (everyone)
-//   Shared alerts the admin phones and what goes to each (admins)
-//   Wording       what each message says, with its facts filled in (admins)
+//   What to send  every place (web UI, phones, added services) and what each gets
+//   Customize     what each message says, with its facts filled in (admins)
 // ======================================================================
 
 export function NotificationSettingsLayout() {
   const ctx = useOutletContext<Ctx>();
   const admin = ctx.status.user.role === 'admin';
-  const tabs = [
-    { to: '/settings/notifications', label: 'For me', end: true },
-    ...(admin
-      ? [
-          { to: '/settings/notifications/shared', label: 'Shared alerts', end: false },
-          { to: '/settings/notifications/wording', label: 'Wording', end: false },
-        ]
-      : []),
-  ];
   return (
     <div className="flex flex-col gap-6">
-      {tabs.length > 1 && (
-        <Tabs label="Notification settings" items={tabs.map((t) => ({ value: t.to, label: t.label, to: t.to, end: t.end }))} />
+      {admin && (
+        <Tabs
+          label="Notification settings"
+          items={[
+            { value: '/settings/notifications', label: 'What to send', to: '/settings/notifications', end: true },
+            { value: '/settings/notifications/customize', label: 'Customize', to: '/settings/notifications/customize', end: false },
+          ]}
+        />
       )}
       <Outlet context={ctx} />
     </div>
@@ -109,12 +105,14 @@ async function run(setError: (s: string | null) => void, f: () => Promise<unknow
 
 // ---------------- The grid of switches ----------------
 
-/** One column of switches: the bell, or a phone. */
+/** One column of switches: the web UI, or one place messages are pushed to. */
 interface Column {
   id: string;
   label: string;
   detail?: string;
   paused?: boolean;
+  /** Whether this place can get the message at all (all of them, when left out). */
+  can?: (event: string) => boolean;
   on: (event: string) => boolean;
   set: (events: string[], on: boolean) => Promise<void>;
 }
@@ -131,6 +129,15 @@ function Box({ checked, mixed, onChange, label, disabled }: { checked: boolean; 
   );
 }
 
+function Unavailable({ label }: { label: string }) {
+  return (
+    <span className="relative flex size-11 items-center justify-center text-dim">
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">{label}: not sent here, because it is about one person</span>
+    </span>
+  );
+}
+
 /**
  * Every message down the side, every place it can go across the top. Each
  * group has a switch for all of it at once.
@@ -144,7 +151,7 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
   };
   return (
     <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-2xl border border-line bg-panel">
+      <div className="relative overflow-x-auto rounded-2xl border border-line bg-panel">
         <table className="w-full border-collapse text-left">
           <caption className="sr-only">{caption}</caption>
           <thead>
@@ -168,16 +175,18 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
             return (
               <tbody key={g} className="border-b border-line last:border-0">
                 <tr className="bg-raised/50">
-                  <th scope="rowgroup" className="sticky left-0 z-10 bg-raised px-4 py-2">
+                  <th scope="rowgroup" className="sticky left-0 z-10 bg-raised px-4 py-2 max-sm:max-w-[170px]">
                     <span className="block text-body font-semibold">{g}</span>
-                    <span className="block text-xs font-normal text-dim">{GROUP_HINT[g]}</span>
+                    <span className="block text-xs font-normal text-dim max-sm:hidden">{GROUP_HINT[g]}</span>
                   </th>
                   {columns.map((c) => {
-                    const n = keys.filter(c.on).length;
+                    const mine = keys.filter((k) => c.can?.(k) ?? true);
+                    const n = mine.filter(c.on).length;
+                    const label = `All ${g} messages: ${c.label}`;
                     return (
                       <td key={c.id} className="px-2 py-1">
                         <div className="flex justify-center">
-                          <Box label={`All ${g} messages: ${c.label}`} checked={n === keys.length} mixed={n > 0 && n < keys.length} disabled={busy} onChange={(on) => flip(c, keys, on)} />
+                          {mine.length === 0 ? <Unavailable label={label} /> : <Box label={label} checked={n === mine.length} mixed={n > 0 && n < mine.length} disabled={busy} onChange={(on) => flip(c, mine, on)} />}
                         </div>
                       </td>
                     );
@@ -185,14 +194,14 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
                 </tr>
                 {list.map((e) => (
                   <tr key={e.key} className="border-t border-line/60">
-                    <th scope="row" className="sticky left-0 z-10 max-w-[340px] bg-panel px-4 py-2 font-normal">
+                    <th scope="row" className="sticky left-0 z-10 max-w-[340px] bg-panel px-4 py-2 font-normal max-sm:max-w-[170px] max-sm:min-w-[140px]">
                       <span className="block text-body">{e.label}</span>
-                      <span className="block text-xs text-dim">{e.description}</span>
+                      <span className="block text-xs text-dim max-sm:hidden">{e.description}</span>
                     </th>
                     {columns.map((c) => (
                       <td key={c.id} className="px-2 py-1">
                         <div className="flex justify-center">
-                          <Box label={`${e.label}: ${c.label}`} checked={c.on(e.key)} disabled={busy} onChange={(on) => flip(c, [e.key], on)} />
+                          {(c.can?.(e.key) ?? true) ? <Box label={`${e.label}: ${c.label}`} checked={c.on(e.key)} disabled={busy} onChange={(on) => flip(c, [e.key], on)} /> : <Unavailable label={`${e.label}: ${c.label}`} />}
                         </div>
                       </td>
                     ))}
@@ -208,41 +217,41 @@ function EventGrid({ events, columns, caption }: { events: NotificationEventInfo
   );
 }
 
-const channelColumn = (ch: NotificationChannelView, base: string): Column => ({
-  id: `ch${ch.id}`,
-  label: ch.name,
-  detail: ch.kind === 'pushover' ? 'Pushover' : ch.kind === 'webhook' ? 'Webhook' : 'ntfy',
-  paused: !ch.enabled,
-  on: (k) => ch.events.includes(k),
-  set: async (keys, on) => {
-    const events = on ? [...new Set([...ch.events, ...keys])] : ch.events.filter((k) => !keys.includes(k));
-    await api(`${base}/${ch.id}`, { method: 'PATCH', body: { events } });
-    await queryClient.invalidateQueries({ queryKey: ['channels'] });
-  },
-});
+const MINE = '/notifications/channels';
+const SHARED = '/settings/notifications';
 
-// ---------------- Phones ----------------
-
-type Kind = 'pushover' | 'ntfy' | 'webhook' | 'apns';
+type Kind = NotificationChannelView['kind'];
 const KIND_NAME: Record<Kind, string> = { pushover: 'Pushover', ntfy: 'ntfy', webhook: 'Webhook', apns: 'iPhone app' };
 
-function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string }) {
+/** Where a place's own routes are: shared ones are the admins', the rest are yours. */
+const baseOf = (ch: NotificationChannelView) => (ch.shared ? SHARED : MINE);
+const refreshChannels = () => queryClient.invalidateQueries({ queryKey: ['channels'] });
+
+// ---------------- Places ----------------
+
+function ChannelRow({ ch, admin }: { ch: NotificationChannelView; admin: boolean }) {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['channels'] });
+  const url = `${baseOf(ch)}/${ch.id}`;
+  /** A phone is switched on and off in the app, which would only add it again if it were removed here. */
+  const phone = ch.kind === 'apns';
+  const change = (f: () => Promise<unknown>) => run(setError, async () => (await f(), await refreshChannels()));
   async function test() {
     setBusy(true);
     setResult(null);
     try {
-      setResult(await api<{ ok: boolean; message: string }>(`${base}/${ch.id}/test`, { body: {} }));
-      await refresh();
+      setResult(await api<{ ok: boolean; message: string }>(`${url}/test`, { body: {} }));
+      await refreshChannels();
     } catch (e) {
       setResult({ ok: false, message: errMsg(e) });
     } finally {
       setBusy(false);
     }
   }
+  const sent = !ch.lastError && ch.lastOkAt ? `last sent ${new Date(ch.lastOkAt).toLocaleString()}` : '';
+  // Only ntfy and webhooks have an address worth showing; the others would just repeat their kind.
+  const facts = [ch.kind === 'ntfy' || ch.kind === 'webhook' ? ch.detail : '', sent].filter(Boolean).join(' · ');
   return (
     <li className="flex flex-col gap-2 border-b border-line py-3 last:border-0">
       <div className="flex flex-wrap items-center gap-2">
@@ -250,27 +259,39 @@ function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string })
           <span className="text-body font-semibold">
             {ch.name} <span className="text-sm font-normal text-dim">· {KIND_NAME[ch.kind]}</span>
           </span>
-          <span className="truncate text-sm text-muted">
-            {ch.detail}
-            {!ch.lastError && ch.lastOkAt ? ` · last sent ${new Date(ch.lastOkAt).toLocaleString()}` : ''}
-          </span>
+          {facts && <span className="truncate text-sm text-muted">{facts}</span>}
         </div>
         <Button type="button" variant="ghost" disabled={busy} onClick={test}>
           {busy ? 'Sending…' : 'Send a test'}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => run(setError, async () => (await api(`${base}/${ch.id}`, { method: 'PATCH', body: { enabled: !ch.enabled } }), await refresh()))}>
-          {ch.enabled ? 'Pause' : 'Turn on'}
-        </Button>
-        <Button
-          type="button"
-          variant="danger"
-          onClick={() => {
-            if (window.confirm(`Remove ${ch.name}? Nothing more is sent there. You can add it again later.`)) void run(setError, async () => (await api(`${base}/${ch.id}`, { method: 'DELETE' }), await refresh()));
-          }}
-        >
-          Remove
-        </Button>
+        {!phone && (
+          <>
+            <Button type="button" variant="ghost" onClick={() => change(() => api(url, { method: 'PATCH', body: { enabled: !ch.enabled } }))}>
+              {ch.enabled ? 'Pause' : 'Turn on'}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => {
+                if (window.confirm(`Remove ${ch.name}? Nothing more is sent there. You can add it again later.`)) void change(() => api(url, { method: 'DELETE' }));
+              }}
+            >
+              Remove
+            </Button>
+          </>
+        )}
       </div>
+      {admin && !phone && (
+        <Check
+          label="Shared with the other admins"
+          hint="Every admin can change it, and it gets admin messages only, not ones about a single person."
+          checked={ch.shared}
+          onChange={(shared) => {
+            if (shared || window.confirm(`Make ${ch.name} just yours? The other admins won’t see or change it any more.`)) void change(() => api(`${SHARED}/${ch.id}/shared`, { method: 'PUT', body: { shared } }));
+          }}
+        />
+      )}
+      {phone && <span className="text-sm text-muted">To stop all of them, open the Marquee app and switch notifications off under You.</span>}
       {!ch.enabled && <Notice>Paused. Nothing is sent here until you turn it on.</Notice>}
       {ch.lastError && <Notice tone="error">{ch.lastError}</Notice>}
       {result && <Notice tone={result.ok ? 'success' : 'error'}>{result.message}</Notice>}
@@ -279,8 +300,9 @@ function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string })
   );
 }
 
-function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
-  const [kind, setKind] = useState<Kind>('pushover');
+function AddChannel({ admin, startOpen }: { admin: boolean; startOpen: boolean }) {
+  const [kind, setKind] = useState<Exclude<Kind, 'apns'>>('pushover');
+  const [shared, setShared] = useState(false);
   const [f, setF] = useState({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '', url: '', secret: '' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -290,7 +312,7 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
     setBusy(true);
     setError(null);
     try {
-      await api(base, {
+      await api(shared ? SHARED : MINE, {
         body:
           kind === 'pushover'
             ? { kind, name: f.name || 'Pushover', appToken: f.appToken, userKey: f.userKey }
@@ -299,7 +321,8 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
               : { kind, name: f.name || 'ntfy', server: f.server, topic: f.topic, ...(f.token ? { token: f.token } : {}) },
       });
       setF({ name: '', appToken: '', userKey: '', server: '', topic: '', token: '', url: '', secret: '' });
-      await queryClient.invalidateQueries({ queryKey: ['channels'] });
+      setShared(false);
+      await refreshChannels();
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -308,7 +331,7 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
   }
   return (
     <details open={startOpen} className="group rounded-xl border border-line-strong">
-      <summary className="flex min-h-11 cursor-pointer items-center px-4 text-body font-medium text-amber">Add a phone or another place…</summary>
+      <summary className="flex min-h-11 cursor-pointer items-center px-4 text-body font-medium text-amber">Add Pushover, ntfy or a webhook…</summary>
       <div className="flex flex-col gap-4 px-4 pt-1 pb-4">
         <div role="group" aria-label="Which service" className="flex gap-2">
           {(['pushover', 'ntfy', 'webhook'] as const).map((k) => (
@@ -336,6 +359,7 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
               <Field label="Access token (if the topic needs one)" type="password" autoComplete="off" value={f.token} onChange={set('token')} />
             </>
           )}
+          {admin && <Check label="Shared with the other admins" hint="For something like a family topic. It gets admin messages only." checked={shared} onChange={setShared} />}
           {error && <Notice tone="error">{error}</Notice>}
           <Button type="submit" className="self-start" disabled={busy}>
             {busy ? 'Adding…' : 'Add'}
@@ -346,37 +370,20 @@ function AddChannel({ base, startOpen }: { base: string; startOpen: boolean }) {
   );
 }
 
-function Phones({ items, base, title, hint }: { items: NotificationChannelView[]; base: string; title: string; hint: string }) {
-  return (
-    <Card className="flex flex-col gap-3">
-      <div>
-        <h2 className="m-0 text-lg font-semibold">{title}</h2>
-        <p className="m-0 text-sm text-muted">{hint}</p>
-      </div>
-      {items.length > 0 && (
-        <ul className="m-0 list-none p-0">
-          {items.map((ch) => (
-            <ChannelRow key={ch.id} ch={ch} base={base} />
-          ))}
-        </ul>
-      )}
-      <AddChannel base={base} startOpen={items.length === 0} />
-    </Card>
-  );
-}
+// ---------------- What to send ----------------
 
-// ---------------- For me ----------------
-
-const MINE = '/notifications/channels';
-
-export function MyNotificationsPage() {
+export function NotificationsPage() {
+  const ctx = useOutletContext<Ctx>();
+  const admin = ctx.status.user.role === 'admin';
   const ev = useQuery({ queryKey: ['notifications', 'events'], queryFn: () => api<{ events: NotificationEventInfo[]; muted: string[] }>('/notifications/events') });
-  const ch = useQuery({ queryKey: ['channels', 'mine'], queryFn: () => api<{ items: NotificationChannelView[] }>(MINE) });
-  if (!ev.data || !ch.data) return <p className="text-muted">Loading…</p>;
+  const mine = useQuery({ queryKey: ['channels', 'mine'], queryFn: () => api<{ items: NotificationChannelView[] }>(MINE) });
+  const shared = useQuery({ queryKey: ['channels', 'shared'], queryFn: () => api<{ items: NotificationChannelView[] }>(SHARED), enabled: admin });
+  if (!ev.data || !mine.data || (admin && !shared.data)) return <p className="text-muted">Loading…</p>;
   const { events, muted } = ev.data;
-  const bell: Column = {
-    id: 'bell',
-    label: 'Bell',
+  const places = [...mine.data.items, ...(shared.data?.items ?? [])].sort((a, b) => a.id - b.id);
+  const web: Column = {
+    id: 'web',
+    label: 'Web UI',
     detail: 'In Marquee',
     on: (k) => !muted.includes(k),
     set: async (keys, on) => {
@@ -385,116 +392,49 @@ export function MyNotificationsPage() {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   };
-  // A phone only gets what the bell gets: turning one off in the bell stops it everywhere for you.
-  const phones = ch.data.items.map((c) => {
-    const col = channelColumn(c, MINE);
-    return { ...col, on: (k: string) => col.on(k) && !muted.includes(k) };
-  });
+  const forAdmins = new Set(events.filter((e) => e.audience === 'admins').map((e) => e.key));
+  const columns = places.map((ch): Column => ({
+    id: `ch${ch.id}`,
+    label: ch.name,
+    detail: ch.shared ? `${KIND_NAME[ch.kind]} · Shared` : KIND_NAME[ch.kind],
+    paused: !ch.enabled,
+    can: ch.shared ? (k) => forAdmins.has(k) : undefined,
+    on: (k) => ch.events.includes(k),
+    set: async (keys, on) => {
+      const next = on ? [...new Set([...ch.events, ...keys])] : ch.events.filter((k) => !keys.includes(k));
+      await api(`${baseOf(ch)}/${ch.id}`, { method: 'PATCH', body: { events: next } });
+      await refreshChannels();
+    },
+  }));
   return (
     <div className="flex max-w-[960px] flex-col gap-6">
       <div>
-        <h2 className="m-0 text-lg font-semibold">What you hear about</h2>
+        <h2 className="m-0 text-lg font-semibold">What you hear about, and where</h2>
         <p className="m-0 text-sm text-muted">
-          This is just for you. Untick something under <strong className="font-semibold text-soft">Bell</strong> to stop hearing about it anywhere. Add your phone below to get messages there too, and pick which ones in its column.
+          Each column is a place Marquee can send to. Tick what each one should get; every box works on its own.
+          {places.some((p) => p.shared) && ' A dash means a shared place can’t get that message, because it’s about one person.'}
         </p>
       </div>
-      <EventGrid events={events} columns={[bell, ...phones]} caption="Which messages reach you, and where" />
-      <Phones items={ch.data.items} base={MINE} title="My phones" hint="Pushover or ntfy, just for you. Only you see these, and only your messages go there." />
+      <EventGrid events={events} columns={[web, ...columns]} caption="Which messages go to each place" />
+      <Card className="flex flex-col gap-3">
+        <div>
+          <h2 className="m-0 text-lg font-semibold">Places</h2>
+          <p className="m-0 text-sm text-muted">Your iPhone appears here by itself once notifications are on in the Marquee app. Secrets are kept by Marquee and never shown again.</p>
+        </div>
+        {places.length > 0 && (
+          <ul className="m-0 list-none p-0">
+            {places.map((ch) => (
+              <ChannelRow key={ch.id} ch={ch} admin={admin} />
+            ))}
+          </ul>
+        )}
+        <AddChannel admin={admin} startOpen={places.length === 0} />
+      </Card>
     </div>
   );
 }
 
-// ---------------- Shared alerts (admins) ----------------
-
-const SHARED = '/settings/notifications';
-
-export function SharedAlertsPage() {
-  const { data } = useQuery({ queryKey: ['channels', 'shared'], queryFn: () => api<{ items: NotificationChannelView[]; events: NotificationEventInfo[] }>(SHARED) });
-  if (!data) return <p className="text-muted">Loading…</p>;
-  return (
-    <div className="flex max-w-[960px] flex-col gap-6">
-      <div>
-        <h2 className="m-0 text-lg font-semibold">Alerts for the admins</h2>
-        <p className="m-0 text-sm text-muted">Places every admin message can go, like a shared family ntfy topic or the house Pushover. Each column is one place; tick what it should get. Messages for one person (like “Ready to watch”) go to that person’s own phones instead.</p>
-      </div>
-      {data.items.length > 0 ? (
-        <EventGrid events={data.events} columns={data.items.map((c) => channelColumn(c, SHARED))} caption="Which admin messages go to each shared place" />
-      ) : (
-        <Notice>Nothing set up yet. Add Pushover or ntfy below and its column shows up here.</Notice>
-      )}
-      <Phones items={data.items} base={SHARED} title="Shared places" hint="Pushover or ntfy. Secrets are kept by Marquee and never shown again." />
-      <IphoneAppCard />
-    </div>
-  );
-}
-
-/** The Apple key that lets Marquee send to the iPhone app. Saved secrets are never shown again. */
-function IphoneAppCard() {
-  const { data } = useQuery({ queryKey: ['apns'], queryFn: () => api<ApnsSettingsView>(`${SHARED}/apns`) });
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  if (!data) return null;
-  async function save(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const f = new FormData(form);
-    setBusy(true);
-    setMessage(null);
-    try {
-      await api(`${SHARED}/apns`, { method: 'PUT', body: { key: String(f.get('key') ?? ''), keyId: f.get('keyId'), teamId: f.get('teamId'), bundleId: f.get('bundleId') } });
-      await queryClient.invalidateQueries({ queryKey: ['apns'] });
-      (form.elements.namedItem('key') as HTMLTextAreaElement).value = '';
-      setMessage({ ok: true, text: 'Saved.' });
-    } catch (err) {
-      setMessage({ ok: false, text: errMsg(err) });
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function test() {
-    setBusy(true);
-    try {
-      const r = await api<{ ok: boolean; message: string }>(`${SHARED}/apns/test`, { body: {} });
-      setMessage({ ok: r.ok, text: r.message });
-    } catch (err) {
-      setMessage({ ok: false, text: errMsg(err) });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Card className="flex flex-col gap-4">
-      <div>
-        <h2 className="m-0 text-lg font-semibold">iPhone app</h2>
-        <p className="m-0 text-sm text-muted">
-          Lets Marquee send notifications to the Marquee iPhone app, with cover art and Approve and Turn down buttons, and keep a download’s progress on the Lock Screen (a Live Activity). In your Apple developer account, create a key with Apple Push Notifications turned on, download its .p8 file, and fill this in. Each person then turns notifications on in the app, under You. The key is kept by Marquee and never shown again.
-        </p>
-      </div>
-      <form onSubmit={save} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-label text-muted">
-          Apple push key (the text of the .p8 file) {data.keySet && <span className="text-teal-hi">· a key is saved; leave blank to keep it</span>}
-          <textarea name="key" rows={4} spellCheck={false} placeholder="-----BEGIN PRIVATE KEY-----" className="rounded-lg border border-line-strong bg-panel px-2.5 py-2 font-mono text-sm text-text" />
-        </label>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Key id" name="keyId" defaultValue={data.keyId} placeholder="ABC123DEFG" required />
-          <Field label="Team id" name="teamId" defaultValue={data.teamId} placeholder="ABC123DEFG" required />
-          <Field label="App id" name="bundleId" defaultValue={data.bundleId} required />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy}>
-            Save
-          </Button>
-          <Button type="button" variant="ghost" disabled={busy || !data.ready} onClick={test}>
-            Send a test to my iPhone
-          </Button>
-        </div>
-        {message && <Notice tone={message.ok ? 'success' : 'error'}>{message.text}</Notice>}
-      </form>
-    </Card>
-  );
-}
-
-// ---------------- Wording (admins) ----------------
+// ---------------- Customize (admins) ----------------
 
 type Draft = { title: string; body: string; image: string };
 type FieldKey = keyof Draft;
@@ -522,7 +462,7 @@ function Chip({ v, onPick }: { v: NotificationVar; onPick: (key: string) => void
 }
 
 const ARRIVES: { value: NotificationPriority; label: string; hint: string }[] = [
-  { value: 'silent', label: 'Silently', hint: 'No banner or sound. It waits in the Pushover or ntfy app.' },
+  { value: 'silent', label: 'Silently', hint: 'No banner or sound. It just waits on your phone until you look.' },
   { value: 'quiet', label: 'Quietly', hint: 'A banner, but no sound or buzz.' },
   { value: 'normal', label: 'Normally', hint: 'A banner and your usual sound.' },
   { value: 'high', label: 'Right away', hint: 'Time Sensitive on an iPhone: it shows even during Focus and Do Not Disturb.' },
@@ -559,7 +499,7 @@ function Arrives({ info, current }: { info: NotificationEventInfo; current: Noti
           </label>
         ))}
       </div>
-      <span className="text-xs text-dim">The bell in Marquee always shows it. Webhooks get this as “priority”.</span>
+      <span className="text-xs text-dim">This doesn’t change the web UI. Webhooks get it as “priority”.</span>
       {error && <Notice tone="error">{error}</Notice>}
     </fieldset>
   );
@@ -621,7 +561,7 @@ function Editor({ info, current, common }: { info: NotificationEventInfo; curren
       <div className="flex flex-col gap-2">
         <label htmlFor="w-image" className="text-sm font-medium text-soft">Picture</label>
         <input id="w-image" ref={refs.image} className={cx('h-12', field)} value={draft.image} placeholder="Leave blank for no picture" onFocus={() => setFocus('image')} onChange={(e) => (setSaved(null), setDraft({ ...draft, image: e.target.value }))} />
-        <span className="text-xs text-dim">A picture address. <code>{'{{poster}}'}</code> is the cover art. Pushover shows the picture in the message; ntfy shows it below.</span>
+        <span className="text-xs text-dim">A picture address. <code>{'{{poster}}'}</code> is the cover art. Pushover shows the picture in the message; ntfy shows it below, and the iPhone app shows cover art.</span>
       </div>
 
       <Arrives info={info} current={current} />
@@ -684,7 +624,7 @@ function Editor({ info, current, common }: { info: NotificationEventInfo; curren
   );
 }
 
-export function WordingPage() {
+export function CustomizePage() {
   const { data } = useQuery({ queryKey: ['wording', 'list'], queryFn: () => api<{ items: NotificationTemplateView[]; events: NotificationEventInfo[]; common: NotificationVar[] }>(`${SHARED}/templates`) });
   const [picked, setPicked] = useState<string>('request_ready');
   if (!data) return <p className="text-muted">Loading…</p>;
@@ -694,7 +634,7 @@ export function WordingPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="m-0 text-lg font-semibold">What each message says</h2>
-        <p className="m-0 text-sm text-muted">Change the title, message and picture of anything Marquee sends, and how loudly it arrives. Your wording is used in the bell and on every phone.</p>
+        <p className="m-0 text-sm text-muted">Change the title, message and picture of anything Marquee sends, and how loudly it arrives. Your wording is used in the web UI and everywhere else.</p>
       </div>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <nav aria-label="Messages" className="flex flex-col gap-4 lg:w-[280px] lg:flex-none">

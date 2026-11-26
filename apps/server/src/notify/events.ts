@@ -4,7 +4,7 @@ import type { NotificationEventInfo, NotificationPriority, NotificationVar } fro
  * Everything Marquee can tell people about. Each event says who it is for
  * (admins, or the person who asked for the title), which bits of
  * information it carries (its variables), and Marquee's own wording, which
- * an admin can change in Settings → Notifications → Wording.
+ * an admin can change in Settings → Notifications → Customize.
  */
 
 const v = (key: string, label: string, example: string): NotificationVar => ({ key, label, example });

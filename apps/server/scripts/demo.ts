@@ -12,7 +12,7 @@
  * fake sites can be brought over too.
  * Severance season 2 airs around today, so the Calendar and "Coming up this week" have something to show.
  * Copies whose name ends in -SCENE finish as .rar files, so Downloads shows them unpacking (a fake 7-Zip, a few seconds).
- * iPhone app push: a fake Apple push service is already set up (Settings → Notifications → Shared alerts → iPhone app);
+ * iPhone app push: a fake Apple push service is already set up (Settings → iPhone app);
  * every push the app would get is logged as "[demo] Apple push to …". apps/ios/scripts/seed-demo.sh turns it on for the demo phone.
  * Library → More: The Matrix has Radarr-style names to rename, and the downloads folder has two finished files
  * to put in your library by hand. Settings → Health shows a set-aside file under Replaced files.

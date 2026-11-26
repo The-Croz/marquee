@@ -22,7 +22,7 @@ import { DiscoverPageView } from './pages/Discover';
 import { RequestsPage } from './pages/Requests';
 import { WatchSyncPage } from './pages/WatchSync';
 import { AutomationPage } from './pages/Automation';
-import { DiscoverSettingsPage, MyNotificationsPage, NotificationSettingsLayout, SharedAlertsPage, WordingPage } from './pages/NotificationSettings';
+import { CustomizePage, DiscoverSettingsPage, NotificationSettingsLayout, NotificationsPage } from './pages/NotificationSettings';
 import { LibraryHome, LibraryPage, LibraryRedirect } from './pages/Library';
 import { DiscoverTitlePage, MovieDetailPage, ShowDetailPage } from './pages/Title';
 import { TmdbPersonPage } from './pages/TmdbPerson';
@@ -98,9 +98,11 @@ const router = createBrowserRouter([
             path: 'notifications',
             element: <NotificationSettingsLayout />,
             children: [
-              { index: true, element: <MyNotificationsPage /> },
-              { path: 'shared', element: <RequireUser render={(s) => <AdminOnly status={s}><SharedAlertsPage /></AdminOnly>} /> },
-              { path: 'wording', element: <RequireUser render={(s) => <AdminOnly status={s}><WordingPage /></AdminOnly>} /> },
+              { index: true, element: <NotificationsPage /> },
+              { path: 'customize', element: <RequireUser render={(s) => <AdminOnly status={s}><CustomizePage /></AdminOnly>} /> },
+              // Old addresses.
+              { path: 'shared', element: <Navigate to="/settings/notifications" replace /> },
+              { path: 'wording', element: <Navigate to="/settings/notifications/customize" replace /> },
             ],
           },
           { path: 'users', element: <UsersPage /> },

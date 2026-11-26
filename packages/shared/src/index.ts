@@ -1552,12 +1552,20 @@ export interface NotificationChannelView {
   kind: 'pushover' | 'ntfy' | 'webhook' | 'apns';
   name: string;
   enabled: boolean;
+  /** Shared with every admin (admin messages only), not one person's own. */
+  shared: boolean;
   events: string[];
   /** Non-secret part of the setup, e.g. the ntfy topic. */
   detail: string;
   lastOkAt: number | null;
   /** What went wrong last time, in plain words. */
   lastError: string | null;
+}
+
+/** What one iPhone gets: every message its person can have, and the ones switched on. */
+export interface DevicePushEvents {
+  events: NotificationEventInfo[];
+  on: string[];
 }
 
 export interface NotificationInboxItem {

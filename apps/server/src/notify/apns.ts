@@ -54,9 +54,9 @@ export interface ApnsAnswer {
 
 /** Why Apple said no, in plain words (the key itself is never part of any message). */
 export function explain(a: ApnsAnswer): string {
-  if (a.status === 403) return 'Apple turned the key down. Check the key, key id and team id under Settings → Notifications → iPhone app.';
+  if (a.status === 403) return 'Apple turned the key down. Check the key, key id and team id under Settings → iPhone app.';
   if (a.status === 429) return 'Apple asked Marquee to slow down. It will try again with the next message.';
-  if (a.reason === 'DeviceTokenNotForTopic' || a.reason === 'BadTopic' || a.reason === 'TopicDisallowed') return 'Apple says this iPhone doesn’t belong to that app id. Check the app id under Settings → Notifications → iPhone app.';
+  if (a.reason === 'DeviceTokenNotForTopic' || a.reason === 'BadTopic' || a.reason === 'TopicDisallowed') return 'Apple says this iPhone doesn’t belong to that app id. Check the app id under Settings → iPhone app.';
   if (a.reason === 'BadDeviceToken') return 'Apple turned this iPhone’s address down. Turn notifications off and on again in the app. If it keeps happening, the app and Marquee may be using different Apple environments (test or real).';
   return `Apple answered ${a.status}${a.reason ? ` (${a.reason})` : ''}. It will try again with the next message.`;
 }
@@ -100,13 +100,13 @@ export class ApnsClient {
 
   async send(r: ApnsRequest): Promise<ApnsAnswer> {
     const c = this.config();
-    if (!c) throw new PushError('iPhone push isn’t set up. An admin adds the Apple key under Settings → Notifications → iPhone app.');
+    if (!c) throw new PushError('iPhone push isn’t set up. An admin adds the Apple key under Settings → iPhone app.');
     const origin = this.baseUrl ?? (r.environment === 'sandbox' ? 'https://api.sandbox.push.apple.com' : 'https://api.push.apple.com');
     let bearer: string;
     try {
       bearer = this.token(c);
     } catch {
-      throw new PushError('Marquee couldn’t use the saved Apple key. Paste the .p8 key again under Settings → Notifications → iPhone app.');
+      throw new PushError('Marquee couldn’t use the saved Apple key. Paste the .p8 key again under Settings → iPhone app.');
     }
     const session = http2.connect(origin);
     let timer: ReturnType<typeof setTimeout> | undefined;

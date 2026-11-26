@@ -108,6 +108,40 @@ final class SmokeTests: XCTestCase {
         wait(for: [XCTNSPredicateExpectation(predicate: opened, object: nil)], timeout: 10)
     }
 
+    /// You → What you get: a switch for each message, kept by Marquee.
+    func testChoosingWhichNotificationsArrive() {
+        let app = launch(as: "josh")
+        openYou(app)
+        waitForSwitch(app, "1", "Notifications should be on")
+        let choices = app.buttons["notification-choices"]
+        XCTAssertTrue(choices.waitForExistence(timeout: 10), "What you get shows while notifications are on")
+        choices.tap()
+        let started = app.switches["notify-stream_started"]
+        XCTAssertTrue(app.switches["notify-request_pending"].waitForExistence(timeout: 10))
+        for _ in 0..<8 where !started.isHittable { app.swipeUp() }
+        XCTAssertTrue(started.isHittable)
+        let before = started.value as? String
+        let after = before == "1" ? "0" : "1"
+        started.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        expectValue(started, after, "The switch should move")
+        sleep(2)
+
+        // Leave and come back: what Marquee kept is what shows.
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(choices.waitForExistence(timeout: 5))
+        choices.tap()
+        XCTAssertTrue(app.switches["notify-request_pending"].waitForExistence(timeout: 10))
+        for _ in 0..<8 where !started.isHittable { app.swipeUp() }
+        expectValue(started, after, "The choice should be kept")
+        started.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        expectValue(started, before ?? "0", "And switch back")
+    }
+
+    private func expectValue(_ element: XCUIElement, _ value: String, _ why: String) {
+        let match = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: element)
+        XCTAssertEqual(XCTWaiter().wait(for: [match], timeout: 10), .completed, why)
+    }
+
     private func allowNotificationsIfAsked() {
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let allow = springboard.alerts.buttons["Allow"]

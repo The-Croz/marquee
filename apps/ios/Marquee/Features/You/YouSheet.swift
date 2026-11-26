@@ -35,6 +35,12 @@ struct YouSheet: View {
                 group("You") {
                     notificationsRow
                     Divider().overlay(Color.line)
+                    if pushing.status == .on {
+                        NavigationLink { NotificationChoicesScreen() } label: { linkRow("What you get") }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("notification-choices")
+                        Divider().overlay(Color.line)
+                    }
                     NavigationLink { MyRequestsScreen() } label: { linkRow("My requests & history") }
                         .buttonStyle(.plain)
                     Divider().overlay(Color.line)
