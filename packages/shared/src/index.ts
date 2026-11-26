@@ -63,6 +63,8 @@ export interface DeviceView {
   lastSeenAt: number;
   signedIn: boolean;
   current: boolean;
+  /** This phone gets push notifications from Marquee. */
+  push: boolean;
 }
 
 export type PlexPinCheck =
@@ -1547,7 +1549,7 @@ export interface NotificationEventInfo {
 
 export interface NotificationChannelView {
   id: number;
-  kind: 'pushover' | 'ntfy' | 'webhook';
+  kind: 'pushover' | 'ntfy' | 'webhook' | 'apns';
   name: string;
   enabled: boolean;
   events: string[];
@@ -2189,4 +2191,15 @@ export interface UnwatchedView {
 
 export interface TautulliImportView {
   imports: { at: number; added: number; skipped: number; seen: number; undoneAt: number | null }[];
+}
+
+
+/** Settings → Notifications → iPhone app. The key itself is never sent back. */
+export interface ApnsSettingsView {
+  keySet: boolean;
+  keyId: string;
+  teamId: string;
+  bundleId: string;
+  /** Everything is filled in, so Marquee can send. */
+  ready: boolean;
 }

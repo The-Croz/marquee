@@ -15,6 +15,8 @@ extension AppDeviceInput {
 final class AppModel {
     enum Phase: Equatable { case launching, needsAddress, signedOut, signedIn, cantReach(MarqueeError) }
 
+    static let shared = AppModel()
+
     private(set) var phase: Phase = .launching
     private(set) var user: SessionUser?
     private(set) var version: String?
@@ -24,9 +26,53 @@ final class AppModel {
     /// Shown on the sign-in screen after something signed the phone out.
     var notice: String?
     var showingYou = false
+    /// A link that arrived before sign-in finished (the app was opened by a notification).
+    var pendingLink: DeepLink?
+    /// A request to turn down, opened from a notification's button.
+    var turnDownRequest: RequestView?
     /// Which Activity section to open (set by Home's tiles).
     var activitySection: ActivitySection = .downloads
     var selectedTab: AppTab = .home
+    /// What's open on top of each tab, so a link can open a title from anywhere.
+    var homePath = NavigationPath()
+    var discoverPath = NavigationPath()
+    var libraryPath = NavigationPath()
+    var searchPath = NavigationPath()
+
+    /// Opens a movie or show on the tab the person is on (Library when they're on Activity).
+    func open(_ route: TitleRoute) {
+        switch selectedTab {
+        case .home: homePath.append(route)
+        case .discover: discoverPath.append(route)
+        case .search: searchPath.append(route)
+        case .library, .activity:
+            selectedTab = .library
+            libraryPath.append(route)
+        }
+    }
+
+    func open(_ link: DeepLink) {
+        switch link {
+        case .title(let route): open(route)
+        case .requests, .downloads:
+            // Kids have no Activity tab, so a link to it lands on Home.
+            let sections = ActivityTabs.sections(for: user?.role ?? .kid)
+            let wanted: ActivitySection = link == .requests ? .requests : .downloads
+            guard sections.contains(wanted) else {
+                selectedTab = .home
+                return
+            }
+            activitySection = wanted
+            selectedTab = .activity
+        }
+    }
+
+    /// Asking for something: the three-second take-back window lives here so it survives closing a sheet.
+    private(set) var asker: AskCoordinator!
+    /// What each card turned into once asked, and the words to say about it.
+    private(set) var asked: [String: RequestView] = [:]
+    var askMessage: String?
+    var askProblem: String?
 
     let client: APIClient
     private let tokens: TokenStore
@@ -43,15 +89,46 @@ final class AppModel {
         savedAddresses = addresses
         client = APIClient(addresses: addresses ?? ServerAddresses(home: URL(string: "http://localhost:9797")!), tokens: tokens, session: session)
         if addresses == nil { phase = .needsAddress }
+        asker = AskCoordinator { [weak self] ask in await self?.sendAsk(ask) }
+    }
+
+    private struct AskBody: Encodable, Sendable {
+        var kind: String
+        var tmdbId: Int
+        var seasons: [Int]?
+    }
+
+    private func sendAsk(_ ask: AskCoordinator.Ask) async {
+        do {
+            let r: RequestView = try await client.send("POST", "/api/requests", body: AskBody(kind: ask.kind, tmdbId: ask.tmdbId, seasons: ask.seasons))
+            asked[ask.cardId] = r
+            askMessage = r.stateText
+        } catch {
+            if case .signedOut = error { handle(error); return }
+            askProblem = error.fullText
+        }
     }
 
     /// The face of the app on launch: signed in if the saved token still works.
     func start() async {
+        #if DEBUG
+        // For checking screens by hand against demo mode: --demo-sign-in=josh (or mia, kiddo).
+        if let arg = CommandLine.arguments.first(where: { $0.hasPrefix("--demo-sign-in=") }) {
+            let name = String(arg.dropFirst("--demo-sign-in=".count))
+            try? await connect(home: "localhost:9797", outside: "")
+            if let user = try? await client.signIn(username: name, password: name == "josh" ? "correct horse battery" : "\(name) password", device: .current) { signedIn(user) }
+            return
+        }
+        #endif
         guard phase == .launching else { return }
         do {
             let me: MeResponse = try await client.get("/api/me")
             user = me.user
             phase = .signedIn
+            if let link = pendingLink {
+                pendingLink = nil
+                open(link)
+            }
         } catch {
             if case .signedOut = error {
                 phase = .signedOut
@@ -104,6 +181,10 @@ final class AppModel {
         notice = nil
         selectedTab = .home
         phase = .signedIn
+        if let link = pendingLink {
+            pendingLink = nil
+            open(link)
+        }
     }
 
     func retryLaunch() async {
@@ -111,11 +192,35 @@ final class AppModel {
         await start()
     }
 
+    /// Turn down was pressed on a notification: find the request and open its reason sheet.
+    func showTurnDown(requestId: Int) async {
+        guard let all: RequestsResponse = try? await client.get("/api/requests?scope=all") else { return }
+        turnDownRequest = all.items.first { $0.id == requestId && $0.state == .pending }
+    }
+
+    struct DeclineBody: Encodable, Sendable { var reason: String }
+
+    func turnDown(_ r: RequestView, reason: String) async {
+        do {
+            let _: RequestView = try await client.send("POST", "/api/requests/\(r.id)/decline", body: DeclineBody(reason: reason.trimmingCharacters(in: .whitespacesAndNewlines)))
+        } catch {
+            handle(error)
+        }
+    }
+
     func changeServer() {
         phase = .needsAddress
     }
 
+    private func forgetAsks() {
+        asker.undo()
+        asked = [:]
+        askMessage = nil
+        askProblem = nil
+    }
+
     func signOut() async {
+        forgetAsks()
         await client.signOut()
         user = nil
         showingYou = false
@@ -125,6 +230,7 @@ final class AppModel {
     /// Every screen passes its failures here: a signed-out answer sends the phone back to sign-in.
     func handle(_ error: MarqueeError) {
         if case .signedOut = error {
+            forgetAsks()
             user = nil
             showingYou = false
             notice = "You were signed out. Sign in again."
@@ -138,4 +244,4 @@ final class AppModel {
     }
 }
 
-enum AppTab: Hashable { case home, activity }
+enum AppTab: Hashable { case home, discover, library, activity, search }

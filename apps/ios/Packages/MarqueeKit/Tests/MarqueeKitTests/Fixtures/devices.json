@@ -6,7 +6,8 @@
       "kind": "ios",
       "lastSeenAt": 1795608000000,
       "signedIn": true,
-      "current": true
+      "current": true,
+      "push": false
     }
   ]
 }

@@ -1,0 +1,1676 @@
+{
+  "type": "all",
+  "service": "all",
+  "services": [
+    {
+      "key": "netflix",
+      "name": "Netflix"
+    },
+    {
+      "key": "max",
+      "name": "HBO Max"
+    },
+    {
+      "key": "disney",
+      "name": "Disney+"
+    },
+    {
+      "key": "apple",
+      "name": "Apple TV"
+    },
+    {
+      "key": "prime",
+      "name": "Prime Video"
+    },
+    {
+      "key": "hulu",
+      "name": "Hulu"
+    },
+    {
+      "key": "paramount",
+      "name": "Paramount+"
+    },
+    {
+      "key": "peacock",
+      "name": "Peacock"
+    }
+  ],
+  "hero": [
+    {
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "backdropPath": "/back693134.jpg",
+      "overview": "About Dune: Part Two.",
+      "score": 8.1,
+      "genres": [
+        "Science Fiction",
+        "Adventure"
+      ],
+      "state": "in_library",
+      "libraryId": 1,
+      "badge": null
+    },
+    {
+      "kind": "movie",
+      "tmdbId": 402431,
+      "title": "Wicked",
+      "year": 2024,
+      "posterPath": "/wicked.jpg",
+      "backdropPath": "/back402431.jpg",
+      "overview": "About Wicked.",
+      "score": 7.4,
+      "genres": [
+        "Drama",
+        "Fantasy",
+        "Romance"
+      ],
+      "state": "none",
+      "libraryId": null,
+      "badge": null
+    },
+    {
+      "kind": "movie",
+      "tmdbId": 558449,
+      "title": "Gladiator II",
+      "year": 2024,
+      "posterPath": "/glad2.jpg",
+      "backdropPath": "/back558449.jpg",
+      "overview": "About Gladiator II.",
+      "score": 6.8,
+      "genres": [
+        "Action",
+        "Adventure"
+      ],
+      "state": "none",
+      "libraryId": null,
+      "badge": null
+    },
+    {
+      "kind": "movie",
+      "tmdbId": 1241982,
+      "title": "Moana 2",
+      "year": 2024,
+      "posterPath": "/moana2.jpg",
+      "backdropPath": "/back1241982.jpg",
+      "overview": "About Moana 2.",
+      "score": 7,
+      "genres": [
+        "Animation",
+        "Family",
+        "Adventure"
+      ],
+      "state": "none",
+      "libraryId": null,
+      "badge": null
+    },
+    {
+      "kind": "movie",
+      "tmdbId": 1022789,
+      "title": "Inside Out 2",
+      "year": 2024,
+      "posterPath": "/io2.jpg",
+      "backdropPath": "/back1022789.jpg",
+      "overview": "About Inside Out 2.",
+      "score": 7.6,
+      "genres": [
+        "Animation",
+        "Family",
+        "Comedy"
+      ],
+      "state": "none",
+      "libraryId": null,
+      "badge": null
+    },
+    {
+      "kind": "movie",
+      "tmdbId": 1184918,
+      "title": "The Wild Robot",
+      "year": 2024,
+      "posterPath": "/robot.jpg",
+      "backdropPath": "/back1184918.jpg",
+      "overview": "About The Wild Robot.",
+      "score": 8.3,
+      "genres": [
+        "Animation",
+        "Science Fiction",
+        "Family"
+      ],
+      "state": "none",
+      "libraryId": null,
+      "badge": null
+    }
+  ],
+  "rows": [
+    {
+      "id": "trending",
+      "title": "Trending this week",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 693134,
+          "title": "Dune: Part Two",
+          "year": 2024,
+          "posterPath": "/dune2.jpg",
+          "backdropPath": "/back693134.jpg",
+          "overview": "About Dune: Part Two.",
+          "score": 8.1,
+          "genres": [
+            "Science Fiction",
+            "Adventure"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 402431,
+          "title": "Wicked",
+          "year": 2024,
+          "posterPath": "/wicked.jpg",
+          "backdropPath": "/back402431.jpg",
+          "overview": "About Wicked.",
+          "score": 7.4,
+          "genres": [
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1184918,
+          "title": "The Wild Robot",
+          "year": 2024,
+          "posterPath": "/robot.jpg",
+          "backdropPath": "/back1184918.jpg",
+          "overview": "About The Wild Robot.",
+          "score": 8.3,
+          "genres": [
+            "Animation",
+            "Science Fiction",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 66732,
+          "title": "Stranger Things",
+          "year": 2016,
+          "posterPath": "/st.jpg",
+          "backdropPath": "/back66732.jpg",
+          "overview": "About Stranger Things.",
+          "score": 8.6,
+          "genres": [
+            "Sci-Fi & Fantasy",
+            "Mystery",
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 95396,
+          "title": "Severance",
+          "year": 2022,
+          "posterPath": "/sev.jpg",
+          "backdropPath": "/back95396.jpg",
+          "overview": "About Severance.",
+          "score": 8.4,
+          "genres": [
+            "Drama",
+            "Mystery",
+            "Sci-Fi & Fantasy"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 136315,
+          "title": "The Bear",
+          "year": 2022,
+          "posterPath": "/bear.jpg",
+          "backdropPath": "/back136315.jpg",
+          "overview": "About The Bear.",
+          "score": 8.3,
+          "genres": [
+            "Drama",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 82728,
+          "title": "Bluey",
+          "year": 2018,
+          "posterPath": "/bluey.jpg",
+          "backdropPath": "/back82728.jpg",
+          "overview": "About Bluey.",
+          "score": 8.6,
+          "genres": [
+            "Animation",
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1064213,
+          "title": "Anora",
+          "year": 2024,
+          "posterPath": "/anora.jpg",
+          "backdropPath": "/back1064213.jpg",
+          "overview": "About Anora.",
+          "score": 7.1,
+          "genres": [
+            "Drama",
+            "Comedy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 502,
+          "title": "Sesame Street",
+          "year": 1969,
+          "posterPath": "/sesame.jpg",
+          "backdropPath": "/back502.jpg",
+          "overview": "About Sesame Street.",
+          "score": 7.5,
+          "genres": [
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 603,
+          "title": "The Matrix",
+          "year": 1999,
+          "posterPath": "/matrix.jpg",
+          "backdropPath": "/back603.jpg",
+          "overview": "About The Matrix.",
+          "score": 8.2,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 14160,
+          "title": "Up",
+          "year": 2009,
+          "posterPath": "/up.jpg",
+          "backdropPath": "/back14160.jpg",
+          "overview": "About Up.",
+          "score": 8,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": 2,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 78,
+          "title": "Blade Runner",
+          "year": 1982,
+          "posterPath": "/br.jpg",
+          "backdropPath": "/back78.jpg",
+          "overview": "About Blade Runner.",
+          "score": 7.9,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 604,
+          "title": "The Matrix Reloaded",
+          "year": 2003,
+          "posterPath": "/reloaded.jpg",
+          "backdropPath": "/back604.jpg",
+          "overview": "About The Matrix Reloaded.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 605,
+          "title": "The Matrix Revolutions",
+          "year": 2003,
+          "posterPath": "/revolutions.jpg",
+          "backdropPath": "/back605.jpg",
+          "overview": "About The Matrix Revolutions.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "now-playing",
+      "title": "In cinemas now",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 693134,
+          "title": "Dune: Part Two",
+          "year": 2024,
+          "posterPath": "/dune2.jpg",
+          "backdropPath": "/back693134.jpg",
+          "overview": "About Dune: Part Two.",
+          "score": 8.1,
+          "genres": [
+            "Science Fiction",
+            "Adventure"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 402431,
+          "title": "Wicked",
+          "year": 2024,
+          "posterPath": "/wicked.jpg",
+          "backdropPath": "/back402431.jpg",
+          "overview": "About Wicked.",
+          "score": 7.4,
+          "genres": [
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1184918,
+          "title": "The Wild Robot",
+          "year": 2024,
+          "posterPath": "/robot.jpg",
+          "backdropPath": "/back1184918.jpg",
+          "overview": "About The Wild Robot.",
+          "score": 8.3,
+          "genres": [
+            "Animation",
+            "Science Fiction",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1064213,
+          "title": "Anora",
+          "year": 2024,
+          "posterPath": "/anora.jpg",
+          "backdropPath": "/back1064213.jpg",
+          "overview": "About Anora.",
+          "score": 7.1,
+          "genres": [
+            "Drama",
+            "Comedy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 603,
+          "title": "The Matrix",
+          "year": 1999,
+          "posterPath": "/matrix.jpg",
+          "backdropPath": "/back603.jpg",
+          "overview": "About The Matrix.",
+          "score": 8.2,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 14160,
+          "title": "Up",
+          "year": 2009,
+          "posterPath": "/up.jpg",
+          "backdropPath": "/back14160.jpg",
+          "overview": "About Up.",
+          "score": 8,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": 2,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 78,
+          "title": "Blade Runner",
+          "year": 1982,
+          "posterPath": "/br.jpg",
+          "backdropPath": "/back78.jpg",
+          "overview": "About Blade Runner.",
+          "score": 7.9,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 604,
+          "title": "The Matrix Reloaded",
+          "year": 2003,
+          "posterPath": "/reloaded.jpg",
+          "backdropPath": "/back604.jpg",
+          "overview": "About The Matrix Reloaded.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 605,
+          "title": "The Matrix Revolutions",
+          "year": 2003,
+          "posterPath": "/revolutions.jpg",
+          "backdropPath": "/back605.jpg",
+          "overview": "About The Matrix Revolutions.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "airing",
+      "title": "On the air",
+      "subtitle": "Shows with new episodes",
+      "items": [
+        {
+          "kind": "series",
+          "tmdbId": 66732,
+          "title": "Stranger Things",
+          "year": 2016,
+          "posterPath": "/st.jpg",
+          "backdropPath": "/back66732.jpg",
+          "overview": "About Stranger Things.",
+          "score": 8.6,
+          "genres": [
+            "Sci-Fi & Fantasy",
+            "Mystery",
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 95396,
+          "title": "Severance",
+          "year": 2022,
+          "posterPath": "/sev.jpg",
+          "backdropPath": "/back95396.jpg",
+          "overview": "About Severance.",
+          "score": 8.4,
+          "genres": [
+            "Drama",
+            "Mystery",
+            "Sci-Fi & Fantasy"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 136315,
+          "title": "The Bear",
+          "year": 2022,
+          "posterPath": "/bear.jpg",
+          "backdropPath": "/back136315.jpg",
+          "overview": "About The Bear.",
+          "score": 8.3,
+          "genres": [
+            "Drama",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 82728,
+          "title": "Bluey",
+          "year": 2018,
+          "posterPath": "/bluey.jpg",
+          "backdropPath": "/back82728.jpg",
+          "overview": "About Bluey.",
+          "score": 8.6,
+          "genres": [
+            "Animation",
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 502,
+          "title": "Sesame Street",
+          "year": 1969,
+          "posterPath": "/sesame.jpg",
+          "backdropPath": "/back502.jpg",
+          "overview": "About Sesame Street.",
+          "score": 7.5,
+          "genres": [
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "popular-movie",
+      "title": "Popular movies",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 693134,
+          "title": "Dune: Part Two",
+          "year": 2024,
+          "posterPath": "/dune2.jpg",
+          "backdropPath": "/back693134.jpg",
+          "overview": "About Dune: Part Two.",
+          "score": 8.1,
+          "genres": [
+            "Science Fiction",
+            "Adventure"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 402431,
+          "title": "Wicked",
+          "year": 2024,
+          "posterPath": "/wicked.jpg",
+          "backdropPath": "/back402431.jpg",
+          "overview": "About Wicked.",
+          "score": 7.4,
+          "genres": [
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1184918,
+          "title": "The Wild Robot",
+          "year": 2024,
+          "posterPath": "/robot.jpg",
+          "backdropPath": "/back1184918.jpg",
+          "overview": "About The Wild Robot.",
+          "score": 8.3,
+          "genres": [
+            "Animation",
+            "Science Fiction",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1064213,
+          "title": "Anora",
+          "year": 2024,
+          "posterPath": "/anora.jpg",
+          "backdropPath": "/back1064213.jpg",
+          "overview": "About Anora.",
+          "score": 7.1,
+          "genres": [
+            "Drama",
+            "Comedy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 603,
+          "title": "The Matrix",
+          "year": 1999,
+          "posterPath": "/matrix.jpg",
+          "backdropPath": "/back603.jpg",
+          "overview": "About The Matrix.",
+          "score": 8.2,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 14160,
+          "title": "Up",
+          "year": 2009,
+          "posterPath": "/up.jpg",
+          "backdropPath": "/back14160.jpg",
+          "overview": "About Up.",
+          "score": 8,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": 2,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 78,
+          "title": "Blade Runner",
+          "year": 1982,
+          "posterPath": "/br.jpg",
+          "backdropPath": "/back78.jpg",
+          "overview": "About Blade Runner.",
+          "score": 7.9,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 604,
+          "title": "The Matrix Reloaded",
+          "year": 2003,
+          "posterPath": "/reloaded.jpg",
+          "backdropPath": "/back604.jpg",
+          "overview": "About The Matrix Reloaded.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 605,
+          "title": "The Matrix Revolutions",
+          "year": 2003,
+          "posterPath": "/revolutions.jpg",
+          "backdropPath": "/back605.jpg",
+          "overview": "About The Matrix Revolutions.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "popular-series",
+      "title": "Popular shows",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "series",
+          "tmdbId": 66732,
+          "title": "Stranger Things",
+          "year": 2016,
+          "posterPath": "/st.jpg",
+          "backdropPath": "/back66732.jpg",
+          "overview": "About Stranger Things.",
+          "score": 8.6,
+          "genres": [
+            "Sci-Fi & Fantasy",
+            "Mystery",
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 95396,
+          "title": "Severance",
+          "year": 2022,
+          "posterPath": "/sev.jpg",
+          "backdropPath": "/back95396.jpg",
+          "overview": "About Severance.",
+          "score": 8.4,
+          "genres": [
+            "Drama",
+            "Mystery",
+            "Sci-Fi & Fantasy"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 136315,
+          "title": "The Bear",
+          "year": 2022,
+          "posterPath": "/bear.jpg",
+          "backdropPath": "/back136315.jpg",
+          "overview": "About The Bear.",
+          "score": 8.3,
+          "genres": [
+            "Drama",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 82728,
+          "title": "Bluey",
+          "year": 2018,
+          "posterPath": "/bluey.jpg",
+          "backdropPath": "/back82728.jpg",
+          "overview": "About Bluey.",
+          "score": 8.6,
+          "genres": [
+            "Animation",
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 502,
+          "title": "Sesame Street",
+          "year": 1969,
+          "posterPath": "/sesame.jpg",
+          "backdropPath": "/back502.jpg",
+          "overview": "About Sesame Street.",
+          "score": 7.5,
+          "genres": [
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "top-movie",
+      "title": "Top rated movies",
+      "subtitle": "The best reviewed",
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 693134,
+          "title": "Dune: Part Two",
+          "year": 2024,
+          "posterPath": "/dune2.jpg",
+          "backdropPath": "/back693134.jpg",
+          "overview": "About Dune: Part Two.",
+          "score": 8.1,
+          "genres": [
+            "Science Fiction",
+            "Adventure"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 402431,
+          "title": "Wicked",
+          "year": 2024,
+          "posterPath": "/wicked.jpg",
+          "backdropPath": "/back402431.jpg",
+          "overview": "About Wicked.",
+          "score": 7.4,
+          "genres": [
+            "Drama",
+            "Fantasy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1184918,
+          "title": "The Wild Robot",
+          "year": 2024,
+          "posterPath": "/robot.jpg",
+          "backdropPath": "/back1184918.jpg",
+          "overview": "About The Wild Robot.",
+          "score": 8.3,
+          "genres": [
+            "Animation",
+            "Science Fiction",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 990001,
+          "title": "Frozen Three",
+          "year": 2027,
+          "posterPath": "/frozen3.jpg",
+          "backdropPath": "/back990001.jpg",
+          "overview": "About Frozen Three.",
+          "score": null,
+          "genres": [
+            "Animation",
+            "Family",
+            "Fantasy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": "Coming"
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1064213,
+          "title": "Anora",
+          "year": 2024,
+          "posterPath": "/anora.jpg",
+          "backdropPath": "/back1064213.jpg",
+          "overview": "About Anora.",
+          "score": 7.1,
+          "genres": [
+            "Drama",
+            "Comedy",
+            "Romance"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 603,
+          "title": "The Matrix",
+          "year": 1999,
+          "posterPath": "/matrix.jpg",
+          "backdropPath": "/back603.jpg",
+          "overview": "About The Matrix.",
+          "score": 8.2,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 14160,
+          "title": "Up",
+          "year": 2009,
+          "posterPath": "/up.jpg",
+          "backdropPath": "/back14160.jpg",
+          "overview": "About Up.",
+          "score": 8,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": 2,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 78,
+          "title": "Blade Runner",
+          "year": 1982,
+          "posterPath": "/br.jpg",
+          "backdropPath": "/back78.jpg",
+          "overview": "About Blade Runner.",
+          "score": 7.9,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 604,
+          "title": "The Matrix Reloaded",
+          "year": 2003,
+          "posterPath": "/reloaded.jpg",
+          "backdropPath": "/back604.jpg",
+          "overview": "About The Matrix Reloaded.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 605,
+          "title": "The Matrix Revolutions",
+          "year": 2003,
+          "posterPath": "/revolutions.jpg",
+          "backdropPath": "/back605.jpg",
+          "overview": "About The Matrix Revolutions.",
+          "score": 7,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "top-series",
+      "title": "Top rated shows",
+      "subtitle": "The best reviewed",
+      "items": [
+        {
+          "kind": "series",
+          "tmdbId": 66732,
+          "title": "Stranger Things",
+          "year": 2016,
+          "posterPath": "/st.jpg",
+          "backdropPath": "/back66732.jpg",
+          "overview": "About Stranger Things.",
+          "score": 8.6,
+          "genres": [
+            "Sci-Fi & Fantasy",
+            "Mystery",
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 95396,
+          "title": "Severance",
+          "year": 2022,
+          "posterPath": "/sev.jpg",
+          "backdropPath": "/back95396.jpg",
+          "overview": "About Severance.",
+          "score": 8.4,
+          "genres": [
+            "Drama",
+            "Mystery",
+            "Sci-Fi & Fantasy"
+          ],
+          "state": "in_library",
+          "libraryId": 1,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 136315,
+          "title": "The Bear",
+          "year": 2022,
+          "posterPath": "/bear.jpg",
+          "backdropPath": "/back136315.jpg",
+          "overview": "About The Bear.",
+          "score": 8.3,
+          "genres": [
+            "Drama",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 82728,
+          "title": "Bluey",
+          "year": 2018,
+          "posterPath": "/bluey.jpg",
+          "backdropPath": "/back82728.jpg",
+          "overview": "About Bluey.",
+          "score": 8.6,
+          "genres": [
+            "Animation",
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 502,
+          "title": "Sesame Street",
+          "year": 1969,
+          "posterPath": "/sesame.jpg",
+          "backdropPath": "/back502.jpg",
+          "overview": "About Sesame Street.",
+          "score": 7.5,
+          "genres": [
+            "Kids",
+            "Family"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "top-picks",
+      "title": "Top picks for you",
+      "subtitle": "From what you watch, ask for and own",
+      "items": [
+        {
+          "kind": "series",
+          "tmdbId": 66732,
+          "title": "Stranger Things",
+          "year": 2016,
+          "posterPath": "/st.jpg",
+          "backdropPath": "/back66732.jpg",
+          "overview": "About Stranger Things.",
+          "score": 8.6,
+          "genres": [
+            "Sci-Fi & Fantasy",
+            "Mystery",
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "series",
+          "tmdbId": 136315,
+          "title": "The Bear",
+          "year": 2022,
+          "posterPath": "/bear.jpg",
+          "backdropPath": "/back136315.jpg",
+          "overview": "About The Bear.",
+          "score": 8.3,
+          "genres": [
+            "Drama",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "because-have-movie-14160",
+      "title": "Because you have Up",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 1022789,
+          "title": "Inside Out 2",
+          "year": 2024,
+          "posterPath": "/io2.jpg",
+          "backdropPath": "/back1022789.jpg",
+          "overview": "About Inside Out 2.",
+          "score": 7.6,
+          "genres": [
+            "Animation",
+            "Family",
+            "Comedy"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 1241982,
+          "title": "Moana 2",
+          "year": 2024,
+          "posterPath": "/moana2.jpg",
+          "backdropPath": "/back1241982.jpg",
+          "overview": "About Moana 2.",
+          "score": 7,
+          "genres": [
+            "Animation",
+            "Family",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    },
+    {
+      "id": "because-have-movie-693134",
+      "title": "Because you have Dune: Part Two",
+      "subtitle": null,
+      "items": [
+        {
+          "kind": "movie",
+          "tmdbId": 335984,
+          "title": "Blade Runner 2049",
+          "year": 2017,
+          "posterPath": "/br2049.jpg",
+          "backdropPath": "/back335984.jpg",
+          "overview": "About Blade Runner 2049.",
+          "score": 7.5,
+          "genres": [
+            "Drama"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        },
+        {
+          "kind": "movie",
+          "tmdbId": 558449,
+          "title": "Gladiator II",
+          "year": 2024,
+          "posterPath": "/glad2.jpg",
+          "backdropPath": "/back558449.jpg",
+          "overview": "About Gladiator II.",
+          "score": 6.8,
+          "genres": [
+            "Action",
+            "Adventure"
+          ],
+          "state": "none",
+          "libraryId": null,
+          "badge": null
+        }
+      ]
+    }
+  ],
+  "genres": [
+    "Action",
+    "Action & Adventure",
+    "Adventure",
+    "Animation",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "History",
+    "Horror",
+    "Kids",
+    "Music",
+    "Mystery",
+    "Reality",
+    "Romance",
+    "Sci-Fi & Fantasy",
+    "Science Fiction",
+    "Soap",
+    "Thriller",
+    "War",
+    "War & Politics",
+    "Western"
+  ],
+  "genre": null
+}

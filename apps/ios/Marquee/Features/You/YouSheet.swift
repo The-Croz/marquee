@@ -10,6 +10,7 @@ struct YouSheet: View {
 
     var body: some View {
         let user = app.user
+        NavigationStack {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 12) {
@@ -31,6 +32,24 @@ struct YouSheet: View {
                         .foregroundStyle(.textPrimary)
                 }
 
+                group("You") {
+                    notificationsRow
+                    Divider().overlay(Color.line)
+                    NavigationLink { MyRequestsScreen() } label: { linkRow("My requests & history") }
+                        .buttonStyle(.plain)
+                    Divider().overlay(Color.line)
+                    NavigationLink { CalendarScreen() } label: { linkRow("Calendar") }
+                        .buttonStyle(.plain)
+                }
+
+                if user?.role == .admin {
+                    group("Manage") {
+                        NavigationLink { ManageHub() } label: { linkRow("Health, Sources, People and more") }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("manage")
+                    }
+                }
+
                 group("More in the web app") {
                     row("Settings, lists, backups, logs", trailing: "Opens Safari ›") {
                         Task {
@@ -47,6 +66,9 @@ struct YouSheet: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 24)
+        }
+        .background(Color(hex: 0x0E1117))
+        .toolbar(.hidden, for: .navigationBar)
         }
         .confirmationDialog("Sign out of Marquee on this iPhone?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await app.signOut() } }
@@ -68,6 +90,43 @@ struct YouSheet: View {
             Text(title.uppercased()).font(.footnote.weight(.semibold)).tracking(0.8).foregroundStyle(.dim).padding(.horizontal, 6)
             PanelCard { content() }
         }
+    }
+
+    @State private var pushing = PushCenter.shared
+
+    @ViewBuilder private var notificationsRow: some View {
+        let status = pushing.status
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: Binding(
+                get: { status == .on },
+                set: { on in Task { if on { await pushing.turnOn() } else { await pushing.turnOff() } } }
+            )) {
+                Text("Notifications on this iPhone").foregroundStyle(.textPrimary)
+            }
+            .tint(.amber)
+            .disabled(status == .blocked || status == .unavailable)
+            .accessibilityIdentifier("notifications-toggle")
+            if status == .blocked {
+                Text("They're off in iOS Settings. Turn them on there, then come back.").font(.caption).foregroundStyle(.warn)
+            } else if let problem = pushing.problem {
+                Text(problem).font(.caption).foregroundStyle(.warn)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(minHeight: 50)
+        .task { await pushing.refresh() }
+    }
+
+    private func linkRow(_ title: String) -> some View {
+        HStack {
+            Text(title).foregroundStyle(.textPrimary)
+            Spacer()
+            Text("›").foregroundStyle(.muted)
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 50)
+        .contentShape(Rectangle())
     }
 
     private func row(_ title: String, trailing: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {

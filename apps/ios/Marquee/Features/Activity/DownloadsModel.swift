@@ -31,6 +31,7 @@ final class DownloadsModel {
     func load() async {
         do {
             view = try await app.client.get("/api/downloads")
+            await LiveActivityController.shared.sync(view?.items ?? [])
             loadProblem = nil
             forbidden = false
         } catch {

@@ -126,6 +126,8 @@ public actor APIClient {
 
     public func forgetToken() { tokens.write(nil) }
     public var hasToken: Bool { tokens.read() != nil }
+    var currentToken: String? { tokens.read() }
+    var streamSession: URLSession { session }
 
     private struct Ack: Decodable, Sendable {}
 

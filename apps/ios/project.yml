@@ -30,8 +30,11 @@ targets:
       - path: Marquee
         excludes:
           - Resources/Info.plist
+      - path: Shared
     dependencies:
       - package: MarqueeKit
+      - target: MarqueeNotify
+      - target: MarqueeWidgets
     info:
       path: Marquee/Resources/Info.plist
       properties:
@@ -53,12 +56,59 @@ targets:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Marquee talks to your Marquee server on your home network.
         ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+
+  # Puts the cover art on a push.
+  MarqueeNotify:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MarqueeNotify
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: MarqueeKit
+    info:
+      path: MarqueeNotify/Info.plist
+      properties:
+        CFBundleDisplayName: Marquee Notifications
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.notify
+        TARGETED_DEVICE_FAMILY: "1"
+
+  # The Lock Screen card that follows a download.
+  MarqueeWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MarqueeWidgets
+        excludes:
+          - Info.plist
+      - path: Shared
+      - path: Marquee/Resources/Fonts
+    info:
+      path: MarqueeWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Marquee Lock Screen
+        UIAppFonts:
+          - InstrumentSerif-Regular.ttf
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.widgets
+        TARGETED_DEVICE_FAMILY: "1"
 
   MarqueeUITests:
     type: bundle.ui-testing

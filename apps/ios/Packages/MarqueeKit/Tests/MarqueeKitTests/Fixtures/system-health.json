@@ -1,0 +1,158 @@
+{
+  "checkedAt": 1795608000000,
+  "problems": 3,
+  "connections": [
+    {
+      "key": "source.1",
+      "group": "Sources",
+      "name": "TPB",
+      "tone": "ok",
+      "state": "Working",
+      "fix": null,
+      "detail": null,
+      "to": "/settings/sources"
+    },
+    {
+      "key": "downloader",
+      "group": "Downloader",
+      "name": "qBittorrent",
+      "to": "/settings/downloader",
+      "tone": "ok",
+      "state": "Working",
+      "fix": null,
+      "detail": null
+    },
+    {
+      "key": "unpacker",
+      "group": "Downloader",
+      "name": "Unpacking .rar copies",
+      "to": "/downloads",
+      "tone": "ok",
+      "state": "Ready",
+      "fix": null,
+      "detail": "7-Zip 26.06"
+    },
+    {
+      "key": "server.plex",
+      "group": "Media servers",
+      "name": "Plex",
+      "to": "/settings/services",
+      "tone": "ok",
+      "state": "Working",
+      "fix": null,
+      "detail": null
+    },
+    {
+      "key": "server.jellyfin",
+      "group": "Media servers",
+      "name": "Jellyfin",
+      "to": "/settings/services",
+      "tone": "off",
+      "state": "Not set up",
+      "fix": "Optional. Add Jellyfin in Settings → Services to see what’s playing and scan after imports.",
+      "detail": null
+    },
+    {
+      "key": "tmdb",
+      "group": "Services",
+      "name": "TMDB",
+      "to": "/settings/services",
+      "tone": "ok",
+      "state": "Working",
+      "fix": null,
+      "detail": null
+    },
+    {
+      "key": "solver",
+      "group": "Services",
+      "name": "Bot-check solver",
+      "to": "/settings/sources",
+      "detail": null,
+      "tone": "off",
+      "state": "Off",
+      "fix": "Only needed for sites behind a bot check. Turn it on in Settings → Sources."
+    }
+  ],
+  "disks": [
+    {
+      "key": "downloads",
+      "label": "Downloads",
+      "path": "/data/torrents",
+      "free": null,
+      "total": null,
+      "tone": "problem",
+      "state": "Can’t see this folder",
+      "fix": "Check /data/torrents is mapped into the Marquee container (Unraid: the Data path), or change the folder in For experts below."
+    },
+    {
+      "key": "movies",
+      "label": "Movies",
+      "path": "/data/media/movies",
+      "free": null,
+      "total": null,
+      "tone": "problem",
+      "state": "Can’t see this folder",
+      "fix": "Check /data/media/movies is mapped into the Marquee container (Unraid: the Data path), or change the folder in Settings → Services."
+    },
+    {
+      "key": "tv",
+      "label": "TV",
+      "path": "/data/media/tv",
+      "free": null,
+      "total": null,
+      "tone": "problem",
+      "state": "Can’t see this folder",
+      "fix": "Check /data/media/tv is mapped into the Marquee container (Unraid: the Data path), or change the folder in Settings → Services."
+    }
+  ],
+  "disk": {
+    "downloadsFolder": "/data/torrents",
+    "downloadsFolderSet": false,
+    "minFreeGb": 20,
+    "defaultMinFreeGb": 20
+  },
+  "jobs": [
+    {
+      "id": "scan",
+      "label": "Read the library folders",
+      "description": "Finds new movie and show files on disk and works out what each one is. Never changes a file.",
+      "every": "Only when you ask",
+      "tone": "ok",
+      "running": false,
+      "off": null,
+      "lastStartedAt": null,
+      "lastFinishedAt": null,
+      "lastOk": null,
+      "lastMessage": null,
+      "nextAt": null
+    },
+    {
+      "id": "lists",
+      "label": "Sync lists",
+      "description": "Reads Plex watchlists every 15 minutes (new titles become that person’s requests) and Trakt, IMDb and Letterboxd lists every 6 hours (new titles are added as Wanted).",
+      "every": "Every 5 minutes",
+      "tone": "off",
+      "running": false,
+      "off": "No lists yet. Add one in Settings → Lists.",
+      "lastStartedAt": null,
+      "lastFinishedAt": null,
+      "lastOk": null,
+      "lastMessage": null,
+      "nextAt": null
+    },
+    {
+      "id": "collections",
+      "label": "Follow collections",
+      "description": "Once a day, adds new films to collections you want as a whole (as Wanted).",
+      "every": "Every day",
+      "tone": "ok",
+      "running": false,
+      "off": null,
+      "lastStartedAt": null,
+      "lastFinishedAt": null,
+      "lastOk": null,
+      "lastMessage": null,
+      "nextAt": 1795609200000
+    }
+  ]
+}

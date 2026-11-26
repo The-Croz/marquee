@@ -1,0 +1,20 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "kind": "series",
+      "title": "Severance",
+      "year": 2022,
+      "posterPath": "/sev.jpg",
+      "posterColor": null,
+      "certification": "TV-MA",
+      "complete": false,
+      "badge": "1 of 3",
+      "sizeBytes": 3221225472,
+      "addedAt": 1795176000000,
+      "wanted": true,
+      "looking": true,
+      "watching": true
+    }
+  ]
+}

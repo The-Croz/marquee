@@ -30,4 +30,7 @@ post -c "$KID_JAR" -d '{"username":"kiddo","password":"kiddo password"}' "$BASE/
 post -b "$MIA_JAR" -d '{"kind":"movie","tmdbId":402431}' "$BASE/api/requests" >/dev/null || true   # Wicked
 post -b "$MIA_JAR" -d '{"kind":"movie","tmdbId":1064213}' "$BASE/api/requests" >/dev/null || true  # Anora
 post -b "$KID_JAR" -d '{"kind":"movie","tmdbId":1184918}' "$BASE/api/requests" >/dev/null || true  # The Wild Robot
+# A fake phone for the admin with push on, so the demo's Apple log shows what the real app would get.
+PHONE=$(post -d '{"username":"josh","password":"correct horse battery","device":{"id":"seed-phone-0001","name":"Demo iPhone","kind":"ios"}}' "$BASE/api/auth/login" | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
+post -H "Authorization: Bearer $PHONE" -d '{"token":"d3adbeef0000000000000000000000000000000000000000000000000000cafe","environment":"sandbox"}' "$BASE/api/me/devices/1.seed-phone-0001/push" >/dev/null || true
 echo "Demo is ready: josh / correct horse battery (admin), mia / mia password (member), kiddo / kiddo password (kid)."

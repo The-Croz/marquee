@@ -45,5 +45,80 @@ final class SmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["undo"].waitForExistence(timeout: 10))
         let gone = NSPredicate { _, _ in approve.count < before }
         wait(for: [XCTNSPredicateExpectation(predicate: gone, object: nil)], timeout: 10)
+
+        // Library → a title.
+        app.tabBars.buttons["Library"].tap()
+        let dune = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Dune'")).firstMatch
+        XCTAssertTrue(dune.waitForExistence(timeout: 10), "Library should list Dune")
+        dune.tap()
+        XCTAssertTrue(app.buttons["something-wrong"].waitForExistence(timeout: 10), "The title page should open")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        // Discover → ask for something, then take it back inside three seconds.
+        app.tabBars.buttons["Discover"].tap()
+        let gladiator = app.buttons["card-558449"].firstMatch
+        XCTAssertTrue(gladiator.waitForExistence(timeout: 10))
+        gladiator.tap()
+        let ask = app.buttons["ask"]
+        XCTAssertTrue(ask.waitForExistence(timeout: 10))
+        ask.tap()
+        XCTAssertEqual(ask.label, "Undo")
+        ask.tap()
+        sleep(4)
+        XCTAssertEqual(ask.label, "Ask for it", "Nothing should have been sent")
+
+        // You → turn notifications on (allow the system prompt); the script then checks the fake Apple saw a push.
+        // The Discover sheet is still up from asking: close it, then open You from the tab's avatar.
+        if app.buttons["Done"].exists { app.buttons["Done"].tap() }
+        let avatars = app.buttons.matching(identifier: "avatar")
+        XCTAssertTrue(avatars.firstMatch.waitForExistence(timeout: 10))
+        (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
+        let toggle = app.switches.firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+        toggle.tap()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.alerts.buttons["Allow"]
+        if allow.waitForExistence(timeout: 10) { allow.tap() }
+        let on = NSPredicate(format: "value == '1'")
+        wait(for: [XCTNSPredicateExpectation(predicate: on, object: toggle)], timeout: 15)
+    }
+
+    private func launch(as name: String) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["--reset-for-ui-tests", "--demo-sign-in=\(name)"]
+        app.launch()
+        return app
+    }
+
+    func testKidSeesNoAdminThings() {
+        let app = launch(as: "kiddo")
+        XCTAssertTrue(app.tabBars.buttons["Discover"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.tabBars.buttons["Library"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Activity"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Search"].exists)
+    }
+
+    func testMemberHasRequestsOnly() {
+        let app = launch(as: "mia")
+        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Activity"].tap()
+        XCTAssertFalse(app.buttons["Downloads"].exists)
+        XCTAssertFalse(app.buttons["Watching"].exists)
+    }
+
+    func testAdminReachesWatchingAndPeople() {
+        let app = launch(as: "josh")
+        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Activity"].tap()
+        app.buttons["Watching"].tap()
+        XCTAssertTrue(app.staticTexts["Now watching"].waitForExistence(timeout: 10))
+        let avatars = app.buttons.matching(identifier: "avatar")
+        (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
+        let manage = app.buttons["manage"]
+        XCTAssertTrue(manage.waitForExistence(timeout: 10))
+        manage.tap()
+        XCTAssertTrue(app.staticTexts["People"].waitForExistence(timeout: 10))
+        app.staticTexts["People"].tap()
+        XCTAssertTrue(app.buttons["person-mia"].waitForExistence(timeout: 10))
     }
 }

@@ -10,6 +10,7 @@ You need Xcode 26 or newer and XcodeGen (`brew install xcodegen`).
 make -C apps/ios project   # generate Marquee.xcodeproj from project.yml (never committed)
 make -C apps/ios build     # build for the iPhone 17 simulator
 make -C apps/ios test      # MarqueeKit's tests: fast, no simulator
+make -C apps/ios project-push  # the same project with the push entitlement (needs the paid Apple program)
 apps/ios/scripts/smoke.sh  # UI smoke test against demo mode
 ```
 

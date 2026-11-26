@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet, useOutletContext } from 'react-router';
-import type { AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
+import type { ApnsSettingsView, AuthStatus, DiscoverPrefs, NotificationChannelView, NotificationEventInfo, NotificationGroup, NotificationPreview, NotificationPriority, NotificationTemplateView, NotificationVar, SessionUser } from '@marquee/shared';
 import { api, ApiFailure, queryClient } from '../api';
 import { Button, Card, Field, Notice, cx } from '../components/ui';
 import { Tabs } from '../components/Page';
@@ -223,8 +223,8 @@ const channelColumn = (ch: NotificationChannelView, base: string): Column => ({
 
 // ---------------- Phones ----------------
 
-type Kind = 'pushover' | 'ntfy' | 'webhook';
-const KIND_NAME: Record<Kind, string> = { pushover: 'Pushover', ntfy: 'ntfy', webhook: 'Webhook' };
+type Kind = 'pushover' | 'ntfy' | 'webhook' | 'apns';
+const KIND_NAME: Record<Kind, string> = { pushover: 'Pushover', ntfy: 'ntfy', webhook: 'Webhook', apns: 'iPhone app' };
 
 function ChannelRow({ ch, base }: { ch: NotificationChannelView; base: string }) {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -423,7 +423,74 @@ export function SharedAlertsPage() {
         <Notice>Nothing set up yet. Add Pushover or ntfy below and its column shows up here.</Notice>
       )}
       <Phones items={data.items} base={SHARED} title="Shared places" hint="Pushover or ntfy. Secrets are kept by Marquee and never shown again." />
+      <IphoneAppCard />
     </div>
+  );
+}
+
+/** The Apple key that lets Marquee send to the iPhone app. Saved secrets are never shown again. */
+function IphoneAppCard() {
+  const { data } = useQuery({ queryKey: ['apns'], queryFn: () => api<ApnsSettingsView>(`${SHARED}/apns`) });
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!data) return null;
+  async function save(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const f = new FormData(form);
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api(`${SHARED}/apns`, { method: 'PUT', body: { key: String(f.get('key') ?? ''), keyId: f.get('keyId'), teamId: f.get('teamId'), bundleId: f.get('bundleId') } });
+      await queryClient.invalidateQueries({ queryKey: ['apns'] });
+      (form.elements.namedItem('key') as HTMLTextAreaElement).value = '';
+      setMessage({ ok: true, text: 'Saved.' });
+    } catch (err) {
+      setMessage({ ok: false, text: errMsg(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function test() {
+    setBusy(true);
+    try {
+      const r = await api<{ ok: boolean; message: string }>(`${SHARED}/apns/test`, { body: {} });
+      setMessage({ ok: r.ok, text: r.message });
+    } catch (err) {
+      setMessage({ ok: false, text: errMsg(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="flex flex-col gap-4">
+      <div>
+        <h2 className="m-0 text-lg font-semibold">iPhone app</h2>
+        <p className="m-0 text-sm text-muted">
+          Lets Marquee send notifications to the Marquee iPhone app, with cover art and Approve and Turn down buttons, and keep a download’s progress on the Lock Screen (a Live Activity). In your Apple developer account, create a key with Apple Push Notifications turned on, download its .p8 file, and fill this in. Each person then turns notifications on in the app, under You. The key is kept by Marquee and never shown again.
+        </p>
+      </div>
+      <form onSubmit={save} className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1 text-label text-muted">
+          Apple push key (the text of the .p8 file) {data.keySet && <span className="text-teal-hi">· a key is saved; leave blank to keep it</span>}
+          <textarea name="key" rows={4} spellCheck={false} placeholder="-----BEGIN PRIVATE KEY-----" className="rounded-lg border border-line-strong bg-panel px-2.5 py-2 font-mono text-sm text-text" />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Key id" name="keyId" defaultValue={data.keyId} placeholder="ABC123DEFG" required />
+          <Field label="Team id" name="teamId" defaultValue={data.teamId} placeholder="ABC123DEFG" required />
+          <Field label="App id" name="bundleId" defaultValue={data.bundleId} required />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={busy}>
+            Save
+          </Button>
+          <Button type="button" variant="ghost" disabled={busy || !data.ready} onClick={test}>
+            Send a test to my iPhone
+          </Button>
+        </div>
+        {message && <Notice tone={message.ok ? 'success' : 'error'}>{message.text}</Notice>}
+      </form>
+    </Card>
   );
 }
 

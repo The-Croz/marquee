@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "kind": "movie",
+      "path": "/data/media/movies/Odd.Folder.2019",
+      "folder": "Odd.Folder.2019",
+      "parsedTitle": "Odd Folder",
+      "parsedYear": 2019,
+      "reason": null,
+      "candidates": [
+        {
+          "tmdbId": 14160,
+          "title": "Up",
+          "year": 2009,
+          "posterPath": "/up.jpg"
+        }
+      ]
+    }
+  ]
+}

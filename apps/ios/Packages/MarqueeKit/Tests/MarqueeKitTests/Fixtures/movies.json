@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "kind": "movie",
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/693134.jpg",
+      "posterColor": null,
+      "certification": "PG-13",
+      "complete": true,
+      "badge": "4K HDR",
+      "sizeBytes": 26843545600,
+      "addedAt": 1795521600000,
+      "wanted": true,
+      "looking": false,
+      "watching": true
+    },
+    {
+      "id": 2,
+      "kind": "movie",
+      "title": "Up",
+      "year": 2009,
+      "posterPath": "/14160.jpg",
+      "posterColor": null,
+      "certification": "PG",
+      "complete": false,
+      "badge": "Missing",
+      "sizeBytes": 0,
+      "addedAt": 1795521600000,
+      "wanted": true,
+      "looking": true,
+      "watching": false
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { Shell } from './components/Shell';
 import { LoginPage } from './pages/Login';
 import { SetupPage } from './pages/Setup';
 import { HomePage } from './pages/Home';
+import { InstallAppPage } from './pages/InstallApp';
 import { AboutPage, AccountPage, ServicesPage, SettingsLayout, UsersPage } from './pages/Settings';
 import { SourcesPage } from './pages/Sources';
 import { DownloaderPage } from './pages/Downloader';
@@ -89,6 +90,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: null },
           { path: 'account', element: <AccountPage /> },
+          { path: 'iphone', element: <InstallAppPage /> },
           { path: 'about', element: <AboutPage /> },
           { path: 'quality', element: <RequireUser render={(st) => <AdminOnly status={st}><QualityPage /></AdminOnly>} /> },
           { path: 'discover', element: <DiscoverSettingsPage /> },
