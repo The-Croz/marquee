@@ -169,3 +169,6 @@ export const ADMIN_EVENTS = EVENTS.filter((e) => e.audience === 'admins').map((e
 export const DEFAULT_ADMIN_EVENTS = EVENTS.filter((e) => e.audience === 'admins' && !e.quiet).map((e) => e.key);
 /** Events a person can hear about: their own, plus the admin ones for admins. */
 export const eventsFor = (role: string) => EVENTS.filter((e) => e.audience === 'requester' || role === 'admin');
+
+/** What a new channel of someone's own starts with: everything they get that isn't a quiet one. */
+export const defaultEventsFor = (u: { role: 'admin' | 'member' | 'kid' }) => eventsFor(u.role).filter((e) => !e.quiet).map((e) => e.key);

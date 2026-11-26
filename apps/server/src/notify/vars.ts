@@ -5,9 +5,10 @@ import type { Vars } from './template.js';
 export const posterUrl = (path: string | null | undefined) => (path ? `https://image.tmdb.org/t/p/w500${path.startsWith('/') ? '' : '/'}${path}` : null);
 
 /** The facts every request message carries. */
-export function requestVars(r: Pick<RequestRow, 'kind' | 'title' | 'year' | 'posterPath' | 'seasons'>): Vars {
+export function requestVars(r: Pick<RequestRow, 'id' | 'kind' | 'title' | 'year' | 'posterPath' | 'seasons'>): Vars {
   const seasons = r.seasons ? (JSON.parse(r.seasons) as number[]) : null;
   return {
+    requestId: r.id,
     title: r.title,
     year: r.year,
     kind: r.kind === 'movie' ? 'movie' : 'show',

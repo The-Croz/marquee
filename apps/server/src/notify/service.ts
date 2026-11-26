@@ -4,6 +4,7 @@ import type { NotificationPriority } from '@marquee/shared';
 import { notificationChannels, notificationPriorities, notifications, notificationTemplates, userPrefs, users, type NotificationChannel } from '../db/schema.js';
 import { eventInfo } from './events.js';
 import type { PushClient } from './push.js';
+import { GonePushError } from './pushError.js';
 import { render, type Vars } from './template.js';
 
 /**
@@ -99,6 +100,11 @@ async function sendTo(deps: NotifyDeps, channels: NotificationChannel[], event: 
       await push.send({ kind: ch.kind, config: parse<Record<string, string>>(ch.config, {}) }, { title: m.title, body: m.body, link: m.url, image: m.image, priority: m.priority, event, vars });
       db.update(notificationChannels).set({ lastOkAt: now(), lastError: null }).where(eq(notificationChannels.id, ch.id)).run();
     } catch (err) {
+      // The phone stopped listening: forget it, so a deleted app isn't tried again and again.
+      if (err instanceof GonePushError) {
+        db.delete(notificationChannels).where(eq(notificationChannels.id, ch.id)).run();
+        continue;
+      }
       db.update(notificationChannels).set({ lastError: (err as Error).message }).where(eq(notificationChannels.id, ch.id)).run();
     }
   }

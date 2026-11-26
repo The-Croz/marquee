@@ -29,6 +29,8 @@ final class TitleModel {
     private(set) var request: RequestView?
     private(set) var profiles: [ProfileSummary] = []
     private(set) var history: [HistoryItem] = []
+    /// A download of this title on its way (admins), for Follow on Lock Screen.
+    private(set) var onItsWay: DownloadView?
     private(set) var issues: [IssueView] = []
     var problem: String?
 
@@ -74,6 +76,9 @@ final class TitleModel {
             }
             let q = route.kind == .movie ? "movieId" : "seriesId"
             if let answer: HistoryView = try? await app.client.get("/api/history?\(q)=\(route.id)&limit=20") { history = answer.items }
+            if let answer: DownloadsView = try? await app.client.get("/api/downloads?\(q)=\(route.id)") {
+                onItsWay = answer.items.first { $0.state == .sent || $0.state == .downloading }
+            }
         }
     }
 

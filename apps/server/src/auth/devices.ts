@@ -2,7 +2,9 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import type { DeviceView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
-import { devices, sessions, type User } from '../db/schema.js';
+import { devices, notificationChannels, sessions, type User } from '../db/schema.js';
+import { forgetPushForDevice } from './pushCleanup.js';
+import { defaultEventsFor } from '../notify/events.js';
 import { APP_SESSION_TTL, createSession, hashToken } from './sessions.js';
 
 export const appDeviceSchema = z.object({
@@ -36,6 +38,14 @@ export function listDevices(db: Db, userId: number, currentSessionId?: string): 
   const rows = db.select().from(devices).where(eq(devices.userId, userId)).orderBy(desc(devices.lastSeenAt)).all();
   const ids = rows.flatMap((d) => (d.sessionId ? [d.sessionId] : []));
   const alive = new Set(ids.length ? db.select({ id: sessions.id }).from(sessions).where(inArray(sessions.id, ids)).all().map((s) => s.id) : []);
+  const pushing = new Set(
+    db
+      .select()
+      .from(notificationChannels)
+      .where(and(eq(notificationChannels.userId, userId), eq(notificationChannels.kind, 'apns')))
+      .all()
+      .map((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId),
+  );
   return rows.map((d) => ({
     id: d.id,
     name: d.name,
@@ -43,6 +53,7 @@ export function listDevices(db: Db, userId: number, currentSessionId?: string): 
     lastSeenAt: d.lastSeenAt,
     signedIn: d.sessionId !== null && alive.has(d.sessionId),
     current: d.sessionId !== null && d.sessionId === currentSessionId,
+    push: pushing.has(d.id),
   }));
 }
 
@@ -51,11 +62,28 @@ export function removeDevice(db: Db, userId: number, deviceId: string): boolean 
   const row = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, userId))).get();
   if (!row) return false;
   if (row.sessionId) db.delete(sessions).where(eq(sessions.id, row.sessionId)).run();
+  dropPush(db, userId, deviceId);
   db.delete(devices).where(eq(devices.id, deviceId)).run();
   return true;
 }
 
 /** Called when a phone signs itself out: the row stays, signed out. */
 export function signOutDevice(db: Db, sessionId: string): void {
+  const d = db.select().from(devices).where(eq(devices.sessionId, sessionId)).get();
+  if (d) dropPush(db, d.userId, d.id);
   db.update(devices).set({ sessionId: null }).where(eq(devices.sessionId, sessionId)).run();
+}
+
+/** Forgets this phone's push channel and Lock Screen cards (signing out, or removing the phone, turns push off). */
+export const dropPush = forgetPushForDevice;
+
+/** Turns push on for this phone: one channel per phone, however often it registers. Its token is kept in the channel's config (never sent back). */
+export function registerPush(db: Db, user: User, deviceId: string, token: string, environment: 'production' | 'sandbox', now: number): boolean {
+  const device = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, user.id))).get();
+  if (!device) return false;
+  const config = JSON.stringify({ deviceId, token, environment });
+  const existing = db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, user.id), eq(notificationChannels.kind, 'apns'))).all().find((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId);
+  if (existing) db.update(notificationChannels).set({ config, name: device.name, enabled: true }).where(eq(notificationChannels.id, existing.id)).run();
+  else db.insert(notificationChannels).values({ kind: 'apns', name: device.name, userId: user.id, config, events: JSON.stringify(defaultEventsFor(user)), createdAt: now }).run();
+  return true;
 }

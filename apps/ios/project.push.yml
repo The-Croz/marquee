@@ -1,0 +1,10 @@
+# Push needs the paid Apple Developer Program: a free personal team can't sign the push entitlement.
+# After enrolling, set the new team id in project.yml and build with `make project-push`.
+include:
+  - project.yml
+targets:
+  Marquee:
+    entitlements:
+      path: Marquee/Resources/Marquee.entitlements
+      properties:
+        aps-environment: development

@@ -123,6 +123,8 @@ public struct DeviceView: Codable, Hashable, Sendable, Identifiable {
     public var lastSeenAt: Int64
     public var signedIn: Bool
     public var current: Bool
+    /// This phone gets push notifications from Marquee.
+    public var push: Bool?
 
     public var lastSeen: Date { date(fromMilliseconds: lastSeenAt) }
 }

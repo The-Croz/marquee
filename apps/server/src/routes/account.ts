@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from '../auth/password.js';
 import { deleteUserSessions, hashToken } from '../auth/sessions.js';
-import { listDevices, removeDevice } from '../auth/devices.js';
+import { dropPush, listDevices, registerPush, removeDevice } from '../auth/devices.js';
 import { toSessionUser, updateUser } from '../auth/users.js';
 import { HttpError, requireUser, sessionToken, signIn, type Env } from '../http.js';
 import type { User } from '../db/schema.js';
@@ -67,5 +67,22 @@ accountRoutes.get('/devices', (c) => {
 accountRoutes.delete('/devices/:id', (c) => {
   const user = requireUser(c);
   if (!removeDevice(c.get('deps').db, user.id, c.req.param('id'))) throw new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
+  return c.json({ ok: true });
+});
+
+const pushBody = z.object({ token: z.string().regex(/^[0-9a-fA-F]{32,200}$/, 'That isn’t a push token.'), environment: z.enum(['production', 'sandbox']).default('production') });
+
+/** The app, after the person allows notifications: this phone now gets push. */
+accountRoutes.post('/devices/:id/push', async (c) => {
+  const user = requireUser(c);
+  const { db, now } = c.get('deps');
+  const body = pushBody.parse(await c.req.json());
+  if (!registerPush(db, user, c.req.param('id'), body.token.toLowerCase(), body.environment, now())) throw new HttpError(404, 'not_found', "That phone isn't signed in to your account.");
+  return c.json({ ok: true });
+});
+
+accountRoutes.delete('/devices/:id/push', (c) => {
+  const user = requireUser(c);
+  dropPush(c.get('deps').db, user.id, c.req.param('id'));
   return c.json({ ok: true });
 });

@@ -79,7 +79,7 @@ describe('your phones', () => {
     await login(t.app, 'josh', 'correct horse battery', PHONE);
     await login(t.app, 'sam', 'sam long password', { ...PHONE, id: 'phone-bbbb-2222', name: "Sam's iPhone" });
     const mine = await call(t.app, 'GET', '/api/me/devices', undefined, web.cookie);
-    expect(mine.body.devices).toEqual([{ id: `1.${PHONE.id}`, name: "Josh's iPhone", kind: 'ios', lastSeenAt: expect.any(Number), signedIn: true, current: false }]);
+    expect(mine.body.devices).toEqual([{ id: `1.${PHONE.id}`, name: "Josh's iPhone", kind: 'ios', lastSeenAt: expect.any(Number), signedIn: true, current: false, push: false }]);
   });
 
   it('marks the phone asking as the current one', async () => {

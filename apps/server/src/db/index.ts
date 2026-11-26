@@ -764,6 +764,36 @@ export const migrations: string[] = [
   );
   CREATE INDEX devices_user ON devices (user_id);
   `,
+  // Push for the iPhone app: a channel kind for a phone (apns), and the Live Activities following a download.
+  `
+  CREATE TABLE notification_channels_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL CHECK (kind IN ('pushover', 'ntfy', 'webhook', 'apns')),
+    name TEXT NOT NULL,
+    config TEXT NOT NULL DEFAULT '{}',
+    events TEXT NOT NULL DEFAULT '[]',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    last_ok_at INTEGER,
+    last_error TEXT,
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE
+  );
+  INSERT INTO notification_channels_new (id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id)
+    SELECT id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id FROM notification_channels;
+  DROP TABLE notification_channels;
+  ALTER TABLE notification_channels_new RENAME TO notification_channels;
+  CREATE TABLE live_activities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    download_id INTEGER NOT NULL REFERENCES downloads (id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL REFERENCES devices (id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    environment TEXT NOT NULL DEFAULT 'production',
+    last_percent INTEGER NOT NULL DEFAULT 0,
+    last_state TEXT NOT NULL DEFAULT '',
+    started_at INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX live_activities_one ON live_activities (download_id, device_id);
+  `,
 ];
 
 export interface OpenOptions {
