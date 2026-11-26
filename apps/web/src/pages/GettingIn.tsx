@@ -217,7 +217,7 @@ export function ChooseSheet({ l, open, onClose }: { l: ListView; open: boolean; 
           })}
         </ul>
         {choose.error && <Notice tone="error">{errMsg(choose.error)}</Notice>}
-        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-line bg-panel py-3">
+        <div className="sticky bottom-[calc(-1*max(20px,env(safe-area-inset-bottom)))] pb-[max(20px,env(safe-area-inset-bottom))] flex flex-wrap items-center gap-2 border-t border-line bg-panel pt-3">
           <Button variant={ticked.size ? 'primary' : 'ghost'} onClick={() => choose.mutate()} disabled={choose.isPending || !items.length}>
             {choose.isPending ? 'Working…' : ticked.size ? `${takeVerb(l, ticked.size)}, leave out ${items.length - ticked.size}` : `Leave all ${items.length} out`}
           </Button>

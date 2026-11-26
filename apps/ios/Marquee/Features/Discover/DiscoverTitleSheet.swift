@@ -28,11 +28,11 @@ struct DiscoverTitleSheet: View {
                             if let key = t.trailerKey, let url = URL(string: "https://www.youtube.com/watch?v=\(key)") {
                                 Button("Trailer", systemImage: "play.fill") { openURL(url) }.buttonStyle(QuietButtonStyle())
                             }
-                            ratings(t)
+                            RatingsRow(ratings: t.ratings)
                             if !t.watchOn.isEmpty {
                                 Text("Where to watch: " + t.watchOn.map(\.name).joined(separator: ", ")).font(.footnote).foregroundStyle(.muted)
                             }
-                            if !t.cast.isEmpty { cast(t) }
+                            if !t.cast.isEmpty { CastRow(cast: t.cast) }
                             if t.details.stage == "announced" || !t.details.released {
                                 StateLine(text: releaseLine(t), tone: .needsYou)
                             }
@@ -174,46 +174,6 @@ struct DiscoverTitleSheet: View {
         } catch {
             if case .signedOut = error { app.handle(error); return }
             app.askProblem = error.fullText
-        }
-    }
-
-    private func ratings(_ t: DiscoverTitle) -> some View {
-        HStack(spacing: 16) {
-            if let s = t.ratings.tmdb { stat(String(format: "%.1f", s.score), "TMDB") }
-            if let s = t.ratings.imdb { stat(String(format: "%.1f", s.score), "IMDb") }
-            if let r = t.ratings.rottenTomatoes { stat("\(r)%", "Rotten Tomatoes") }
-            if let m = t.ratings.metacritic { stat("\(m)", "Metacritic") }
-        }
-    }
-
-    private func stat(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.headline).foregroundStyle(.textPrimary)
-            Text(label).font(.caption2).foregroundStyle(.muted)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func cast(_ t: DiscoverTitle) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionTitle(text: "Cast")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(t.cast.prefix(12), id: \.key) { m in
-                        VStack(spacing: 4) {
-                            Group {
-                                if let url = TMDBImage.url(path: m.profilePath, size: .w185) {
-                                    AsyncImage(url: url) { phase in if let image = phase.image { image.resizable().scaledToFill() } else { Color.raised } }
-                                } else { Color.raised }
-                            }
-                            .frame(width: 64, height: 64).clipShape(Circle())
-                            Text(m.name).font(.caption2.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2).multilineTextAlignment(.center).frame(width: 76)
-                            if let c = m.character { Text(c).font(.caption2).foregroundStyle(.muted).lineLimit(1).frame(width: 76) }
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-            }
         }
     }
 }

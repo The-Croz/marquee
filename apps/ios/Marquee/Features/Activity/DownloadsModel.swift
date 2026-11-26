@@ -2,7 +2,7 @@ import MarqueeKit
 import Observation
 import SwiftUI
 
-enum DownloadsFilter: Hashable { case onTheWay, sharing }
+enum DownloadsFilter: Hashable { case onTheWay, needsALook, sharing, history }
 
 @Observable @MainActor
 final class DownloadsModel {
@@ -11,6 +11,9 @@ final class DownloadsModel {
     private(set) var loading = true
     private(set) var forbidden = false
     var filter: DownloadsFilter = .onTheWay
+    /// What happened to copies lately (sent, imported, upgraded, failed), newest first. Loaded when History is picked.
+    private(set) var history: [HistoryItem]?
+    private(set) var historyProblem: String?
     var actionProblem: String?
     var toast: String?
 
@@ -40,6 +43,18 @@ final class DownloadsModel {
             if error.isForbidden { forbidden = true } else { loadProblem = error }
         }
         loading = false
+    }
+
+    func loadHistory() async {
+        do {
+            let v: HistoryView = try await app.client.get("/api/history")
+            history = v.items
+            historyProblem = nil
+        } catch {
+            if case .signedOut = error { app.handle(error); return }
+            if case .cancelled = error { return }
+            historyProblem = error.fullText
+        }
     }
 
     func act(_ d: DownloadView, _ path: String, body: some Encodable & Sendable = EmptyBody()) async {

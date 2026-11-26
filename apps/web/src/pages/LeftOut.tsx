@@ -26,7 +26,7 @@ export function LeftOutPage() {
     <>
       <PageHeader
         title="Left out of scans"
-        back={{ to: '/library', label: 'Library' }}
+        back={{ to: '/library/care', label: 'Library care' }}
         meta={q.data && `${items.length} ${items.length === 1 ? 'title' : 'titles'}`}
         info="When you remove a title with “Don’t add it back when scanning”, library scans skip its folder (and the title, even in a renamed folder). Let it back in, and the next scan adds it again. Adding it yourself, or a request for it, lets it back in too."
       />

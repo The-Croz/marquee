@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation, useOutletContext, useSearchParams } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { AuthStatus, DeviceView, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
+import type { AuthStatus, DeviceView, HealthView, MediaLibrariesResult, MediaServerView, Role, ServiceTestResult, ServicesUpdate, ServicesView, SessionUser, UserSummary } from '@marquee/shared';
 import { api, ApiFailure, queryClient, refreshAuth } from '../api';
 import { plexSignIn } from '../plex';
 import { ServerPeople } from '../components/ServerPeople';
@@ -79,16 +79,55 @@ export function settingsGroups(role: Role): SettingsGroup[] {
   ];
 }
 
+type RowStatus = { text: string; tone: 'good' | 'warn' | 'quiet' };
+
+/**
+ * How each Settings page's connections are doing, from the Health check (each check names the
+ * page it's fixed on), so a problem shows on the Settings list before you open anything. Admins only.
+ */
+function useSettingsStatus(admin: boolean): Record<string, RowStatus> {
+  const { data: h } = useQuery({ queryKey: ['system', 'health'], queryFn: () => api<HealthView>('/system/health'), enabled: admin, staleTime: 60_000 });
+  if (!h) return {};
+  const out: Record<string, RowStatus> = {};
+  for (const to of new Set(h.connections.map((c) => c.to))) {
+    const rows = h.connections.filter((c) => c.to === to);
+    const bad = rows.filter((c) => c.tone === 'problem' || c.tone === 'attention');
+    const ok = rows.filter((c) => c.tone === 'ok');
+    const [c] = bad;
+    // "Sources: None yet" reads oddly on the Sources row; the name only helps when it's one of several.
+    if (c && bad.length === 1) out[to] = { text: rows.length > 1 && c.name !== 'Sources' ? `${c.name}: ${c.state}` : c.state, tone: 'warn' };
+    else if (bad.length > 1) out[to] = { text: `${bad.length} need you`, tone: 'warn' };
+    else if (ok[0]) out[to] = { text: ok.length > 1 ? `${ok.length} working` : ok[0].state, tone: 'good' };
+    else out[to] = { text: 'Not set up', tone: 'quiet' };
+  }
+  out['/settings/health'] = h.problems > 0 ? { text: `${h.problems} ${h.problems === 1 ? 'needs' : 'need'} you`, tone: 'warn' } : { text: 'All good', tone: 'good' };
+  return out;
+}
+
+const DOT = { good: 'bg-teal', warn: 'bg-warn', quiet: 'bg-dim' } as const;
+
+/** Under the description on phones; on the right, cut short if long, on wider screens. */
+function StatusText({ s, className }: { s: RowStatus; className?: string }) {
+  return (
+    <span title={s.text} className={cx('items-center gap-1.5 text-sm', s.tone === 'warn' ? 'text-warn' : s.tone === 'good' ? 'text-teal' : 'text-dim', className)}>
+      <span aria-hidden="true" className={cx('size-2 flex-none rounded-full', DOT[s.tone])} />
+      <span className="min-w-0 truncate">{s.text}</span>
+    </span>
+  );
+}
+
 export function SettingsLayout({ status }: Ctx) {
   const { pathname } = useLocation();
   const groups = settingsGroups(status.user.role);
   const current = groups.flatMap((g) => g.items).find((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+  const states = useSettingsStatus(status.user.role === 'admin');
 
   if (!current) {
     return (
       <>
         <PageHeader title="Settings" />
-        <div className="flex max-w-[720px] flex-col gap-8">
+        {/* Two columns on wide screens, so every group fits without scrolling. */}
+        <div className="grid max-w-[1180px] grid-cols-1 items-start gap-8 xl:grid-cols-2">
           {groups.map((g) => (
             <section key={g.title} aria-labelledby={`sg-${g.title}`} className="flex flex-col gap-2">
               <h2 id={`sg-${g.title}`} className="m-0 text-caption font-semibold tracking-widest text-dim uppercase">
@@ -101,7 +140,9 @@ export function SettingsLayout({ status }: Ctx) {
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="text-body font-semibold">{i.label}</span>
                         <span className="text-sm text-muted">{i.blurb}</span>
+                        {states[i.to] && <StatusText s={states[i.to]!} className="flex sm:hidden" />}
                       </span>
+                      {states[i.to] && <StatusText s={states[i.to]!} className="hidden max-w-[45%] flex-none sm:flex" />}
                       <span aria-hidden="true" className="text-dim">
                         ›
                       </span>
@@ -134,7 +175,8 @@ export function SettingsLayout({ status }: Ctx) {
                 }
                 aria-current={i === current ? 'page' : undefined}
               >
-                {i.label}
+                <span className="flex-1">{i.label}</span>
+                {states[i.to]?.tone === 'warn' && <span role="img" aria-label={states[i.to]?.text} className="size-2 rounded-full bg-warn" />}
               </NavLink>
             ))}
           </div>

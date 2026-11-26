@@ -19,7 +19,7 @@ export function UnwatchedPage() {
   const chip = (on: boolean) => cx('h-11 rounded-full border px-4 text-sm font-medium', on ? 'border-amber bg-amber text-amber-ink' : 'border-line bg-panel text-soft hover:text-text');
   return (
     <>
-      <PageHeader title="Not watched" back={{ to: '/library', label: 'Library' }} info="Titles in your library nobody has watched, or not in the last year, from what Plex and Jellyfin say was played. Only a list: Marquee never deletes anything by itself." />
+      <PageHeader title="Not watched" back={{ to: '/library/care', label: 'Library care' }} info="Titles in your library nobody has watched, or not in the last year, from what Plex and Jellyfin say was played. Only a list: Marquee never deletes anything by itself." />
       <div className="flex flex-wrap gap-2">
         <button type="button" aria-pressed={kind === 'movie'} className={chip(kind === 'movie')} onClick={() => setKind('movie')}>
           Movies

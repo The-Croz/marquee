@@ -30,9 +30,14 @@ accountRoutes.post('/password', async (c) => {
     }
   }
   const updated = updateUser(db, user.id, { passwordHash: await hashPassword(input.next) });
-  // Sign out everywhere else, then keep this browser signed in.
-  deleteUserSessions(db, user.id);
-  signIn(c, updated);
+  // Sign out everywhere else. The iPhone app keeps its own token; a browser gets a fresh cookie.
+  const bearer = /^Bearer\s+\S+$/i.test(c.req.header('authorization') ?? '');
+  if (bearer) {
+    deleteUserSessions(db, user.id, sessionToken(c));
+  } else {
+    deleteUserSessions(db, user.id);
+    signIn(c, updated);
+  }
   return c.json({ user: toSessionUser(updated) });
 });
 

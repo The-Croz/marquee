@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { SessionUser, SignInWall } from '@marquee/shared';
 import { api, ApiFailure, refreshAuth, useAuthStatus } from '../api';
@@ -63,15 +63,25 @@ export function AuthLayout({ children, title, subtitle }: { children: React.Reac
   );
 }
 
+/**
+ * Where to go after signing in: the page that sent you here (a link from a notification, a
+ * bookmark, the iPhone app's "On the web" rows), or Home. Only paths on this site.
+ */
+export function returnTo(state: unknown): string {
+  const from = (state as { from?: unknown } | null)?.from;
+  return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/\\') && !from.startsWith('/login') ? from : '/';
+}
+
 export function LoginPage() {
   const { data: status } = useAuthStatus();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [error, setError] = useState<string | null>(ERRORS[params.get('error') ?? ''] ?? null);
   const [busy, setBusy] = useState<'password' | 'plex' | 'jellyfin' | null>(null);
+  const back = returnTo(useLocation().state);
 
   if (status?.setupRequired) return <Navigate to="/setup" replace />;
-  if (status?.user) return <Navigate to="/" replace />;
+  if (status?.user) return <Navigate to={back} replace />;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -81,7 +91,7 @@ export function LoginPage() {
     try {
       await api<{ user: SessionUser }>('/auth/login', { body: { username: form.get('username'), password: form.get('password') } });
       await refreshAuth();
-      navigate('/', { replace: true });
+      navigate(back, { replace: true });
     } catch (err) {
       setError(err instanceof ApiFailure ? err.message : "Couldn't reach Marquee.");
     } finally {
@@ -97,7 +107,7 @@ export function LoginPage() {
     try {
       await api<{ user: SessionUser }>('/auth/jellyfin', { body: { username: d.get('username'), password: d.get('password') } });
       await refreshAuth();
-      navigate('/', { replace: true });
+      navigate(back, { replace: true });
     } catch (err) {
       setError(err instanceof ApiFailure ? err.message : "Couldn't reach Marquee.");
     } finally {
@@ -112,7 +122,7 @@ export function LoginPage() {
       const result = await plexSignIn();
       if (result.status === 'ok') {
         await refreshAuth();
-        navigate('/', { replace: true });
+        navigate(back, { replace: true });
       } else if (result.status === 'denied') setError(result.message);
       else if (result.status === 'expired') setError('Plex sign-in timed out. Please try again.');
     } catch (err) {

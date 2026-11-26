@@ -272,7 +272,7 @@ function RenamePreview({ kind, id, onClose }: { kind: 'movie' | 'tv'; id?: numbe
       )}
       {plan.alreadyRight > 0 && plan.titles.length > 0 && <p className="m-0 text-sm text-muted">{plan.alreadyRight} other {plan.alreadyRight === 1 ? 'file already has' : 'files already have'} Marquee’s name.</p>}
       {error && <Notice tone="error">{error}</Notice>}
-      <div className="sticky bottom-0 -mx-5 flex flex-wrap items-center gap-3 border-t border-line bg-panel px-5 pt-3">
+      <div className="sticky bottom-[calc(-1*max(20px,env(safe-area-inset-bottom)))] pb-[max(20px,env(safe-area-inset-bottom))] -mx-5 flex flex-wrap items-center gap-3 border-t border-line bg-panel px-5 pt-3">
         <Button type="button" disabled={busy || files === 0} onClick={() => void rename()}>
           {busy ? 'Renaming…' : `Rename ${files} ${files === 1 ? 'file' : 'files'}`}
         </Button>

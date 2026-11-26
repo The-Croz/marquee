@@ -33,12 +33,17 @@ struct TitleView: View {
                             watchButtons
                             followButton
                             progressStrip(info)
+                            if let tagline = model.about?.tagline, !tagline.isEmpty {
+                                Text(tagline).font(.subheadline.italic()).foregroundStyle(.soft)
+                            }
                             if let overview = info.overview, !overview.isEmpty {
                                 Text(overview).font(.subheadline).foregroundStyle(.soft).fixedSize(horizontal: false, vertical: true)
                             }
+                            aboutLine
                             fileLine
                             if isAdmin { adminControls(info) }
                             if model.route.kind == .show, let show = model.show.value { seasons(show) }
+                            if let cast = model.about?.cast, !cast.isEmpty { CastRow(cast: cast) }
                             if isAdmin && !model.history.isEmpty { historySection }
                             problemsSection
                         }
@@ -48,6 +53,7 @@ struct TitleView: View {
                 }
                 .ignoresSafeArea(edges: .top)
                 .refreshable { await model.load(app) }
+                .topFade(after: 120)
             } else {
                 if model.forbidden {
                     MessageView(title: "That's not available.", detail: "").frame(maxHeight: .infinity, alignment: .top)
@@ -92,6 +98,22 @@ struct TitleView: View {
     }
 
     // MARK: Pieces
+
+    /// Scores, who made it, and the trailer, like the web's title page.
+    @ViewBuilder private var aboutLine: some View {
+        if let about = model.about {
+            let ratings = RatingsRow(ratings: about.ratings)
+            if !ratings.isEmpty { ratings }
+            let made = about.details.directors.isEmpty ? about.details.networks : about.details.directors
+            if !made.isEmpty {
+                Text("\(model.route.kind == .movie ? "Directed by" : (about.details.directors.isEmpty ? "On" : "Created by")) \(made.prefix(3).joined(separator: ", "))")
+                    .font(.footnote).foregroundStyle(.muted)
+            }
+            if let key = about.trailerKey, let url = URL(string: "https://www.youtube.com/watch?v=\(key)") {
+                Button("Trailer", systemImage: "play.fill") { openURL(url) }.buttonStyle(QuietButtonStyle())
+            }
+        }
+    }
 
     @ViewBuilder private var watchButtons: some View {
         if !model.links.isEmpty {
