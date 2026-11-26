@@ -34,6 +34,15 @@ packages/shared Types shared by server and web (no runtime code)
 docker/         Entrypoint (PUID/PGID) and the Unraid template
 ```
 
+## Shipping the iPhone app
+
+Josh's standing instruction (2026-11-26): when changes to the app (`apps/ios`) are merged to `main`, upload a new TestFlight build without asking.
+
+- From an up-to-date `main`, run `make -C apps/ios test`, then `make -C apps/ios archive` (archives, signs and uploads; Xcode picks the next build number).
+- Signing is Josh's personal team `2PAYMW97LM` only, never the Renovation Church team. Check the team in the archive's `Info.plist`.
+- Report the uploaded build number (`apps/ios/build/Marquee.xcarchive/Info.plist`, `uploadedBuildNumber`). If the app needs new server routes, say to update the `marquee` container first.
+- This covers the TestFlight upload only. Merging, adding testers and App Store submission stay Josh's call.
+
 ## Demo mode
 
 `pnpm build && pnpm --filter @marquee/server demo` serves the app on :9797 with fake TMDB, Sources, qBittorrent, Plex, Jellyfin and arrs (the header of `apps/server/scripts/demo.ts` lists their addresses and keys). It's the way to check UI changes by hand:
