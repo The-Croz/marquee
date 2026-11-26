@@ -490,6 +490,8 @@ From [`docs/superpowers/specs/2026-11-24-qbittorrent-reconcile-handoff.md`](supe
 
 ## Milestone 7: iPhone app 🔨 (All four phases built; four stacked PRs open, none merged)
 
+**Summary (2026-11-25):** the iPhone app is built end to end in four stacked PRs, none merged (merging to `main` publishes the image your live server runs): [#56 phase 1, sign in, Home, Activity](https://github.com/The-Croz/marquee/pull/56) → [#57 phase 2, browse](https://github.com/The-Croz/marquee/pull/57) → [#58 phase 3, push, against a fake Apple](https://github.com/The-Croz/marquee/pull/58) → [#59 phase 4, Watching, Manage, TestFlight](https://github.com/The-Croz/marquee/pull/59). Merge them in that order (each targets the one below). Your steps are the **Josh's steps** list below: Pangolin `/api/*` rule, install on your phone, the paid Apple enrollment, the Apple push key, TestFlight, and checking the live container's logs.
+
 Mockups: the "iPhone app · D + E" row on the [mockup canvas](https://claude.ai/artifact/68JrXjWP9SqwwzaUoxcPWT) (2026-11-25). Direction: **D · Backdrop** (artwork fills the top of Home and title pages, under the status bar) with **E · Shelves** (count tiles, wide progress cards, poster rows). Cinematic dark tokens and words from the web app; iOS 26+ Liquid Glass for the tab bar, floating buttons and sheets.
 
 Who it's for: Josh first (admin: monitoring, approving, asking for things), shared later with the family, so every screen respects roles (member, kid) like the web app.
