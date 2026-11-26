@@ -1,0 +1,31 @@
+{
+  "seriesId": 1,
+  "season": 1,
+  "episode": 1,
+  "title": "Good News About Hell",
+  "airDate": "2022-02-18",
+  "overview": null,
+  "aired": true,
+  "wanted": true,
+  "files": [
+    {
+      "id": 2,
+      "path": "/data/media/tv/Severance/S01E01.mkv",
+      "sizeBytes": 3221225472,
+      "quality": {
+        "resolution": "1080p",
+        "source": "WEBDL",
+        "hdr": null,
+        "codec": "x264",
+        "group": "NTb",
+        "label": "1080p"
+      },
+      "addedAt": 1795521600000,
+      "name": "S01E01.mkv",
+      "otherEpisodes": [],
+      "shared": false
+    }
+  ],
+  "torrents": [],
+  "downloaderNote": null
+}

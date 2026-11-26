@@ -4,6 +4,10 @@ import SwiftUI
 struct MarqueeApp: App {
     @State private var model = AppModel()
 
+    init() {
+        ImageCache.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

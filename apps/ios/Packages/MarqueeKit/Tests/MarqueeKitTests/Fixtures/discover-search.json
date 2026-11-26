@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "backdropPath": null,
+      "overview": "",
+      "score": null,
+      "genres": [],
+      "state": "in_library",
+      "libraryId": 1,
+      "badge": null
+    }
+  ]
+}

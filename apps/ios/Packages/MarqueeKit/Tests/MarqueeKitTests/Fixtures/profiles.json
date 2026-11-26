@@ -1,0 +1,254 @@
+{
+  "profiles": [
+    {
+      "id": 1,
+      "kind": "movie",
+      "key": "cinema",
+      "name": "4K Quality",
+      "description": "4K with HDR from streaming services at sensible sizes (about 15–30 GB a movie). Takes a small, high-quality 1080p encode until a 4K copy turns up. Never remuxes or full discs. Built on Dictionarry’s 2160p Efficient.",
+      "preset": "cinema",
+      "database": "dictionarry",
+      "base": "2160p Efficient",
+      "cutoff": "2160p Efficient",
+      "titles": 2,
+      "defaultFor": [
+        "movie"
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "movie",
+      "key": "everyday-hd",
+      "name": "Everyday HD",
+      "description": "Small 1080p x265 encodes from groups Dictionarry trusts to keep the picture (about 6–12 GB a movie, 2–3 GB an episode). Built on Dictionarry’s 1080p Efficient.",
+      "preset": "everyday-hd",
+      "database": "dictionarry",
+      "base": "1080p Efficient",
+      "cutoff": "1080p Efficient",
+      "titles": 0,
+      "defaultFor": []
+    },
+    {
+      "id": 3,
+      "kind": "movie",
+      "key": "kids",
+      "name": "Kids & Cartoons",
+      "description": "Very small 1080p x265 encodes (about 3–6 GB a movie, 1–2 GB an episode); cartoons squeeze well, so they still look sharp. Falls back to 720p and DVD for older ones. Built on Dictionarry’s 1080p Compact.",
+      "preset": "kids",
+      "database": "dictionarry",
+      "base": "1080p Compact",
+      "cutoff": "1080p Compact",
+      "titles": 0,
+      "defaultFor": [
+        "kids"
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "tv",
+      "key": "cinema",
+      "name": "4K Quality",
+      "description": "4K with HDR from streaming services at sensible sizes (about 15–30 GB a movie). Takes a small, high-quality 1080p encode until a 4K copy turns up. Never remuxes or full discs. Built on Dictionarry’s 2160p Efficient.",
+      "preset": "cinema",
+      "database": "dictionarry",
+      "base": "2160p Efficient",
+      "cutoff": "2160p Efficient",
+      "titles": 1,
+      "defaultFor": [
+        "tv"
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "tv",
+      "key": "everyday-hd",
+      "name": "Everyday HD",
+      "description": "Small 1080p x265 encodes from groups Dictionarry trusts to keep the picture (about 6–12 GB a movie, 2–3 GB an episode). Built on Dictionarry’s 1080p Efficient.",
+      "preset": "everyday-hd",
+      "database": "dictionarry",
+      "base": "1080p Efficient",
+      "cutoff": "1080p Efficient",
+      "titles": 0,
+      "defaultFor": []
+    },
+    {
+      "id": 6,
+      "kind": "tv",
+      "key": "kids",
+      "name": "Kids & Cartoons",
+      "description": "Very small 1080p x265 encodes (about 3–6 GB a movie, 1–2 GB an episode); cartoons squeeze well, so they still look sharp. Falls back to 720p and DVD for older ones. Built on Dictionarry’s 1080p Compact.",
+      "preset": "kids",
+      "database": "dictionarry",
+      "base": "1080p Compact",
+      "cutoff": "1080p Compact",
+      "titles": 0,
+      "defaultFor": [
+        "kids"
+      ]
+    }
+  ],
+  "defaults": {
+    "movie": "cinema",
+    "tv": "cinema",
+    "kids": "kids"
+  },
+  "starters": [
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Balanced",
+      "description": "1080p Balanced targets consistent & immutable 1080p WEB-DLs using the Streaming Source and Audio Formats to determine the level of Transparency. · Average Movie Sizes ~ 4 to 8gb per Movie · Movie Quality Ranking ~ 6/10 · Average TV Sizes ~ 2 to 4gb per Episode · TV Quality Ranking ~ 7/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Compact",
+      "description": "1080p Compact targets low to medium quality x265 Bluray and WEB Encodes. · Average Movie Sizes ~ 3 to 6gb per Movie · Movie Quality Ranking ~ 4/10 · Average TV Sizes ~ 1 to 2gb per Episode · TV Quality Ranking ~ 4/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Efficient",
+      "description": "1080p Efficient targets high quality x265 Bluray and WEB Encodes · Average Movie Sizes ~ 6 to 12gb per Movie · Movie Quality Ranking ~ 7/10 · Average TV Sizes ~ 2 to 3gb per Episode · TV Quality Ranking ~ 6/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Quality",
+      "description": "1080p Quality utilizes the Golden Popcorn Performance Index to target Transparent x264 1080p Encodes. · Average Movie Sizes ~ 10 to 15gb per Movie · Movie Quality Ranking ~ 8/10 · Average TV Sizes ~ 4 to 8gb per Episode · TV Quality Ranking ~ 8/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Quality HDR",
+      "description": "1080p Quality HDR utilizes the Golden Popcorn Performance Index to target Transparent x265 HDR 1080p Encodes. · Average Movie Sizes ~ 10 to 20gb per Movie · Movie Quality Ranking ~ 9/10 · Average TV Sizes ~ 4 to 10gb per Episode · TV Quality Ranking ~ 9/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "1080p Remux",
+      "description": "1080p Remux utilizes Audio Formats to prioritise high quality Lossless HD Blurays with a fallback to Transparent Bluray Encodes. · Average Movie Sizes ~ 20 to 30gb per Movie · Movie Quality Ranking ~ 10/10 · Average TV Sizes ~ 6 to 12gb per Episode · TV Quality Ranking ~ 10/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "2160p Balanced",
+      "description": "2160p Balanced targets consistent & immutable 2160p WEB-DLs w/ Lossy Audio. · Average Movie Sizes ~ 15 to 30gb per Movie · Movie Quality Ranking ~ 8/10 · Average TV Sizes ~ 5 to 15gb per Episode · TV Quality Ranking ~ 8/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "2160p Efficient",
+      "description": "2160p Efficient targets consistent & immutable 2160p WEB-DLs w/ Lossy Audio. Specialized Fallback to 1080p Efficient · Average Movie Sizes ~ 15 to 30gb per Movie · Movie Quality Ranking ~ 6/10 · Average TV Sizes ~ 4 to 12gb per Episode · TV Ranking ~ 6/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "2160p Quality",
+      "description": "2160p Quality utilizes the Encode Efficiency Index metric at a 60% target ratio to prioritize Transparent x265 4K Encodes · Average Movie Sizes ~ 30 to 50gb per Movie · Movie Quality Ranking ~ 9/10 · Average TV Sizes ~ 10 to 20gb per Episode · TV Quality Ranking ~ 9/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "2160p Remux",
+      "description": "2160p Remux utilizes Video / Audio Formats to prioritise high quality lossless copies of UHD Blurays. · Average Movie Sizes ~ 40 to 60gb per Movie · Movie Quality Ranking ~ 10/10 · Average TV Sizes ~ 15 to 30gb per Episode · TV Quality Ranking ~ 10/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "movie",
+      "name": "720p Quality",
+      "description": "720p Quality utilizes the Golden Popcorn Performance Index to target Transparent x264 720p Encodes. · Average Movie Sizes ~ 4 to 8gb per Movie · Movie Quality Ranking ~ 5/10 · Average TV Sizes ~ 2 to 4gb per Episode · TV Quality Ranking ~ 5/10"
+    },
+    {
+      "database": "trash",
+      "kind": "movie",
+      "name": "UHD Bluray + WEB",
+      "description": "Quality Profile that covers:- WEBDL: 2160p- Bluray: 2160p"
+    },
+    {
+      "database": "trash",
+      "kind": "movie",
+      "name": "HD Bluray + WEB",
+      "description": "Quality Profile that covers:- WEBDL: 1080p- Bluray: 720p, 1080p"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Balanced",
+      "description": "1080p Balanced targets consistent & immutable 1080p WEB-DLs using the Streaming Source and Audio Formats to determine the level of Transparency. · Average Movie Sizes ~ 4 to 8gb per Movie · Movie Quality Ranking ~ 6/10 · Average TV Sizes ~ 2 to 4gb per Episode · TV Quality Ranking ~ 7/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Compact",
+      "description": "1080p Compact targets low to medium quality x265 Bluray and WEB Encodes. · Average Movie Sizes ~ 3 to 6gb per Movie · Movie Quality Ranking ~ 4/10 · Average TV Sizes ~ 1 to 2gb per Episode · TV Quality Ranking ~ 4/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Efficient",
+      "description": "1080p Efficient targets high quality x265 Bluray and WEB Encodes · Average Movie Sizes ~ 6 to 12gb per Movie · Movie Quality Ranking ~ 7/10 · Average TV Sizes ~ 2 to 3gb per Episode · TV Quality Ranking ~ 6/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Quality",
+      "description": "1080p Quality utilizes the Golden Popcorn Performance Index to target Transparent x264 1080p Encodes. · Average Movie Sizes ~ 10 to 15gb per Movie · Movie Quality Ranking ~ 8/10 · Average TV Sizes ~ 4 to 8gb per Episode · TV Quality Ranking ~ 8/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Quality HDR",
+      "description": "1080p Quality HDR utilizes the Golden Popcorn Performance Index to target Transparent x265 HDR 1080p Encodes. · Average Movie Sizes ~ 10 to 20gb per Movie · Movie Quality Ranking ~ 9/10 · Average TV Sizes ~ 4 to 10gb per Episode · TV Quality Ranking ~ 9/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "1080p Remux",
+      "description": "1080p Remux utilizes Audio Formats to prioritise high quality Lossless HD Blurays with a fallback to Transparent Bluray Encodes. · Average Movie Sizes ~ 20 to 30gb per Movie · Movie Quality Ranking ~ 10/10 · Average TV Sizes ~ 6 to 12gb per Episode · TV Quality Ranking ~ 10/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "2160p Balanced",
+      "description": "2160p Balanced targets consistent & immutable 2160p WEB-DLs w/ Lossy Audio. · Average Movie Sizes ~ 15 to 30gb per Movie · Movie Quality Ranking ~ 8/10 · Average TV Sizes ~ 5 to 15gb per Episode · TV Quality Ranking ~ 8/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "2160p Efficient",
+      "description": "2160p Efficient targets consistent & immutable 2160p WEB-DLs w/ Lossy Audio. Specialized Fallback to 1080p Efficient · Average Movie Sizes ~ 15 to 30gb per Movie · Movie Quality Ranking ~ 6/10 · Average TV Sizes ~ 4 to 12gb per Episode · TV Ranking ~ 6/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "2160p Quality",
+      "description": "2160p Quality utilizes the Encode Efficiency Index metric at a 60% target ratio to prioritize Transparent x265 4K Encodes · Average Movie Sizes ~ 30 to 50gb per Movie · Movie Quality Ranking ~ 9/10 · Average TV Sizes ~ 10 to 20gb per Episode · TV Quality Ranking ~ 9/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "2160p Remux",
+      "description": "2160p Remux utilizes Video / Audio Formats to prioritise high quality lossless copies of UHD Blurays. · Average Movie Sizes ~ 40 to 60gb per Movie · Movie Quality Ranking ~ 10/10 · Average TV Sizes ~ 15 to 30gb per Episode · TV Quality Ranking ~ 10/10"
+    },
+    {
+      "database": "dictionarry",
+      "kind": "tv",
+      "name": "720p Quality",
+      "description": "720p Quality utilizes the Golden Popcorn Performance Index to target Transparent x264 720p Encodes. · Average Movie Sizes ~ 4 to 8gb per Movie · Movie Quality Ranking ~ 5/10 · Average TV Sizes ~ 2 to 4gb per Episode · TV Quality Ranking ~ 5/10"
+    },
+    {
+      "database": "trash",
+      "kind": "tv",
+      "name": "WEB-2160p",
+      "description": "Quality Profile that covers:- WEBDL: 2160p"
+    },
+    {
+      "database": "trash",
+      "kind": "tv",
+      "name": "WEB-1080p",
+      "description": "Quality Profile that covers:- WEBDL: 1080p"
+    }
+  ],
+  "notice": null
+}

@@ -1,0 +1,109 @@
+{
+  "searchId": "<id>",
+  "yours": {
+    "name": "Dune.mkv",
+    "qualityLabel": "Unknown quality",
+    "score": 0
+  },
+  "profile": {
+    "id": 1,
+    "key": "cinema",
+    "name": "4K Quality"
+  },
+  "copies": [
+    {
+      "title": "Dune.Part.Two.2024.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-FLUX",
+      "sizeBytes": 26843545600,
+      "seeders": 50,
+      "leechers": 5,
+      "publishedAt": 1714521600000,
+      "infoUrl": null,
+      "sources": [
+        {
+          "id": 1,
+          "name": "TPB"
+        }
+      ],
+      "quality": "WEBDL-2160p",
+      "qualityLabel": "4K web download",
+      "tier": "2160p Efficient",
+      "score": 985100,
+      "rules": [
+        {
+          "trashId": "dict:2160p WEB-DL (Efficient)",
+          "name": "2160p WEB-DL (Efficient)",
+          "label": "4K streaming download",
+          "explain": "Downloaded in 4K straight from a streaming service: clean, reliable and a sensible size.",
+          "points": 980000
+        },
+        {
+          "trashId": "dict:Dolby Vision",
+          "name": "Dolby Vision",
+          "label": "Dolby Vision",
+          "explain": "The most advanced HDR. Looks best on TVs that support it, with HDR10 for those that don’t.",
+          "points": 3000
+        },
+        {
+          "trashId": "dict:HDR",
+          "name": "HDR",
+          "label": "HDR",
+          "explain": "Brighter highlights and richer colour on HDR TVs.",
+          "points": 1000
+        },
+        {
+          "trashId": "dict:Dolby Digital +",
+          "name": "Dolby Digital +",
+          "label": "Dolby Digital Plus sound",
+          "explain": "The surround sound streaming services use. Good and compact.",
+          "points": 600
+        },
+        {
+          "trashId": "dict:Dolby Atmos",
+          "name": "Dolby Atmos",
+          "label": "Dolby Atmos",
+          "explain": "Sound with height for Atmos speakers and soundbars.",
+          "points": 400
+        },
+        {
+          "trashId": "dict:WEB-DL Tier 1",
+          "name": "WEB-DL Tier 1",
+          "label": "Streaming download group, tier 1",
+          "explain": "Made by a group Dictionarry ranks the very best for streaming downloads.",
+          "points": 100
+        }
+      ],
+      "rejections": [],
+      "accepted": true,
+      "details": {
+        "resolution": 2160,
+        "hdr": [
+          "DV",
+          "HDR"
+        ],
+        "codec": "h265",
+        "audio": "DD+",
+        "atmos": true,
+        "service": null,
+        "group": "FLUX",
+        "editions": [],
+        "repack": false
+      },
+      "id": "0",
+      "vsYours": {
+        "better": true,
+        "message": "Better than your Unknown quality."
+      }
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": 1,
+      "name": "TPB",
+      "status": "searched",
+      "results": 1,
+      "ms": 0,
+      "message": null
+    }
+  ],
+  "ms": 0
+}

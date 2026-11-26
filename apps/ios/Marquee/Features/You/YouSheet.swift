@@ -10,6 +10,7 @@ struct YouSheet: View {
 
     var body: some View {
         let user = app.user
+        NavigationStack {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 12) {
@@ -31,6 +32,14 @@ struct YouSheet: View {
                         .foregroundStyle(.textPrimary)
                 }
 
+                group("You") {
+                    NavigationLink { MyRequestsScreen() } label: { linkRow("My requests & history") }
+                        .buttonStyle(.plain)
+                    Divider().overlay(Color.line)
+                    NavigationLink { CalendarScreen() } label: { linkRow("Calendar") }
+                        .buttonStyle(.plain)
+                }
+
                 group("More in the web app") {
                     row("Settings, lists, backups, logs", trailing: "Opens Safari ›") {
                         Task {
@@ -47,6 +56,9 @@ struct YouSheet: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 24)
+        }
+        .background(Color(hex: 0x0E1117))
+        .toolbar(.hidden, for: .navigationBar)
         }
         .confirmationDialog("Sign out of Marquee on this iPhone?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await app.signOut() } }
@@ -68,6 +80,17 @@ struct YouSheet: View {
             Text(title.uppercased()).font(.footnote.weight(.semibold)).tracking(0.8).foregroundStyle(.dim).padding(.horizontal, 6)
             PanelCard { content() }
         }
+    }
+
+    private func linkRow(_ title: String) -> some View {
+        HStack {
+            Text(title).foregroundStyle(.textPrimary)
+            Spacer()
+            Text("›").foregroundStyle(.muted)
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 50)
+        .contentShape(Rectangle())
     }
 
     private func row(_ title: String, trailing: String, destructive: Bool = false, action: @escaping () -> Void) -> some View {

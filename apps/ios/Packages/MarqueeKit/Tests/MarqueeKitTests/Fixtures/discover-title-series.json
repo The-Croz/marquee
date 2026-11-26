@@ -1,0 +1,146 @@
+{
+  "details": {
+    "releaseDate": "2022-06-01",
+    "released": true,
+    "releases": [],
+    "originalTitle": null,
+    "language": "English",
+    "status": null,
+    "score": 8.4,
+    "votes": 1200,
+    "directors": [
+      "A. Director"
+    ],
+    "writers": [],
+    "studios": [
+      "Apple TV+"
+    ],
+    "networks": [
+      "A Network"
+    ],
+    "countries": [
+      "United States of America"
+    ],
+    "budget": null,
+    "revenue": null,
+    "homepage": null,
+    "seasonCount": 2,
+    "episodeCount": 4,
+    "lastAirDate": null,
+    "nextAirDate": null,
+    "stage": "out",
+    "homeRelease": null
+  },
+  "card": {
+    "kind": "series",
+    "tmdbId": 95396,
+    "title": "Severance",
+    "year": 2022,
+    "posterPath": "/sev.jpg",
+    "backdropPath": null,
+    "overview": "",
+    "score": 8.4,
+    "genres": [
+      "Drama",
+      "Mystery",
+      "Sci-Fi & Fantasy"
+    ],
+    "state": "in_library",
+    "libraryId": 1,
+    "badge": null
+  },
+  "tagline": null,
+  "runtime": 45,
+  "certification": "TV-MA",
+  "genres": [
+    "Drama",
+    "Mystery",
+    "Sci-Fi & Fantasy"
+  ],
+  "trailerKey": "sevTrailer",
+  "cast": [
+    {
+      "id": 501,
+      "name": "A. Actor",
+      "character": "Lead",
+      "profilePath": "/actor.jpg"
+    }
+  ],
+  "providers": [
+    "Apple TV"
+  ],
+  "watchOn": [
+    {
+      "name": "Apple TV",
+      "logoPath": null
+    }
+  ],
+  "ratings": {
+    "tmdb": {
+      "score": 8.4,
+      "votes": 1200
+    },
+    "imdb": null,
+    "rottenTomatoes": null,
+    "metacritic": null,
+    "imdbId": null
+  },
+  "seasons": [
+    {
+      "season": 1,
+      "episodeCount": 2,
+      "state": "none"
+    },
+    {
+      "season": 2,
+      "episodeCount": 2,
+      "state": "none"
+    }
+  ],
+  "similar": {
+    "id": "similar",
+    "title": "More like this",
+    "subtitle": null,
+    "items": [
+      {
+        "kind": "series",
+        "tmdbId": 66732,
+        "title": "Stranger Things",
+        "year": 2016,
+        "posterPath": "/st.jpg",
+        "backdropPath": "/back66732.jpg",
+        "overview": "About Stranger Things.",
+        "score": 8.6,
+        "genres": [
+          "Sci-Fi & Fantasy",
+          "Mystery",
+          "Drama"
+        ],
+        "state": "none",
+        "libraryId": null,
+        "badge": null
+      },
+      {
+        "kind": "series",
+        "tmdbId": 136315,
+        "title": "The Bear",
+        "year": 2022,
+        "posterPath": "/bear.jpg",
+        "backdropPath": "/back136315.jpg",
+        "overview": "About The Bear.",
+        "score": 8.3,
+        "genres": [
+          "Drama",
+          "Comedy"
+        ],
+        "state": "none",
+        "libraryId": null,
+        "badge": null
+      }
+    ]
+  },
+  "request": null,
+  "canRequest": true,
+  "note": null,
+  "collection": null
+}

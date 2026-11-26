@@ -114,3 +114,50 @@ enum Fixture {
         #expect(try JSONDecoder().decode(PlexPinCheck.self, from: Data(#"{"status":"pending"}"#.utf8)) == .pending)
     }
 }
+
+@Suite struct BrowseFixtureTests {
+    @Test func libraryLists() throws {
+        let movies = try Fixture.decode(LibraryList.self, "movies").items
+        #expect(movies.count == 2)
+        #expect(movies.first { $0.title == "Up" }?.badge == "Missing")
+        #expect(try Fixture.decode(LibraryList.self, "shows").items.count == 1)
+        #expect(try Fixture.decode(LibraryList.self, "movies-kid").items.allSatisfy { $0.certification != "PG-13" })
+    }
+
+    @Test func titlePages() throws {
+        let m = try Fixture.decode(MovieDetail.self, "movie-detail")
+        #expect(m.files.first?.quality.label == "4K HDR")
+        let s = try Fixture.decode(ShowDetail.self, "show-detail")
+        #expect(s.seasons.count == 2)
+        #expect(s.seasons[0].episodes[0].file != nil)
+        #expect(try Fixture.decode(WatchLinks.self, "movie-watch").links.isEmpty)
+        let e = try Fixture.decode(EpisodeDetailView.self, "episode-detail")
+        #expect(e.files.count == 1)
+    }
+
+    @Test func discover() throws {
+        let page = try Fixture.decode(DiscoverPage.self, "discover")
+        #expect(!page.rows.isEmpty && !page.services.isEmpty)
+        #expect(page.hero.first?.state == .inLibrary)
+        _ = try Fixture.decode(DiscoverPage.self, "discover-kids")
+        let movie = try Fixture.decode(DiscoverTitle.self, "discover-title-movie")
+        #expect(movie.card.title == "Wicked")
+        #expect(movie.canRequest)
+        let show = try Fixture.decode(DiscoverTitle.self, "discover-title-series")
+        #expect(show.card.kind == "series")
+        #expect(try Fixture.decode(SeasonPreview.self, "discover-season").episodes.count == 2)
+        #expect(try Fixture.decode(DiscoverSearchResults.self, "discover-search").results.count == 1)
+        #expect(try Fixture.decode(SearchResults.self, "library-search").results.first?.libraryId == 1)
+    }
+
+    @Test func calendarCopiesHistoryAndProblems() throws {
+        let cal = try Fixture.decode(CalendarView.self, "calendar")
+        #expect(cal.items.first?.state == "coming")
+        let copies = try Fixture.decode(CopiesResult.self, "copies")
+        #expect(copies.copies.first?.accepted == true)
+        #expect(copies.copies.first?.vsYours?.better == true)
+        #expect(try Fixture.decode(HistoryView.self, "history-title").items.count == 1)
+        #expect(try Fixture.decode(IssuesView.self, "issues-title").items.first?.isOpen == true)
+        #expect(try Fixture.decode(ProfilesView.self, "profiles").profiles.first?.key == "cinema")
+    }
+}

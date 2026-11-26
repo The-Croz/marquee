@@ -1,0 +1,148 @@
+{
+  "details": {
+    "releaseDate": "2024-06-01",
+    "released": true,
+    "releases": [
+      {
+        "kind": "Theatrical",
+        "date": "2024-06-01"
+      },
+      {
+        "kind": "Digital",
+        "date": "2024-09-01"
+      }
+    ],
+    "originalTitle": null,
+    "language": "English",
+    "status": null,
+    "score": 7.4,
+    "votes": 1200,
+    "directors": [
+      "A. Director"
+    ],
+    "writers": [
+      "A. Writer"
+    ],
+    "studios": [
+      "A Studio"
+    ],
+    "networks": [],
+    "countries": [
+      "United States of America"
+    ],
+    "budget": 100000000,
+    "revenue": 400000000,
+    "homepage": null,
+    "seasonCount": null,
+    "episodeCount": null,
+    "lastAirDate": null,
+    "nextAirDate": null,
+    "stage": "out",
+    "homeRelease": {
+      "date": "2024-09-01",
+      "known": true
+    }
+  },
+  "card": {
+    "kind": "movie",
+    "tmdbId": 402431,
+    "title": "Wicked",
+    "year": 2024,
+    "posterPath": "/wicked.jpg",
+    "backdropPath": null,
+    "overview": "About Wicked.",
+    "score": 7.4,
+    "genres": [
+      "Drama",
+      "Fantasy",
+      "Romance"
+    ],
+    "state": "none",
+    "libraryId": null,
+    "badge": null
+  },
+  "tagline": null,
+  "runtime": 120,
+  "certification": "PG",
+  "genres": [
+    "Drama",
+    "Fantasy",
+    "Romance"
+  ],
+  "trailerKey": null,
+  "cast": [
+    {
+      "id": 501,
+      "name": "A. Actor",
+      "character": "Lead",
+      "profilePath": "/actor.jpg"
+    }
+  ],
+  "providers": [
+    "Peacock"
+  ],
+  "watchOn": [
+    {
+      "name": "Peacock",
+      "logoPath": null
+    }
+  ],
+  "ratings": {
+    "tmdb": {
+      "score": 7.4,
+      "votes": 1200
+    },
+    "imdb": null,
+    "rottenTomatoes": null,
+    "metacritic": null,
+    "imdbId": "tt0402431"
+  },
+  "seasons": [],
+  "similar": {
+    "id": "similar",
+    "title": "More like this",
+    "subtitle": null,
+    "items": [
+      {
+        "kind": "movie",
+        "tmdbId": 1241982,
+        "title": "Moana 2",
+        "year": 2024,
+        "posterPath": "/moana2.jpg",
+        "backdropPath": "/back1241982.jpg",
+        "overview": "About Moana 2.",
+        "score": 7,
+        "genres": [
+          "Animation",
+          "Family",
+          "Adventure"
+        ],
+        "state": "none",
+        "libraryId": null,
+        "badge": null
+      },
+      {
+        "kind": "movie",
+        "tmdbId": 1064213,
+        "title": "Anora",
+        "year": 2024,
+        "posterPath": "/anora.jpg",
+        "backdropPath": "/back1064213.jpg",
+        "overview": "About Anora.",
+        "score": 7.1,
+        "genres": [
+          "Drama",
+          "Comedy",
+          "Romance"
+        ],
+        "state": "none",
+        "libraryId": null,
+        "badge": null
+      }
+    ]
+  },
+  "request": null,
+  "canRequest": true,
+  "note": null,
+  "collection": null
+}

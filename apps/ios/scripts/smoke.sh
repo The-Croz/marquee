@@ -23,4 +23,4 @@ apps/ios/scripts/seed-demo.sh "http://localhost:$PORT"
 make -C apps/ios project >/dev/null
 xcodebuild test -project apps/ios/Marquee.xcodeproj -scheme Marquee \
   -destination "platform=iOS Simulator,name=$SIM" \
-  -derivedDataPath apps/ios/build -only-testing:MarqueeUITests 2>&1 | tail -25
+  -derivedDataPath apps/ios/build -only-testing:MarqueeUITests 2>&1 | tee "$LOG.test" | grep -E "error:|\*\* TEST" || tail -25 "$LOG.test"
