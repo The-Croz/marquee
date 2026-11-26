@@ -26,7 +26,7 @@ export function apnsView(db: Db): ApnsSettingsView {
     keySet: Boolean(getSetting(db, K.key)),
     keyId: getSetting(db, K.keyId) ?? '',
     teamId: getSetting(db, K.teamId) ?? '',
-    bundleId: getSetting(db, K.bundleId) ?? 'app.marquee.ios',
+    bundleId: getSetting(db, K.bundleId) ?? 'marquee.ios.app',
     ready: readApns(db) !== null,
   };
 }

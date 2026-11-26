@@ -1,6 +1,6 @@
 name: Marquee
 options:
-  bundleIdPrefix: app.marquee
+  bundleIdPrefix: marquee.ios
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -12,7 +12,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: 5BHPMRU3T8
+    DEVELOPMENT_TEAM: 2PAYMW97LM
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
@@ -49,7 +49,7 @@ targets:
         UIAppFonts:
           - InstrumentSerif-Regular.ttf
         CFBundleURLTypes:
-          - CFBundleURLName: app.marquee.ios
+          - CFBundleURLName: marquee.ios.app
             CFBundleURLSchemes:
               - marquee
         NSAppTransportSecurity:
@@ -60,7 +60,7 @@ targets:
         NSSupportsLiveActivitiesFrequentUpdates: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios
+        PRODUCT_BUNDLE_IDENTIFIER: marquee.ios.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
@@ -84,7 +84,7 @@ targets:
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.notify
+        PRODUCT_BUNDLE_IDENTIFIER: marquee.ios.app.notify
         TARGETED_DEVICE_FAMILY: "1"
 
   # The Lock Screen card that follows a download.
@@ -107,7 +107,7 @@ targets:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: marquee.ios.app.widgets
         TARGETED_DEVICE_FAMILY: "1"
 
   MarqueeUITests:
@@ -119,7 +119,7 @@ targets:
       - target: Marquee
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.marquee.ios.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: marquee.ios.app.uitests
         TEST_TARGET_NAME: Marquee
         GENERATE_INFOPLIST_FILE: YES
 

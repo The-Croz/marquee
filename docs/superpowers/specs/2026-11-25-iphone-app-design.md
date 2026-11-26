@@ -35,7 +35,7 @@ Josh runs Marquee and mostly reaches it from his phone: checking what's download
 - Server: Hono on Node 22, SQLite, append-only migrations, every route tested with `makeApp()`/`call()` and fakes (CLAUDE.md).
 - Writes stay JSON (`Content-Type: application/json`); the app sends JSON anyway.
 - Josh's Mac has Xcode 27.2 and iPhone 17/18 simulators.
-- **Signing uses Josh's personal Apple account only, never the work (Renovation Church) team**, even though Xcode is signed in to both. `project.yml` sets `DEVELOPMENT_TEAM` explicitly to the personal team, never "automatic" team picking. As of 2026-11-25 the personal team in Xcode is a free Personal Team (`5BHPMRU3T8`): it can build to Josh's own iPhone (the install expires after 7 days) but can't send push, use Live Activity push updates or TestFlight. Those need the personal account enrolled in the paid Apple Developer Program, which Josh is doing now (2026-11-25); when it's done the personal team id changes and `project.yml` is updated. Phases 1 and 2 don't depend on it.
+- **Signing uses Josh's personal Apple account only, never the work (Renovation Church) team**, even though Xcode is signed in to both. `project.yml` sets `DEVELOPMENT_TEAM` explicitly to the personal team, never "automatic" team picking. As of 2026-11-25 the personal team is the free Personal Team of Josh's own Apple ID (`2PAYMW97LM`; `5BHPMRU3T8` is the church Apple ID's personal team and must never be used): it can build to Josh's own iPhone (the install expires after 7 days) but can't send push, use Live Activity push updates or TestFlight. Those need the personal account enrolled in the paid Apple Developer Program, which Josh is doing now (2026-11-25); when it's done the personal team id changes and `project.yml` is updated. Phases 1 and 2 don't depend on it.
 - Marquee runs on Josh's LAN, reached from outside through Pangolin, and **Pangolin puts its own sign-in in front of Marquee** (Josh, 2026-11-25). An app call through it would get Pangolin's sign-in page, not JSON. Setup step (Josh, in Pangolin): a rule on the Marquee resource that skips Pangolin's sign-in for `/api/*`, so Marquee's own sign-in protects the API while the web pages stay behind Pangolin. The app's address check spots an HTML answer and says so: "Pangolin's sign-in is in the way. In Pangolin, add a rule to the Marquee resource that skips sign-in for /api/*." The OIDC/Plex sheet may show Pangolin's sign-in first; that's fine, it's a browser.
 - App Transport Security: allow local networking (`NSAllowsLocalNetworking`) for the Home address (LAN IP or `.local`); the Outside (Pangolin) address must be HTTPS.
 - TMDB images: the web app already loads sized images straight from `image.tmdb.org/t/p/w92…/w500…/original` and the server stores `posterPath`, `backdropPath` and a `posterColor` per title. The app does the same; no image proxy needed.
@@ -53,7 +53,7 @@ Josh runs Marquee and mostly reaches it from his phone: checking what's download
 - `apps/ios/` in this repo. `project.yml` (XcodeGen) generates `Marquee.xcodeproj`; the generated project is not committed. A `Makefile`/script: `make ios` (generate + build), `make ios-test`.
 - Targets: `Marquee` (app), `MarqueeKit` (Swift package inside `apps/ios/Packages/MarqueeKit`: API client, models, stores; no UI), `MarqueeUI` (design system: tokens, components), `MarqueeWidgets` (Live Activity), `MarqueeNotify` (Notification Service Extension for cover art on pushes), `MarqueeTests`, `MarqueeUITests`.
 - iOS 26.0 minimum, Swift 6 strict concurrency, SwiftUI + Observation (`@Observable`), async/await `URLSession`. No third-party dependencies to start. Fonts: Instrument Serif (OFL) bundled for titles; body text is the system font (SF Pro) so Dynamic Type works (a change from the web's Inter: native feel wins on iOS).
-- Bundle id `app.marquee.ios` (builder's call; Josh can change). App group shared with the widget and notification extensions.
+- Bundle id `marquee.ios.app` (Josh's pick; `app.marquee.ios` was taken by the church Apple ID's team). App group shared with the widget and notification extensions.
 
 ### Look (from the mockups)
 
@@ -140,7 +140,7 @@ Each phase updates `docs/PLAN.md` Milestone 7.
 ## Left to the builder
 
 - Exact Swift module layout inside the targets, view model shapes, file names.
-- Bundle id and app group name (suggested `app.marquee.ios`, `group.app.marquee`).
+- Bundle id and app group name (suggested `marquee.ios.app`, `group.app.marquee`).
 - Skeleton and empty-state art, haptics, animation details, within the mockups' look.
 - Which web components to mirror one-for-one versus simplify for the phone, as long as every feature in the Screens table is reachable.
 - App icon: a first pass in the amber/ink look; Josh reviews.

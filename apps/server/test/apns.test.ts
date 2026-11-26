@@ -28,7 +28,7 @@ async function setup() {
   dbRef = t.db;
   const admin = await setupAdmin(t.app);
   await call(t.app, 'PUT', '/api/settings/services', { tmdbApiKey: 'good-key' }, admin);
-  const configure = () => call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, admin);
+  const configure = () => call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, admin);
   const signInPhone = async (username: string, password: string, device = phone('phone-aaaa-1111', "Josh's iPhone")) => {
     const r = await call(t.app, 'POST', '/api/auth/login', { username, password, device });
     const list = await call(t.app, 'GET', '/api/me/devices', undefined, undefined, { authorization: `Bearer ${r.body.token}` });
@@ -42,15 +42,15 @@ async function setup() {
 describe('the Apple key settings', () => {
   it('saves the key and never sends it back', async () => {
     const t = await setup();
-    const saved = await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, t.admin);
-    expect(saved.body).toEqual({ keySet: true, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios', ready: true });
+    const saved = await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: apple.privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, t.admin);
+    expect(saved.body).toEqual({ keySet: true, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app', ready: true });
     const read = await call(t.app, 'GET', '/api/settings/notifications/apns', undefined, t.admin);
     expect(JSON.stringify(read.body)).not.toMatch(/PRIVATE KEY|MIG/);
   });
 
   it('refuses something that is not a push key, in plain words', async () => {
     const t = await setup();
-    const bad = await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: 'hello', keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, t.admin);
+    const bad = await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: 'hello', keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, t.admin);
     expect(bad.status).toBe(400);
     expect(bad.body.message).toMatch(/doesn’t look like an Apple push key/);
     expect(JSON.stringify(bad.body)).not.toContain('hello');
@@ -58,10 +58,10 @@ describe('the Apple key settings', () => {
 
   it('keeps the saved key when the key is left blank, and needs one the first time', async () => {
     const t = await setup();
-    const first = await call(t.app, 'PUT', '/api/settings/notifications/apns', { keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, t.admin);
+    const first = await call(t.app, 'PUT', '/api/settings/notifications/apns', { keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, t.admin);
     expect(first.status).toBe(400);
     await t.configure();
-    const again = await call(t.app, 'PUT', '/api/settings/notifications/apns', { keyId: 'NEWKEYID12', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, t.admin);
+    const again = await call(t.app, 'PUT', '/api/settings/notifications/apns', { keyId: 'NEWKEYID12', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, t.admin);
     expect(again.body).toMatchObject({ keySet: true, keyId: 'NEWKEYID12', ready: true });
   });
 
@@ -149,7 +149,7 @@ describe('sending to a phone', () => {
     expect(apple.pushes).toHaveLength(1);
     const push = apple.pushes[0]!;
     expect(push).toMatchObject({ token: TOKEN, jwtOk: true, jwtKeyId: 'KEYID12345', jwtTeamId: 'TEAMID1234' });
-    expect(push.headers['apns-topic']).toBe('app.marquee.ios');
+    expect(push.headers['apns-topic']).toBe('marquee.ios.app');
     expect(push.headers['apns-push-type']).toBe('alert');
     expect(push.payload.aps.category).toBe('request_waiting');
     expect(push.payload.requestId).toBe(asked.body.id);
@@ -193,7 +193,7 @@ describe('sending to a phone', () => {
   it('says plainly when Apple turns the key down, and keeps the channel', async () => {
     const t = await setup();
     // A different key than the fake Apple knows.
-    await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: new FakeApple().privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'app.marquee.ios' }, t.admin);
+    await call(t.app, 'PUT', '/api/settings/notifications/apns', { key: new FakeApple().privateKeyPem, keyId: 'KEYID12345', teamId: 'TEAMID1234', bundleId: 'marquee.ios.app' }, t.admin);
     const p = await t.signInPhone('josh', 'correct horse battery');
     await call(t.app, 'POST', `/api/me/devices/${p.id}/push`, { token: TOKEN }, undefined, p.bearer);
     const test = await call(t.app, 'POST', '/api/settings/notifications/apns/test', {}, t.admin);

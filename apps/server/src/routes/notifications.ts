@@ -280,7 +280,7 @@ const apnsBody = z.object({
   key: z.string().max(5000).optional(),
   keyId: z.string().trim().regex(/^[A-Z0-9]{10}$/, 'A key id is 10 letters and numbers, like ABC123DEFG.'),
   teamId: z.string().trim().regex(/^[A-Z0-9]{10}$/, 'A team id is 10 letters and numbers, like ABC123DEFG.'),
-  bundleId: z.string().trim().regex(/^[A-Za-z0-9.-]{3,100}$/, 'The app id looks like app.marquee.ios.'),
+  bundleId: z.string().trim().regex(/^[A-Za-z0-9.-]{3,100}$/, 'The app id looks like marquee.ios.app.'),
 });
 
 channelRoutes.get('/apns', (c) => {
