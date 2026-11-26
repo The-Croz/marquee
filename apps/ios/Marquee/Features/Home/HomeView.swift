@@ -16,7 +16,8 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
         }
-        .task { model = HomeModel(app: app) }
+        // Once only: the refresh loop below holds on to the first model, so a new one would never load.
+        .task { if model == nil { model = HomeModel(app: app) } }
     }
 
     @ViewBuilder
@@ -129,7 +130,10 @@ struct HomeView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(data.onItsWay) { d in
-                            ProgressCard(backdrop: nil, poster: d.posterPath, title: d.title, progress: d.percent / 100, detail: d.label)
+                            TitleLink(href: d.href) {
+                                ProgressCard(poster: d.posterPath, title: d.title, progress: d.percent / 100, detail: d.label)
+                            }
+                            .accessibilityIdentifier("on-its-way-\(d.id)")
                         }
                     }
                     .padding(.trailing, 16)
@@ -143,7 +147,7 @@ struct HomeView: View {
                 SectionTitle(text: "Your requests")
                 PanelCard {
                     ForEach(data.myRequests) { r in
-                        RequestRow(request: r).padding(.horizontal, 12)
+                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
                         if r.id != data.myRequests.last?.id { Divider().overlay(Color.line) }
                     }
                 }
@@ -157,7 +161,7 @@ struct HomeView: View {
                 PanelCard {
                     let shown = Array(data.recentRequests.prefix(4))
                     ForEach(shown) { r in
-                        RequestRow(request: r).padding(.horizontal, 12)
+                        RequestLink(request: r) { RequestRow(request: r).padding(.horizontal, 12) }
                         if r.id != shown.last?.id { Divider().overlay(Color.line) }
                     }
                 }
@@ -329,6 +333,27 @@ struct RequestRow: View {
         case .looking, .pending: .needsYou
         default: .neutral
         }
+    }
+}
+
+/// A request you can tap: its page in the library once it has one, else what TMDB says about it.
+struct RequestLink<Label: View>: View {
+    let request: RequestView
+    @ViewBuilder var label: Label
+    @State private var info: DiscoverCard?
+
+    var body: some View {
+        // The stack keeps the sheet up if the request gains a library page while it's open.
+        VStack(spacing: 0) {
+            if let route = TitleRoute(webPath: request.href) {
+                NavigationLink(value: route) { label.contentShape(Rectangle()) }
+            } else {
+                Button { info = DiscoverCard(request: request) } label: { label.contentShape(Rectangle()) }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("request-\(request.id)")
+        .sheet(item: $info) { DiscoverTitleSheet(card: $0) }
     }
 }
 

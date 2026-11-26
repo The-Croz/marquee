@@ -36,6 +36,7 @@ final class DownloadsModel {
             forbidden = false
         } catch {
             if case .signedOut = error { app.handle(error); return }
+            if case .cancelled = error { return }
             if error.isForbidden { forbidden = true } else { loadProblem = error }
         }
         loading = false

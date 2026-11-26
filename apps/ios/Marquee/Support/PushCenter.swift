@@ -23,7 +23,7 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
     var problem: String?
     private weak var app: AppModel?
     private var token: String?
-    private var wantsOn = false
+    private let choice = PushChoice()
 
     func install(app: AppModel) {
         self.app = app
@@ -34,30 +34,60 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
         center.setNotificationCategories([UNNotificationCategory(identifier: PushSupport.requestCategory, actions: [approve, turnDown], intentIdentifiers: [])])
     }
 
-    /// Reads where things stand: what iOS allows, and whether Marquee has this phone's token.
+    /// The first open of the app: iOS shows its "allow notifications?" popup. Once answered, it never shows again.
+    func askOnFirstOpen() async {
+        guard await permission() == .notAsked else { return }
+        _ = await requestPermission()
+        await refresh()
+    }
+
+    /// Notifications are on unless the person switched them off here or iOS says no. Called after signing in and
+    /// when the app comes back, so signing out and in again needs nothing from them.
     func refresh() async {
-        guard let app, app.phase == .signedIn else { return }
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        if settings.authorizationStatus == .denied {
-            status = .blocked
+        guard let app, app.phase == .signedIn, let user = app.user else { return }
+        switch PushSupport.plan(permission: await permission(), switchedOff: choice.isOff(userID: user.id)) {
+        case .blocked:
             // iOS says no, so Marquee must stop sending here too (the person can't switch it off any more).
-            if let id = await currentDeviceID() {
-                struct Ok: Decodable, Sendable {}
-                let _: Ok? = try? await app.client.send("DELETE", "/api/me/devices/\(id)/push", body: EmptyBody())
-            }
-            return
+            status = .blocked
+            await removeFromMarquee()
+        case .off:
+            status = .off
+            await removeFromMarquee()
+        case .ask:
+            await requestAndRegister()
+        case .register:
+            let list: DevicesResponse? = try? await app.client.get("/api/me/devices")
+            status = list?.devices.first(where: \.current)?.push == true ? .on : .off
+            UIApplication.shared.registerForRemoteNotifications()
         }
-        let list: DevicesResponse? = try? await app.client.get("/api/me/devices")
-        let on = list?.devices.first(where: \.current)?.push ?? false
-        status = on ? .on : .off
-        if on, settings.authorizationStatus == .authorized { UIApplication.shared.registerForRemoteNotifications() }
     }
 
     func turnOn() async {
         problem = nil
-        wantsOn = true
-        let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-        guard granted else {
+        if let user = app?.user { choice.set(off: false, userID: user.id) }
+        await requestAndRegister()
+    }
+
+    func turnOff() async {
+        if let user = app?.user { choice.set(off: true, userID: user.id) }
+        status = .off
+        await removeFromMarquee()
+    }
+
+    private func permission() async -> PushSupport.Permission {
+        switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
+        case .notDetermined: .notAsked
+        case .denied: .denied
+        default: .allowed
+        }
+    }
+
+    private func requestPermission() async -> Bool {
+        (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+    }
+
+    private func requestAndRegister() async {
+        guard await requestPermission() else {
             status = .blocked
             return
         }
@@ -65,12 +95,10 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
         // The token arrives in the app delegate, which calls `didRegister`.
     }
 
-    func turnOff() async {
-        wantsOn = false
+    private func removeFromMarquee() async {
         guard let app, let id = await currentDeviceID() else { return }
         struct Ok: Decodable, Sendable {}
         let _: Ok? = try? await app.client.send("DELETE", "/api/me/devices/\(id)/push", body: EmptyBody())
-        status = .off
     }
 
     func didRegister(token data: Data) {
@@ -90,7 +118,7 @@ final class PushCenter: NSObject, UNUserNotificationCenterDelegate {
     }
 
     private func sendToken() async {
-        guard let app, let token else { return }
+        guard let app, let token, app.phase == .signedIn, let user = app.user, !choice.isOff(userID: user.id) else { return }
         guard let id = await currentDeviceID() else {
             problem = "Couldn't reach Marquee to turn notifications on. Check your connection and try again."
             status = .off

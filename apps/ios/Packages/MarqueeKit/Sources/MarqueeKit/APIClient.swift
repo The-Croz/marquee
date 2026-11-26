@@ -178,6 +178,8 @@ public actor APIClient {
                     continue
                 }
                 throw error
+            } catch is CancellationError {
+                throw .cancelled
             } catch {
                 throw .decoding("\(error)")
             }

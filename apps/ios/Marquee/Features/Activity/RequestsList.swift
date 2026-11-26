@@ -11,7 +11,8 @@ struct RequestsList: View {
         Group {
             if let model { content(model) } else { Color.ink }
         }
-        .task { model = RequestsModel(app: app) }
+        // Once only: the refresh loop below holds on to the first model, so a new one would never load.
+        .task { if model == nil { model = RequestsModel(app: app) } }
     }
 
     @ViewBuilder
@@ -76,7 +77,7 @@ struct RequestsList: View {
 
                 Section {
                     ForEach(model.recent) { r in
-                        RequestRow(request: r).listRowBackground(Color.panel)
+                        RequestLink(request: r) { RequestRow(request: r) }.listRowBackground(Color.panel)
                     }
                 } header: {
                     Text("Recent").font(.title3.weight(.bold)).foregroundStyle(.textPrimary).textCase(nil)
@@ -87,7 +88,7 @@ struct RequestsList: View {
                         MessageView(title: "You haven't asked for anything yet.", detail: "Ask for a movie or show from Discover.").listRowBackground(Color.clear)
                     }
                     ForEach(model.items) { r in
-                        RequestRow(request: r, showsPerson: false)
+                        RequestLink(request: r) { RequestRow(request: r, showsPerson: false) }
                             .listRowBackground(Color.panel)
                             .swipeActions(edge: .trailing) {
                                 if r.state == .pending {

@@ -64,6 +64,13 @@ public struct DiscoverCard: Codable, Hashable, Sendable, Identifiable {
     }
 }
 
+extension DiscoverCard {
+    /// A request as a title that can be opened. The rest (the story, the artwork) comes with the title's information.
+    public init(request r: RequestView) {
+        self.init(kind: r.kind.wire, tmdbId: r.tmdbId, title: r.title, year: r.year, posterPath: r.posterPath, backdropPath: nil, overview: "", score: nil, genres: [], state: .none, libraryId: nil, badge: nil)
+    }
+}
+
 public struct DiscoverRow: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var title: String

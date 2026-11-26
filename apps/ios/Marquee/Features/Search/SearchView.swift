@@ -32,6 +32,7 @@ final class SearchModel {
             searched = true
         } catch {
             if case .signedOut = error { app.handle(error); return }
+            if case .cancelled = error { return }
             problem = error.fullText
         }
     }
@@ -82,7 +83,7 @@ struct SearchView: View {
             .scrollContentBackground(.hidden)
             .background(.ink)
             .navigationTitle("Search")
-            .searchable(text: $model.query, prompt: "Movies and shows")
+            .searchable(text: $model.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Movies and shows")
             .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
             .overlay { if model.searching && model.inLibrary.isEmpty && model.elsewhere.isEmpty { ProgressView().tint(.amber) } }
         }

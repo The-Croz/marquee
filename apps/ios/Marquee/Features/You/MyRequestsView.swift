@@ -14,7 +14,7 @@ struct MyRequestsScreen: View {
                     MessageView(title: "You haven't asked for anything yet.", detail: "Ask for a movie or show from Discover or Search.").listRowBackground(Color.clear)
                 }
                 ForEach(items) { r in
-                    RequestRow(request: r, showsPerson: false)
+                    RequestLink(request: r) { RequestRow(request: r, showsPerson: false) }
                         .listRowBackground(Color.panel)
                         .swipeActions(edge: .trailing) {
                             if r.state == .pending {
@@ -29,6 +29,7 @@ struct MyRequestsScreen: View {
         }
         .background(.ink)
         .navigationTitle("My requests")
+        .navigationDestination(for: TitleRoute.self) { TitleView(route: $0) }
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .problemAlert($problem)

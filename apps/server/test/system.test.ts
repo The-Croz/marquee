@@ -259,17 +259,9 @@ describe('free space', () => {
 // ---------------- Backups ----------------
 
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
-/** Undoes the newest migration (33, which tidies away OMDb): puts an old OMDb key back, which the upgrade removes. */
 const UNDO_NEWEST = {
-  sql: [
-    'DROP TABLE live_activities',
-    "DELETE FROM notification_channels WHERE kind = 'apns'",
-    `CREATE TABLE notification_channels_old (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL CHECK (kind IN ('pushover', 'ntfy', 'webhook')), name TEXT NOT NULL, config TEXT NOT NULL DEFAULT '{}', events TEXT NOT NULL DEFAULT '[]', enabled INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, last_ok_at INTEGER, last_error TEXT, user_id INTEGER REFERENCES users (id) ON DELETE CASCADE)`,
-    'INSERT INTO notification_channels_old SELECT id, kind, name, config, events, enabled, created_at, last_ok_at, last_error, user_id FROM notification_channels',
-    'DROP TABLE notification_channels',
-    'ALTER TABLE notification_channels_old RENAME TO notification_channels',
-  ],
-  tables: ['live_activities'],
+  sql: ['ALTER TABLE devices DROP COLUMN push_events'],
+  tables: ['devices'],
 };
 
 describe('backups', () => {

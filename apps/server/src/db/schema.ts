@@ -59,6 +59,8 @@ export const devices = sqliteTable('devices', {
   sessionId: text('session_id'),
   createdAt: integer('created_at').notNull(),
   lastSeenAt: integer('last_seen_at').notNull(),
+  /** The messages chosen for this phone, kept while it has no push channel (JSON; null = never chosen). */
+  pushEvents: text('push_events'),
 });
 
 /** Short-lived state for multi-step sign-ins (OIDC redirects, Plex PINs). */

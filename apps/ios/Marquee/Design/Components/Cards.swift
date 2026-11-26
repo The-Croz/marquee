@@ -21,34 +21,32 @@ struct CountTile: View {
     }
 }
 
-/// A wide card for something downloading: the artwork behind the title, with a thin bar.
+/// Something on its way: its poster, name, how far along it is and what's happening.
 struct ProgressCard: View {
-    let backdrop: String?
     let poster: String?
     let title: String
     let progress: Double
     let detail: String
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            Placeholder.fill(title: title, color: nil)
-            if let url = TMDBImage.url(path: backdrop ?? poster, size: backdrop == nil ? .w342 : .w1280) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image { image.resizable().scaledToFill() }
-                }
+        HStack(spacing: 12) {
+            PosterView(path: poster, color: nil, title: title, size: .w185).frame(width: 64).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.textPrimary).lineLimit(2).multilineTextAlignment(.leading)
+                Text(detail).font(.caption).foregroundStyle(.muted).lineLimit(2).multilineTextAlignment(.leading)
+                ProgressView(value: min(max(progress, 0), 1))
+                    .progressViewStyle(BarStyle(fill: .downloadBlue, track: .white.opacity(0.14)))
             }
-            LinearGradient(colors: [.clear, .black.opacity(0.78)], startPoint: .center, endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.titleSerif(26)).foregroundStyle(.white).lineLimit(2).minimumScaleFactor(0.7)
-                Text(detail).font(.caption).foregroundStyle(.white.opacity(0.85)).lineLimit(1)
-                ProgressView(value: progress)
-                    .progressViewStyle(BarStyle(fill: .white, track: .white.opacity(0.25)))
-            }
-            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 260, height: 146)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .accessibilityElement(children: .combine)
+        .padding(10)
+        .frame(width: 290)
+        .frame(minHeight: 116)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.line, lineWidth: 1))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
         .accessibilityValue("\(Int(progress * 100)) percent. \(detail)")
     }
 }
@@ -134,7 +132,7 @@ struct Skeleton: View {
 #Preview {
     VStack {
         HStack { CountTile(count: 3, label: "On the way", tint: .downloadBlue); CountTile(count: 1, label: "Watching", tint: .readyTeal); CountTile(count: 3, label: "Need you", tint: .warn) }
-        ProgressCard(backdrop: nil, poster: nil, title: "Severance · S2 E8", progress: 0.24, detail: "Downloading · 21 min left")
+        ProgressCard(poster: nil, title: "Severance · S2 E8", progress: 0.24, detail: "Downloading · 21 min left")
         StateLine(text: "Stuck · nobody is sharing it", tone: .needsYou)
         MessageView(title: "Can't reach Marquee", detail: "Check you're on your home Wi-Fi.", actionTitle: "Try again") {}
     }

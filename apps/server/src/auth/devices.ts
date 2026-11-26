@@ -4,7 +4,7 @@ import type { DeviceView } from '@marquee/shared';
 import type { Db } from '../db/index.js';
 import { devices, notificationChannels, sessions, type User } from '../db/schema.js';
 import { forgetPushForDevice } from './pushCleanup.js';
-import { defaultEventsFor } from '../notify/events.js';
+import { defaultEventsFor, eventsFor } from '../notify/events.js';
 import { APP_SESSION_TTL, createSession, hashToken } from './sessions.js';
 
 export const appDeviceSchema = z.object({
@@ -77,6 +77,13 @@ export function signOutDevice(db: Db, sessionId: string): void {
 /** Forgets this phone's push channel and Lock Screen cards (signing out, or removing the phone, turns push off). */
 export const dropPush = forgetPushForDevice;
 
+/** What this phone was last set to get (leaving out anything the person may no longer get), else the usual messages. */
+function startingEvents(user: User, kept: string | null): string[] {
+  if (kept === null) return defaultEventsFor(user);
+  const allowed = new Set(eventsFor(user.role).map((e) => e.key));
+  return (JSON.parse(kept) as string[]).filter((key) => allowed.has(key));
+}
+
 /** Turns push on for this phone: one channel per phone, however often it registers. Its token is kept in the channel's config (never sent back). */
 export function registerPush(db: Db, user: User, deviceId: string, token: string, environment: 'production' | 'sandbox', now: number): boolean {
   const device = db.select().from(devices).where(and(eq(devices.id, deviceId), eq(devices.userId, user.id))).get();
@@ -84,6 +91,6 @@ export function registerPush(db: Db, user: User, deviceId: string, token: string
   const config = JSON.stringify({ deviceId, token, environment });
   const existing = db.select().from(notificationChannels).where(and(eq(notificationChannels.userId, user.id), eq(notificationChannels.kind, 'apns'))).all().find((ch) => (JSON.parse(ch.config) as { deviceId?: string }).deviceId === deviceId);
   if (existing) db.update(notificationChannels).set({ config, name: device.name, enabled: true }).where(eq(notificationChannels.id, existing.id)).run();
-  else db.insert(notificationChannels).values({ kind: 'apns', name: device.name, userId: user.id, config, events: JSON.stringify(defaultEventsFor(user)), createdAt: now }).run();
+  else db.insert(notificationChannels).values({ kind: 'apns', name: device.name, userId: user.id, config, events: JSON.stringify(startingEvents(user, device.pushEvents)), createdAt: now }).run();
   return true;
 }

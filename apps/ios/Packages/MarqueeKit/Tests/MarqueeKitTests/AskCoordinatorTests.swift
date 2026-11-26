@@ -26,6 +26,15 @@ private final class Sent {
         #expect(c.waiting == nil)
     }
 
+    /// A cancelled task makes URLSession give up, so the ask would never reach Marquee.
+    @Test func theSendAfterTheWindowIsNotCancelled() async throws {
+        var cancelled: [Bool] = []
+        let c = AskCoordinator(delay: .milliseconds(40)) { _ in cancelled.append(Task.isCancelled) }
+        c.ask(dune)
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(cancelled == [false])
+    }
+
     @Test func undoSendsNothing() async throws {
         let sent = Sent()
         let c = make(sent)
