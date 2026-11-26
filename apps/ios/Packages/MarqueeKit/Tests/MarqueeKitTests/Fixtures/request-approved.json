@@ -1,0 +1,22 @@
+{
+  "id": 1,
+  "kind": "movie",
+  "tmdbId": 693134,
+  "title": "Dune: Part Two",
+  "year": 2024,
+  "posterPath": "/dune2.jpg",
+  "seasons": null,
+  "requestedBy": {
+    "id": 2,
+    "name": "Jessie"
+  },
+  "state": "downloading",
+  "stateText": "Found a copy. The download is starting.",
+  "searchNote": null,
+  "profile": null,
+  "reason": null,
+  "decidedBy": "Josh",
+  "createdAt": 1795608000000,
+  "decidedAt": 1795608000000,
+  "href": "/movies/1"
+}

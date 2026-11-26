@@ -1,0 +1,88 @@
+{
+  "needsYou": [],
+  "watching": [],
+  "onItsWay": [],
+  "myRequests": [
+    {
+      "id": 3,
+      "kind": "movie",
+      "tmdbId": 1022789,
+      "title": "Inside Out 2",
+      "year": 2024,
+      "posterPath": "/io2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 3,
+        "name": "Kiddo"
+      },
+      "state": "pending",
+      "stateText": "Waiting for an admin to approve it.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": null,
+      "createdAt": 1795608000000,
+      "decidedAt": null,
+      "href": null
+    }
+  ],
+  "recentRequests": [
+    {
+      "id": 3,
+      "kind": "movie",
+      "tmdbId": 1022789,
+      "title": "Inside Out 2",
+      "year": 2024,
+      "posterPath": "/io2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 3,
+        "name": "Kiddo"
+      },
+      "state": "pending",
+      "stateText": "Waiting for an admin to approve it.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": null,
+      "createdAt": 1795608000000,
+      "decidedAt": null,
+      "href": null
+    }
+  ],
+  "recent": [
+    {
+      "title": "Wicked",
+      "sub": "Movie · 4K",
+      "posterPath": "/wicked.jpg",
+      "posterColor": "#2e4a3a",
+      "href": "/movies/3",
+      "addedAt": 1795600800000
+    }
+  ],
+  "upcoming": [],
+  "stats": [],
+  "hero": {
+    "kind": "arrived",
+    "eyebrow": "Just arrived · 2 hours ago",
+    "title": "Wicked",
+    "chips": [
+      "4K"
+    ],
+    "href": "/movies/3",
+    "backdropPath": "/wicked-bg.jpg",
+    "posterPath": "/wicked.jpg",
+    "color": "#2e4a3a",
+    "progress": null,
+    "note": null,
+    "year": 2024,
+    "rating": "PG",
+    "runtime": 120,
+    "genres": [],
+    "score": 7.4,
+    "votes": 1200,
+    "overview": null,
+    "kindLabel": "Movie"
+  },
+  "setup": null
+}

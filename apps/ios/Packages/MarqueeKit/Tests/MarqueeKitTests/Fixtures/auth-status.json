@@ -1,0 +1,29 @@
+{
+  "setupRequired": false,
+  "providers": {
+    "password": true,
+    "oidc": {
+      "enabled": false,
+      "name": ""
+    },
+    "plex": {
+      "enabled": false
+    },
+    "jellyfin": {
+      "enabled": false
+    }
+  },
+  "user": {
+    "id": 1,
+    "username": "josh",
+    "displayName": "Josh",
+    "role": "admin",
+    "linked": {
+      "plex": false,
+      "oidc": false,
+      "password": true,
+      "jellyfin": false
+    }
+  },
+  "version": "dev"
+}

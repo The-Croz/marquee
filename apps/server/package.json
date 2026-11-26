@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "demo": "tsx scripts/demo.ts",
     "trash:update": "tsx scripts/update-trash.ts",
-    "dictionarry:update": "tsx scripts/update-dictionarry.ts"
+    "dictionarry:update": "tsx scripts/update-dictionarry.ts",
+    "fixtures:ios": "WRITE_FIXTURES=1 vitest run appFixtures"
   },
   "devDependencies": {
     "@marquee/shared": "workspace:*",

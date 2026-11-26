@@ -30,3 +30,12 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # The iPhone app's logic (models, API client). Swift 6.2 needs the macOS 26 image.
+  # The fixtures it decodes are kept fresh by the server tests above.
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+        working-directory: apps/ios/Packages/MarqueeKit

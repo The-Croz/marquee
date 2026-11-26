@@ -93,6 +93,8 @@ With `PLEX_LOGIN=true`, people can link their Plex account under **Settings → 
 
 ## Develop
 
+The iPhone app lives in `apps/ios` (see its README).
+
 Requires Node 22 and pnpm.
 
 ```sh

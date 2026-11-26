@@ -1,0 +1,15 @@
+{
+  "token": "<token>",
+  "user": {
+    "id": 1,
+    "username": "josh",
+    "displayName": "Josh",
+    "role": "admin",
+    "linked": {
+      "plex": false,
+      "oidc": false,
+      "password": true,
+      "jellyfin": false
+    }
+  }
+}

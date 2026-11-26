@@ -1,0 +1,156 @@
+{
+  "needsYou": [],
+  "watching": [],
+  "onItsWay": [],
+  "myRequests": [
+    {
+      "id": 4,
+      "kind": "movie",
+      "tmdbId": 1064213,
+      "title": "Anora",
+      "year": 2024,
+      "posterPath": "/anora.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "declined",
+      "stateText": "Turned down: We have it on disc.",
+      "searchNote": null,
+      "profile": null,
+      "reason": "We have it on disc.",
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": null
+    },
+    {
+      "id": 1,
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "downloading",
+      "stateText": "Downloading now · 42%.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/1"
+    }
+  ],
+  "recentRequests": [
+    {
+      "id": 4,
+      "kind": "movie",
+      "tmdbId": 1064213,
+      "title": "Anora",
+      "year": 2024,
+      "posterPath": "/anora.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "declined",
+      "stateText": "Turned down: We have it on disc.",
+      "searchNote": null,
+      "profile": null,
+      "reason": "We have it on disc.",
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": null
+    },
+    {
+      "id": 1,
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "downloading",
+      "stateText": "Downloading now · 42%.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/1"
+    }
+  ],
+  "recent": [
+    {
+      "title": "Wicked",
+      "sub": "Movie · 4K",
+      "posterPath": "/wicked.jpg",
+      "posterColor": "#2e4a3a",
+      "href": "/movies/3",
+      "addedAt": 1795600800000
+    }
+  ],
+  "upcoming": [],
+  "stats": [
+    {
+      "label": "movie",
+      "value": "1",
+      "to": "/library/movies"
+    },
+    {
+      "label": "shows",
+      "value": "0",
+      "to": "/library/shows"
+    },
+    {
+      "label": "episode files",
+      "value": "0",
+      "to": "/library/shows"
+    },
+    {
+      "label": "added this week",
+      "value": "1"
+    },
+    {
+      "label": "in your library",
+      "value": "0 GB"
+    }
+  ],
+  "hero": {
+    "kind": "arrived",
+    "eyebrow": "Just arrived · 2 hours ago",
+    "title": "Wicked",
+    "chips": [
+      "4K"
+    ],
+    "href": "/movies/3",
+    "backdropPath": "/wicked-bg.jpg",
+    "posterPath": "/wicked.jpg",
+    "color": "#2e4a3a",
+    "progress": null,
+    "note": null,
+    "year": 2024,
+    "rating": "PG",
+    "runtime": 120,
+    "genres": [],
+    "score": 7.4,
+    "votes": 1200,
+    "overview": null,
+    "kindLabel": "Movie"
+  },
+  "setup": null
+}

@@ -123,8 +123,10 @@ export function signIn(c: Ctx, user: User): void {
   });
 }
 
+/** The sign-in token: the app sends `Authorization: Bearer`, browsers send the cookie. */
 export function sessionToken(c: Ctx): string | undefined {
-  return getCookie(c, SESSION_COOKIE);
+  const bearer = /^Bearer\s+(\S+)$/i.exec(c.req.header('authorization') ?? '')?.[1];
+  return bearer ?? getCookie(c, SESSION_COOKIE);
 }
 
 export function clearSessionCookie(c: Ctx): void {

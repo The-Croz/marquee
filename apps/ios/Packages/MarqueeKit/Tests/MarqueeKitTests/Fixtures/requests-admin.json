@@ -1,0 +1,92 @@
+{
+  "items": [
+    {
+      "id": 4,
+      "kind": "movie",
+      "tmdbId": 1064213,
+      "title": "Anora",
+      "year": 2024,
+      "posterPath": "/anora.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "declined",
+      "stateText": "Turned down: We have it on disc.",
+      "searchNote": null,
+      "profile": null,
+      "reason": "We have it on disc.",
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": null
+    },
+    {
+      "id": 3,
+      "kind": "movie",
+      "tmdbId": 1022789,
+      "title": "Inside Out 2",
+      "year": 2024,
+      "posterPath": "/io2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 3,
+        "name": "Kiddo"
+      },
+      "state": "pending",
+      "stateText": "Waiting for an admin to approve it.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": null,
+      "createdAt": 1795608000000,
+      "decidedAt": null,
+      "href": null
+    },
+    {
+      "id": 2,
+      "kind": "movie",
+      "tmdbId": 14160,
+      "title": "Up",
+      "year": 2009,
+      "posterPath": "/up.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 1,
+        "name": "Josh"
+      },
+      "state": "downloading",
+      "stateText": "Downloading now · 10%.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/2"
+    },
+    {
+      "id": 1,
+      "kind": "movie",
+      "tmdbId": 693134,
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "posterPath": "/dune2.jpg",
+      "seasons": null,
+      "requestedBy": {
+        "id": 2,
+        "name": "Jessie"
+      },
+      "state": "downloading",
+      "stateText": "Downloading now · 42%.",
+      "searchNote": null,
+      "profile": null,
+      "reason": null,
+      "decidedBy": "Josh",
+      "createdAt": 1795608000000,
+      "decidedAt": 1795608000000,
+      "href": "/movies/1"
+    }
+  ]
+}

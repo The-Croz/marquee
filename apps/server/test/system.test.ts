@@ -261,8 +261,8 @@ describe('free space', () => {
 /** Undoes the newest migration, to make a backup "one version behind". Update it with each new migration. */
 /** Undoes the newest migration (33, which tidies away OMDb): puts an old OMDb key back, which the upgrade removes. */
 const UNDO_NEWEST = {
-  sql: ['ALTER TABLE import_lists DROP COLUMN started_at', 'ALTER TABLE list_items DROP COLUMN poster_path'],
-  tables: [] as string[],
+  sql: ['DROP TABLE devices', 'ALTER TABLE sessions DROP COLUMN ttl'],
+  tables: ['devices'],
 };
 
 describe('backups', () => {
