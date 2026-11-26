@@ -23,6 +23,7 @@ export function settingsGroups(role: Role): SettingsGroup[] {
         { to: '/settings/account', label: 'Account', blurb: 'Your name, password and ways to sign in' },
         { to: '/settings/discover', label: 'Discover', blurb: 'What Discover shows you' },
         { to: '/settings/notifications', label: 'Notifications', blurb: 'What you hear about, and where' },
+        { to: '/settings/iphone', label: 'iPhone app', blurb: 'Install Marquee on your iPhone' },
       ],
     },
     ...(admin
@@ -285,7 +286,7 @@ function YourPhones() {
     <Card className="flex flex-col gap-1">
       <h2 className="m-0 mb-3 text-lg font-semibold">Your phones</h2>
       {error && <Notice tone="error">{error}</Notice>}
-      {phones.length === 0 && <p className="m-0 text-sm text-muted">No phones are signed in. Sign in on the Marquee app on your iPhone and it will show up here.</p>}
+      {phones.length === 0 && <p className="m-0 text-sm text-muted">No phones are signed in. Install the Marquee app from Settings → iPhone app, sign in, and it will show up here.</p>}
       {phones.map((p) => (
         <div key={p.id} className="flex flex-wrap items-center gap-4 border-t border-line py-3.5">
           <div className="flex-1">

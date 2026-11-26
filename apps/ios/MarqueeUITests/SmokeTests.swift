@@ -82,4 +82,43 @@ final class SmokeTests: XCTestCase {
         let on = NSPredicate(format: "value == '1'")
         wait(for: [XCTNSPredicateExpectation(predicate: on, object: toggle)], timeout: 15)
     }
+
+    private func launch(as name: String) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["--reset-for-ui-tests", "--demo-sign-in=\(name)"]
+        app.launch()
+        return app
+    }
+
+    func testKidSeesNoAdminThings() {
+        let app = launch(as: "kiddo")
+        XCTAssertTrue(app.tabBars.buttons["Discover"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.tabBars.buttons["Library"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Activity"].exists)
+        XCTAssertFalse(app.tabBars.buttons["Search"].exists)
+    }
+
+    func testMemberHasRequestsOnly() {
+        let app = launch(as: "mia")
+        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Activity"].tap()
+        XCTAssertFalse(app.buttons["Downloads"].exists)
+        XCTAssertFalse(app.buttons["Watching"].exists)
+    }
+
+    func testAdminReachesWatchingAndPeople() {
+        let app = launch(as: "josh")
+        XCTAssertTrue(app.tabBars.buttons["Activity"].waitForExistence(timeout: 20))
+        app.tabBars.buttons["Activity"].tap()
+        app.buttons["Watching"].tap()
+        XCTAssertTrue(app.staticTexts["Now watching"].waitForExistence(timeout: 10))
+        let avatars = app.buttons.matching(identifier: "avatar")
+        (avatars.allElementsBoundByIndex.first { $0.isHittable } ?? avatars.firstMatch).tap()
+        let manage = app.buttons["manage"]
+        XCTAssertTrue(manage.waitForExistence(timeout: 10))
+        manage.tap()
+        XCTAssertTrue(app.staticTexts["People"].waitForExistence(timeout: 10))
+        app.staticTexts["People"].tap()
+        XCTAssertTrue(app.buttons["person-mia"].waitForExistence(timeout: 10))
+    }
 }

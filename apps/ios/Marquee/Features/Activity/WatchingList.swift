@@ -65,15 +65,20 @@ struct WatchingList: View {
                             CountTile(count: stats.last24h, label: "in the last day", tint: .downloadBlue)
                             CountTile(count: stats.users.count, label: "people", tint: .amber)
                         }
+                        .padding(.vertical, 4)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
-                        Chart(stats.perDay) { d in
-                            BarMark(x: .value("Day", d.day), y: .value("Plays", d.plays)).foregroundStyle(Color.amber)
+                        if stats.total == 0 {
+                            Text("Nothing has been watched yet. Plays from Plex and Jellyfin show up here.").font(.footnote).foregroundStyle(.muted).listRowBackground(Color.panel)
+                        } else {
+                            Chart(stats.perDay) { d in
+                                BarMark(x: .value("Day", d.day), y: .value("Plays", d.plays)).foregroundStyle(Color.amber)
+                            }
+                            .chartXAxis(.hidden)
+                            .frame(height: 120)
+                            .listRowBackground(Color.panel)
+                            .accessibilityLabel("Plays per day, last \(stats.days) days")
                         }
-                        .chartXAxis(.hidden)
-                        .frame(height: 120)
-                        .listRowBackground(Color.panel)
-                        .accessibilityLabel("Plays per day, last \(stats.days) days")
                     } header: { header("Last \(stats.days) days") }
 
                     if !stats.movies.isEmpty || !stats.shows.isEmpty {
