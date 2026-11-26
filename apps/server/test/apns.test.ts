@@ -3,7 +3,8 @@ import { ApnsClient, apnsPayload, levelFor } from '../src/notify/apns.js';
 import { readApns } from '../src/notify/apnsSettings.js';
 import { HttpPushClient } from '../src/notify/push.js';
 import type { Db } from '../src/db/index.js';
-import { notificationChannels } from '../src/db/schema.js';
+import { eq } from 'drizzle-orm';
+import { notificationChannels, users } from '../src/db/schema.js';
 import { FakeApple } from './fakes/apns.js';
 import { FakeTmdb } from './fakes/tmdb.js';
 import { call, makeApp, setupAdmin } from './helpers.js';
@@ -135,6 +136,63 @@ describe('a phone and its channel', () => {
     await call(t.app, 'POST', `/api/me/devices/${p2.id}/push`, { token: TOKEN }, undefined, p2.bearer);
     await call(t.app, 'DELETE', `/api/me/devices/${p2.id}`, undefined, t.admin);
     expect(channels()).toBe(0);
+  });
+});
+
+describe('which messages a phone gets', () => {
+  const chosen = ['request_ready', 'stream_started'];
+
+  async function choosing() {
+    const t = await setup();
+    const p = await t.signInPhone('josh', 'correct horse battery');
+    const on = (who = p) => call(t.app, 'POST', `/api/me/devices/${who.id}/push`, { token: TOKEN }, undefined, who.bearer);
+    const channel = () => t.db.select().from(notificationChannels).all().find((c) => c.kind === 'apns')!;
+    await on();
+    const defaults = JSON.parse(channel().events) as string[];
+    const saved = await call(t.app, 'PATCH', `/api/notifications/channels/${channel().id}`, { events: chosen }, undefined, p.bearer);
+    expect(saved.status).toBe(200);
+    const events = () => (JSON.parse(channel().events) as string[]).sort();
+    return { ...t, p, on, events, defaults };
+  }
+
+  it('is remembered through switching notifications off and on', async () => {
+    const t = await choosing();
+    await call(t.app, 'DELETE', `/api/me/devices/${t.p.id}/push`, undefined, undefined, t.p.bearer);
+    await t.on();
+    expect(t.events()).toEqual(chosen);
+  });
+
+  it('is remembered through signing out and back in, even after switching off twice', async () => {
+    const t = await choosing();
+    await call(t.app, 'DELETE', `/api/me/devices/${t.p.id}/push`, undefined, undefined, t.p.bearer);
+    await call(t.app, 'POST', '/api/auth/logout', {}, undefined, t.p.bearer);
+    const again = await t.signInPhone('josh', 'correct horse battery');
+    await t.on(again);
+    expect(t.events()).toEqual(chosen);
+  });
+
+  it('remembers choosing nothing', async () => {
+    const t = await choosing();
+    t.db.update(notificationChannels).set({ events: '[]' }).run();
+    await call(t.app, 'POST', '/api/auth/logout', {}, undefined, t.p.bearer);
+    await t.on(await t.signInPhone('josh', 'correct horse battery'));
+    expect(t.events()).toEqual([]);
+  });
+
+  it('never brings back a message the person may no longer get', async () => {
+    const t = await choosing();
+    await call(t.app, 'DELETE', `/api/me/devices/${t.p.id}/push`, undefined, undefined, t.p.bearer);
+    t.db.update(users).set({ role: 'member' }).where(eq(users.username, 'josh')).run();
+    await t.on();
+    // stream_started is for admins only.
+    expect(t.events()).toEqual(['request_ready']);
+  });
+
+  it('starts with the usual messages after the phone is removed', async () => {
+    const t = await choosing();
+    await call(t.app, 'DELETE', `/api/me/devices/${t.p.id}`, undefined, t.admin);
+    await t.on(await t.signInPhone('josh', 'correct horse battery'));
+    expect(t.events()).toEqual([...t.defaults].sort());
   });
 });
 

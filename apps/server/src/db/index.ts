@@ -794,6 +794,10 @@ export const migrations: string[] = [
   );
   CREATE UNIQUE INDEX live_activities_one ON live_activities (download_id, device_id);
   `,
+  // A phone keeps its choice of messages while its notifications are off.
+  `
+  ALTER TABLE devices ADD COLUMN push_events TEXT;
+  `,
 ];
 
 export interface OpenOptions {
