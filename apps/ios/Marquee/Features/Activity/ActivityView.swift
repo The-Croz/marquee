@@ -22,6 +22,7 @@ struct ActivityView: View {
                 switch selected {
                 case .downloads: DownloadsList()
                 case .requests: RequestsList()
+                case .watching: WatchingList()
                 }
             }
             .background(.ink)

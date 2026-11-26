@@ -42,6 +42,14 @@ struct YouSheet: View {
                         .buttonStyle(.plain)
                 }
 
+                if user?.role == .admin {
+                    group("Manage") {
+                        NavigationLink { ManageHub() } label: { linkRow("Health, Sources, People and more") }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("manage")
+                    }
+                }
+
                 group("More in the web app") {
                     row("Settings, lists, backups, logs", trailing: "Opens Safari ›") {
                         Task {

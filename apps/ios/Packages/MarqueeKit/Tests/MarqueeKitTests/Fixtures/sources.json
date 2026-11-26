@@ -1,0 +1,46 @@
+{
+  "sources": [
+    {
+      "id": 1,
+      "name": "TPB",
+      "kind": "feed",
+      "siteId": null,
+      "siteName": null,
+      "siteSettings": null,
+      "canPutBack": false,
+      "url": "http://tpb.test/api",
+      "hasKey": true,
+      "enabled": true,
+      "priority": 25,
+      "private": false,
+      "forMovies": true,
+      "forTv": true,
+      "minSeeders": 1,
+      "dailyLimit": 0,
+      "seedRatio": null,
+      "seedDays": null,
+      "minGapMs": 2000,
+      "timeoutSeconds": 30,
+      "fromProwlarr": false,
+      "state": "working",
+      "stateLabel": "Working",
+      "stateMessage": null,
+      "fix": null,
+      "retryAt": null,
+      "checkedAt": 1795608000000,
+      "searchesById": "Searches by TMDB, IMDb and TVDB ID, so matches are exact.",
+      "week": {
+        "calls": 1,
+        "failures": 0,
+        "avgMs": 0,
+        "searchesToday": 0
+      }
+    }
+  ],
+  "prowlarr": {
+    "url": null,
+    "linked": false,
+    "syncedAt": null,
+    "syncMessage": null
+  }
+}

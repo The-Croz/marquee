@@ -1,0 +1,61 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "josh",
+      "displayName": "Josh",
+      "role": "admin",
+      "linked": {
+        "plex": false,
+        "oidc": false,
+        "password": true,
+        "jellyfin": false
+      },
+      "email": null,
+      "plexUsername": null,
+      "jellyfinUsername": null,
+      "createdAt": 0,
+      "lastLoginAt": null,
+      "skipApproval": false,
+      "weeklyLimit": 0
+    },
+    {
+      "id": 2,
+      "username": "mia",
+      "displayName": "Mia",
+      "role": "member",
+      "linked": {
+        "plex": false,
+        "oidc": false,
+        "password": true,
+        "jellyfin": false
+      },
+      "email": null,
+      "plexUsername": null,
+      "jellyfinUsername": null,
+      "createdAt": 0,
+      "lastLoginAt": null,
+      "skipApproval": false,
+      "weeklyLimit": 0
+    },
+    {
+      "id": 3,
+      "username": "kiddo",
+      "displayName": "Kiddo",
+      "role": "kid",
+      "linked": {
+        "plex": false,
+        "oidc": false,
+        "password": true,
+        "jellyfin": false
+      },
+      "email": null,
+      "plexUsername": null,
+      "jellyfinUsername": null,
+      "createdAt": 0,
+      "lastLoginAt": null,
+      "skipApproval": false,
+      "weeklyLimit": 0
+    }
+  ]
+}

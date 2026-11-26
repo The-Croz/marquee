@@ -161,3 +161,27 @@ enum Fixture {
         #expect(try Fixture.decode(ProfilesView.self, "profiles").profiles.first?.key == "cinema")
     }
 }
+
+@Suite struct ManageFixtureTests {
+    @Test func watching() throws {
+        let now = try Fixture.decode(ActivityNow.self, "activity-now")
+        #expect(now.sessions.first?.transcoding == true)
+        let stats = try Fixture.decode(ActivityStats.self, "activity-stats")
+        #expect(stats.perDay.count == 30)
+        #expect(stats.users.first?.name == "Mia")
+        #expect(try Fixture.decode(PeopleResponse.self, "activity-people").people.first?.devices == ["Living room TV"])
+    }
+
+    @Test func healthSourcesPeopleAndCare() throws {
+        let h = try Fixture.decode(HealthView.self, "system-health")
+        #expect(h.problems == 3)
+        #expect(h.disks.contains { $0.needsYou })
+        #expect(!h.jobs.isEmpty)
+        let s = try Fixture.decode(SourcesView.self, "sources")
+        #expect(s.sources.first?.isWorking == true)
+        let u = try Fixture.decode(UsersResponse.self, "users").users
+        #expect(u.map(\.role) == [.admin, .member, .kid])
+        #expect(try Fixture.decode(UnmatchedResponse.self, "unmatched").items.first?.candidates.first?.title == "Up")
+        #expect(try Fixture.decode(LeftOutResponse.self, "left-out").items.isEmpty)
+    }
+}
